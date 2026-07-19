@@ -1,0 +1,15 @@
+{
+  "name": "BFP FSIMS — Fire Safety Inspection Monitoring System",
+  "short_name": "FSIMS",
+  "description": "Bureau of Fire Protection Philippines — Fire Safety Inspection Monitoring System.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0F172A",
+  "theme_color": "#B91C1C",
+  "icons": [
+    { "src": "/bfpmimaropa.ico", "sizes": "any", "type": "image/x-icon", "purpose": "any" },
+    { "src": "/bfpmimaropa.ico", "sizes": "any", "type": "image/x-icon", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,830 @@
+import * as React from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Download, LayoutGrid, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { MONTHS, MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+import { buildYears } from "@/lib/utils";
+import AvatarWithFallback from "@/components/avatar-with-fallback";
+import { targetreferenceAPI } from "@/services/targetreferenceAPI";
+import { unwrap } from "@/lib/api-envelope";
+import type {
+  TargetReferenceModel,
+  ExportTargetReferenceRequest,
+  ProvinceStationSelection,
+  ProvinceExportModel,
+} from "@/types/targetreferenceType";
+import { sectorKey, resolveTargetScope } from "../helpers";
+import { useAuth } from "@/lib/auth";
+import { exportTargetMatrix } from "./matrixExport";
+import LocationMultiSelect, { type SelectedLocation } from "./LocationMultiSelect";
+import StationMultiSelect, { type SelectedStation } from "./StationMultiSelect";
+import ResetFiltersButton from "@/components/reset-filters-button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  year: number;
+  provinceno: string;
+  stationno?: string;
+  provinceName?: string;
+  stationName?: string;
+  lockFilters?: boolean;
+}
+
+const CATS = [
+  { key: "bplo", label: "BPLO" },
+  { key: "gov", label: "Gov" },
+  { key: "peza", label: "PEZA" },
+  { key: "tieza", label: "TIEZA" },
+] as const;
+type CatKey = (typeof CATS)[number]["key"];
+type Bucket = Record<CatKey, number>;
+
+const emptyBucket = (): Bucket => ({ bplo: 0, gov: 0, peza: 0, tieza: 0 });
+const addBucket = (a: Bucket, b: Bucket): Bucket => ({
+  bplo: a.bplo + b.bplo,
+  gov: a.gov + b.gov,
+  peza: a.peza + b.peza,
+  tieza: a.tieza + b.tieza,
+});
+
+interface StationRow {
+  stationno: string;
+  stationCode: string;
+  stationName: string;
+  cityName: string;
+  province: string;
+  logoUrl: string;
+  months: Record<number, Bucket>;
+}
+
+interface ProvinceGroup {
+  province: string;
+  stations: StationRow[];
+  provincialTotal: {
+    months: Record<number, Bucket>;
+  };
+}
+
+function buildStationRow(m: TargetReferenceModel): StationRow {
+  const months: Record<number, Bucket> = {};
+  for (let i = 1; i <= 12; i++) months[i] = emptyBucket();
+  (m.targetreferencelist ?? []).forEach((it) => {
+    const mv = Number(it.reportmonth);
+    if (!mv || mv < 1 || mv > 12) return;
+    const k = sectorKey(it.sectorcode);
+    if (!k) return;
+    months[mv] = { ...months[mv], [k]: months[mv][k] + (Number(it.targettotal) || 0) };
+  });
+  return {
+    stationno: m.stationno,
+    stationCode: m.stationcode ?? "",
+    stationName: m.stationname ?? "",
+    cityName: m.cityname ?? "",
+    province: m.provincename ?? "—",
+    logoUrl: m.logourl ?? "",
+    months,
+  };
+}
+
+/**
+ * Build province-grouped matrix rows directly from the nested export API
+ * response:
+ *   Province[] -> stations[] -> targetreferencelist[]
+ * Preserves the province ordering returned by the server, sorts stations by
+ * name within each province, and derives per-province monthly totals.
+ */
+function buildGroupsFromExport(provinces: ProvinceExportModel[]): ProvinceGroup[] {
+  return provinces
+    .filter((p) => p && Array.isArray(p.stations))
+    .map<ProvinceGroup>((p) => {
+      const provinceName = p.provincename ?? "—";
+      const stations = p.stations
+        .map((s) =>
+          buildStationRow({
+            ...s,
+            // Ensure the station row carries the province name from the group
+            // even if the station payload omits it.
+            provincename: s.provincename ?? provinceName,
+          } as TargetReferenceModel),
+        )
+        .sort((a, b) => a.stationName.localeCompare(b.stationName));
+
+      const totalMonths: Record<number, Bucket> = {};
+      for (let m = 1; m <= 12; m++) totalMonths[m] = emptyBucket();
+      stations.forEach((s) => {
+        for (let m = 1; m <= 12; m++) {
+          totalMonths[m] = addBucket(totalMonths[m], s.months[m]);
+        }
+      });
+
+      return {
+        province: provinceName,
+        stations,
+        provincialTotal: { months: totalMonths },
+      };
+    })
+    .sort((a, b) => a.province.localeCompare(b.province));
+}
+
+/**
+ * Build the province→stations selection used by both the station search and
+ * the export API. Empty selection === ALL provinces / ALL stations.
+ */
+function buildProvinceSelections(
+  provinces: SelectedLocation[],
+  stations: SelectedStation[],
+): ProvinceStationSelection[] {
+  // Group selected stations by their provinceno.
+  const byProv = new Map<string, string[]>();
+  stations.forEach((s) => {
+    const arr = byProv.get(s.provinceno) ?? [];
+    arr.push(s.stationno);
+    byProv.set(s.provinceno, arr);
+  });
+
+  // Ensure every explicitly selected province is present, even with no stations.
+  provinces.forEach((p) => {
+    if (!byProv.has(p.locationno)) byProv.set(p.locationno, []);
+  });
+
+  return Array.from(byProv.entries()).map(([provinceno, stationnos]) => ({
+    provinceno,
+    stationnos,
+  }));
+}
+
+export default function TargetMatrixModal({
+  open,
+  onOpenChange,
+  year,
+  provinceno,
+  provinceName,
+  stationno,
+  stationName,
+  lockFilters = false,
+}: Props) {
+  const { user, systemAccess } = useAuth();
+  const scope = React.useMemo(
+    () => resolveTargetScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
+  const YEARS = React.useMemo(buildYears, []);
+  const [loading, setLoading] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
+  const [groups, setGroups] = React.useState<ProvinceGroup[]>([]);
+  const [yearFilter, setYearFilter] = React.useState<number>(year);
+
+  // Seed initial multi-select state from the (optional) single-value props
+  // coming from a card click. Empty array === ALL.
+  const seedProvinces = React.useCallback((): SelectedLocation[] => {
+    if (scope.provinceLocked) {
+      return [{ locationno: scope.provinceno, locationname: user?.provincename ?? "" }];
+    }
+    if (provinceno && provinceno !== "" && provinceno !== "00000000-0000-0000-0000-000000000000") {
+      return [{ locationno: provinceno, locationname: provinceName ?? "" }];
+    }
+    return [];
+  }, [scope.provinceLocked, scope.provinceno, provinceno, provinceName, user?.provincename]);
+
+  const seedStations = React.useCallback((): SelectedStation[] => {
+    if (scope.stationLocked) {
+      return [
+        {
+          stationno: scope.stationno,
+          stationname: user?.stationname ?? "",
+          provinceno: scope.provinceno,
+          provincename: user?.provincename ?? "",
+        },
+      ];
+    }
+    if (stationno && stationno !== "" && stationno !== "00000000-0000-0000-0000-000000000000") {
+      return [
+        {
+          stationno,
+          stationname: stationName ?? "",
+          provinceno: provinceno ?? "",
+          provincename: provinceName ?? "",
+        },
+      ];
+    }
+    return [];
+  }, [
+    scope.stationLocked,
+    scope.stationno,
+    scope.provinceno,
+    stationno,
+    stationName,
+    provinceno,
+    provinceName,
+    user?.stationname,
+    user?.provincename,
+  ]);
+
+  const [provinceFilters, setProvinceFilters] = React.useState<SelectedLocation[]>(seedProvinces);
+  const [stationFilters, setStationFilters] = React.useState<SelectedStation[]>(seedStations);
+
+  const provinceSelections = React.useMemo(
+    () => buildProvinceSelections(provinceFilters, stationFilters),
+    [provinceFilters, stationFilters],
+  );
+
+  React.useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const body: ExportTargetReferenceRequest = {
+        searchkey: "",
+        reportyear: Number(yearFilter),
+        provinces: provinceSelections,
+      };
+      const resp = await targetreferenceAPI.export(body, { suppressGlobalLoading: true });
+      const { ok, data, error } = unwrap<ProvinceExportModel[]>(resp);
+      if (cancelled) return;
+      if (!ok) {
+        toast.error(error || "Unable to load target matrix.");
+        setGroups([]);
+      } else {
+        setGroups(buildGroupsFromExport(Array.isArray(data) ? data : []));
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, yearFilter, provinceSelections]);
+
+  const handleExport = async () => {
+    if (groups.length === 0) {
+      toast.info("No data available to export.");
+      return;
+    }
+    setExporting(true);
+    try {
+      await exportTargetMatrix({
+        year,
+        groups: groups.map((g) => ({
+          province: g.province,
+          stations: g.stations.map((s) => ({
+            stationno: s.stationno,
+            stationCode: s.stationCode,
+            stationName: s.stationName,
+            cityName: s.cityName,
+            months: s.months,
+          })),
+        })),
+        signatory: {
+          rank: user?.rankname ?? "",
+          fullname: user?.fullname ?? user?.name ?? "",
+          designation: user?.designation ?? "",
+        },
+      });
+      toast.success("Target Matrix exported.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Target Matrix.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const totalCols = 1 + 12 * 4 + 4 * 4 + 4 + 4 + 4;
+
+  // Province → Station sync. Empty provinces clear stations (Rule 6);
+  // otherwise drop stations that fall outside the remaining provinces.
+  const handleProvincesChange = (next: SelectedLocation[]) => {
+    setProvinceFilters(next);
+    if (next.length === 0) {
+      setStationFilters((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+    const allowed = new Set(next.map((p) => p.locationno));
+    setStationFilters((prev) => {
+      const filtered = prev.filter((s) => allowed.has(s.provinceno));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  };
+
+  // Station → Province sync. Derive the unique province set directly from
+  // the selected station objects (no extra API request).
+  const handleStationsChange = (next: SelectedStation[]) => {
+    setStationFilters(next);
+    const seen = new Map<string, SelectedLocation>();
+    next.forEach((s) => {
+      if (!s.provinceno || seen.has(s.provinceno)) return;
+      seen.set(s.provinceno, { locationno: s.provinceno, locationname: s.provincename });
+    });
+    const derived = Array.from(seen.values());
+    setProvinceFilters((prev) => {
+      if (prev.length === derived.length) {
+        const prevKey = prev.map((p) => p.locationno).sort().join(",");
+        const nextKey = derived.map((p) => p.locationno).sort().join(",");
+        if (prevKey === nextKey) return prev;
+      }
+      return derived;
+    });
+  };
+
+  // Sync when the modal is (re)opened for a specific card.
+  React.useEffect(() => {
+    if (!open) return;
+    setYearFilter(year);
+    setProvinceFilters(seedProvinces());
+    setStationFilters(seedStations());
+  }, [open, year, seedProvinces, seedStations]);
+
+  const handleResetFilters = () => {
+    setYearFilter(new Date().getFullYear());
+    setProvinceFilters(
+      scope.provinceLocked
+        ? [{ locationno: scope.provinceno, locationname: user?.provincename ?? "" }]
+        : [],
+    );
+    setStationFilters(
+      scope.stationLocked
+        ? [
+            {
+              stationno: scope.stationno,
+              stationname: user?.stationname ?? "",
+              provinceno: scope.provinceno,
+              provincename: user?.provincename ?? "",
+            },
+          ]
+        : [],
+    );
+  };
+
+  const provinceLabel =
+    provinceFilters.length === 0
+      ? "ALL"
+      : provinceFilters.length === 1
+        ? provinceFilters[0].locationname
+        : `${provinceFilters.length} selected`;
+  const stationLabel =
+    stationFilters.length === 0
+      ? "ALL"
+      : stationFilters.length === 1
+        ? stationFilters[0].stationname
+        : `${stationFilters.length} selected`;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        hideCloseButton
+        className="flex h-[90vh] w-[95vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+      >
+        <DialogHeader className="flex flex-row items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-primary text-primary-foreground shadow-elegant">
+              <LayoutGrid className="h-4 w-4" />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-bold">
+                Fire Safety Inspection Target Matrix
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                Stations grouped by Province — {yearFilter}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={exporting || loading}
+              className="gap-2"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {exporting ? "Exporting…" : "Export"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="gap-2"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogHeader>
+
+        <div className="border-b bg-card px-5 py-4">
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Year
+              </div>
+              {lockFilters ? (
+                <div className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm flex items-center text-muted-foreground">
+                  {yearFilter}
+                </div>
+              ) : (
+                <Select
+                  value={String(yearFilter)}
+                  onValueChange={(value) => setYearFilter(Number(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {YEARS.map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Province
+              </div>
+              {scope.provinceLocked || lockFilters ? (
+                <div className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm flex items-center text-muted-foreground">
+                  {provinceLabel || user?.provincename || ""}
+                </div>
+              ) : (
+                <LocationMultiSelect
+                  value={provinceFilters}
+                  locationtype="PROVINCE"
+                  parentcode={MIMAROPA_REGION_CODE}
+                  onChange={handleProvincesChange}
+                  placeholder="Select province"
+                  hideCode
+                  className="w-full"
+                />
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Station
+              </div>
+              {scope.stationLocked || lockFilters ? (
+                <div className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm flex items-center text-muted-foreground">
+                  {stationLabel || user?.stationname || ""}
+                </div>
+              ) : (
+                <StationMultiSelect
+                  value={stationFilters}
+                  provinces={
+                    provinceFilters.length > 0
+                      ? provinceFilters.map((p) => ({ provinceno: p.locationno }))
+                      : scope.provinceLocked
+                        ? [{ provinceno: scope.provinceno }]
+                        : []
+                  }
+                  reportyear={yearFilter}
+                  onChange={handleStationsChange}
+                  placeholder="Select station"
+                  alwaysEnabled
+                />
+              )}
+            </div>
+
+            {!lockFilters && (
+              <div className="flex items-end justify-end md:justify-start lg:justify-end">
+                <ResetFiltersButton onReset={handleResetFilters} />
+              </div>
+            )}
+          </div>
+        </div>
+
+
+        <div className="relative flex-1 overflow-auto">
+          <table className="w-max min-w-full border-separate border-spacing-0 text-[11px]">
+            <MatrixHeader />
+
+            <tbody>
+              {loading && (
+                <tr>
+                  <td
+                    colSpan={totalCols}
+                    className="border-b bg-card px-4 py-10 text-center text-sm text-muted-foreground"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                    </span>
+                  </td>
+                </tr>
+              )}
+
+              {!loading && groups.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={totalCols}
+                    className="border-b bg-card px-4 py-10 text-center text-sm text-muted-foreground"
+                  >
+                    No target data available for {year}.
+                  </td>
+                </tr>
+              )}
+
+              {!loading &&
+                groups.map((g) => (
+                  <ProvinceBlock key={g.province} group={g} totalCols={totalCols} />
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================== Header ============================== */
+
+const STYLE = {
+  stationHead: "bg-blue-700 text-white dark:bg-blue-800",
+  quarter: "bg-emerald-800 text-white dark:bg-emerald-900",
+  month: "bg-emerald-600 text-white dark:bg-emerald-700",
+  cat: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100",
+  semester: "bg-orange-500 text-white dark:bg-orange-600",
+  annual: "bg-blue-900 text-white dark:bg-blue-950",
+  provTotalRow: "bg-yellow-100 text-yellow-950 font-bold dark:bg-yellow-900/40 dark:text-yellow-50",
+  provHeaderRow: "bg-slate-200 text-slate-900 font-bold dark:bg-slate-800 dark:text-slate-100",
+};
+
+function MatrixHeader() {
+  const quarters: { label: string; months: number[] }[] = [
+    { label: "Target First Quarter", months: [1, 2, 3] },
+    { label: "Target Second Quarter", months: [4, 5, 6] },
+    { label: "Target Third Quarter", months: [7, 8, 9] },
+    { label: "Target Fourth Quarter", months: [10, 11, 12] },
+  ];
+
+  return (
+    <thead className="sticky top-0 z-30">
+      <tr>
+        <th
+          rowSpan={3}
+          className={`sticky left-0 top-0 z-40 min-w-[260px] border-b border-r px-3 py-2 text-left uppercase tracking-wider ${STYLE.stationHead}`}
+        >
+          Station Information
+        </th>
+        {quarters.map((q) => (
+          <th
+            key={q.label}
+            colSpan={12}
+            className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.quarter}`}
+          >
+            {q.label}
+          </th>
+        ))}
+        {quarters.map((q) => (
+          <th
+            key={`total-${q.label}`}
+            rowSpan={2}
+            colSpan={4}
+            className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.quarter}`}
+          >
+            {q.label}
+          </th>
+        ))}
+        <th
+          rowSpan={2}
+          colSpan={4}
+          className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.semester}`}
+        >
+          Target First Semester
+        </th>
+        <th
+          rowSpan={2}
+          colSpan={4}
+          className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.semester}`}
+        >
+          Target Second Semester
+        </th>
+        <th
+          rowSpan={2}
+          colSpan={4}
+          className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.annual}`}
+        >
+          Annual Total
+        </th>
+      </tr>
+
+      <tr>
+        {quarters.flatMap((q) =>
+          q.months.map((mv, i) => {
+            const m = MONTHS.find((mo) => mo.value === mv)!;
+            return (
+              <th
+                key={`m-${mv}`}
+                colSpan={4}
+                className={`border-b px-2 py-1.5 text-center font-semibold uppercase ${
+                  i === 2 ? "border-r-2 border-r-white/30" : "border-r"
+                } ${STYLE.month}`}
+              >
+                {m.name}
+              </th>
+            );
+          }),
+        )}
+      </tr>
+
+      <tr>
+        {quarters.flatMap((q) =>
+          q.months.flatMap((mv, monthIdx) =>
+            CATS.map((c, i) => (
+              <th
+                key={`c-${mv}-${c.key}`}
+                className={`border-b px-1.5 py-1 text-right text-[10px] font-bold uppercase ${
+                  i === 3 && monthIdx === 2 ? "border-r-2 border-r-emerald-800/60" : "border-r"
+                } ${STYLE.cat}`}
+              >
+                {c.label}
+              </th>
+            )),
+          ),
+        )}
+        {[0, 1, 2, 3, 4, 5, 6].map((grpIdx) =>
+          CATS.map((c, i) => (
+            <th
+              key={`c-final-${grpIdx}-${c.key}`}
+              className={`border-b px-1.5 py-1 text-right text-[10px] font-bold uppercase ${
+                i === 3 ? "border-r-2 border-r-white/40" : "border-r"
+              } ${grpIdx <= 3 ? STYLE.quarter : grpIdx === 6 ? STYLE.annual : STYLE.semester}`}
+            >
+              {c.label}
+            </th>
+          )),
+        )}
+      </tr>
+    </thead>
+  );
+}
+
+/* ============================== Body ============================== */
+
+function ProvinceBlock({ group, totalCols }: { group: ProvinceGroup; totalCols: number }) {
+  return (
+    <>
+      <tr>
+        <td
+          className={`sticky left-0 z-10 border-b border-t-2 border-t-slate-400/60 px-3 py-1.5 text-[12px] uppercase tracking-[0.2em] ${STYLE.provHeaderRow}`}
+        >
+          {group.province}
+        </td>
+        <td
+          colSpan={totalCols - 1}
+          aria-hidden="true"
+          className="border-b border-t-2 border-t-slate-400/60 bg-slate-200"
+        />
+      </tr>
+
+      {group.stations.map((s, idx) => (
+        <StationDataRow key={s.stationno} station={s} zebra={idx % 2 === 1} />
+      ))}
+
+      <ProvincialTotalRow province={group.province} months={group.provincialTotal.months} />
+    </>
+  );
+}
+
+function computeAggregates(months: Record<number, Bucket>) {
+  const sumMonths = (mm: number[]) =>
+    mm.reduce((acc, m) => addBucket(acc, months[m] ?? emptyBucket()), emptyBucket());
+  return {
+    q1: sumMonths([1, 2, 3]),
+    q2: sumMonths([4, 5, 6]),
+    q3: sumMonths([7, 8, 9]),
+    q4: sumMonths([10, 11, 12]),
+    sem1: sumMonths([1, 2, 3, 4, 5, 6]),
+    sem2: sumMonths([7, 8, 9, 10, 11, 12]),
+    annual: sumMonths([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+  };
+}
+
+function NumCell({
+  value,
+  bold,
+  rowClass,
+  boundary,
+}: {
+  value: number;
+  bold?: boolean;
+  rowClass?: string;
+  boundary?: boolean;
+}) {
+  return (
+    <td
+      className={`border-b px-2 py-1.5 text-right tabular-nums ${
+        boundary ? "border-r-2 border-r-slate-300 dark:border-r-slate-700" : "border-r"
+      } ${bold ? "font-bold" : ""} ${
+        value === 0 && !bold ? "text-muted-foreground/60" : ""
+      } ${rowClass ?? ""}`}
+    >
+      {value.toLocaleString()}
+    </td>
+  );
+}
+
+function StationDataRow({ station, zebra }: { station: StationRow; zebra: boolean }) {
+  const agg = computeAggregates(station.months);
+  const rowBg = zebra ? "bg-muted" : "bg-card";
+  return (
+    <tr className={rowBg}>
+      <td className={`sticky left-0 z-10 border-b border-r px-3 py-2 ${rowBg}`}>
+        <div className="flex items-center gap-2">
+          <AvatarWithFallback
+            entity={{ name: station.stationName }}
+            src={station.logoUrl || undefined}
+            name={station.stationName}
+            className="h-8 w-8 shrink-0 rounded-full ring-1 ring-primary/20"
+          />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                {station.stationCode}
+              </span>
+            </div>
+            <div className="truncate text-[11px] font-semibold">{station.stationName}</div>
+          </div>
+        </div>
+      </td>
+
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mv) => {
+        const b = station.months[mv] ?? emptyBucket();
+        const quarterEnd = mv === 3 || mv === 6 || mv === 9 || mv === 12;
+        return CATS.map((c, i) => (
+          <NumCell
+            key={`${station.stationno}-${mv}-${c.key}`}
+            value={b[c.key]}
+            boundary={i === 3 && quarterEnd}
+          />
+        ));
+      })}
+
+      {(["q1", "q2", "q3", "q4", "sem1", "sem2", "annual"] as const).map((grp) =>
+        CATS.map((c, i) => (
+          <NumCell
+            key={`${station.stationno}-${grp}-${c.key}`}
+            value={agg[grp][c.key]}
+            bold
+            boundary={i === 3}
+          />
+        )),
+      )}
+    </tr>
+  );
+}
+
+function ProvincialTotalRow({
+  province,
+  months,
+}: {
+  province: string;
+  months: Record<number, Bucket>;
+}) {
+  const agg = computeAggregates(months);
+  return (
+    <tr>
+      <td
+        className={`sticky left-0 z-10 border-b border-r px-3 py-2 text-[11px] uppercase tracking-wider ${STYLE.provTotalRow}`}
+      >
+        Provincial Total — {province}
+      </td>
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mv) => {
+        const b = months[mv] ?? emptyBucket();
+        const quarterEnd = mv === 3 || mv === 6 || mv === 9 || mv === 12;
+        return CATS.map((c, i) => (
+          <NumCell
+            key={`pt-${province}-${mv}-${c.key}`}
+            value={b[c.key]}
+            bold
+            boundary={i === 3 && quarterEnd}
+            rowClass={STYLE.provTotalRow}
+          />
+        ));
+      })}
+      {(["q1", "q2", "q3", "q4", "sem1", "sem2", "annual"] as const).map((grp) =>
+        CATS.map((c, i) => (
+          <NumCell
+            key={`pt-${province}-${grp}-${c.key}`}
+            value={agg[grp][c.key]}
+            bold
+            boundary={i === 3}
+            rowClass={STYLE.provTotalRow}
+          />
+        )),
+      )}
+    </tr>
+  );
+}

@@ -1,0 +1,281 @@
+"use client";
+
+import * as React from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Search, Loader2, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { stationAPI } from "@/services/stationAPI";
+import { unwrap } from "@/lib/api-envelope";
+import type {
+  SearchStationModel,
+  StationMultipleSearchRequest,
+  ProvinceStationSelection,
+} from "@/types/stationTypes";
+import AvatarWithFallback from "@/components/avatar-with-fallback";
+import { cn } from "@/lib/utils";
+
+export interface SelectedStation {
+  stationno: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+}
+
+type Props = {
+  value: SelectedStation[];
+  /** Selected provinces used to scope the station search. Empty === ALL provinces. */
+  provinces: ProvinceStationSelection[];
+  /** Report year forwarded to the Station/Multiple/Search endpoint. */
+  reportyear?: number;
+  onChange: (selected: SelectedStation[]) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  /**
+   * When true, the picker is usable even when `provinces` is empty (searches
+   * across ALL provinces) and does NOT auto-clear the selected stations when
+   * the provinces list becomes empty. The parent owns cross-filter sync.
+   */
+  alwaysEnabled?: boolean;
+};
+
+const PAGE_SIZE = 10;
+
+/**
+ * Multi-select station picker backed by `stationAPI.searchMultiple`. Reloads
+ * whenever the selected `provinces` change. Preserves the visual layout of
+ * StationSearchSelect (search input, list, prev/next pager) but adds
+ * per-row checkboxes.
+ */
+export default function StationMultiSelect({
+  value,
+  provinces,
+  reportyear = 0,
+  onChange,
+  placeholder = "Select unit / station",
+  disabled,
+  className,
+  alwaysEnabled = false,
+}: Props) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const [debounced, setDebounced] = React.useState("");
+  const [page, setPage] = React.useState(1);
+  const [rows, setRows] = React.useState<SearchStationModel[]>([]);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      setDebounced(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Reload when popover open / search / page / provinces change.
+  const provincesKey = React.useMemo(
+    () => provinces.map((p) => p.provinceno).sort().join(","),
+    [provinces],
+  );
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [provincesKey]);
+
+  const noProvince = provinces.length === 0;
+
+  // Drop selected stations that no longer belong to any selected province.
+  // Skipped when `alwaysEnabled` — the parent owns cross-filter sync there.
+  React.useEffect(() => {
+    if (alwaysEnabled) return;
+    if (noProvince) {
+      if (value.length > 0) onChange([]);
+      return;
+    }
+    const allowed = new Set(provinces.map((p) => p.provinceno));
+    const filtered = value.filter((v) => allowed.has(v.provinceno));
+    if (filtered.length !== value.length) onChange(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provincesKey]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (noProvince && !alwaysEnabled) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const body: StationMultipleSearchRequest = {
+        searchkey: debounced || "",
+        reportyear: Number(reportyear) || 0,
+        provinces,
+      };
+      const resp = await stationAPI.searchStationMultiple(
+        body,
+        { Pagenumber: page, Pagesize: PAGE_SIZE },
+        { suppressGlobalLoading: true },
+      );
+      const { ok, data } = unwrap<SearchStationModel[]>(resp);
+      if (cancelled) return;
+      setRows(ok && Array.isArray(data) ? data : []);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, debounced, page, provincesKey, reportyear, noProvince, alwaysEnabled]);
+
+  const isSelected = (no: string) => value.some((v) => v.stationno === no);
+
+  const toggle = (r: SearchStationModel) => {
+    if (isSelected(r.stationno)) {
+      onChange(value.filter((v) => v.stationno !== r.stationno));
+    } else {
+      if (value.some((v) => v.stationno === r.stationno)) return;
+      onChange([
+        ...value,
+        {
+          stationno: r.stationno,
+          stationname: r.stationname,
+          provinceno: r.provinceno,
+          provincename: r.provincename,
+        },
+      ]);
+    }
+  };
+
+  const selectAll = () => onChange([]);
+
+  const allSelected = value.length === 0;
+  const label =
+    value.length === 0
+      ? "ALL"
+      : value.length === 1
+        ? value[0].stationname
+        : `${value.length} selected`;
+
+  const showPrev = page > 1;
+  const showNext = rows.length === PAGE_SIZE;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled || (noProvince && !alwaysEnabled)}
+          className={cn(
+            "h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm flex items-center justify-between gap-2 text-left disabled:opacity-50",
+            className,
+          )}
+        >
+          <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis">
+            {noProvince && !alwaysEnabled ? "Select a province first" : label || placeholder}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-max min-w-[320px] p-0" align="start">
+        <div className="border-b p-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search unit / station…"
+              className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="max-h-64 overflow-auto">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </div>
+          ) : (
+            <>
+              {page === 1 ? (
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                    allSelected && "bg-muted",
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">ALL</div>
+                  </div>
+                  {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+                </button>
+              ) : null}
+              {rows.length === 0 && !loading && page === 1 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  No units found
+                </div>
+              ) : null}
+              {rows.map((r) => {
+                const sel = isSelected(r.stationno);
+                return (
+                  <button
+                    key={r.stationno || `${r.stationcode}-${r.stationname}`}
+                    type="button"
+                    onClick={() => toggle(r)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                      sel && "bg-muted",
+                    )}
+                  >
+                    <div className="min-w-0 flex items-center gap-2">
+                      <AvatarWithFallback
+                        src={r.logourl || null}
+                        entity={r}
+                        name={r.stationcode ?? r.stationname}
+                        alt={r.stationname}
+                        className="w-8 h-8 rounded-md overflow-hidden bg-muted/30"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{r.stationname}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {r.stationcode}
+                        </div>
+                      </div>
+                    </div>
+                    {sel ? <Check className="h-4 w-4 text-primary" /> : null}
+                  </button>
+                );
+              })}
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t p-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!showPrev || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            <ChevronLeft className="h-4 w-4" /> Prev
+          </Button>
+          <span className="text-xs text-muted-foreground">Page {page}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!showNext || loading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
