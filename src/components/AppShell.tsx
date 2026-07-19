@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import bfpLogo from "@/assets/bfp-mimaropa.png";
+import bfpLogo from "@/assets/bfp-mimaropa.svg";
 
 const AppSidebar = lazy(() => import("./AppSidebar").then((module) => ({ default: module.AppSidebar })));
 const LoginModal = lazy(() =>

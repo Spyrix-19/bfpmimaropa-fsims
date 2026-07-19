@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Lock, IdCard, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import bfpLogo from "@/assets/bfp-mimaropa.png";
+import bfpLogo from "@/assets/bfp-mimaropa.svg";
 import ForgotPasswordModal from "./forgotpasswordmodal";
 import SetNewPasswordModal from "./newpasswordmodal";
 

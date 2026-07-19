@@ -118,7 +118,11 @@ function sumBucket(
   return out;
 }
 
-function mapMonthlyItemToRow(item: FSISInventoryMonthlyItem): MonthlyInventoryRow {
+function mapMonthlyItemToRow(
+  item: FSISInventoryMonthlyItem,
+  fallbackYear = 0,
+  fallbackMonth = 0,
+): MonthlyInventoryRow {
   const daily = Array.isArray(item.fsisInventoryLedgerList)
     ? item.fsisInventoryLedgerList
     : [];
@@ -151,8 +155,11 @@ function mapMonthlyItemToRow(item: FSISInventoryMonthlyItem): MonthlyInventoryRo
     if (iso && !iso.startsWith("1900")) latestDate = iso;
   }
 
-  const year = Number(item.reportyear) || 0;
-  const month = Number(item.reportmonth) || 0;
+  // The Monthly endpoint doesn't always echo reportyear/reportmonth at the
+  // top level, so fall back to the filter values that produced the request.
+  // Without this, cards render "0 / 0" days and blank month labels.
+  const year = Number(item.reportyear) || fallbackYear || 0;
+  const month = Number(item.reportmonth) || fallbackMonth || 0;
 
   return {
     key: `${item.stationno}|${year}|${month}`,
@@ -327,7 +334,7 @@ export default function FireSafetyCompliancePage() {
         setRows([]);
       } else {
         const items = Array.isArray(data) ? data : [];
-        setRows(items.map(mapMonthlyItemToRow));
+        setRows(items.map((it) => mapMonthlyItemToRow(it, Number(year), Number(month))));
       }
       setLoading(false);
     })();

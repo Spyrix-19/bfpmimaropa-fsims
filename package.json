@@ -3,6 +3,9 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "engines": {
+    "bun": "1.2.15"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",

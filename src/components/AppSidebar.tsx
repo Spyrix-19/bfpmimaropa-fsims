@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, type ReactNode } from "react";
-import bfpLogo from "@/assets/bfp-mimaropa.png";
+import bfpLogo from "@/assets/bfp-mimaropa.svg";
 import {
   Sidebar,
   SidebarContent,
