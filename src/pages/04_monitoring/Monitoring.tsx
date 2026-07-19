@@ -212,6 +212,7 @@ export default function FireSafetyCompliancePage() {
   const [pageSize, setPageSize] = React.useState(12);
 
   const [rows, setRows] = React.useState<MonthlyInventoryRow[]>([]);
+  const [total, setTotal] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(false);
   const [refreshTick, setRefreshTick] = React.useState(0);
   const refresh = () => setRefreshTick((t) => t + 1);
@@ -333,14 +334,16 @@ export default function FireSafetyCompliancePage() {
         },
         { suppressGlobalLoading: true, signal: controller.signal },
       );
-      const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
+      const { ok, data, total: apiTotal, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
       if (cancelled) return;
       if (!ok) {
         toast.error(error || "Unable to load monthly inventory ledger.");
         setRows([]);
+        setTotal(0);
       } else {
         const items = Array.isArray(data) ? data : [];
         setRows(items.map((it) => mapMonthlyItemToRow(it, Number(year), Number(month))));
+        setTotal(Number(apiTotal || items.length || 0));
       }
       setLoading(false);
     })();
@@ -366,13 +369,9 @@ export default function FireSafetyCompliancePage() {
     setPage(1);
   }, [year, month, provinceno, stationno, pageSize]);
 
-  // The Monthly endpoint returns the full list per (province,station,year,month).
-  // Paginate client-side to preserve the existing UX.
-  const total = rows.length;
-  const paged = React.useMemo(
-    () => rows.slice((page - 1) * pageSize, page * pageSize),
-    [rows, page, pageSize],
-  );
+  // Server-side ledger returns a single page — use `rows` directly and
+  // rely on `total` for pagination controls.
+  const paged = React.useMemo(() => rows, [rows]);
 
   const monthLocked = isReportMonthLocked(Number(year), Number(month));
 

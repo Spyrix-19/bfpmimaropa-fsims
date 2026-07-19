@@ -22,14 +22,6 @@ export const targetinventoryAPI = {
     });
   },
 
-  async getLedger(params: FSISInventoryLedgerParams, options?: import("@/lib/api").ApiOptions) {
-    return await apiGet<FSISInventoryLedgerItem[]>("/api/v1/FSISTargetReference/Ledger", {
-      params,
-      ...GET_RETRY,
-      ...options,
-    });
-  },
-
   async getInventoryLedger(params: FSISInventoryLedgerParams, options?: import("@/lib/api").ApiOptions) {
     return await apiGet<FSISInventoryLedgerItem[]>("/api/v1/FSISInventory/Ledger", {
       params,
