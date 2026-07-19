@@ -29,7 +29,8 @@ import StationSearchSelect from "@/components/station-search-select";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
 import { inventoryAPI } from "@/services/inventoryAPI";
-import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+// Monthly ledger queries are moved to the editor modal to avoid
+// calling the heavy Monthly endpoint on the main listing view.
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { isReportMonthLocked } from "@/pages/05_target-reference/helpers";
 import {
@@ -310,49 +311,9 @@ export default function FireSafetyCompliancePage() {
     setPage(1);
   };
 
-  // Fetch Monthly ledger from the real backend.
-  React.useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const effectiveProvinceNo = scope.provinceLocked ? scope.provinceno : provinceno;
-      const effectiveStationNo = scope.stationLocked ? scope.stationno : stationno;
-      const resp = await targetinventoryAPI.getMonthly(
-        {
-          Stationno: effectiveStationNo || EMPTY_GUID,
-          Provinceno: effectiveProvinceNo || EMPTY_GUID,
-          Reportyear: Number(year),
-          Reportmonth: Number(month),
-        },
-        { suppressGlobalLoading: true, signal: controller.signal },
-      );
-      const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
-      if (cancelled) return;
-      if (!ok) {
-        toast.error(error || "Unable to load monthly inventory.");
-        setRows([]);
-      } else {
-        const items = Array.isArray(data) ? data : [];
-        setRows(items.map((it) => mapMonthlyItemToRow(it, Number(year), Number(month))));
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [
-    year,
-    month,
-    scope.provinceLocked,
-    scope.stationLocked,
-    scope.provinceno,
-    scope.stationno,
-    provinceno,
-    stationno,
-    refreshTick,
-  ]);
+  // NOTE: Monthly ledger API calls were intentionally removed from the
+  // main listing view to limit calls to the heavier endpoint. The editor
+  // modal now performs Monthly fetches when opened.
 
   React.useEffect(() => {
     setPage(1);

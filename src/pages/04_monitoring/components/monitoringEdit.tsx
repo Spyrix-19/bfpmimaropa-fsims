@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { inventoryAPI } from "@/services/inventoryAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { stationAPI } from "@/services/stationAPI";
+import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+import { EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
 import { MONTHS } from "@/lib/fsims-constants";
 import { calendarDaysInMonth, ALL_NUMERIC_FIELDS } from "@/lib/inventoryHelpers";
@@ -367,6 +369,40 @@ export function InventoryEditModal({
   onSaved?: () => void;
 }) {
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!open) return;
+      try {
+        const effStation = stationno || EMPTY_GUID;
+        let prov = EMPTY_GUID;
+        if (effStation && effStation !== EMPTY_GUID) {
+          const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: effStation });
+          const { data: sData } = unwrap<SearchStationModel[]>(sResp);
+          const s = Array.isArray(sData) ? sData[0] : undefined;
+          prov = s?.provinceno ?? EMPTY_GUID;
+        }
+        await targetinventoryAPI.getMonthly(
+          {
+            Stationno: effStation || EMPTY_GUID,
+            Provinceno: prov || EMPTY_GUID,
+            Reportyear: year,
+            Reportmonth: month,
+          },
+          { suppressGlobalLoading: true },
+        );
+      } catch (e) {
+        if (!cancelled) {
+          // don't escalate — editor already loads daily rows from inventoryAPI
+          console.debug("Monthly prefetch failed", e);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, stationno, year, month]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
