@@ -30,6 +30,14 @@ export const targetinventoryAPI = {
     });
   },
 
+  async getInventoryLedger(params: FSISInventoryLedgerParams, options?: import("@/lib/api").ApiOptions) {
+    return await apiGet<FSISInventoryLedgerItem[]>("/api/v1/FSISInventory/Ledger", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
+  },
+
   async getMonthly(params: FSISInventoryMonthlyParams, options?: import("@/lib/api").ApiOptions) {
     return await apiGet<FSISInventoryMonthlyItem[]>("/api/v1/FSISInventory/Monthly", {
       params,
