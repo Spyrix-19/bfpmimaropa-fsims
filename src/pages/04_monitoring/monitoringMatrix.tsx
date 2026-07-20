@@ -314,22 +314,6 @@ export default function InventoryMatrix({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Select
-              value={String(exportMonth)}
-              onValueChange={(v) => setExportMonth(Number(v))}
-            >
-              <SelectTrigger className="h-9 w-[160px]" aria-label="Report month for export">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">All months</SelectItem>
-                {MONTH_NAMES.map((n, i) => (
-                  <SelectItem key={n} value={String(i + 1)}>
-                    {n}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button
               variant="outline"
               size="sm"
@@ -352,7 +336,7 @@ export default function InventoryMatrix({
 
         {/* Filters — mirrors the ledger filter bar */}
         <div className="border-b bg-card px-5 py-4">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Year
@@ -365,6 +349,27 @@ export default function InventoryMatrix({
                   {YEARS.map((y) => (
                     <SelectItem key={y} value={String(y)}>
                       {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Month
+              </div>
+              <Select
+                value={String(exportMonth)}
+                onValueChange={(v) => setExportMonth(Number(v))}
+              >
+                <SelectTrigger aria-label="Report month for export">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">All months</SelectItem>
+                  {MONTH_NAMES.map((n, i) => (
+                    <SelectItem key={n} value={String(i + 1)}>
+                      {n}
                     </SelectItem>
                   ))}
                 </SelectContent>

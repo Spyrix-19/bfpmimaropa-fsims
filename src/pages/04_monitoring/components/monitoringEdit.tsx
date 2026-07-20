@@ -66,10 +66,10 @@ type Field = { key: FieldKey; label: string; group: string };
 const FIELDS: Field[] = [
   { key: "insp_during", label: "During", group: "Inspection" },
   { key: "insp_after", label: "After", group: "Inspection" },
-  { key: "insp_bplo", label: "BPLO", group: "Inspection" },
-  { key: "insp_gov", label: "Gov", group: "Inspection" },
-  { key: "insp_peza", label: "PEZA", group: "Inspection" },
-  { key: "insp_tieza", label: "TIEZA", group: "Inspection" },
+  { key: "insp_bplo", label: "1st BPLO", group: "Inspection" },
+  { key: "insp_gov", label: "1st GOV", group: "Inspection" },
+  { key: "insp_peza", label: "1st PEZA", group: "Inspection" },
+  { key: "insp_tieza", label: "1st TIEZA", group: "Inspection" },
   { key: "fsec_building", label: "Building", group: "FSEC" },
   { key: "fsec_gov", label: "Gov", group: "FSEC" },
   { key: "fsec_peza", label: "PEZA", group: "FSEC" },
@@ -94,16 +94,21 @@ const GROUPS = [
   { label: "Notices", tone: "bg-amber-600 text-white", span: 5 },
 ];
 
+/** Group -> whether it is gated by the row's Mode of Issuance. */
+function isGatedGroup(group: string): boolean {
+  return group === "FSEC" || group === "FSIC" || group === "Notices";
+}
+
 function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n);
 }
 
-type MonthRow = Record<FieldKey, number> & { remarks: string };
+type MonthRow = Record<FieldKey, number> & { remarks: string; fsicmode: number };
 
 function emptyMonthRow(): MonthRow {
   const base = {} as Record<FieldKey, number>;
   for (const f of FIELDS) base[f.key] = 0;
-  return { ...base, remarks: "" };
+  return { ...base, remarks: "", fsicmode: 0 };
 }
 
 /** Aggregate a Monthly-endpoint ledger daily list into one editable row. */
@@ -136,11 +141,15 @@ function ledgerToMonthRow(list: FSISInventoryLedgerDailyItem[] | undefined): Mon
   // Prefer the most recent non-empty remarks as the aggregated month remark.
   const withRemarks = list.filter((l) => (l.remarks ?? "").trim().length > 0);
   row.remarks = withRemarks.length > 0 ? withRemarks[withRemarks.length - 1].remarks : "";
+  // Seed the row's Mode of Issuance from the first daily record (all daily
+  // rows for a given month share the same fsicmode).
+  row.fsicmode = Number(list[0]?.fsicmode ?? 0) || 0;
   return row;
 }
 
 function rowsEqual(a: MonthRow, b: MonthRow): boolean {
   if ((a.remarks ?? "") !== (b.remarks ?? "")) return false;
+  if ((a.fsicmode ?? 0) !== (b.fsicmode ?? 0)) return false;
   for (const f of FIELDS) if (a[f.key] !== b[f.key]) return false;
   return true;
 }
@@ -175,9 +184,13 @@ function InventoryEditBody({
   onCancel: () => void;
 }) {
   const { user } = useAuth();
-  const monthLocked = React.useMemo(
+  const selectedMonthLocked = React.useMemo(
     () => isReportMonthLocked(Number(year), Number(month)),
     [year, month],
+  );
+  const isRowLocked = React.useCallback(
+    (mv: number) => isReportMonthLocked(Number(year), Number(mv)),
+    [year],
   );
 
   const [rows, setRows] = React.useState<Record<number, MonthRow>>(() => {
@@ -204,11 +217,10 @@ function InventoryEditBody({
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
 
-  // Mode of Issuance — mirrors the Add page (`FSIS ISSUANCE` gentable).
-  // Seeded from the selected month's first daily record so edits preserve
-  // the previously-recorded issuance mode by default.
-  const [issuanceModeNo, setIssuanceModeNo] = React.useState<string>("");
-  const [issuanceModeName, setIssuanceModeName] = React.useState<string>("");
+  // Per-row Mode of Issuance display name (looked up from GentableSearchSelect).
+  // Values are stored in each row's `fsicmode`. Names are UI-only and are
+  // seeded lazily by the picker's onChange.
+  const [modeNames, setModeNames] = React.useState<Record<number, string>>({});
 
   React.useEffect(() => {
     let cancelled = false;
@@ -263,10 +275,9 @@ function InventoryEditBody({
       setMonthlySelected(selected);
       setMonthlyRecords(records);
 
-      // Seed Mode of Issuance from the selected month's first daily entry.
-      const seedMode = records[month]?.fsisInventoryLedgerList?.[0]?.fsicmode ?? 0;
-      setIssuanceModeNo(seedMode ? String(seedMode) : "");
-      setIssuanceModeName("");
+      // No global mode seeding needed — each row carries its own fsicmode
+      // via `ledgerToMonthRow` above.
+      setModeNames({});
 
       setLoading(false);
     })();
@@ -276,7 +287,7 @@ function InventoryEditBody({
   }, [stationno, year, month]);
 
   const updateCell = (monthValue: number, field: FieldKey | "remarks", value: string) => {
-    if (monthLocked) return;
+    if (isRowLocked(monthValue)) return;
     setRows((prev) => {
       const cur = prev[monthValue] ?? emptyMonthRow();
       let next: MonthRow;
@@ -288,6 +299,23 @@ function InventoryEditBody({
       }
       return { ...prev, [monthValue]: next };
     });
+  };
+
+  const updateRowMode = (monthValue: number, detno: string, name: string) => {
+    if (isRowLocked(monthValue)) return;
+    const modeNo = Number(detno) || 0;
+    setRows((prev) => {
+      const cur = prev[monthValue] ?? emptyMonthRow();
+      const next: MonthRow = { ...cur, fsicmode: modeNo };
+      // When mode is cleared, zero the gated (FSEC/FSIC/Notices) fields for
+      // this row — matches the Add page rule where those inputs are disabled
+      // (and thus effectively zero) until a mode is picked.
+      if (!modeNo) {
+        for (const f of FIELDS) if (isGatedGroup(f.group)) next[f.key] = 0;
+      }
+      return { ...prev, [monthValue]: next };
+    });
+    setModeNames((prev) => ({ ...prev, [monthValue]: name }));
   };
 
   const columnTotals = React.useMemo(() => {
@@ -366,11 +394,12 @@ function InventoryEditBody({
   };
 
   const handleSave = async () => {
-    if (monthLocked) return;
     setSaving(true);
     try {
       const changed = MONTHS.filter(
-        (m) => !rowsEqual(rows[m.value], initialRows[m.value] ?? emptyMonthRow()),
+        (m) =>
+          !isRowLocked(m.value) &&
+          !rowsEqual(rows[m.value], initialRows[m.value] ?? emptyMonthRow()),
       );
       if (changed.length === 0) {
         toast.info("No changes to save.");
@@ -383,7 +412,7 @@ function InventoryEditBody({
         fsisUpdateInventoryList: changed.map((m) => {
           const r = rows[m.value];
           const existing = monthlyRecords[m.value]?.fsisInventoryLedgerList?.[0];
-          const modeNo = Number(issuanceModeNo);
+          const modeNo = Number(r.fsicmode);
           return {
             fsisno: existing?.fsisno ?? EMPTY_GUID,
             dateinspected: existing?.dateinspected ?? `${year}-${pad2(m.value)}-01`,
@@ -393,7 +422,7 @@ function InventoryEditBody({
             inspectgovcount: r.insp_gov,
             inspectpezacount: r.insp_peza,
             inspecttiezacount: r.insp_tieza,
-            fsicmode: Number.isFinite(modeNo)
+            fsicmode: Number.isFinite(modeNo) && modeNo > 0
               ? modeNo
               : Number(existing?.fsicmode ?? 0) || 0,
             fsecbuildingcount: r.fsec_building,
@@ -436,7 +465,7 @@ function InventoryEditBody({
         </Card>
       ) : (
         <>
-          {monthLocked && (
+          {selectedMonthLocked && (
             <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
               <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
@@ -459,58 +488,71 @@ function InventoryEditBody({
             </p>
           </div>
 
-          <Card className="space-y-1.5 border-border/60 p-4 shadow-soft">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Mode of Issuance
-            </Label>
-            <div className="max-w-md">
-              <GentableSearchSelect
-                tablename={FSIS_ISSUANCE_TABLE}
-                value={issuanceModeNo || undefined}
-                valueName={issuanceModeName}
-                placeholder="Select issuance mode"
-                hideCode
-                disabled={monthLocked}
-                readOnly={monthLocked}
-                onChange={(detno, description) => {
-                  if (monthLocked) return;
-                  setIssuanceModeNo(detno);
-                  setIssuanceModeName(description);
-                }}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Applied to every month saved in this session.
-            </p>
-          </Card>
-
           <Card className="overflow-hidden border-border/60 shadow-soft">
             <div className="w-full max-w-full overflow-x-auto">
               <table className="min-w-max border-separate border-spacing-0 text-[11px]">
                 <thead>
+                  {/* HR1 — macro grouping: Daily Inspection / Daily Issuance */}
                   <tr>
                     <th
-                      rowSpan={2}
+                      rowSpan={3}
                       className="sticky left-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
                     >
                       Month
                     </th>
-                    {GROUPS.map((g) => (
-                      <th
-                        key={g.label}
-                        colSpan={g.span}
-                        className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${g.tone}`}
-                      >
-                        {g.label}
-                      </th>
-                    ))}
                     <th
-                      rowSpan={2}
+                      colSpan={6}
+                      className="border-b border-r bg-emerald-800 px-2 py-2 text-center uppercase tracking-wider text-white"
+                    >
+                      Daily Inspection Activities
+                    </th>
+                    <th
+                      colSpan={1 + 4 + 6 + 5}
+                      className="border-b border-r bg-indigo-800 px-2 py-2 text-center uppercase tracking-wider text-white"
+                    >
+                      Daily Issuance Activities
+                    </th>
+                    <th
+                      rowSpan={3}
                       className="border-b border-r bg-slate-700 px-3 py-2 text-left uppercase tracking-wider text-white min-w-[180px]"
                     >
                       Remarks
                     </th>
                   </tr>
+                  {/* HR2 — category banners; Mode column spans HR2+HR3 */}
+                  <tr>
+                    {GROUPS.map((g, gi) => {
+                      if (g.label === "FSEC") {
+                        // Insert the Mode of Issuance column banner just before FSEC.
+                        return (
+                          <React.Fragment key={g.label}>
+                            <th
+                              rowSpan={2}
+                              className="border-b border-r bg-fuchsia-700 px-2 py-2 text-center uppercase tracking-wider text-white min-w-[200px]"
+                            >
+                              Mode of Issuance
+                            </th>
+                            <th
+                              colSpan={g.span}
+                              className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${g.tone}`}
+                            >
+                              {g.label}
+                            </th>
+                          </React.Fragment>
+                        );
+                      }
+                      return (
+                        <th
+                          key={g.label}
+                          colSpan={g.span}
+                          className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${g.tone}`}
+                        >
+                          {g.label}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                  {/* HR3 — field labels */}
                   <tr>
                     {FIELDS.map((f) => (
                       <th
@@ -528,32 +570,64 @@ function InventoryEditBody({
                     // column never lets scrolling columns bleed through.
                     const zebra = i % 2 === 1 ? "bg-muted" : "bg-card";
                     const r = rows[m.value] ?? emptyMonthRow();
+                    const rowLocked = isRowLocked(m.value);
+                    const gatedDisabled = rowLocked || !r.fsicmode;
                     return (
                       <tr key={m.value} className={zebra}>
                         <td
                           className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
                         >
-                          {m.name}
+                          <span className="inline-flex items-center gap-1.5">
+                            {rowLocked ? (
+                              <Lock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                            ) : null}
+                            {m.name}
+                          </span>
                         </td>
-                        {FIELDS.map((f) => (
-                          <td key={f.key} className="border-b border-r p-0">
-                            <Input
-                              type="number"
-                              min={0}
-                              value={String(r[f.key] ?? 0)}
-                              disabled={monthLocked}
-                              readOnly={monthLocked}
-                              onChange={(e) => updateCell(m.value, f.key, e.target.value)}
-                              className="h-8 w-[70px] rounded-none border-0 bg-transparent text-right tabular-nums focus-visible:ring-1"
-                            />
-                          </td>
-                        ))}
+                        {FIELDS.map((f, fi) => {
+                          const gated = isGatedGroup(f.group);
+                          const disabled = rowLocked || (gated && !r.fsicmode);
+                          // Insert Mode of Issuance cell just before the first FSEC field.
+                          const modeCell =
+                            f.group === "FSEC" && fi > 0 && FIELDS[fi - 1].group !== "FSEC" ? (
+                              <td key={`mode-${m.value}`} className="border-b border-r p-1">
+                                <GentableSearchSelect
+                                  tablename={FSIS_ISSUANCE_TABLE}
+                                  value={r.fsicmode ? String(r.fsicmode) : undefined}
+                                  valueName={modeNames[m.value] ?? ""}
+                                  placeholder="Select mode"
+                                  hideCode
+                                  disabled={rowLocked}
+                                  readOnly={rowLocked}
+                                  onChange={(detno, description) =>
+                                    updateRowMode(m.value, detno, description)
+                                  }
+                                />
+                              </td>
+                            ) : null;
+                          return (
+                            <React.Fragment key={f.key}>
+                              {modeCell}
+                              <td className="border-b border-r p-0">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={String(r[f.key] ?? 0)}
+                                  disabled={disabled}
+                                  readOnly={disabled}
+                                  onChange={(e) => updateCell(m.value, f.key, e.target.value)}
+                                  className="h-8 w-[70px] rounded-none border-0 bg-transparent text-right tabular-nums focus-visible:ring-1 disabled:opacity-60"
+                                />
+                              </td>
+                            </React.Fragment>
+                          );
+                        })}
                         <td className="border-b border-r p-0">
                           <Input
                             type="text"
                             value={r.remarks ?? ""}
-                            disabled={monthLocked}
-                            readOnly={monthLocked}
+                            disabled={rowLocked}
+                            readOnly={rowLocked}
                             onChange={(e) => updateCell(m.value, "remarks", e.target.value)}
                             className="h-8 w-[220px] rounded-none border-0 bg-transparent focus-visible:ring-1"
                             placeholder="Notes…"
@@ -569,14 +643,25 @@ function InventoryEditBody({
                     <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
                       Total
                     </td>
-                    {FIELDS.map((f) => (
-                      <td
-                        key={f.key}
-                        className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
-                      >
-                        {(columnTotals[f.key] ?? 0).toLocaleString()}
-                      </td>
-                    ))}
+                    {FIELDS.map((f, fi) => {
+                      const modeCell =
+                        f.group === "FSEC" && fi > 0 && FIELDS[fi - 1].group !== "FSEC" ? (
+                          <td
+                            key={`mode-total`}
+                            className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
+                          >
+                            —
+                          </td>
+                        ) : null;
+                      return (
+                        <React.Fragment key={f.key}>
+                          {modeCell}
+                          <td className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
+                            {(columnTotals[f.key] ?? 0).toLocaleString()}
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
                     <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
                       {grandTotal.toLocaleString()}
                     </td>
@@ -585,26 +670,23 @@ function InventoryEditBody({
               </table>
             </div>
             <div className="border-t bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
-              {monthLocked
-                ? "This month is locked. Values are read-only."
-                : "Enter monthly totals. Only rows that changed are saved."}
+              Enter monthly totals. Locked months are shown for reference only.
+              Issuance-gated fields (FSEC, FSIC, Notices) unlock once a Mode of Issuance is chosen for that month.
             </div>
           </Card>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="outline" onClick={onCancel} className="gap-2">
-              <ArrowLeft className="h-4 w-4" /> {monthLocked ? "Close" : "Cancel"}
+              <ArrowLeft className="h-4 w-4" /> Cancel
             </Button>
-            {!monthLocked && (
-              <Button
-                onClick={handleSave}
-                disabled={saving || loading}
-                className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {saving ? "Saving…" : "Save Changes"}
-              </Button>
-            )}
+            <Button
+              onClick={handleSave}
+              disabled={saving || loading}
+              className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving ? "Saving…" : "Save Changes"}
+            </Button>
           </div>
         </>
       )}
