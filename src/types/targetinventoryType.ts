@@ -207,13 +207,20 @@ export interface FSISInventoryMonthlyItem {
   barangayname: string;
   streetaddress: string;
   logourl: string;
-  dateinspected: string;
-  remarks: string;
-  reportyear: number;
-  reportmonth: number;
-  fsisInventoryLedgerList: FSISInventoryLedgerDailyItem[];
+  month: number;
+  year: number;
+  totaltargetbplo: number;
+  totaltargetgov: number;
+  totaltargetpeza: number;
+  totaltargettieza: number;
+  totalAccomplishmentbplo: number;
+  totalAccomplishmentgov: number;
+  totalAccomplishmentpeza: number;
+  totalAccomplishmenttieza: number;
   updatedby: string;
   encodedby: string;
+  fsisInventoryLedgerList: FSISInventoryLedgerDailyItem[];
+  
 }
 
 
