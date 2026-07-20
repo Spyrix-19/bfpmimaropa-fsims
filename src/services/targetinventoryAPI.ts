@@ -1,13 +1,6 @@
 import { apiPost, apiGet, NO_RETRY, GET_RETRY } from "@/lib/api";
-import {
-  FSISInventoryDTO,
-  TargetAccomplishmentParams,
-  TargetAccomplishmentModel,
-  FSISInventoryLedgerParams,
-  FSISInventoryLedgerItem,
-  FSISInventoryMonthlyParams,
-  FSISInventoryMonthlyItem,
-} from "@/types/targetinventoryType";
+import {  FSISInventoryDTO,  FSISUpdateInventoryDTO,  TargetAccomplishmentParams,  TargetAccomplishmentModel,  FSISInventoryLedgerParams,
+  FSISInventoryLedgerItem,  FSISInventoryMonthlyParams,  FSISInventoryMonthlyItem,} from "@/types/targetinventoryType";
 
 export const targetinventoryAPI = {
   async create(params: FSISInventoryDTO) {
@@ -28,6 +21,10 @@ export const targetinventoryAPI = {
       ...GET_RETRY,
       ...options,
     });
+  },
+
+ async update(params: FSISUpdateInventoryDTO) {
+    return await apiPost("/api/v1/FSISInventory/Monthly/Update", params, { ...NO_RETRY });
   },
 
   async getMonthly(params: FSISInventoryMonthlyParams, options?: import("@/lib/api").ApiOptions) {

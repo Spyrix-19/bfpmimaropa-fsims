@@ -29,6 +29,41 @@ export interface FSISInventoryDTO {
   encodedby: string;
 }
 
+export interface FSISUpdateInventoryDTO {
+  stationno: string;
+  updatedby: string;
+  encodedby: string;
+  fsisUpdateInventoryList: FSISUpdateInventoryClass[];
+}
+
+export interface FSISUpdateInventoryClass {
+  fsisno: string;
+  dateinspected: string;
+  inspectduringcount: number;
+  inspectaftercount: number;
+  inspectbplocount: number;
+  inspectgovcount: number;
+  inspectpezacount: number;
+  inspecttiezacount: number;
+  fsicmode: number;
+  fsecbuildingcount: number;
+  fsecgovcount: number;
+  fsecpezacount: number;
+  fsectiezacount: number;
+  fsicoccupancycount: number;
+  fsicbplonewcount: number;
+  fsicbplorenewcount: number;
+  fsicgovcount: number;
+  fsicpezacount: number;
+  fsictiezacount: number;
+  nodcount: number;
+  ntccount: number;
+  ntcvcount: number;
+  avatementcount: number;
+  closurecount: number;
+  remarks: string;
+}
+
 export interface FSISInventoryDetailModel {
   fsisno: string;
   stationcode: string;
