@@ -44,9 +44,11 @@ export default function GentableSelect<V extends string | number = string>(props
           aria-readonly={readOnly || undefined}
           className={
             (className ?? "") +
-            " h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm text-left inline-flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" +
-            (disabled ? " disabled:opacity-60 disabled:cursor-not-allowed" : "") +
-            (readOnly && !disabled ? " cursor-default" : "")
+            " h-10 w-full min-w-0 rounded-md border px-3 text-sm text-left inline-flex items-center justify-between focus-visible:outline-none" +
+            (isInert
+              ? " bg-muted/40 cursor-default"
+              : " bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2") +
+            (disabled ? " disabled:opacity-100" : "")
           }
         >
           <span className={(current ? "" : "text-muted-foreground") + " min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis"}>{displayLabel}</span>

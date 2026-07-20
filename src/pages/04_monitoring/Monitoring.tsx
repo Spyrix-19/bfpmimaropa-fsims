@@ -34,6 +34,7 @@ import { inventoryAPI } from "@/services/inventoryAPI";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { isReportMonthLocked } from "@/pages/05_target-reference/helpers";
+import { canManageTargetAndCompliance } from "@/lib/permissions";
 import {
   CATEGORY_FIELDS,
   calendarDaysInMonth,
@@ -188,6 +189,12 @@ export default function FireSafetyCompliancePage() {
   const scope = React.useMemo(
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
+  );
+  // Only Personnel (roleno 3) at station types 28/29/30/31 may Add/Edit/Delete
+  // Fire Safety Compliance records. All other users see View-only.
+  const canManage = React.useMemo(
+    () => canManageTargetAndCompliance(user, systemAccess),
+    [user, systemAccess],
   );
 
   const currentYear = new Date().getFullYear();
@@ -423,9 +430,11 @@ export default function FireSafetyCompliancePage() {
           <Button variant="outline" onClick={openMatrixGlobal} className="w-full justify-center gap-2 sm:w-auto">
             <LayoutGrid className="h-4 w-4" /> Compliance Matrix
           </Button>
-          <Button onClick={() => setAddOpen(true)} className="w-full justify-center gap-2 sm:w-auto">
-            <Plus className="h-4 w-4" /> Add Record
-          </Button>
+          {canManage && (
+            <Button onClick={() => setAddOpen(true)} className="w-full justify-center gap-2 sm:w-auto">
+              <Plus className="h-4 w-4" /> Add Record
+            </Button>
+          )}
         </div>
       </div>
 
@@ -531,7 +540,7 @@ export default function FireSafetyCompliancePage() {
             <ComplianceCard
               key={r.key}
               row={r}
-              locked={monthLocked}
+              locked={monthLocked || !canManage}
               onView={() => setViewTarget(r)}
               onEdit={() => setEditTarget(r)}
               onDelete={() => askDelete(r)}

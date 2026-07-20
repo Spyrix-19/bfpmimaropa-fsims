@@ -50,6 +50,7 @@ import {
   type TargetBucket,
 } from "./helpers";
 import ReadOnlyField from "./components/ReadOnlyField";
+import { canManageTargetAndCompliance } from "@/lib/permissions";
 
 function BucketCell({ b, k }: { b: TargetBucket; k: keyof TargetBucket }) {
   const v = b[k];
@@ -93,6 +94,12 @@ export default function TargetReferenceIndexPage() {
   const scope = React.useMemo(
     () => resolveTargetScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
+  );
+  // Only Personnel (roleno 3) assigned to station types 28/29/30/31 may
+  // Add / Edit / Delete target references. All other users see View-only.
+  const canManage = React.useMemo(
+    () => canManageTargetAndCompliance(user, systemAccess),
+    [user, systemAccess],
   );
 
   const [refreshTick, setRefreshTick] = React.useState(0);
@@ -350,9 +357,11 @@ export default function TargetReferenceIndexPage() {
           <Button variant="outline" onClick={openMatrixGlobal} className="w-full justify-center gap-2 sm:w-auto">
             <LayoutGrid className="h-4 w-4" /> Target Matrix
           </Button>
-          <AddButton onClick={handleAdd} className="w-full justify-center sm:w-auto">
-            <Target className="h-4 w-4" /> Add Target
-          </AddButton>
+          {canManage && (
+            <AddButton onClick={handleAdd} className="w-full justify-center sm:w-auto">
+              <Target className="h-4 w-4" /> Add Target
+            </AddButton>
+          )}
         </div>
       </div>
 
@@ -471,6 +480,7 @@ export default function TargetReferenceIndexPage() {
               key={g.key}
               group={g}
               period={period}
+              canManage={canManage}
               onView={() => handleView(g)}
               onEdit={() => handleEdit(g)}
               onDelete={() => askDelete(g)}
@@ -568,6 +578,7 @@ function TableHead({ firstLabel }: { firstLabel: string }) {
 function TargetCard({
   group,
   period,
+  canManage,
   onView,
   onEdit,
   onDelete,
@@ -575,6 +586,7 @@ function TargetCard({
 }: {
   group: GroupItem;
   period: TargetPeriod;
+  canManage: boolean;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -739,8 +751,8 @@ function TargetCard({
         >
           <Eye className="h-4 w-4" />
         </button>
-        <EditButton onClick={onEdit} tooltip="Edit" />
-        <DeleteButton onClick={onDelete} tooltip="Delete" />
+        {canManage && <EditButton onClick={onEdit} tooltip="Edit" />}
+        {canManage && <DeleteButton onClick={onDelete} tooltip="Delete" />}
         <button
           type="button"
           onClick={onMatrix}

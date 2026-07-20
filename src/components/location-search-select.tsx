@@ -116,14 +116,17 @@ export default function LocationSearchSelect({
   const showPrev = page > 1;
   const showNext = rows.length === PAGE_SIZE;
 
-  if (readOnly) {
+  // Disabled + read-only render as a plain read-only field — no dropdown
+  // chevron, no interaction affordance — while preserving size/spacing/type.
+  if (readOnly || disabled) {
     return (
       <div
         className={cn(
-          "flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border bg-background px-3 text-left text-sm",
+          "flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 text-left text-sm cursor-default",
           className,
         )}
         aria-readonly
+        aria-disabled={disabled || undefined}
       >
         <span className={cn("min-w-0 flex-1 truncate", !label && "text-muted-foreground")}>
           {label || placeholder}

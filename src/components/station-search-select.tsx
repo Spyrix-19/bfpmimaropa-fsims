@@ -137,14 +137,17 @@ export default function StationSearchSelect({
   const showPrev = page > 1;
   const showNext = rows.length === PAGE_SIZE; // best-effort: full page means there might be more
 
-  if (readOnly) {
+  // Disabled + read-only render as a plain read-only field — no dropdown
+  // chevron, no interaction affordance — while preserving size/spacing/type.
+  if (readOnly || disabled) {
     return (
       <div
         className={cn(
-          "h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm flex items-center justify-between gap-2 text-left cursor-default",
+          "h-10 w-full min-w-0 rounded-md border bg-muted/40 px-3 text-sm flex items-center justify-between gap-2 text-left cursor-default",
           className,
         )}
         aria-readonly
+        aria-disabled={disabled || undefined}
       >
         <span className={cn("min-w-0 flex-1 truncate", !label && "text-muted-foreground")}>
           {label || placeholder}

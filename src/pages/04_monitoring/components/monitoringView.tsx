@@ -71,62 +71,37 @@ function ledgerToRow(
   };
 }
 
-/**
- * Read-only monthly breakdown body — used both by the route page and by
- * the modal wrapper. All chrome (headline / back button / dialog frame) is
- * supplied by the caller.
- */
-function InventoryViewBody({
-  stationno,
-  year,
-  month,
-}: {
-  stationno: string;
-  year: number;
+type MonthlyRow = Partial<DailyInventoryDTO> & {
+  dateinspected: string;
+  inventoryno: string;
+};
+
+interface MonthSlice {
   month: number;
+  record: FSISInventoryMonthlyItem | null;
+  rows: MonthlyRow[];
+}
+
+/**
+ * Single-month rendering block — kept identical to the pre-existing per-month
+ * table so the 12-month year view uses the exact same monthly layout the spec
+ * requires. When the API returns no record for the month we still render the
+ * table shell with zero values so every month is visible.
+ */
+function MonthSection({
+  slice,
+  year,
+  stationno,
+}: {
+  slice: MonthSlice;
+  year: number;
+  stationno: string;
 }) {
-  const [monthly, setMonthly] = React.useState<FSISInventoryMonthlyItem | null>(null);
-  const [rows, setRows] = React.useState<Array<Partial<DailyInventoryDTO> & { dateinspected: string; inventoryno: string }>>([]);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-
-      // Resolve provinceno — Monthly endpoint requires it.
-      const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
-      const { data: sData } = unwrap<SearchStationModel[]>(sResp);
-      const seedStation = Array.isArray(sData) ? sData[0] : undefined;
-
-      const resp = await targetinventoryAPI.getMonthly({
-        Stationno: stationno || EMPTY_GUID,
-        Provinceno: seedStation?.provinceno ?? EMPTY_GUID,
-        Reportyear: year,
-        Reportmonth: month,
-      });
-      const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
-      if (cancelled) return;
-      if (!ok) toast.error(error || "Unable to load monthly monitoring record.");
-
-      const record = Array.isArray(data) ? data[0] ?? null : null;
-      const list = record?.fsisInventoryLedgerList ?? [];
-      const mapped = list
-        .map(ledgerToRow)
-        .filter((r) => r.dateinspected)
-        .sort((a, b) => a.dateinspected.localeCompare(b.dateinspected));
-
-      setMonthly(record);
-      setRows(mapped);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [stationno, year, month]);
-
+  const { month, record, rows } = slice;
   const encoded = rows.length;
   const daysTotal = calendarDaysInMonth(year, month);
+  const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
+
   const fieldTotals = React.useMemo(() => {
     const totals: Record<string, number> = {};
     DETAIL_FIELDS.forEach((field) => {
@@ -137,39 +112,35 @@ function InventoryViewBody({
     });
     return totals;
   }, [rows]);
-  const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
 
   const summaryData = React.useMemo<TargetAccomplishmentModel | null>(() => {
-    if (!monthly) return null;
+    if (!record) return null;
     return {
-      stationno: monthly.stationno,
-      month: monthly.month ?? month,
-      year: monthly.year ?? year,
-      totaltargetbplo: Number(monthly.totaltargetbplo ?? 0) || 0,
-      totaltargetgov: Number(monthly.totaltargetgov ?? 0) || 0,
-      totaltargetpeza: Number(monthly.totaltargetpeza ?? 0) || 0,
-      totaltargettieza: Number(monthly.totaltargettieza ?? 0) || 0,
-      totalAccomplishmentbplo: Number(monthly.totalAccomplishmentbplo ?? 0) || 0,
-      totalAccomplishmentgov: Number(monthly.totalAccomplishmentgov ?? 0) || 0,
-      totalAccomplishmentpeza: Number(monthly.totalAccomplishmentpeza ?? 0) || 0,
-      totalAccomplishmenttieza: Number(monthly.totalAccomplishmenttieza ?? 0) || 0,
+      stationno: record.stationno,
+      month: record.month ?? month,
+      year: record.year ?? year,
+      totaltargetbplo: Number(record.totaltargetbplo ?? 0) || 0,
+      totaltargetgov: Number(record.totaltargetgov ?? 0) || 0,
+      totaltargetpeza: Number(record.totaltargetpeza ?? 0) || 0,
+      totaltargettieza: Number(record.totaltargettieza ?? 0) || 0,
+      totalAccomplishmentbplo: Number(record.totalAccomplishmentbplo ?? 0) || 0,
+      totalAccomplishmentgov: Number(record.totalAccomplishmentgov ?? 0) || 0,
+      totalAccomplishmentpeza: Number(record.totalAccomplishmentpeza ?? 0) || 0,
+      totalAccomplishmenttieza: Number(record.totalAccomplishmenttieza ?? 0) || 0,
     };
-  }, [monthly, month, year]);
-
-  if (loading) {
-    return (
-      <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-      </Card>
-    );
-  }
+  }, [record, month, year]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Card className="border-border/60 p-4 shadow-soft">
-        <div className="flex flex-wrap items-center justify-end gap-4">
-          <MetaField label="Period" value={`${monthName} ${year}`} />
-          <MetaField label="Days Encoded" value={`${encoded} / ${daysTotal}`} />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="text-sm font-bold uppercase tracking-[0.15em] text-primary">
+            {monthName} {year}
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <MetaField label="Period" value={`${monthName} ${year}`} />
+            <MetaField label="Days Encoded" value={`${encoded} / ${daysTotal}`} />
+          </div>
         </div>
       </Card>
 
@@ -279,9 +250,91 @@ function InventoryViewBody({
   );
 }
 
+/**
+ * Read-only year-wide breakdown — renders every month from January to
+ * December using the same monthly table layout. Months without any record
+ * remain visible with empty rows / zero totals per the spec.
+ */
+function InventoryViewBody({
+  stationno,
+  year,
+}: {
+  stationno: string;
+  year: number;
+}) {
+  const [slices, setSlices] = React.useState<MonthSlice[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+
+      // Resolve provinceno — Monthly endpoint requires it.
+      const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
+      const { data: sData } = unwrap<SearchStationModel[]>(sResp);
+      const seedStation = Array.isArray(sData) ? sData[0] : undefined;
+      const provinceno = seedStation?.provinceno ?? EMPTY_GUID;
+
+      // Fire all 12 months in parallel — every month renders, even those
+      // without a record on the server.
+      const responses = await Promise.all(
+        MONTHS.map((m) =>
+          targetinventoryAPI.getMonthly(
+            {
+              Stationno: stationno || EMPTY_GUID,
+              Provinceno: provinceno,
+              Reportyear: year,
+              Reportmonth: m.value,
+            },
+            { suppressGlobalLoading: true },
+          ),
+        ),
+      );
+      if (cancelled) return;
+
+      let firstError: string | null = null;
+      const built: MonthSlice[] = responses.map((resp, index) => {
+        const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
+        if (!ok && !firstError) firstError = error || null;
+        const record = ok && Array.isArray(data) ? data[0] ?? null : null;
+        const list = record?.fsisInventoryLedgerList ?? [];
+        const rows = list
+          .map(ledgerToRow)
+          .filter((r) => r.dateinspected)
+          .sort((a, b) => a.dateinspected.localeCompare(b.dateinspected));
+        return { month: MONTHS[index].value, record, rows };
+      });
+
+      if (firstError) toast.error(firstError);
+      setSlices(built);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [stationno, year]);
+
+  if (loading) {
+    return (
+      <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {slices.map((slice) => (
+        <MonthSection key={slice.month} slice={slice} year={year} stationno={stationno} />
+      ))}
+    </div>
+  );
+}
+
 /** Route page — kept for deep-linking / bookmarks. */
 export default function InventoryView() {
-  const { stationno = "", year = "", month = "" } = useParams();
+  const { stationno = "", year = "" } = useParams();
   const navigate = useNavigate();
 
   return (
@@ -294,7 +347,7 @@ export default function InventoryView() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Inventory — Monthly Details</h1>
             <p className="text-sm text-muted-foreground">
-              Read-only breakdown of daily FSIS accomplishments.
+              Read-only breakdown of daily FSIS accomplishments across the year.
             </p>
           </div>
         </div>
@@ -303,7 +356,7 @@ export default function InventoryView() {
         </Button>
       </div>
 
-      <InventoryViewBody stationno={stationno} year={Number(year)} month={Number(month)} />
+      <InventoryViewBody stationno={stationno} year={Number(year)} />
     </div>
   );
 }
@@ -314,17 +367,20 @@ export function InventoryViewModal({
   onOpenChange,
   stationno,
   year,
-  month,
   stationName,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   stationno: string;
   year: number;
-  month: number;
+  /**
+   * Retained for backwards compatibility with existing callers — the view
+   * now always renders all 12 months, so this value is only used for the
+   * dialog subtitle when supplied.
+   */
+  month?: number;
   stationName?: string;
 }) {
-  const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
@@ -334,10 +390,10 @@ export function InventoryViewModal({
           </DialogTitle>
           <DialogDescription>
             {stationName ? `${stationName} · ` : ""}
-            {monthName} {year} — read-only breakdown of daily FSIS accomplishments.
+            {year} — read-only breakdown of daily FSIS accomplishments (January to December).
           </DialogDescription>
         </DialogHeader>
-        {open ? <InventoryViewBody stationno={stationno} year={year} month={month} /> : null}
+        {open ? <InventoryViewBody stationno={stationno} year={year} /> : null}
       </DialogContent>
     </Dialog>
   );

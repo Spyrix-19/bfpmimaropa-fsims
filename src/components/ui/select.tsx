@@ -19,14 +19,19 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-9 w-full min-w-0 items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background cursor-pointer data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap overflow-hidden [&>span]:block [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:whitespace-nowrap [&>span]:truncate",
+      // Base (interactive) styling — unchanged sizing/typography/colors.
+      "flex h-9 w-full min-w-0 items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background cursor-pointer data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring whitespace-nowrap overflow-hidden [&>span]:block [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:whitespace-nowrap [&>span]:truncate",
+      // Disabled / read-only appearance — drop the dropdown affordance so the
+      // control reads as a plain read-only field (no chevron, no interaction
+      // cursor, no focus ring); size / spacing / typography are preserved.
+      "disabled:cursor-default disabled:opacity-100 disabled:shadow-none disabled:bg-muted/40 disabled:focus:ring-0 disabled:[&_[data-select-chevron]]:hidden",
       className,
     )}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" />
+      <ChevronDown data-select-chevron className="h-4 w-4 opacity-50" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
