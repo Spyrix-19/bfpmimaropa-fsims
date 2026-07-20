@@ -29,7 +29,7 @@ import {
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 
-import GentableSearchSelect from "@/components/gentable-search-select";
+
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
@@ -40,7 +40,7 @@ import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { FSISInventoryDTO } from "@/types/targetinventoryType";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
-import { FSIS_ISSUANCE_TABLE } from "./issuanceMode";
+
 
 /* -------------------------------------------------------------------------- */
 /*  Field spec — a single declarative source drives layout, defaults, keys.   */
@@ -196,10 +196,9 @@ function InspectionsNewBody({
   const [numeric, setNumeric] = React.useState<Record<string, number>>(defaultNumeric);
   const [manualIssuance, setManualIssuance] = React.useState<Record<string, number>>(defaultIssuance);
   const [fsisIssuance, setFsisIssuance] = React.useState<Record<string, number>>(defaultIssuance);
-  const [manualModeNo, setManualModeNo] = React.useState<string>("");
-  const [manualModeName, setManualModeName] = React.useState<string>("");
-  const [fsisModeNo, setFsisModeNo] = React.useState<string>("");
-  const [fsisModeName, setFsisModeName] = React.useState<string>("");
+  // Mode of Issuance is fixed per column: MANUAL = 96, FSIS = 97.
+  const manualModeNo = "96";
+  const fsisModeNo = "97";
   const [remarks, setRemarks] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
@@ -445,96 +444,18 @@ function InspectionsNewBody({
         />
 
         <TooltipProvider delayDuration={150}>
-          {(() => {
-            const makeSetter = (
-              setter: React.Dispatch<React.SetStateAction<Record<string, number>>>,
-            ) => (key: string, raw: string) => {
-              const cleaned = raw.replace(/[^0-9]/g, "");
-              const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
-              setter((prev) => ({ ...prev, [key]: value }));
-            };
-            const setManualField = makeSetter(setManualIssuance);
-            const setFsisField = makeSetter(setFsisIssuance);
-
-            const renderColumn = (
-              heading: string,
-              modeNo: string,
-              modeName: string,
-              onModeChange: (no: string, name: string) => void,
-              values: Record<string, number>,
-              onFieldChange: (key: string, raw: string) => void,
-            ) => (
-              <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-4">
-                <div className="text-sm font-semibold uppercase tracking-wider text-foreground">
-                  {heading}
-                </div>
-                <Field label="Issuance Mode" required>
-                  <GentableSearchSelect
-                    tablename={FSIS_ISSUANCE_TABLE}
-                    value={modeNo || undefined}
-                    valueName={modeName}
-                    placeholder="Select issuance mode"
-                    hideCode
-                    onChange={(detno, description) => onModeChange(detno, description)}
-                  />
-                </Field>
-                <SubGroup title="Fire Safety Evaluation Certificate (FSEC)">
-                  <NumericGrid
-                    fields={ISSUANCE_FSEC_FIELDS}
-                    values={values}
-                    errors={{}}
-                    onChange={onFieldChange}
-                    disabled={!modeNo}
-                  />
-                </SubGroup>
-                <SubGroup title="Fire Safety Inspection Certificate (FSIC)">
-                  <NumericGrid
-                    fields={ISSUANCE_FSIC_FIELDS}
-                    values={values}
-                    errors={{}}
-                    onChange={onFieldChange}
-                    disabled={!modeNo}
-                  />
-                </SubGroup>
-                <SubGroup title="Other Notices">
-                  <NumericGrid
-                    fields={OTHERS_FIELDS}
-                    values={values}
-                    errors={{}}
-                    onChange={onFieldChange}
-                    disabled={!modeNo}
-                  />
-                </SubGroup>
-              </div>
-            );
-
-            return (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {renderColumn(
-                  "MANUAL",
-                  manualModeNo,
-                  manualModeName,
-                  (no, name) => {
-                    setManualModeNo(no);
-                    setManualModeName(name);
-                  },
-                  manualIssuance,
-                  setManualField,
-                )}
-                {renderColumn(
-                  "FSIS",
-                  fsisModeNo,
-                  fsisModeName,
-                  (no, name) => {
-                    setFsisModeNo(no);
-                    setFsisModeName(name);
-                  },
-                  fsisIssuance,
-                  setFsisField,
-                )}
-              </div>
-            );
-          })()}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <IssuanceColumn
+              heading="MANUAL"
+              values={manualIssuance}
+              setValues={setManualIssuance}
+            />
+            <IssuanceColumn
+              heading="FSIS"
+              values={fsisIssuance}
+              setValues={setFsisIssuance}
+            />
+          </div>
         </TooltipProvider>
 
         <Field label="Remarks">
@@ -687,6 +608,42 @@ function SubGroup({ title, children }: { title: string; children: React.ReactNod
     <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
       <div className="mb-3 text-sm font-semibold text-foreground">{title}</div>
       {children}
+    </div>
+  );
+}
+
+function IssuanceColumn({
+  heading,
+  values,
+  setValues,
+}: {
+  heading: string;
+  values: Record<string, number>;
+  setValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+}) {
+  const onChange = React.useCallback(
+    (key: string, raw: string) => {
+      const cleaned = raw.replace(/[^0-9]/g, "");
+      const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+      setValues((prev) => ({ ...prev, [key]: value }));
+    },
+    [setValues],
+  );
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-4">
+      <div className="text-sm font-semibold uppercase tracking-wider text-foreground">
+        {heading}
+      </div>
+      <SubGroup title="Fire Safety Evaluation Certificate (FSEC)">
+        <NumericGrid fields={ISSUANCE_FSEC_FIELDS} values={values} errors={{}} onChange={onChange} />
+      </SubGroup>
+      <SubGroup title="Fire Safety Inspection Certificate (FSIC)">
+        <NumericGrid fields={ISSUANCE_FSIC_FIELDS} values={values} errors={{}} onChange={onChange} />
+      </SubGroup>
+      <SubGroup title="Other Notices">
+        <NumericGrid fields={OTHERS_FIELDS} values={values} errors={{}} onChange={onChange} />
+      </SubGroup>
     </div>
   );
 }

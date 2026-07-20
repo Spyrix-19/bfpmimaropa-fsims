@@ -35,8 +35,8 @@ import type {
 
 // Page-local aliases — types/ is immutable; keep original names via aliases.
 type FSISInventoryMonthlyItem = FSISInventoryMonthlyLedgerModel;
-type FSISInventoryLedgerDailyItem = FSISInventoryMonthlyClass &
-  Partial<FSISIssuanceClassModel> & { dateinspected?: string | Date };
+type FSISInventoryLedgerDailyItem = FSISInventoryMonthlyClass;
+type FSISIssuanceItem = FSISIssuanceClassModel;
 import type { SearchStationModel } from "@/types/stationTypes";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
@@ -56,36 +56,41 @@ const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
   NOTICES: "bg-amber-600 text-white",
 };
 
-/** Sum every Monthly-endpoint ledger daily item into a single per-field row.
- *  The keys mirror `DailyInventoryDTO` so the same DETAIL_FIELDS drive both
- *  the table columns and totals. */
+/** Sum a month's totals.
+ *  - Inspection counts live on each ledger daily item.
+ *  - FSEC / FSIC / Notice counts live inside each ledger's `issuancelist`
+ *    (one entry per MANUAL/FSIS mode). Both modes are summed together. */
 function aggregateMonth(
   list: FSISInventoryLedgerDailyItem[] | undefined,
 ): Partial<Record<keyof DailyInventoryDTO, number>> {
   const acc: Record<string, number> = {};
+  const add = (k: string, v: unknown) => {
+    acc[k] = (acc[k] ?? 0) + (Number(v ?? 0) || 0);
+  };
   for (const l of list ?? []) {
-    acc.insp_during = (acc.insp_during ?? 0) + (Number(l.inspectduringcount ?? 0) || 0);
-    acc.insp_after = (acc.insp_after ?? 0) + (Number(l.inspectaftercount ?? 0) || 0);
-    acc.insp_bplo = (acc.insp_bplo ?? 0) + (Number(l.inspectbplocount ?? 0) || 0);
-    acc.insp_gov = (acc.insp_gov ?? 0) + (Number(l.inspectgovcount ?? 0) || 0);
-    acc.insp_peza = (acc.insp_peza ?? 0) + (Number(l.inspectpezacount ?? 0) || 0);
-    acc.insp_tieza = (acc.insp_tieza ?? 0) + (Number(l.inspecttiezacount ?? 0) || 0);
-    acc.fsec_building = (acc.fsec_building ?? 0) + (Number(l.fsecbuildingcount ?? 0) || 0);
-    acc.fsec_gov = (acc.fsec_gov ?? 0) + (Number(l.fsecgovcount ?? 0) || 0);
-    acc.fsec_peza = (acc.fsec_peza ?? 0) + (Number(l.fsecpezacount ?? 0) || 0);
-    acc.fsec_tieza = (acc.fsec_tieza ?? 0) + (Number(l.fsectiezacount ?? 0) || 0);
-    acc.fsic_occupancy = (acc.fsic_occupancy ?? 0) + (Number(l.fsicoccupancycount ?? 0) || 0);
-    acc.fsic_bplo_new = (acc.fsic_bplo_new ?? 0) + (Number(l.fsicbplonewcount ?? 0) || 0);
-    acc.fsic_bplo_renewal =
-      (acc.fsic_bplo_renewal ?? 0) + (Number(l.fsicbplorenewcount ?? 0) || 0);
-    acc.fsic_gov = (acc.fsic_gov ?? 0) + (Number(l.fsicgovcount ?? 0) || 0);
-    acc.fsic_peza = (acc.fsic_peza ?? 0) + (Number(l.fsicpezacount ?? 0) || 0);
-    acc.fsic_tieza = (acc.fsic_tieza ?? 0) + (Number(l.fsictiezacount ?? 0) || 0);
-    acc.not_nod = (acc.not_nod ?? 0) + (Number(l.nodcount ?? 0) || 0);
-    acc.not_ntc = (acc.not_ntc ?? 0) + (Number(l.ntccount ?? 0) || 0);
-    acc.not_ntcv = (acc.not_ntcv ?? 0) + (Number(l.ntcvcount ?? 0) || 0);
-    acc.not_abatement = (acc.not_abatement ?? 0) + (Number(l.avatementcount ?? 0) || 0);
-    acc.not_closure = (acc.not_closure ?? 0) + (Number(l.closurecount ?? 0) || 0);
+    add("insp_during", l.inspectduringcount);
+    add("insp_after", l.inspectaftercount);
+    add("insp_bplo", l.inspectbplocount);
+    add("insp_gov", l.inspectgovcount);
+    add("insp_peza", l.inspectpezacount);
+    add("insp_tieza", l.inspecttiezacount);
+    for (const i of (l.issuancelist ?? []) as FSISIssuanceItem[]) {
+      add("fsec_building", i.fsecbuildingcount);
+      add("fsec_gov", i.fsecgovcount);
+      add("fsec_peza", i.fsecpezacount);
+      add("fsec_tieza", i.fsectiezacount);
+      add("fsic_occupancy", i.fsicoccupancycount);
+      add("fsic_bplo_new", i.fsicbplonewcount);
+      add("fsic_bplo_renewal", i.fsicbplorenewcount);
+      add("fsic_gov", i.fsicgovcount);
+      add("fsic_peza", i.fsicpezacount);
+      add("fsic_tieza", i.fsictiezacount);
+      add("not_nod", i.nodcount);
+      add("not_ntc", i.ntccount);
+      add("not_ntcv", i.ntcvcount);
+      add("not_abatement", i.avatementcount);
+      add("not_closure", i.closurecount);
+    }
   }
   return acc as Partial<Record<keyof DailyInventoryDTO, number>>;
 }

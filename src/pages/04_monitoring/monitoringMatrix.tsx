@@ -17,25 +17,28 @@ import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
-import { inventoryAPI } from "@/services/inventoryAPI";
-import { CATEGORY_FIELDS, MONTH_NAMES, bucketScalar, sumMonths } from "@/lib/inventoryHelpers";
+import { MONTH_NAMES, sumMonths } from "@/lib/inventoryHelpers";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+import { EMPTY_GUID } from "@/lib/utils";
 import { buildYears } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type {
-  InventoryCategory,
-  MatrixProvinceGroup,
-  MatrixStationRow,
-} from "@/types/inventoryType";
+  FSISInventoryLedgerModel,
+  FSISInventoryLedgerClass,
+} from "@/types/targetinventoryType";
 import { exportComplianceMatrix } from "./components/matrixExport";
 
 const STYLE = {
   stationHead: "bg-blue-700 text-white dark:bg-blue-800",
   quarter: "bg-emerald-800 text-white dark:bg-emerald-900",
   month: "bg-emerald-600 text-white dark:bg-emerald-700",
-  cat: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100",
+  cat: "bg-slate-100 text-slate-900 dark:bg-slate-800/70 dark:text-slate-100",
+  catInsp: "bg-sky-600 text-white dark:bg-sky-700",
+  catFsec: "bg-emerald-600 text-white dark:bg-emerald-700",
+  catFsic: "bg-amber-500 text-slate-900 dark:bg-amber-600 dark:text-slate-950",
+  catNotice: "bg-rose-500 text-white dark:bg-rose-600",
   semester: "bg-orange-500 text-white dark:bg-orange-600",
   annual: "bg-blue-900 text-white dark:bg-blue-950",
   provTotalRow: "bg-yellow-100 text-yellow-950 font-bold dark:bg-yellow-900/40 dark:text-yellow-50",
@@ -48,6 +51,135 @@ const QUARTERS = [
   { label: "Quarter 3", months: [7, 8, 9] },
   { label: "Quarter 4", months: [10, 11, 12] },
 ];
+
+// ---------------------------------------------------------------------------
+// Compliance fields — real backend DTO keys (FSISInventoryLedgerClass), no
+// aliasing. Keeps 1:1 parity with `targetinventoryAPI.getInventoryLedger`
+// and `monitoringEdit.tsx` so the on-screen matrix and the exported workbook
+// share exactly the same column identity as the source of truth.
+// ---------------------------------------------------------------------------
+type ComplianceCategory = "INSPECTION" | "FSEC" | "FSIC" | "NOTICES";
+
+const COMPLIANCE_FIELDS: { key: keyof FSISInventoryLedgerClass; label: string; category: ComplianceCategory }[] = [
+  { key: "inspectduringcount", label: "During",     category: "INSPECTION" },
+  { key: "inspectaftercount",  label: "After",      category: "INSPECTION" },
+  { key: "inspectbplocount",   label: "1st BPLO",   category: "INSPECTION" },
+  { key: "inspectgovcount",    label: "1st GOV",    category: "INSPECTION" },
+  { key: "inspectpezacount",   label: "1st PEZA",   category: "INSPECTION" },
+  { key: "inspecttiezacount",  label: "1st TIEZA",  category: "INSPECTION" },
+  { key: "fsecbuildingcount",  label: "Building",   category: "FSEC" },
+  { key: "fsecgovcount",       label: "Gov",        category: "FSEC" },
+  { key: "fsecpezacount",      label: "PEZA",       category: "FSEC" },
+  { key: "fsectiezacount",     label: "TIEZA",      category: "FSEC" },
+  { key: "fsicoccupancycount", label: "Occupancy",  category: "FSIC" },
+  { key: "fsicbplonewcount",   label: "BPLO New",   category: "FSIC" },
+  { key: "fsicbplorenewcount", label: "BPLO Renew", category: "FSIC" },
+  { key: "fsicgovcount",       label: "Gov",        category: "FSIC" },
+  { key: "fsicpezacount",      label: "PEZA",       category: "FSIC" },
+  { key: "fsictiezacount",     label: "TIEZA",      category: "FSIC" },
+  { key: "nodcount",           label: "NOD",        category: "NOTICES" },
+  { key: "ntccount",           label: "NTC",        category: "NOTICES" },
+  { key: "ntcvcount",          label: "NTCV",      category: "NOTICES" },
+  { key: "avatementcount",     label: "Avatement",  category: "NOTICES" },
+  { key: "closurecount",       label: "Closure",    category: "NOTICES" },
+];
+
+const CATEGORY_STYLE: Record<ComplianceCategory, string> = {
+  INSPECTION: STYLE.catInsp,
+  FSEC: STYLE.catFsec,
+  FSIC: STYLE.catFsic,
+  NOTICES: STYLE.catNotice,
+};
+
+/** Contiguous [start,end] index runs per category — drives category banners. */
+function computeCategoryRuns() {
+  const runs: { category: ComplianceCategory; start: number; end: number }[] = [];
+  COMPLIANCE_FIELDS.forEach((f, i) => {
+    const last = runs[runs.length - 1];
+    if (last && last.category === f.category) last.end = i;
+    else runs.push({ category: f.category, start: i, end: i });
+  });
+  return runs;
+}
+
+// ---------------------------------------------------------------------------
+// Client-side aggregation of the real ledger response into the province →
+// station → month → { fieldKey → number } shape the matrix + export consume.
+// ---------------------------------------------------------------------------
+interface StationRow {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  province: string;
+  cityname: string;
+  logoUrl: string;
+  months: Record<number, Record<string, number>>;
+}
+interface ProvinceGroup {
+  province: string;
+  provinceno: string;
+  stations: StationRow[];
+  provincialTotal: Record<number, Record<string, number>>;
+}
+
+function monthOf(d: string | Date): number {
+  if (!d) return 0;
+  const s = typeof d === "string" ? d : new Date(d).toISOString();
+  const m = Number(s.slice(5, 7));
+  return Number.isFinite(m) ? m : 0;
+}
+
+function buildGroupsFromLedger(rows: FSISInventoryLedgerModel[]): ProvinceGroup[] {
+  const keys = COMPLIANCE_FIELDS.map((f) => f.key as string);
+  const groups: ProvinceGroup[] = [];
+  const byProv = new Map<string, ProvinceGroup>();
+  for (const st of rows ?? []) {
+    const provkey = st.provinceno || st.provincename || "";
+    let g = byProv.get(provkey);
+    if (!g) {
+      g = {
+        province: st.provincename ?? "",
+        provinceno: st.provinceno ?? "",
+        stations: [],
+        provincialTotal: {},
+      };
+      byProv.set(provkey, g);
+      groups.push(g);
+    }
+    const months: Record<number, Record<string, number>> = {};
+    for (const r of st.fsisInventoryLedgerList ?? []) {
+      const m = monthOf(r.dateinspected);
+      if (m < 1 || m > 12) continue;
+      const bucket = (months[m] ??= Object.fromEntries(keys.map((k) => [k, 0])));
+      for (const k of keys) {
+        bucket[k] += Number((r as unknown as Record<string, unknown>)[k] ?? 0) || 0;
+      }
+    }
+    g.stations.push({
+      stationno: st.stationno,
+      stationcode: st.stationcode,
+      stationname: st.stationname,
+      provinceno: st.provinceno,
+      province: st.provincename,
+      cityname: st.cityname ?? "",
+      logoUrl: st.logourl ?? "",
+      months,
+    });
+    // Accumulate provincial totals.
+    for (const mn of Object.keys(months)) {
+      const m = Number(mn);
+      const dst = (g.provincialTotal[m] ??= Object.fromEntries(keys.map((k) => [k, 0])));
+      for (const k of keys) dst[k] += months[m][k] ?? 0;
+    }
+  }
+  // Sort stations by code for stable display.
+  groups.forEach((g) =>
+    g.stations.sort((a, b) => (a.stationcode || "").localeCompare(b.stationcode || "")),
+  );
+  groups.sort((a, b) => (a.province || "").localeCompare(b.province || ""));
+  return groups;
+}
 
 export interface MatrixInitialFilters {
   year?: number;
@@ -74,7 +206,6 @@ export default function InventoryMatrix({
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
   const YEARS = React.useMemo(buildYears, []);
-  const category: InventoryCategory = "OVERALL";
 
   const [year, setYear] = React.useState<number>(initialFilters?.year ?? currentYear);
   const [provinceno, setProvinceno] = React.useState<string>(initialFilters?.provinceno ?? "");
@@ -101,34 +232,36 @@ export default function InventoryMatrix({
     initialFilters?.stationno,
   ]);
 
-  const [groups, setGroups] = React.useState<MatrixProvinceGroup[]>([]);
+  const [groups, setGroups] = React.useState<ProvinceGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
   // Export-only "Report Month" filter (0 = All months).
   const [exportMonth, setExportMonth] = React.useState<number>(0);
 
-  const fields = CATEGORY_FIELDS[category];
-  const fieldKeys = fields.map((f) => String(f.key));
+  const fields = COMPLIANCE_FIELDS;
+  const fieldKeys = React.useMemo(() => fields.map((f) => String(f.key)), [fields]);
   const catSpan = fields.length;
+  const categoryRuns = React.useMemo(computeCategoryRuns, []);
 
   React.useEffect(() => {
     if (!open) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await inventoryAPI.getInventoryMatrix(
-        {
-          year,
-          provinceno: provinceno || undefined,
-          stationno: stationno || undefined,
-          searchkey: "",
-        },
-        category,
-      );
-      const { ok, data, error } = unwrap<MatrixProvinceGroup[]>(resp);
+      // Real API — pull the entire year's ledger so the matrix can group by
+      // province → station → month client-side using the true DTO fields.
+      const resp = await targetinventoryAPI.getInventoryLedger({
+        searchkey: "",
+        stationno: stationno || EMPTY_GUID,
+        provinceno: provinceno || EMPTY_GUID,
+        reportyear: Number(year),
+        pagenumber: 1,
+        pagesize: 10000,
+      });
+      const { ok, data, error } = unwrap<FSISInventoryLedgerModel[]>(resp);
       if (cancelled) return;
       if (!ok) toast.error(error || "Unable to load matrix.");
-      setGroups(Array.isArray(data) ? data : []);
+      setGroups(buildGroupsFromLedger(Array.isArray(data) ? data : []));
       setLoading(false);
     })();
     return () => {
@@ -143,16 +276,17 @@ export default function InventoryMatrix({
     }
     setExporting(true);
     try {
-      // Fire the export API for server-side logging / audit. The workbook
-      // itself is built client-side from the per-category matrix data so
-      // the visual layout matches the ComplianceMatrix_2026.xlsx reference.
+      // Fire the real export endpoint for server-side logging / audit. The
+      // workbook itself is built client-side from the already-loaded ledger
+      // groups (no re-fetch, no aliasing) so column identity matches the
+      // FSISInventoryLedgerClass DTO exactly.
       void targetinventoryAPI
         .export({
           searchkey: "",
           reportyear: Number(year),
           reportmonth: Number(exportMonth) || 0,
           provinces: groups.map((g) => ({
-            provinceno: (g.stations[0]?.provinceno as string) ?? "",
+            provinceno: g.provinceno || g.stations[0]?.provinceno || "",
             stationnos: g.stations.map((s) => s.stationno),
           })),
         })
@@ -160,76 +294,33 @@ export default function InventoryMatrix({
           /* non-blocking */
         });
 
-      // Pull the four per-category matrices in parallel so the export
-      // includes every column (Inspection, FSEC, FSIC, Notices) instead of
-      // the collapsed OVERALL totals shown on-screen.
-      const cats: InventoryCategory[] = ["INSPECTION", "FSEC", "FSIC", "NOTICES"];
-      const perCat = await Promise.all(
-        cats.map((c) =>
-          inventoryAPI.getInventoryMatrix(
-            {
-              year,
-              provinceno: provinceno || undefined,
-              stationno: stationno || undefined,
-              searchkey: "",
-            },
-            c,
-          ),
-        ),
-      );
-      const catGroups: MatrixProvinceGroup[][] = perCat.map((r) => {
-        const u = unwrap<MatrixProvinceGroup[]>(r);
-        return u.ok && Array.isArray(u.data) ? u.data : [];
-      });
-
-      // Merge per-station months across categories, keyed by stationno.
-      type Station = {
-        stationno: string;
-        stationCode: string;
-        stationName: string;
-        cityName: string;
-        months: Record<number, Record<string, number>>;
-      };
-      const merged: { province: string; stations: Station[] }[] = groups.map((g) => ({
+      // Shape groups for the exporter — 1:1 with FSISInventoryLedgerClass keys.
+      const merged = groups.map((g) => ({
         province: g.province,
         stations: g.stations.map((s) => ({
           stationno: s.stationno,
           stationCode: s.stationcode,
           stationName: s.stationname,
-          cityName: "",
-          months: {} as Record<number, Record<string, number>>,
+          cityName: s.cityname ?? "",
+          months: (() => {
+            // Deep-clone month buckets so the exportMonth filter below can
+            // safely zero-out non-target months without mutating state.
+            const out: Record<number, Record<string, number>> = {};
+            for (let m = 1; m <= 12; m++) {
+              const src = s.months[m];
+              if (!src) continue;
+              out[m] = { ...src };
+            }
+            return out;
+          })(),
         })),
       }));
-      cats.forEach((cat, ci) => {
-        const cg = catGroups[ci];
-        cg.forEach((g) => {
-          const dest = merged.find((mg) => mg.province === g.province);
-          if (!dest) return;
-          g.stations.forEach((s) => {
-            const destStation = dest.stations.find((ds) => ds.stationno === s.stationno);
-            if (!destStation) return;
-            for (let m = 1; m <= 12; m++) {
-              const bucket = s.months?.[m] ?? {};
-              destStation.months[m] = {
-                ...(destStation.months[m] ?? {}),
-                ...Object.fromEntries(
-                  Object.entries(bucket).map(([k, v]) => [`${cat}::${k}`, Number(v) || 0]),
-                ),
-              };
-            }
-          });
-        });
-      });
 
-      // Flatten fields across categories in fixed order. Labels prefix the
-      // category so the workbook is grouped visually without collapsing.
-      const flatFields = cats.flatMap((cat) =>
-        CATEGORY_FIELDS[cat].map((f) => ({
-          key: `${cat}::${String(f.key)}`,
-          label: f.label,
-          category: cat,
-        })),
-      );
+      const flatFields = COMPLIANCE_FIELDS.map((f) => ({
+        key: String(f.key),
+        label: f.label,
+        category: f.category,
+      }));
 
       // If a specific report month is selected, zero every other month so
       // the workbook still renders in the reference full-year layout but
@@ -466,7 +557,6 @@ export default function InventoryMatrix({
                     totalCols={totalCols}
                     fieldKeys={fieldKeys}
                     year={Number(year)}
-                    category={category}
                     onDrill={
                       readOnly
                         ? () => {}
@@ -598,14 +688,12 @@ function ProvinceBlock({
   totalCols,
   fieldKeys,
   year,
-  category,
   onDrill,
 }: {
-  group: MatrixProvinceGroup;
+  group: ProvinceGroup;
   totalCols: number;
   fieldKeys: string[];
   year: number;
-  category: InventoryCategory;
   onDrill: (stationno: string, year: number, month: number) => void;
 }) {
   return (
@@ -629,7 +717,6 @@ function ProvinceBlock({
           zebra={idx % 2 === 1}
           fieldKeys={fieldKeys}
           year={year}
-          category={category}
           onDrill={onDrill}
         />
       ))}
@@ -689,17 +776,14 @@ function StationDataRow({
   zebra,
   fieldKeys,
   year,
-  category,
   onDrill,
 }: {
-  station: MatrixStationRow;
+  station: StationRow;
   zebra: boolean;
   fieldKeys: string[];
   year: number;
-  category: InventoryCategory;
   onDrill: (stationno: string, year: number, month: number) => void;
 }) {
-  void category;
   const agg = computeAgg(station.months, fieldKeys);
   const rowBg = zebra ? "bg-muted" : "bg-card";
   return (
@@ -791,4 +875,4 @@ function ProvincialTotalRow({
 }
 
 // keep imports referenced when strict TS is on
-void bucketScalar;
+void MIMAROPA_REGION_CODE;
