@@ -30,6 +30,7 @@ import type {
   FSISInventoryLedgerDailyItem,
   TargetAccomplishmentModel,
 } from "@/types/targetinventoryType";
+import type { FSISUpdateInventoryDTO } from "@/types/targetinventoryType";
 
 type FieldKey = keyof Pick<
   DailyInventoryDTO,
@@ -183,6 +184,13 @@ function InventoryEditBody({
   const [monthlySelected, setMonthlySelected] = React.useState<FSISInventoryMonthlyItem | null>(
     null,
   );
+  const [monthlyRecords, setMonthlyRecords] = React.useState<Record<number, FSISInventoryMonthlyItem | null>>(
+    () => {
+      const init: Record<number, FSISInventoryMonthlyItem | null> = {};
+      for (const m of MONTHS) init[m.value] = null;
+      return init;
+    },
+  );
   const [stationInfo, setStationInfo] = React.useState<Partial<SearchStationModel> | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -217,6 +225,7 @@ function InventoryEditBody({
       if (cancelled) return;
 
       const built: Record<number, MonthRow> = {};
+      const records: Record<number, FSISInventoryMonthlyItem | null> = {};
       let selected: FSISInventoryMonthlyItem | null = null;
       let firstError: string | null = null;
       responses.forEach((resp, index) => {
@@ -225,6 +234,7 @@ function InventoryEditBody({
         if (!ok && !firstError) firstError = error || null;
         const record = ok && Array.isArray(data) ? data[0] ?? null : null;
         built[monthValue] = ledgerToMonthRow(record?.fsisInventoryLedgerList);
+        records[monthValue] = record;
         if (monthValue === month && record) selected = record;
       });
       if (firstError) toast.error(firstError);
@@ -236,6 +246,7 @@ function InventoryEditBody({
       for (const m of MONTHS) snap[m.value] = { ...built[m.value] };
       setInitialRows(snap);
       setMonthlySelected(selected);
+      setMonthlyRecords(records);
       setLoading(false);
     })();
     return () => {
@@ -342,19 +353,46 @@ function InventoryEditBody({
         toast.info("No changes to save.");
         return;
       }
-      let firstError: string | null = null;
-      for (const m of changed) {
-        // Reset the month first so aggregated re-save doesn't double up on
-        // top of existing daily records, then upsert one aggregated row.
-        await inventoryAPI.deleteMonthlyInventory(stationno, year, m.value);
-        const resp = await inventoryAPI.updateMonthlyInventory(stationno, year, m.value, [
-          buildDto(m.value, rows[m.value]),
-        ]);
-        const { ok, error } = unwrap(resp);
-        if (!ok && !firstError) firstError = error || `Failed to save ${m.name}.`;
-      }
-      if (firstError) {
-        toast.error(firstError);
+      const payload: FSISUpdateInventoryDTO = {
+        stationno,
+        updatedby: user?.memberno ?? "anon",
+        encodedby: user?.memberno ?? "anon",
+        fsisUpdateInventoryList: changed.map((m) => {
+          const r = rows[m.value];
+          const existing = monthlyRecords[m.value]?.fsisInventoryLedgerList?.[0];
+          return {
+            fsisno: existing?.fsisno ?? EMPTY_GUID,
+            dateinspected: existing?.dateinspected ?? `${year}-${pad2(m.value)}-01`,
+            inspectduringcount: r.insp_during,
+            inspectaftercount: r.insp_after,
+            inspectbplocount: r.insp_bplo,
+            inspectgovcount: r.insp_gov,
+            inspectpezacount: r.insp_peza,
+            inspecttiezacount: r.insp_tieza,
+            fsicmode: 0,
+            fsecbuildingcount: r.fsec_building,
+            fsecgovcount: r.fsec_gov,
+            fsecpezacount: r.fsec_peza,
+            fsectiezacount: r.fsec_tieza,
+            fsicoccupancycount: r.fsic_occupancy,
+            fsicbplonewcount: r.fsic_bplo_new,
+            fsicbplorenewcount: r.fsic_bplo_renewal,
+            fsicgovcount: r.fsic_gov,
+            fsicpezacount: r.fsic_peza,
+            fsictiezacount: r.fsic_tieza,
+            nodcount: r.not_nod,
+            ntccount: r.not_ntc,
+            ntcvcount: r.not_ntcv,
+            avatementcount: r.not_abatement,
+            closurecount: r.not_closure,
+            remarks: r.remarks,
+          };
+        }),
+      };
+      const resp = await targetinventoryAPI.update(payload);
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || "Failed to save changes.");
       } else {
         toast.success(`Saved ${changed.length} month${changed.length === 1 ? "" : "s"}.`);
         onSaved();

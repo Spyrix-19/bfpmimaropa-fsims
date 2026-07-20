@@ -41,6 +41,15 @@ const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
 }));
 const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
+/** Group header tones — kept in lock-step with the Edit page (`monitoringEdit.tsx`)
+ *  so both views share the same visual identity. */
+const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
+  INSPECTION: "bg-emerald-600 text-white",
+  FSEC: "bg-sky-600 text-white",
+  FSIC: "bg-indigo-600 text-white",
+  NOTICES: "bg-amber-600 text-white",
+};
+
 /** Sum every Monthly-endpoint ledger daily item into a single per-field row.
  *  The keys mirror `DailyInventoryDTO` so the same DETAIL_FIELDS drive both
  *  the table columns and totals. */
@@ -247,13 +256,13 @@ function InventoryViewBody({
 
       {/* 2. January–December yearly overview. */}
       <Card className="overflow-hidden border-border/60 shadow-soft">
-        <div className="overflow-x-auto">
+        <div className="max-h-[65vh] overflow-auto">
           <table className="min-w-max border-separate border-spacing-0 text-[11px]">
-            <thead className="sticky top-0 z-30 bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-30">
               <tr>
                 <th
                   rowSpan={2}
-                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left text-white"
+                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
                 >
                   Month
                 </th>
@@ -261,14 +270,14 @@ function InventoryViewBody({
                   <th
                     key={group.category}
                     colSpan={group.fields.length}
-                    className="border-b border-r px-2 py-2 text-center font-semibold"
+                    className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${GROUP_TONE[group.category]}`}
                   >
                     {group.category}
                   </th>
                 ))}
                 <th
                   rowSpan={2}
-                  className="border-b border-r bg-slate-700 px-3 py-2 text-right text-white"
+                  className="border-b border-r bg-slate-700 px-3 py-2 text-right uppercase tracking-wider text-white min-w-[80px]"
                 >
                   TOTAL
                 </th>
@@ -277,7 +286,7 @@ function InventoryViewBody({
                 {DETAIL_FIELDS.map((field) => (
                   <th
                     key={String(field.key)}
-                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100"
+                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 min-w-[72px] dark:bg-emerald-950/60 dark:text-emerald-100"
                   >
                     {field.label}
                   </th>
@@ -319,8 +328,10 @@ function InventoryViewBody({
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-border bg-muted/40 font-semibold">
-                <td className="sticky left-0 z-10 border-r bg-muted/60 px-3 py-2">Total</td>
+              <tr className="border-t-2 border-border bg-muted/50 font-semibold">
+                <td className="sticky left-0 z-10 border-r bg-muted/60 px-3 py-2">
+                  Total
+                </td>
                 {DETAIL_FIELDS.map((field) => (
                   <td
                     key={String(field.key)}
