@@ -59,19 +59,29 @@ export default function TargetAccomplishmentPanel({
   stationno,
   year,
   month,
+  data: controlledData,
 }: {
   stationno: string | undefined;
   year: number;
   month: number;
+  /**
+   * When provided, the panel becomes controlled — it skips the internal fetch
+   * and renders the caller-supplied target/accomplishment values. Used by
+   * MonitoringEdit to keep the summary in sync with in-progress ledger edits.
+   */
+  data?: TargetAccomplishmentModel | null;
 }) {
-  const [data, setData] = React.useState<TargetAccomplishmentModel | null>(null);
+  const controlled = controlledData !== undefined;
+  const [fetched, setFetched] = React.useState<TargetAccomplishmentModel | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const data = controlled ? controlledData : fetched;
 
   // Always request fresh data whenever station / year / month changes.
   React.useEffect(() => {
+    if (controlled) return;
     if (!stationno) {
-      setData(null);
+      setFetched(null);
       setError(null);
       return;
     }
@@ -88,17 +98,17 @@ export default function TargetAccomplishmentPanel({
       const { ok, data: payload, error: err } = unwrap<TargetAccomplishmentModel>(resp);
       if (cancelled) return;
       if (!ok || !payload) {
-        setData(null);
+        setFetched(null);
         setError(err || "Unable to load target / accomplishment.");
       } else {
-        setData(payload);
+        setFetched(payload);
       }
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [stationno, year, month]);
+  }, [controlled, stationno, year, month]);
 
   const monthName = MONTHS.find((m) => m.value === month)?.name ?? String(month);
 

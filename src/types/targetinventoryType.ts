@@ -209,6 +209,11 @@ export interface FSISInventoryMonthlyItem {
   logourl: string;
   month: number;
   year: number;
+  // Some responses echo the filter values used to produce the request. These
+  // are optional because the primary payload exposes `month` / `year`.
+  reportyear?: number;
+  reportmonth?: number;
+  dateinspected?: string;
   totaltargetbplo: number;
   totaltargetgov: number;
   totaltargetpeza: number;

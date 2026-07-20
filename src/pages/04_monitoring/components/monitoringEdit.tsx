@@ -21,11 +21,17 @@ import type { SearchStationModel } from "@/types/stationTypes";
 import { MONTHS } from "@/lib/fsims-constants";
 import { calendarDaysInMonth, ALL_NUMERIC_FIELDS } from "@/lib/inventoryHelpers";
 import { useAuth } from "@/lib/auth";
+import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
 import type {
   DailyInventoryDTO,
   DailyInventoryUpsertDTO,
 } from "@/types/inventoryType";
+import type {
+  FSISInventoryMonthlyItem,
+  FSISInventoryLedgerDailyItem,
+  TargetAccomplishmentModel,
+} from "@/types/targetinventoryType";
 
 type Field = { key: keyof DailyInventoryDTO; label: string; group: string };
 const FIELDS: Field[] = [
@@ -84,6 +90,58 @@ function emptyRowFor(stationInfo: {
   };
 }
 
+/** Fold a Monthly-endpoint ledger daily item (FSISInventory/Monthly's
+ *  `fsisInventoryLedgerList`) into the same DailyInventoryUpsertDTO shape the
+ *  existing editable grid renders. Server field names differ from the daily
+ *  inventory endpoint, so we translate rather than reshape the UI. */
+function applyLedgerToRow(
+  base: DailyInventoryUpsertDTO,
+  ledger: FSISInventoryLedgerDailyItem,
+): DailyInventoryUpsertDTO {
+  return {
+    ...base,
+    insp_during: Number(ledger.inspectduringcount ?? 0) || 0,
+    insp_after: Number(ledger.inspectaftercount ?? 0) || 0,
+    insp_bplo: Number(ledger.inspectbplocount ?? 0) || 0,
+    insp_gov: Number(ledger.inspectgovcount ?? 0) || 0,
+    insp_peza: Number(ledger.inspectpezacount ?? 0) || 0,
+    insp_tieza: Number(ledger.inspecttiezacount ?? 0) || 0,
+    fsec_building: Number(ledger.fsecbuildingcount ?? 0) || 0,
+    fsec_gov: Number(ledger.fsecgovcount ?? 0) || 0,
+    fsec_peza: Number(ledger.fsecpezacount ?? 0) || 0,
+    fsec_tieza: Number(ledger.fsectiezacount ?? 0) || 0,
+    fsic_occupancy: Number(ledger.fsicoccupancycount ?? 0) || 0,
+    fsic_bplo_new: Number(ledger.fsicbplonewcount ?? 0) || 0,
+    fsic_bplo_renewal: Number(ledger.fsicbplorenewcount ?? 0) || 0,
+    fsic_gov: Number(ledger.fsicgovcount ?? 0) || 0,
+    fsic_peza: Number(ledger.fsicpezacount ?? 0) || 0,
+    fsic_tieza: Number(ledger.fsictiezacount ?? 0) || 0,
+    not_nod: Number(ledger.nodcount ?? 0) || 0,
+    not_ntc: Number(ledger.ntccount ?? 0) || 0,
+    not_ntcv: Number(ledger.ntcvcount ?? 0) || 0,
+    not_abatement: Number(ledger.avatementcount ?? 0) || 0,
+    not_closure: Number(ledger.closurecount ?? 0) || 0,
+    remarks: ledger.remarks ?? base.remarks ?? "",
+  };
+}
+
+/** Per-category accomplishment tally used to power the real-time
+ *  Target / Accomplishment / Remaining summary. Mirrors the server's
+ *  Monthly-endpoint totals so the UI stays consistent with saved state. */
+function computeAccomplishment(rows: DailyInventoryUpsertDTO[]) {
+  const num = (v: unknown) => Number(v ?? 0) || 0;
+  return rows.reduce(
+    (acc, r) => {
+      acc.bplo += num(r.insp_bplo) + num(r.fsic_bplo_new) + num(r.fsic_bplo_renewal);
+      acc.gov += num(r.insp_gov) + num(r.fsec_gov) + num(r.fsic_gov);
+      acc.peza += num(r.insp_peza) + num(r.fsec_peza) + num(r.fsic_peza);
+      acc.tieza += num(r.insp_tieza) + num(r.fsec_tieza) + num(r.fsic_tieza);
+      return acc;
+    },
+    { bplo: 0, gov: 0, peza: 0, tieza: 0 },
+  );
+}
+
 /** Shared editor body — used by the route page and the modal wrapper. */
 function InventoryEditBody({
   stationno,
@@ -104,24 +162,49 @@ function InventoryEditBody({
   const [rows, setRows] = React.useState<DailyInventoryUpsertDTO[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  // Snapshot of the Monthly endpoint response — source of truth for the
+  // Target / Accomplishment / Remaining summary. `null` until the load
+  // resolves so the panel can stay in its loading state without flashing.
+  const [monthly, setMonthly] = React.useState<FSISInventoryMonthlyItem | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await inventoryAPI.getMonthlyInventory(stationno, year, month);
-      const { data } = unwrap<DailyInventoryDTO[]>(resp);
+
+      // Resolve station/province context first — the Monthly endpoint requires
+      // a Provinceno filter, and both endpoints benefit from the station seed.
+      const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
+      const { data: sData } = unwrap<SearchStationModel[]>(sResp);
+      const seedStation = Array.isArray(sData) ? sData[0] : undefined;
+
+      // Kick off the two reads in parallel: the Monthly summary (targets +
+      // ledger prefill) and the daily inventory grid (existing save shape).
+      const [monthlyResp, dailyResp] = await Promise.all([
+        targetinventoryAPI.getMonthly({
+          Stationno: stationno || EMPTY_GUID,
+          Provinceno: seedStation?.provinceno ?? EMPTY_GUID,
+          Reportyear: year,
+          Reportmonth: month,
+        }),
+        inventoryAPI.getMonthlyInventory(stationno, year, month),
+      ]);
+
+      const monthlyEnv = unwrap<FSISInventoryMonthlyItem[]>(monthlyResp);
+      if (!monthlyEnv.ok) {
+        toast.error(monthlyEnv.error || "Unable to load monthly monitoring record.");
+      }
+      const monthlyRecord = Array.isArray(monthlyEnv.data) ? monthlyEnv.data[0] ?? null : null;
+
+      const { data } = unwrap<DailyInventoryDTO[]>(dailyResp);
       const existing = new Map((data ?? []).map((r) => [r.dateinspected, r]));
 
-      // Prefer station info from the loaded records; fall back to a live
-      // Station API lookup when this month has no records yet.
-      let seed: SearchStationModel | Partial<SearchStationModel> | undefined =
-        (data ?? []).find((r) => r.stationno === stationno);
-      if (!seed) {
-        const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
-        const { data: sData } = unwrap<SearchStationModel[]>(sResp);
-        seed = Array.isArray(sData) ? sData[0] : undefined;
-      }
+      // Prefer station info from the loaded records; fall back to the Monthly
+      // record and finally to the live Station API lookup.
+      const seed: SearchStationModel | Partial<SearchStationModel> | undefined =
+        (data ?? []).find((r) => r.stationno === stationno) ??
+        (monthlyRecord as Partial<SearchStationModel> | null) ??
+        seedStation;
       const info = seed
         ? {
             stationno: seed.stationno ?? stationno,
@@ -142,21 +225,32 @@ function InventoryEditBody({
             provincename: "",
           };
 
+      // Ledger prefill map — Monthly endpoint's daily list, keyed by ISO date.
+      const ledgerByDate = new Map<string, FSISInventoryLedgerDailyItem>();
+      for (const item of monthlyRecord?.fsisInventoryLedgerList ?? []) {
+        const iso = (item.dateinspected ?? "").slice(0, 10);
+        if (iso) ledgerByDate.set(iso, item);
+      }
 
       const built: DailyInventoryUpsertDTO[] = [];
       for (let d = 1; d <= daysInMonth; d++) {
         const iso = `${year}-${pad2(month)}-${pad2(d)}`;
         const hit = existing.get(iso);
+        let row: DailyInventoryUpsertDTO;
         if (hit) {
           const { inventoryno: _n, lastupdated: _u, deletedat: _d, ...rest } = hit;
-          built.push(rest);
+          row = rest;
         } else {
-          built.push(
-            emptyRowFor(info, iso, user?.memberno ?? "anon", user?.fullname ?? "Anonymous"),
-          );
+          row = emptyRowFor(info, iso, user?.memberno ?? "anon", user?.fullname ?? "Anonymous");
         }
+        // Overlay Monthly ledger values when present — this is the "source of
+        // truth" per the API contract; daily rows fill any gaps.
+        const ledger = ledgerByDate.get(iso);
+        if (ledger) row = applyLedgerToRow(row, ledger);
+        built.push(row);
       }
       if (!cancelled) {
+        setMonthly(monthlyRecord);
         setRows(built);
         setLoading(false);
       }
@@ -196,6 +290,27 @@ function InventoryEditBody({
     }
   };
 
+  // Real-time Target / Accomplishment / Remaining feed for the summary panel.
+  // Targets stay pinned to the Monthly endpoint response while accomplishments
+  // recompute from the current in-memory rows on every keystroke.
+  const summaryData = React.useMemo<TargetAccomplishmentModel | null>(() => {
+    if (!monthly) return null;
+    const live = computeAccomplishment(rows);
+    return {
+      stationno: monthly.stationno,
+      month: monthly.month ?? month,
+      year: monthly.year ?? year,
+      totaltargetbplo: Number(monthly.totaltargetbplo ?? 0) || 0,
+      totaltargetgov: Number(monthly.totaltargetgov ?? 0) || 0,
+      totaltargetpeza: Number(monthly.totaltargetpeza ?? 0) || 0,
+      totaltargettieza: Number(monthly.totaltargettieza ?? 0) || 0,
+      totalAccomplishmentbplo: live.bplo,
+      totalAccomplishmentgov: live.gov,
+      totalAccomplishmentpeza: live.peza,
+      totalAccomplishmenttieza: live.tieza,
+    };
+  }, [monthly, rows, month, year]);
+
   return (
     <div className="space-y-4">
       {loading ? (
@@ -204,6 +319,14 @@ function InventoryEditBody({
         </Card>
       ) : (
         <>
+          <TargetAccomplishmentPanel
+            stationno={stationno}
+            year={year}
+            month={month}
+            data={summaryData}
+          />
+
+
 
           <Card className="overflow-hidden border-border/60 shadow-soft">
             <div className="max-h-[65vh] overflow-auto">

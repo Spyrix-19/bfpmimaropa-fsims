@@ -12,21 +12,22 @@ import {
 import { ArrowLeft, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { inventoryAPI } from "@/services/inventoryAPI";
-import { unwrap } from "@/lib/api-envelope";
+import { stationAPI } from "@/services/stationAPI";
+import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import {
-  bucketFor,
-  breakdownFor,
-  calendarDaysInMonth,
   CATEGORY_FIELDS,
-  daysEncoded,
-  fsecTotal,
-  fsicTotal,
-  inspectionTotal,
-  noticesTotal,
+  calendarDaysInMonth,
 } from "@/lib/inventoryHelpers";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
+import type {
+  FSISInventoryMonthlyItem,
+  FSISInventoryLedgerDailyItem,
+  TargetAccomplishmentModel,
+} from "@/types/targetinventoryType";
+import type { SearchStationModel } from "@/types/stationTypes";
+import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
 const CATEGORY_ORDER = ["INSPECTION", "FSEC", "FSIC", "NOTICES"] as const;
 const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
@@ -34,6 +35,41 @@ const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
   fields: CATEGORY_FIELDS[category],
 }));
 const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
+
+/** Map a Monthly ledger daily item -> the DailyInventoryDTO field keys the
+ *  read-only table already renders. Server field names differ from the daily
+ *  inventory endpoint, so translate rather than reshape the UI. */
+function ledgerToRow(
+  ledger: FSISInventoryLedgerDailyItem,
+): Partial<DailyInventoryDTO> & { dateinspected: string; inventoryno: string } {
+  const iso = (ledger.dateinspected ?? "").slice(0, 10);
+  return {
+    inventoryno: ledger.fsisno,
+    dateinspected: iso,
+    insp_during: Number(ledger.inspectduringcount ?? 0) || 0,
+    insp_after: Number(ledger.inspectaftercount ?? 0) || 0,
+    insp_bplo: Number(ledger.inspectbplocount ?? 0) || 0,
+    insp_gov: Number(ledger.inspectgovcount ?? 0) || 0,
+    insp_peza: Number(ledger.inspectpezacount ?? 0) || 0,
+    insp_tieza: Number(ledger.inspecttiezacount ?? 0) || 0,
+    fsec_building: Number(ledger.fsecbuildingcount ?? 0) || 0,
+    fsec_gov: Number(ledger.fsecgovcount ?? 0) || 0,
+    fsec_peza: Number(ledger.fsecpezacount ?? 0) || 0,
+    fsec_tieza: Number(ledger.fsectiezacount ?? 0) || 0,
+    fsic_occupancy: Number(ledger.fsicoccupancycount ?? 0) || 0,
+    fsic_bplo_new: Number(ledger.fsicbplonewcount ?? 0) || 0,
+    fsic_bplo_renewal: Number(ledger.fsicbplorenewcount ?? 0) || 0,
+    fsic_gov: Number(ledger.fsicgovcount ?? 0) || 0,
+    fsic_peza: Number(ledger.fsicpezacount ?? 0) || 0,
+    fsic_tieza: Number(ledger.fsictiezacount ?? 0) || 0,
+    not_nod: Number(ledger.nodcount ?? 0) || 0,
+    not_ntc: Number(ledger.ntccount ?? 0) || 0,
+    not_ntcv: Number(ledger.ntcvcount ?? 0) || 0,
+    not_abatement: Number(ledger.avatementcount ?? 0) || 0,
+    not_closure: Number(ledger.closurecount ?? 0) || 0,
+    remarks: ledger.remarks ?? "",
+  };
+}
 
 /**
  * Read-only monthly breakdown body — used both by the route page and by
@@ -49,18 +85,39 @@ function InventoryViewBody({
   year: number;
   month: number;
 }) {
-  const [rows, setRows] = React.useState<DailyInventoryDTO[]>([]);
+  const [monthly, setMonthly] = React.useState<FSISInventoryMonthlyItem | null>(null);
+  const [rows, setRows] = React.useState<Array<Partial<DailyInventoryDTO> & { dateinspected: string; inventoryno: string }>>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await inventoryAPI.getMonthlyInventory(stationno, year, month);
-      const { ok, data, error } = unwrap<DailyInventoryDTO[]>(resp);
+
+      // Resolve provinceno — Monthly endpoint requires it.
+      const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
+      const { data: sData } = unwrap<SearchStationModel[]>(sResp);
+      const seedStation = Array.isArray(sData) ? sData[0] : undefined;
+
+      const resp = await targetinventoryAPI.getMonthly({
+        Stationno: stationno || EMPTY_GUID,
+        Provinceno: seedStation?.provinceno ?? EMPTY_GUID,
+        Reportyear: year,
+        Reportmonth: month,
+      });
+      const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
       if (cancelled) return;
-      if (!ok) toast.error(error || "Unable to load monthly inventory.");
-      setRows(Array.isArray(data) ? data : []);
+      if (!ok) toast.error(error || "Unable to load monthly monitoring record.");
+
+      const record = Array.isArray(data) ? data[0] ?? null : null;
+      const list = record?.fsisInventoryLedgerList ?? [];
+      const mapped = list
+        .map(ledgerToRow)
+        .filter((r) => r.dateinspected)
+        .sort((a, b) => a.dateinspected.localeCompare(b.dateinspected));
+
+      setMonthly(record);
+      setRows(mapped);
       setLoading(false);
     })();
     return () => {
@@ -68,22 +125,36 @@ function InventoryViewBody({
     };
   }, [stationno, year, month]);
 
-  
-  const totals = bucketFor(rows);
-  const breakdown = breakdownFor(rows);
-  const encoded = daysEncoded(rows);
+  const encoded = rows.length;
   const daysTotal = calendarDaysInMonth(year, month);
   const fieldTotals = React.useMemo(() => {
     const totals: Record<string, number> = {};
     DETAIL_FIELDS.forEach((field) => {
       totals[String(field.key)] = rows.reduce(
-        (sum, r) => sum + (Number(r[field.key as keyof DailyInventoryDTO]) || 0),
+        (sum, r) => sum + (Number((r as Record<string, unknown>)[field.key as string]) || 0),
         0,
       );
     });
     return totals;
   }, [rows]);
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
+
+  const summaryData = React.useMemo<TargetAccomplishmentModel | null>(() => {
+    if (!monthly) return null;
+    return {
+      stationno: monthly.stationno,
+      month: monthly.month ?? month,
+      year: monthly.year ?? year,
+      totaltargetbplo: Number(monthly.totaltargetbplo ?? 0) || 0,
+      totaltargetgov: Number(monthly.totaltargetgov ?? 0) || 0,
+      totaltargetpeza: Number(monthly.totaltargetpeza ?? 0) || 0,
+      totaltargettieza: Number(monthly.totaltargettieza ?? 0) || 0,
+      totalAccomplishmentbplo: Number(monthly.totalAccomplishmentbplo ?? 0) || 0,
+      totalAccomplishmentgov: Number(monthly.totalAccomplishmentgov ?? 0) || 0,
+      totalAccomplishmentpeza: Number(monthly.totalAccomplishmentpeza ?? 0) || 0,
+      totalAccomplishmenttieza: Number(monthly.totalAccomplishmenttieza ?? 0) || 0,
+    };
+  }, [monthly, month, year]);
 
   if (loading) {
     return (
@@ -99,25 +170,15 @@ function InventoryViewBody({
         <div className="flex flex-wrap items-center justify-end gap-4">
           <MetaField label="Period" value={`${monthName} ${year}`} />
           <MetaField label="Days Encoded" value={`${encoded} / ${daysTotal}`} />
-          <MetaField
-            label="Last Updated"
-            value={
-              rows[0]
-                ? new Date(
-                    rows.map((r) => r.lastupdated).sort().slice(-1)[0],
-                  ).toLocaleString()
-                : "—"
-            }
-          />
         </div>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryTile label="Inspection" value={inspectionTotal(rows)} />
-        <SummaryTile label="FSEC" value={fsecTotal(rows)} tone="primary" />
-        <SummaryTile label="FSIC" value={fsicTotal(rows)} tone="success" />
-        <SummaryTile label="Notices" value={noticesTotal(rows)} tone="warning" />
-      </div>
+      <TargetAccomplishmentPanel
+        stationno={stationno}
+        year={year}
+        month={month}
+        data={summaryData}
+      />
 
       <Card className="overflow-hidden border-border/60 shadow-soft">
         <div className="overflow-x-auto">
@@ -172,12 +233,12 @@ function InventoryViewBody({
                     </td>
                     {DETAIL_FIELDS.map((field) => (
                       <td key={String(field.key)} className="border-b border-r px-3 py-1.5 text-right tabular-nums">
-                        {(Number(r[field.key as keyof DailyInventoryDTO]) || 0).toLocaleString()}
+                        {(Number((r as Record<string, unknown>)[field.key as string]) || 0).toLocaleString()}
                       </td>
                     ))}
                     <td className="border-b px-3 py-1.5 text-right tabular-nums">
                       {DETAIL_FIELDS.reduce(
-                        (sum, field) => sum + (Number(r[field.key as keyof DailyInventoryDTO]) || 0),
+                        (sum, field) => sum + (Number((r as Record<string, unknown>)[field.key as string]) || 0),
                         0,
                       ).toLocaleString()}
                     </td>
@@ -200,7 +261,8 @@ function InventoryViewBody({
                         (sum, r) =>
                           sum +
                           DETAIL_FIELDS.reduce(
-                            (rowSum, field) => rowSum + (Number(r[field.key as keyof DailyInventoryDTO]) || 0),
+                            (rowSum, field) =>
+                              rowSum + (Number((r as Record<string, unknown>)[field.key as string]) || 0),
                             0,
                           ),
                         0,
@@ -289,34 +351,5 @@ function MetaField({ label, value }: { label: string; value: string }) {
       </div>
       <div className="text-sm font-semibold">{value}</div>
     </div>
-  );
-}
-
-function SummaryTile({
-  label,
-  value,
-  tone = "muted",
-}: {
-  label: string;
-  value: number;
-  tone?: "muted" | "primary" | "success" | "warning";
-}) {
-  const toneCls =
-    tone === "primary"
-      ? "text-primary"
-      : tone === "success"
-        ? "text-success"
-        : tone === "warning"
-          ? "text-amber-600 dark:text-amber-400"
-          : "text-foreground";
-  return (
-    <Card className="border-border/60 p-4 shadow-soft">
-      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${toneCls}`}>
-        {value.toLocaleString()}
-      </div>
-    </Card>
   );
 }
