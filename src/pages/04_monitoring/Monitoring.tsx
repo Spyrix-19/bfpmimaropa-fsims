@@ -149,21 +149,22 @@ function mapMonthlyItemToRow(
   const dateSet = new Set<string>();
   let latestDate = "";
   for (const d of daily) {
-    const iso = (d?.dateinspected ?? "").slice(0, 10);
+    const iso = String(d?.dateinspected ?? "").slice(0, 10);
     if (!iso || iso.startsWith("1900")) continue;
     dateSet.add(iso);
     if (iso > latestDate) latestDate = iso;
   }
   if (!latestDate) {
-    const iso = (item.dateinspected ?? "").slice(0, 10);
+    const iso = String((item as { dateinspected?: string | Date }).dateinspected ?? "").slice(0, 10);
     if (iso && !iso.startsWith("1900")) latestDate = iso;
   }
 
   // The Monthly endpoint doesn't always echo reportyear/reportmonth at the
   // top level, so fall back to the filter values that produced the request.
   // Without this, cards render "0 / 0" days and blank month labels.
-  const year = Number(item.reportyear) || fallbackYear || 0;
-  const month = Number(item.reportmonth) || fallbackMonth || 0;
+  const anyItem = item as { reportyear?: number; reportmonth?: number };
+  const year = Number(anyItem.reportyear) || fallbackYear || 0;
+  const month = Number(anyItem.reportmonth) || fallbackMonth || 0;
 
   return {
     key: `${item.stationno}|${year}|${month}`,

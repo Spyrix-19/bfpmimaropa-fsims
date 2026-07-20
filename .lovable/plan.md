@@ -63,7 +63,7 @@ File: New `src/pages/04_monitoring/components/inventoryExport.ts` (modeled after
   - **INSPECTION**: During, After, BPLO, Gov, PEZA, TIEZA
   - **FSEC**: Building, Gov, PEZA, TIEZA
   - **FSIC**: Occupancy, BPLO New, BPLO Renewal, Gov, PEZA, TIEZA
-  - **NOTICES**: NOD, NTC, NTCV, Abatement, Closure
+  - **NOTICES**: NOD, NTC, NTCV, Avatement, Closure
 - Palette + border helpers copied from `matrixExport.ts` so styling stays consistent with the existing Target Matrix export.
 - When a single report month is selected, print only that month's columns + the corresponding quarter/semester/annual totals; otherwise print all 12 months.
 

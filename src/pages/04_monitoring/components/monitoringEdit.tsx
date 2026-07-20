@@ -111,10 +111,19 @@ function emptyMonthRow(): MonthRow {
   return { ...base, remarks: "", fsicmode: 0 };
 }
 
-/** Aggregate a Monthly-endpoint ledger daily list into one editable row. */
+/** Aggregate a Monthly-endpoint ledger daily list into one editable row.
+ *
+ *  API shape (see /FSISInventory/Monthly):
+ *    fsisInventoryLedgerList[] -> per-day row carrying `inspect*count` + `remarks`
+ *      .issuancelist[]         -> per-issuance row carrying fsicmode + FSEC/FSIC/Notices counts
+ *
+ *  We sum inspection counts across daily rows, and FSEC/FSIC/Notices counts
+ *  across every nested issuance row. fsicmode is seeded from the first
+ *  issuance found (all issuances for a month share the same mode in practice). */
 function ledgerToMonthRow(list: FSISInventoryLedgerDailyItem[] | undefined): MonthRow {
   const row = emptyMonthRow();
   if (!list || list.length === 0) return row;
+  let firstMode = 0;
   for (const l of list) {
     row.insp_during += Number(l.inspectduringcount ?? 0) || 0;
     row.insp_after += Number(l.inspectaftercount ?? 0) || 0;
@@ -122,30 +131,37 @@ function ledgerToMonthRow(list: FSISInventoryLedgerDailyItem[] | undefined): Mon
     row.insp_gov += Number(l.inspectgovcount ?? 0) || 0;
     row.insp_peza += Number(l.inspectpezacount ?? 0) || 0;
     row.insp_tieza += Number(l.inspecttiezacount ?? 0) || 0;
-    row.fsec_building += Number(l.fsecbuildingcount ?? 0) || 0;
-    row.fsec_gov += Number(l.fsecgovcount ?? 0) || 0;
-    row.fsec_peza += Number(l.fsecpezacount ?? 0) || 0;
-    row.fsec_tieza += Number(l.fsectiezacount ?? 0) || 0;
-    row.fsic_occupancy += Number(l.fsicoccupancycount ?? 0) || 0;
-    row.fsic_bplo_new += Number(l.fsicbplonewcount ?? 0) || 0;
-    row.fsic_bplo_renewal += Number(l.fsicbplorenewcount ?? 0) || 0;
-    row.fsic_gov += Number(l.fsicgovcount ?? 0) || 0;
-    row.fsic_peza += Number(l.fsicpezacount ?? 0) || 0;
-    row.fsic_tieza += Number(l.fsictiezacount ?? 0) || 0;
-    row.not_nod += Number(l.nodcount ?? 0) || 0;
-    row.not_ntc += Number(l.ntccount ?? 0) || 0;
-    row.not_ntcv += Number(l.ntcvcount ?? 0) || 0;
-    row.not_abatement += Number(l.avatementcount ?? 0) || 0;
-    row.not_closure += Number(l.closurecount ?? 0) || 0;
+
+    const issuances = Array.isArray(l.issuancelist) ? l.issuancelist : [];
+    // Fallback: if API returns issuance counts flat on the daily row (older
+    // shape / mocks), treat the daily row itself as a single issuance.
+    const source = issuances.length > 0 ? issuances : [l as unknown as typeof issuances[number]];
+    for (const iss of source) {
+      row.fsec_building += Number(iss.fsecbuildingcount ?? 0) || 0;
+      row.fsec_gov += Number(iss.fsecgovcount ?? 0) || 0;
+      row.fsec_peza += Number(iss.fsecpezacount ?? 0) || 0;
+      row.fsec_tieza += Number(iss.fsectiezacount ?? 0) || 0;
+      row.fsic_occupancy += Number(iss.fsicoccupancycount ?? 0) || 0;
+      row.fsic_bplo_new += Number(iss.fsicbplonewcount ?? 0) || 0;
+      row.fsic_bplo_renewal += Number(iss.fsicbplorenewcount ?? 0) || 0;
+      row.fsic_gov += Number(iss.fsicgovcount ?? 0) || 0;
+      row.fsic_peza += Number(iss.fsicpezacount ?? 0) || 0;
+      row.fsic_tieza += Number(iss.fsictiezacount ?? 0) || 0;
+      row.not_nod += Number(iss.nodcount ?? 0) || 0;
+      row.not_ntc += Number(iss.ntccount ?? 0) || 0;
+      row.not_ntcv += Number(iss.ntcvcount ?? 0) || 0;
+      row.not_abatement += Number(iss.avatementcount ?? 0) || 0;
+      row.not_closure += Number(iss.closurecount ?? 0) || 0;
+      if (!firstMode) firstMode = Number(iss.fsicmode ?? 0) || 0;
+    }
   }
   // Prefer the most recent non-empty remarks as the aggregated month remark.
   const withRemarks = list.filter((l) => (l.remarks ?? "").trim().length > 0);
   row.remarks = withRemarks.length > 0 ? withRemarks[withRemarks.length - 1].remarks : "";
-  // Seed the row's Mode of Issuance from the first daily record (all daily
-  // rows for a given month share the same fsicmode).
-  row.fsicmode = Number(list[0]?.fsicmode ?? 0) || 0;
+  row.fsicmode = firstMode || Number((list[0] as { fsicmode?: number })?.fsicmode ?? 0) || 0;
   return row;
 }
+
 
 function rowsEqual(a: MonthRow, b: MonthRow): boolean {
   if ((a.remarks ?? "") !== (b.remarks ?? "")) return false;
