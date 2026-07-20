@@ -13,13 +13,11 @@ import {
 import { ArrowLeft, Loader2, Save, Table2 } from "lucide-react";
 import { toast } from "sonner";
 import { inventoryAPI } from "@/services/inventoryAPI";
-import { unwrap } from "@/lib/api-envelope";
+import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { stationAPI } from "@/services/stationAPI";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
-import { EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
 import { MONTHS } from "@/lib/fsims-constants";
-import { calendarDaysInMonth, ALL_NUMERIC_FIELDS } from "@/lib/inventoryHelpers";
 import { useAuth } from "@/lib/auth";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
@@ -33,7 +31,32 @@ import type {
   TargetAccomplishmentModel,
 } from "@/types/targetinventoryType";
 
-type Field = { key: keyof DailyInventoryDTO; label: string; group: string };
+type FieldKey = keyof Pick<
+  DailyInventoryDTO,
+  | "insp_during"
+  | "insp_after"
+  | "insp_bplo"
+  | "insp_gov"
+  | "insp_peza"
+  | "insp_tieza"
+  | "fsec_building"
+  | "fsec_gov"
+  | "fsec_peza"
+  | "fsec_tieza"
+  | "fsic_occupancy"
+  | "fsic_bplo_new"
+  | "fsic_bplo_renewal"
+  | "fsic_gov"
+  | "fsic_peza"
+  | "fsic_tieza"
+  | "not_nod"
+  | "not_ntc"
+  | "not_ntcv"
+  | "not_abatement"
+  | "not_closure"
+>;
+
+type Field = { key: FieldKey; label: string; group: string };
 const FIELDS: Field[] = [
   { key: "insp_during", label: "During", group: "Inspection" },
   { key: "insp_after", label: "After", group: "Inspection" },
@@ -65,84 +88,73 @@ const GROUPS = [
   { label: "Notices", tone: "bg-amber-600 text-white", span: 5 },
 ];
 
-function pad2(n: number) { return n < 10 ? `0${n}` : String(n); }
-
-function emptyRowFor(stationInfo: {
-  stationno: string; stationcode: string; stationname: string;
-  cityno: string; cityname: string; provinceno: string; provincename: string;
-}, iso: string, encodedby: string, encodedbyname: string): DailyInventoryUpsertDTO {
-  return {
-    stationno: stationInfo.stationno,
-    stationcode: stationInfo.stationcode,
-    stationname: stationInfo.stationname,
-    cityno: stationInfo.cityno,
-    cityname: stationInfo.cityname,
-    provinceno: stationInfo.provinceno,
-    provincename: stationInfo.provincename,
-    dateinspected: iso,
-    insp_during: 0, insp_after: 0, insp_bplo: 0, insp_gov: 0, insp_peza: 0, insp_tieza: 0,
-    fsec_building: 0, fsec_gov: 0, fsec_peza: 0, fsec_tieza: 0,
-    fsic_occupancy: 0, fsic_bplo_new: 0, fsic_bplo_renewal: 0, fsic_gov: 0, fsic_peza: 0, fsic_tieza: 0,
-    not_nod: 0, not_ntc: 0, not_ntcv: 0, not_abatement: 0, not_closure: 0,
-    remarks: "",
-    encodedby,
-    encodedbyname,
-  };
+function pad2(n: number) {
+  return n < 10 ? `0${n}` : String(n);
 }
 
-/** Fold a Monthly-endpoint ledger daily item (FSISInventory/Monthly's
- *  `fsisInventoryLedgerList`) into the same DailyInventoryUpsertDTO shape the
- *  existing editable grid renders. Server field names differ from the daily
- *  inventory endpoint, so we translate rather than reshape the UI. */
-function applyLedgerToRow(
-  base: DailyInventoryUpsertDTO,
-  ledger: FSISInventoryLedgerDailyItem,
-): DailyInventoryUpsertDTO {
-  return {
-    ...base,
-    insp_during: Number(ledger.inspectduringcount ?? 0) || 0,
-    insp_after: Number(ledger.inspectaftercount ?? 0) || 0,
-    insp_bplo: Number(ledger.inspectbplocount ?? 0) || 0,
-    insp_gov: Number(ledger.inspectgovcount ?? 0) || 0,
-    insp_peza: Number(ledger.inspectpezacount ?? 0) || 0,
-    insp_tieza: Number(ledger.inspecttiezacount ?? 0) || 0,
-    fsec_building: Number(ledger.fsecbuildingcount ?? 0) || 0,
-    fsec_gov: Number(ledger.fsecgovcount ?? 0) || 0,
-    fsec_peza: Number(ledger.fsecpezacount ?? 0) || 0,
-    fsec_tieza: Number(ledger.fsectiezacount ?? 0) || 0,
-    fsic_occupancy: Number(ledger.fsicoccupancycount ?? 0) || 0,
-    fsic_bplo_new: Number(ledger.fsicbplonewcount ?? 0) || 0,
-    fsic_bplo_renewal: Number(ledger.fsicbplorenewcount ?? 0) || 0,
-    fsic_gov: Number(ledger.fsicgovcount ?? 0) || 0,
-    fsic_peza: Number(ledger.fsicpezacount ?? 0) || 0,
-    fsic_tieza: Number(ledger.fsictiezacount ?? 0) || 0,
-    not_nod: Number(ledger.nodcount ?? 0) || 0,
-    not_ntc: Number(ledger.ntccount ?? 0) || 0,
-    not_ntcv: Number(ledger.ntcvcount ?? 0) || 0,
-    not_abatement: Number(ledger.avatementcount ?? 0) || 0,
-    not_closure: Number(ledger.closurecount ?? 0) || 0,
-    remarks: ledger.remarks ?? base.remarks ?? "",
-  };
+type MonthRow = Record<FieldKey, number> & { remarks: string };
+
+function emptyMonthRow(): MonthRow {
+  const base = {} as Record<FieldKey, number>;
+  for (const f of FIELDS) base[f.key] = 0;
+  return { ...base, remarks: "" };
 }
 
-/** Per-category accomplishment tally used to power the real-time
- *  Target / Accomplishment / Remaining summary. Mirrors the server's
- *  Monthly-endpoint totals so the UI stays consistent with saved state. */
-function computeAccomplishment(rows: DailyInventoryUpsertDTO[]) {
-  const num = (v: unknown) => Number(v ?? 0) || 0;
-  return rows.reduce(
-    (acc, r) => {
-      acc.bplo += num(r.insp_bplo) + num(r.fsic_bplo_new) + num(r.fsic_bplo_renewal);
-      acc.gov += num(r.insp_gov) + num(r.fsec_gov) + num(r.fsic_gov);
-      acc.peza += num(r.insp_peza) + num(r.fsec_peza) + num(r.fsic_peza);
-      acc.tieza += num(r.insp_tieza) + num(r.fsec_tieza) + num(r.fsic_tieza);
-      return acc;
-    },
-    { bplo: 0, gov: 0, peza: 0, tieza: 0 },
-  );
+/** Aggregate a Monthly-endpoint ledger daily list into one editable row. */
+function ledgerToMonthRow(list: FSISInventoryLedgerDailyItem[] | undefined): MonthRow {
+  const row = emptyMonthRow();
+  if (!list || list.length === 0) return row;
+  for (const l of list) {
+    row.insp_during += Number(l.inspectduringcount ?? 0) || 0;
+    row.insp_after += Number(l.inspectaftercount ?? 0) || 0;
+    row.insp_bplo += Number(l.inspectbplocount ?? 0) || 0;
+    row.insp_gov += Number(l.inspectgovcount ?? 0) || 0;
+    row.insp_peza += Number(l.inspectpezacount ?? 0) || 0;
+    row.insp_tieza += Number(l.inspecttiezacount ?? 0) || 0;
+    row.fsec_building += Number(l.fsecbuildingcount ?? 0) || 0;
+    row.fsec_gov += Number(l.fsecgovcount ?? 0) || 0;
+    row.fsec_peza += Number(l.fsecpezacount ?? 0) || 0;
+    row.fsec_tieza += Number(l.fsectiezacount ?? 0) || 0;
+    row.fsic_occupancy += Number(l.fsicoccupancycount ?? 0) || 0;
+    row.fsic_bplo_new += Number(l.fsicbplonewcount ?? 0) || 0;
+    row.fsic_bplo_renewal += Number(l.fsicbplorenewcount ?? 0) || 0;
+    row.fsic_gov += Number(l.fsicgovcount ?? 0) || 0;
+    row.fsic_peza += Number(l.fsicpezacount ?? 0) || 0;
+    row.fsic_tieza += Number(l.fsictiezacount ?? 0) || 0;
+    row.not_nod += Number(l.nodcount ?? 0) || 0;
+    row.not_ntc += Number(l.ntccount ?? 0) || 0;
+    row.not_ntcv += Number(l.ntcvcount ?? 0) || 0;
+    row.not_abatement += Number(l.avatementcount ?? 0) || 0;
+    row.not_closure += Number(l.closurecount ?? 0) || 0;
+  }
+  // Prefer the most recent non-empty remarks as the aggregated month remark.
+  const withRemarks = list.filter((l) => (l.remarks ?? "").trim().length > 0);
+  row.remarks = withRemarks.length > 0 ? withRemarks[withRemarks.length - 1].remarks : "";
+  return row;
 }
 
-/** Shared editor body — used by the route page and the modal wrapper. */
+function rowsEqual(a: MonthRow, b: MonthRow): boolean {
+  if ((a.remarks ?? "") !== (b.remarks ?? "")) return false;
+  for (const f of FIELDS) if (a[f.key] !== b[f.key]) return false;
+  return true;
+}
+
+function computeAccomplishmentForRow(r: MonthRow) {
+  const bplo = r.insp_bplo + r.fsic_bplo_new + r.fsic_bplo_renewal;
+  const gov = r.insp_gov + r.fsec_gov + r.fsic_gov;
+  const peza = r.insp_peza + r.fsec_peza + r.fsic_peza;
+  const tieza = r.insp_tieza + r.fsec_tieza + r.fsic_tieza;
+  return { bplo, gov, peza, tieza };
+}
+
+/**
+ * Editor body — restores the original tabular layout:
+ *
+ *  1. `Monthly Target vs. Inspected` summary fixed to the selected record's
+ *     year and month (no month/year selectors).
+ *  2. January–December editable table with one row per month. The yearly
+ *     total is rendered below the December row.
+ */
 function InventoryEditBody({
   stationno,
   year,
@@ -157,132 +169,194 @@ function InventoryEditBody({
   onCancel: () => void;
 }) {
   const { user } = useAuth();
-  const daysInMonth = calendarDaysInMonth(year, month);
 
-  const [rows, setRows] = React.useState<DailyInventoryUpsertDTO[]>([]);
+  const [rows, setRows] = React.useState<Record<number, MonthRow>>(() => {
+    const init: Record<number, MonthRow> = {};
+    for (const m of MONTHS) init[m.value] = emptyMonthRow();
+    return init;
+  });
+  const [initialRows, setInitialRows] = React.useState<Record<number, MonthRow>>(() => {
+    const init: Record<number, MonthRow> = {};
+    for (const m of MONTHS) init[m.value] = emptyMonthRow();
+    return init;
+  });
+  const [monthlySelected, setMonthlySelected] = React.useState<FSISInventoryMonthlyItem | null>(
+    null,
+  );
+  const [stationInfo, setStationInfo] = React.useState<Partial<SearchStationModel> | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  // Snapshot of the Monthly endpoint response — source of truth for the
-  // Target / Accomplishment / Remaining summary. `null` until the load
-  // resolves so the panel can stay in its loading state without flashing.
-  const [monthly, setMonthly] = React.useState<FSISInventoryMonthlyItem | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
 
-      // Resolve station/province context first — the Monthly endpoint requires
-      // a Provinceno filter, and both endpoints benefit from the station seed.
+      // Resolve station/province context first — Monthly endpoint requires
+      // Provinceno and the saved rows need full station identity.
       const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
       const { data: sData } = unwrap<SearchStationModel[]>(sResp);
       const seedStation = Array.isArray(sData) ? sData[0] : undefined;
+      const provinceno = seedStation?.provinceno ?? EMPTY_GUID;
 
-      // Kick off the two reads in parallel: the Monthly summary (targets +
-      // ledger prefill) and the daily inventory grid (existing save shape).
-      const [monthlyResp, dailyResp] = await Promise.all([
-        targetinventoryAPI.getMonthly({
-          Stationno: stationno || EMPTY_GUID,
-          Provinceno: seedStation?.provinceno ?? EMPTY_GUID,
-          Reportyear: year,
-          Reportmonth: month,
-        }),
-        inventoryAPI.getMonthlyInventory(stationno, year, month),
-      ]);
+      // Fetch every month in parallel — the yearly table is always fully
+      // populated, even for months with no server-side record.
+      const responses = await Promise.all(
+        MONTHS.map((m) =>
+          targetinventoryAPI.getMonthly(
+            {
+              Stationno: stationno || EMPTY_GUID,
+              Provinceno: provinceno,
+              Reportyear: year,
+              Reportmonth: m.value,
+            },
+            { suppressGlobalLoading: true },
+          ),
+        ),
+      );
+      if (cancelled) return;
 
-      const monthlyEnv = unwrap<FSISInventoryMonthlyItem[]>(monthlyResp);
-      if (!monthlyEnv.ok) {
-        toast.error(monthlyEnv.error || "Unable to load monthly monitoring record.");
-      }
-      const monthlyRecord = Array.isArray(monthlyEnv.data) ? monthlyEnv.data[0] ?? null : null;
+      const built: Record<number, MonthRow> = {};
+      let selected: FSISInventoryMonthlyItem | null = null;
+      let firstError: string | null = null;
+      responses.forEach((resp, index) => {
+        const monthValue = MONTHS[index].value;
+        const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
+        if (!ok && !firstError) firstError = error || null;
+        const record = ok && Array.isArray(data) ? data[0] ?? null : null;
+        built[monthValue] = ledgerToMonthRow(record?.fsisInventoryLedgerList);
+        if (monthValue === month && record) selected = record;
+      });
+      if (firstError) toast.error(firstError);
 
-      const { data } = unwrap<DailyInventoryDTO[]>(dailyResp);
-      const existing = new Map((data ?? []).map((r) => [r.dateinspected, r]));
-
-      // Prefer station info from the loaded records; fall back to the Monthly
-      // record and finally to the live Station API lookup.
-      const seed: SearchStationModel | Partial<SearchStationModel> | undefined =
-        (data ?? []).find((r) => r.stationno === stationno) ??
-        (monthlyRecord as Partial<SearchStationModel> | null) ??
-        seedStation;
-      const info = seed
-        ? {
-            stationno: seed.stationno ?? stationno,
-            stationcode: seed.stationcode ?? "",
-            stationname: seed.stationname ?? stationno,
-            cityno: seed.cityno ?? "",
-            cityname: seed.cityname ?? "",
-            provinceno: seed.provinceno ?? "",
-            provincename: seed.provincename ?? "",
-          }
-        : {
-            stationno,
-            stationcode: "",
-            stationname: stationno,
-            cityno: "",
-            cityname: "",
-            provinceno: "",
-            provincename: "",
-          };
-
-      // Ledger prefill map — Monthly endpoint's daily list, keyed by ISO date.
-      const ledgerByDate = new Map<string, FSISInventoryLedgerDailyItem>();
-      for (const item of monthlyRecord?.fsisInventoryLedgerList ?? []) {
-        const iso = (item.dateinspected ?? "").slice(0, 10);
-        if (iso) ledgerByDate.set(iso, item);
-      }
-
-      const built: DailyInventoryUpsertDTO[] = [];
-      for (let d = 1; d <= daysInMonth; d++) {
-        const iso = `${year}-${pad2(month)}-${pad2(d)}`;
-        const hit = existing.get(iso);
-        let row: DailyInventoryUpsertDTO;
-        if (hit) {
-          const { inventoryno: _n, lastupdated: _u, deletedat: _d, ...rest } = hit;
-          row = rest;
-        } else {
-          row = emptyRowFor(info, iso, user?.memberno ?? "anon", user?.fullname ?? "Anonymous");
-        }
-        // Overlay Monthly ledger values when present — this is the "source of
-        // truth" per the API contract; daily rows fill any gaps.
-        const ledger = ledgerByDate.get(iso);
-        if (ledger) row = applyLedgerToRow(row, ledger);
-        built.push(row);
-      }
-      if (!cancelled) {
-        setMonthly(monthlyRecord);
-        setRows(built);
-        setLoading(false);
-      }
+      setStationInfo(seedStation ?? null);
+      setRows(built);
+      // Deep-copy the initial snapshot so change detection is reliable.
+      const snap: Record<number, MonthRow> = {};
+      for (const m of MONTHS) snap[m.value] = { ...built[m.value] };
+      setInitialRows(snap);
+      setMonthlySelected(selected);
+      setLoading(false);
     })();
-    return () => { cancelled = true; };
-  }, [stationno, year, month, daysInMonth, user?.memberno, user?.fullname]);
+    return () => {
+      cancelled = true;
+    };
+  }, [stationno, year, month]);
 
-  const updateCell = (idx: number, field: keyof DailyInventoryDTO, value: string) => {
+  const updateCell = (monthValue: number, field: FieldKey | "remarks", value: string) => {
     setRows((prev) => {
-      const next = prev.slice();
-      const num = value === "" ? 0 : Math.max(0, Number(value) || 0);
-      (next[idx] as unknown as Record<string, unknown>)[field as string] =
-        field === "remarks" ? value : num;
-      return next;
+      const cur = prev[monthValue] ?? emptyMonthRow();
+      let next: MonthRow;
+      if (field === "remarks") {
+        next = { ...cur, remarks: value };
+      } else {
+        const num = value === "" ? 0 : Math.max(0, Number(value) || 0);
+        next = { ...cur, [field]: num } as MonthRow;
+      }
+      return { ...prev, [monthValue]: next };
     });
   };
 
-  const rowTotal = (r: DailyInventoryUpsertDTO): number =>
-    ALL_NUMERIC_FIELDS.reduce(
-      (s, k) => s + (Number((r as unknown as Record<string, unknown>)[k as string] ?? 0) || 0),
-      0,
-    );
+  const columnTotals = React.useMemo(() => {
+    const totals = {} as Record<FieldKey, number>;
+    for (const f of FIELDS) totals[f.key] = 0;
+    for (const m of MONTHS) {
+      const r = rows[m.value];
+      if (!r) continue;
+      for (const f of FIELDS) totals[f.key] += Number(r[f.key]) || 0;
+    }
+    return totals;
+  }, [rows]);
+
+  const grandTotal = React.useMemo(
+    () => Object.values(columnTotals).reduce((a, b) => a + b, 0),
+    [columnTotals],
+  );
+
+  // Live summary — targets stay pinned to the server's Monthly response for
+  // the selected month while accomplishments recompute from that month's
+  // in-progress edits.
+  const summaryData = React.useMemo<TargetAccomplishmentModel | null>(() => {
+    if (!monthlySelected) return null;
+    const live = computeAccomplishmentForRow(rows[month] ?? emptyMonthRow());
+    return {
+      stationno: monthlySelected.stationno,
+      month: monthlySelected.month ?? month,
+      year: monthlySelected.year ?? year,
+      totaltargetbplo: Number(monthlySelected.totaltargetbplo ?? 0) || 0,
+      totaltargetgov: Number(monthlySelected.totaltargetgov ?? 0) || 0,
+      totaltargetpeza: Number(monthlySelected.totaltargetpeza ?? 0) || 0,
+      totaltargettieza: Number(monthlySelected.totaltargettieza ?? 0) || 0,
+      totalAccomplishmentbplo: live.bplo,
+      totalAccomplishmentgov: live.gov,
+      totalAccomplishmentpeza: live.peza,
+      totalAccomplishmenttieza: live.tieza,
+    };
+  }, [monthlySelected, rows, month, year]);
+
+  const buildDto = (monthValue: number, r: MonthRow): DailyInventoryUpsertDTO => {
+    const iso = `${year}-${pad2(monthValue)}-01`;
+    return {
+      stationno,
+      stationcode: stationInfo?.stationcode ?? "",
+      stationname: stationInfo?.stationname ?? stationno,
+      cityno: stationInfo?.cityno ?? "",
+      cityname: stationInfo?.cityname ?? "",
+      provinceno: stationInfo?.provinceno ?? "",
+      provincename: stationInfo?.provincename ?? "",
+      dateinspected: iso,
+      insp_during: r.insp_during,
+      insp_after: r.insp_after,
+      insp_bplo: r.insp_bplo,
+      insp_gov: r.insp_gov,
+      insp_peza: r.insp_peza,
+      insp_tieza: r.insp_tieza,
+      fsec_building: r.fsec_building,
+      fsec_gov: r.fsec_gov,
+      fsec_peza: r.fsec_peza,
+      fsec_tieza: r.fsec_tieza,
+      fsic_occupancy: r.fsic_occupancy,
+      fsic_bplo_new: r.fsic_bplo_new,
+      fsic_bplo_renewal: r.fsic_bplo_renewal,
+      fsic_gov: r.fsic_gov,
+      fsic_peza: r.fsic_peza,
+      fsic_tieza: r.fsic_tieza,
+      not_nod: r.not_nod,
+      not_ntc: r.not_ntc,
+      not_ntcv: r.not_ntcv,
+      not_abatement: r.not_abatement,
+      not_closure: r.not_closure,
+      remarks: r.remarks,
+      encodedby: user?.memberno ?? "anon",
+      encodedbyname: user?.fullname ?? "Anonymous",
+    };
+  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const dirty = rows.filter((r) => rowTotal(r) > 0 || (r.remarks && r.remarks.length > 0));
-      const resp = await inventoryAPI.updateMonthlyInventory(stationno, year, month, dirty);
-      const { ok, error } = unwrap(resp);
-      if (!ok) toast.error(error || "Unable to save monthly inventory.");
-      else {
-        toast.success(`Saved ${dirty.length} daily record${dirty.length === 1 ? "" : "s"}.`);
+      const changed = MONTHS.filter(
+        (m) => !rowsEqual(rows[m.value], initialRows[m.value] ?? emptyMonthRow()),
+      );
+      if (changed.length === 0) {
+        toast.info("No changes to save.");
+        return;
+      }
+      let firstError: string | null = null;
+      for (const m of changed) {
+        // Reset the month first so aggregated re-save doesn't double up on
+        // top of existing daily records, then upsert one aggregated row.
+        await inventoryAPI.deleteMonthlyInventory(stationno, year, m.value);
+        const resp = await inventoryAPI.updateMonthlyInventory(stationno, year, m.value, [
+          buildDto(m.value, rows[m.value]),
+        ]);
+        const { ok, error } = unwrap(resp);
+        if (!ok && !firstError) firstError = error || `Failed to save ${m.name}.`;
+      }
+      if (firstError) {
+        toast.error(firstError);
+      } else {
+        toast.success(`Saved ${changed.length} month${changed.length === 1 ? "" : "s"}.`);
         onSaved();
       }
     } finally {
@@ -290,138 +364,140 @@ function InventoryEditBody({
     }
   };
 
-  // Real-time Target / Accomplishment / Remaining feed for the summary panel.
-  // Targets stay pinned to the Monthly endpoint response while accomplishments
-  // recompute from the current in-memory rows on every keystroke.
-  const summaryData = React.useMemo<TargetAccomplishmentModel | null>(() => {
-    if (!monthly) return null;
-    const live = computeAccomplishment(rows);
-    return {
-      stationno: monthly.stationno,
-      month: monthly.month ?? month,
-      year: monthly.year ?? year,
-      totaltargetbplo: Number(monthly.totaltargetbplo ?? 0) || 0,
-      totaltargetgov: Number(monthly.totaltargetgov ?? 0) || 0,
-      totaltargetpeza: Number(monthly.totaltargetpeza ?? 0) || 0,
-      totaltargettieza: Number(monthly.totaltargettieza ?? 0) || 0,
-      totalAccomplishmentbplo: live.bplo,
-      totalAccomplishmentgov: live.gov,
-      totalAccomplishmentpeza: live.peza,
-      totalAccomplishmenttieza: live.tieza,
-    };
-  }, [monthly, rows, month, year]);
-
   return (
     <div className="space-y-4">
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading month…
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
         </Card>
       ) : (
         <>
-          <TargetAccomplishmentPanel
-            stationno={stationno}
-            year={year}
-            month={month}
-            data={summaryData}
-          />
-
-
+          <div className="space-y-2">
+            <TargetAccomplishmentPanel
+              stationno={stationno}
+              year={year}
+              month={month}
+              data={summaryData}
+            />
+            <p className="text-xs text-muted-foreground">
+              Displays the Monthly Target vs. Inspected summary for the selected reporting
+              month. The values below represent the annual Fire Safety Compliance record for
+              the selected year.
+            </p>
+          </div>
 
           <Card className="overflow-hidden border-border/60 shadow-soft">
             <div className="max-h-[65vh] overflow-auto">
               <table className="min-w-max border-separate border-spacing-0 text-[11px]">
                 <thead className="sticky top-0 z-30">
-                <tr>
-                  <th
-                    rowSpan={2}
-                    className="sticky left-0 top-0 z-40 min-w-[110px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
-                  >
-                    Date
-                  </th>
-                  {GROUPS.map((g) => (
+                  <tr>
                     <th
-                      key={g.label}
-                      colSpan={g.span}
-                      className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${g.tone}`}
+                      rowSpan={2}
+                      className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
                     >
-                      {g.label}
+                      Month
                     </th>
-                  ))}
-                  <th
-                    rowSpan={2}
-                    className="border-b border-r bg-slate-700 px-3 py-2 text-left uppercase tracking-wider text-white min-w-[180px]"
-                  >
-                    Remarks
-                  </th>
-                </tr>
-                <tr>
-                  {FIELDS.map((f) => (
-                    <th
-                      key={f.key}
-                      className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100"
-                    >
-                      {f.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => {
-                  const zebra = i % 2 === 1 ? "bg-muted/40" : "bg-card";
-                  return (
-                    <tr key={r.dateinspected} className={zebra}>
-                      <td
-                        className={`sticky left-0 z-10 border-b border-r px-3 py-1.5 font-semibold tabular-nums ${zebra}`}
+                    {GROUPS.map((g) => (
+                      <th
+                        key={g.label}
+                        colSpan={g.span}
+                        className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${g.tone}`}
                       >
-                        {r.dateinspected}
-                      </td>
-                      {FIELDS.map((f) => (
-                        <td key={f.key} className="border-b border-r p-0">
+                        {g.label}
+                      </th>
+                    ))}
+                    <th
+                      rowSpan={2}
+                      className="border-b border-r bg-slate-700 px-3 py-2 text-left uppercase tracking-wider text-white min-w-[180px]"
+                    >
+                      Remarks
+                    </th>
+                  </tr>
+                  <tr>
+                    {FIELDS.map((f) => (
+                      <th
+                        key={f.key}
+                        className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100"
+                      >
+                        {f.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {MONTHS.map((m, i) => {
+                    const zebra = i % 2 === 1 ? "bg-muted/40" : "bg-card";
+                    const r = rows[m.value] ?? emptyMonthRow();
+                    return (
+                      <tr key={m.value} className={zebra}>
+                        <td
+                          className={`sticky left-0 z-10 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
+                        >
+                          {m.name}
+                        </td>
+                        {FIELDS.map((f) => (
+                          <td key={f.key} className="border-b border-r p-0">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={String(r[f.key] ?? 0)}
+                              onChange={(e) => updateCell(m.value, f.key, e.target.value)}
+                              className="h-8 w-[70px] rounded-none border-0 bg-transparent text-right tabular-nums focus-visible:ring-1"
+                            />
+                          </td>
+                        ))}
+                        <td className="border-b border-r p-0">
                           <Input
-                            type="number"
-                            min={0}
-                            value={String(
-                              (r as unknown as Record<string, unknown>)[f.key as string] ?? 0,
-                            )}
-                            onChange={(e) => updateCell(i, f.key, e.target.value)}
-                            className="h-8 w-[70px] rounded-none border-0 bg-transparent text-right tabular-nums focus-visible:ring-1"
+                            type="text"
+                            value={r.remarks ?? ""}
+                            onChange={(e) => updateCell(m.value, "remarks", e.target.value)}
+                            className="h-8 w-[220px] rounded-none border-0 bg-transparent focus-visible:ring-1"
+                            placeholder="Notes…"
                           />
                         </td>
-                      ))}
-                      <td className="border-b border-r p-0">
-                        <Input
-                          type="text"
-                          value={r.remarks ?? ""}
-                          onChange={(e) => updateCell(i, "remarks", e.target.value)}
-                          className="h-8 w-[220px] rounded-none border-0 bg-transparent focus-visible:ring-1"
-                          placeholder="Notes…"
-                        />
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/50 font-semibold">
+                    <td className="sticky left-0 z-10 border-r bg-muted/60 px-3 py-2">
+                      Total
+                    </td>
+                    {FIELDS.map((f) => (
+                      <td
+                        key={f.key}
+                        className="border-r px-3 py-2 text-right tabular-nums"
+                      >
+                        {(columnTotals[f.key] ?? 0).toLocaleString()}
                       </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    ))}
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {grandTotal.toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div className="border-t bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+              Enter monthly totals. Only rows that changed are saved.
+            </div>
+          </Card>
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button variant="outline" onClick={onCancel} className="gap-2">
+              <ArrowLeft className="h-4 w-4" /> Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || loading}
+              className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving ? "Saving…" : "Save Changes"}
+            </Button>
           </div>
-          <div className="border-t bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
-            Enter values per day. Empty rows are ignored; existing records are UPSERTed on save.
-          </div>
-        </Card>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="outline" onClick={onCancel} className="gap-2">
-            <ArrowLeft className="h-4 w-4" /> Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving || loading}
-            className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {saving ? "Saving…" : "Save Month"}
-          </Button>
-        </div>
-      </>
+        </>
       )}
     </div>
   );
@@ -431,7 +507,8 @@ function InventoryEditBody({
 export default function InventoryEdit() {
   const { stationno = "", year = "", month = "" } = useParams();
   const navigate = useNavigate();
-  const y = Number(year), m = Number(month);
+  const y = Number(year);
+  const m = Number(month);
   const monthName = MONTHS.find((mo) => mo.value === m)?.name ?? m;
   const [seed, setSeed] = React.useState<SearchStationModel | null>(null);
   React.useEffect(() => {
@@ -443,7 +520,9 @@ export default function InventoryEdit() {
       if (cancelled) return;
       setSeed(Array.isArray(data) && data[0] ? data[0] : null);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [stationno]);
 
   return (
@@ -493,58 +572,27 @@ export function InventoryEditModal({
 }) {
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
 
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!open) return;
-      try {
-        const effStation = stationno || EMPTY_GUID;
-        let prov = EMPTY_GUID;
-        if (effStation && effStation !== EMPTY_GUID) {
-          const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: effStation });
-          const { data: sData } = unwrap<SearchStationModel[]>(sResp);
-          const s = Array.isArray(sData) ? sData[0] : undefined;
-          prov = s?.provinceno ?? EMPTY_GUID;
-        }
-        await targetinventoryAPI.getMonthly(
-          {
-            Stationno: effStation || EMPTY_GUID,
-            Provinceno: prov || EMPTY_GUID,
-            Reportyear: year,
-            Reportmonth: month,
-          },
-          { suppressGlobalLoading: true },
-        );
-      } catch (e) {
-        if (!cancelled) {
-          // don't escalate — editor already loads daily rows from inventoryAPI
-          console.debug("Monthly prefetch failed", e);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, stationno, year, month]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+      <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
               <Table2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">Fire Safety Compliance Editor</DialogTitle>
+              <DialogTitle className="text-base font-bold">
+                Fire Safety Compliance Editor
+              </DialogTitle>
               <DialogDescription>
                 {stationName ? `${stationName} · ` : ""}
-                {monthName} {year} — Excel-style daily encoding.
+                {monthName} {year} — yearly editable overview.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden px-5 py-4">
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-auto px-5 py-4">
           {open ? (
             <InventoryEditBody
               stationno={stationno}

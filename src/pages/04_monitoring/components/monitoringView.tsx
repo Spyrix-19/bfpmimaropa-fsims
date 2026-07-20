@@ -3,6 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -16,10 +23,8 @@ import { stationAPI } from "@/services/stationAPI";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
-import {
-  CATEGORY_FIELDS,
-  calendarDaysInMonth,
-} from "@/lib/inventoryHelpers";
+import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
+import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
 import type {
   FSISInventoryMonthlyItem,
@@ -36,234 +41,92 @@ const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
 }));
 const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
-/** Map a Monthly ledger daily item -> the DailyInventoryDTO field keys the
- *  read-only table already renders. Server field names differ from the daily
- *  inventory endpoint, so translate rather than reshape the UI. */
-function ledgerToRow(
-  ledger: FSISInventoryLedgerDailyItem,
-): Partial<DailyInventoryDTO> & { dateinspected: string; inventoryno: string } {
-  const iso = (ledger.dateinspected ?? "").slice(0, 10);
-  return {
-    inventoryno: ledger.fsisno,
-    dateinspected: iso,
-    insp_during: Number(ledger.inspectduringcount ?? 0) || 0,
-    insp_after: Number(ledger.inspectaftercount ?? 0) || 0,
-    insp_bplo: Number(ledger.inspectbplocount ?? 0) || 0,
-    insp_gov: Number(ledger.inspectgovcount ?? 0) || 0,
-    insp_peza: Number(ledger.inspectpezacount ?? 0) || 0,
-    insp_tieza: Number(ledger.inspecttiezacount ?? 0) || 0,
-    fsec_building: Number(ledger.fsecbuildingcount ?? 0) || 0,
-    fsec_gov: Number(ledger.fsecgovcount ?? 0) || 0,
-    fsec_peza: Number(ledger.fsecpezacount ?? 0) || 0,
-    fsec_tieza: Number(ledger.fsectiezacount ?? 0) || 0,
-    fsic_occupancy: Number(ledger.fsicoccupancycount ?? 0) || 0,
-    fsic_bplo_new: Number(ledger.fsicbplonewcount ?? 0) || 0,
-    fsic_bplo_renewal: Number(ledger.fsicbplorenewcount ?? 0) || 0,
-    fsic_gov: Number(ledger.fsicgovcount ?? 0) || 0,
-    fsic_peza: Number(ledger.fsicpezacount ?? 0) || 0,
-    fsic_tieza: Number(ledger.fsictiezacount ?? 0) || 0,
-    not_nod: Number(ledger.nodcount ?? 0) || 0,
-    not_ntc: Number(ledger.ntccount ?? 0) || 0,
-    not_ntcv: Number(ledger.ntcvcount ?? 0) || 0,
-    not_abatement: Number(ledger.avatementcount ?? 0) || 0,
-    not_closure: Number(ledger.closurecount ?? 0) || 0,
-    remarks: ledger.remarks ?? "",
-  };
+/** Sum every Monthly-endpoint ledger daily item into a single per-field row.
+ *  The keys mirror `DailyInventoryDTO` so the same DETAIL_FIELDS drive both
+ *  the table columns and totals. */
+function aggregateMonth(
+  list: FSISInventoryLedgerDailyItem[] | undefined,
+): Partial<Record<keyof DailyInventoryDTO, number>> {
+  const acc: Record<string, number> = {};
+  for (const l of list ?? []) {
+    acc.insp_during = (acc.insp_during ?? 0) + (Number(l.inspectduringcount ?? 0) || 0);
+    acc.insp_after = (acc.insp_after ?? 0) + (Number(l.inspectaftercount ?? 0) || 0);
+    acc.insp_bplo = (acc.insp_bplo ?? 0) + (Number(l.inspectbplocount ?? 0) || 0);
+    acc.insp_gov = (acc.insp_gov ?? 0) + (Number(l.inspectgovcount ?? 0) || 0);
+    acc.insp_peza = (acc.insp_peza ?? 0) + (Number(l.inspectpezacount ?? 0) || 0);
+    acc.insp_tieza = (acc.insp_tieza ?? 0) + (Number(l.inspecttiezacount ?? 0) || 0);
+    acc.fsec_building = (acc.fsec_building ?? 0) + (Number(l.fsecbuildingcount ?? 0) || 0);
+    acc.fsec_gov = (acc.fsec_gov ?? 0) + (Number(l.fsecgovcount ?? 0) || 0);
+    acc.fsec_peza = (acc.fsec_peza ?? 0) + (Number(l.fsecpezacount ?? 0) || 0);
+    acc.fsec_tieza = (acc.fsec_tieza ?? 0) + (Number(l.fsectiezacount ?? 0) || 0);
+    acc.fsic_occupancy = (acc.fsic_occupancy ?? 0) + (Number(l.fsicoccupancycount ?? 0) || 0);
+    acc.fsic_bplo_new = (acc.fsic_bplo_new ?? 0) + (Number(l.fsicbplonewcount ?? 0) || 0);
+    acc.fsic_bplo_renewal =
+      (acc.fsic_bplo_renewal ?? 0) + (Number(l.fsicbplorenewcount ?? 0) || 0);
+    acc.fsic_gov = (acc.fsic_gov ?? 0) + (Number(l.fsicgovcount ?? 0) || 0);
+    acc.fsic_peza = (acc.fsic_peza ?? 0) + (Number(l.fsicpezacount ?? 0) || 0);
+    acc.fsic_tieza = (acc.fsic_tieza ?? 0) + (Number(l.fsictiezacount ?? 0) || 0);
+    acc.not_nod = (acc.not_nod ?? 0) + (Number(l.nodcount ?? 0) || 0);
+    acc.not_ntc = (acc.not_ntc ?? 0) + (Number(l.ntccount ?? 0) || 0);
+    acc.not_ntcv = (acc.not_ntcv ?? 0) + (Number(l.ntcvcount ?? 0) || 0);
+    acc.not_abatement = (acc.not_abatement ?? 0) + (Number(l.avatementcount ?? 0) || 0);
+    acc.not_closure = (acc.not_closure ?? 0) + (Number(l.closurecount ?? 0) || 0);
+  }
+  return acc as Partial<Record<keyof DailyInventoryDTO, number>>;
 }
-
-type MonthlyRow = Partial<DailyInventoryDTO> & {
-  dateinspected: string;
-  inventoryno: string;
-};
 
 interface MonthSlice {
   month: number;
   record: FSISInventoryMonthlyItem | null;
-  rows: MonthlyRow[];
+  totals: Partial<Record<keyof DailyInventoryDTO, number>>;
+}
+
+function toSummary(
+  record: FSISInventoryMonthlyItem | null,
+  year: number,
+  month: number,
+): TargetAccomplishmentModel | null {
+  if (!record) return null;
+  return {
+    stationno: record.stationno,
+    month: record.month ?? month,
+    year: record.year ?? year,
+    totaltargetbplo: Number(record.totaltargetbplo ?? 0) || 0,
+    totaltargetgov: Number(record.totaltargetgov ?? 0) || 0,
+    totaltargetpeza: Number(record.totaltargetpeza ?? 0) || 0,
+    totaltargettieza: Number(record.totaltargettieza ?? 0) || 0,
+    totalAccomplishmentbplo: Number(record.totalAccomplishmentbplo ?? 0) || 0,
+    totalAccomplishmentgov: Number(record.totalAccomplishmentgov ?? 0) || 0,
+    totalAccomplishmentpeza: Number(record.totalAccomplishmentpeza ?? 0) || 0,
+    totalAccomplishmenttieza: Number(record.totalAccomplishmenttieza ?? 0) || 0,
+  };
 }
 
 /**
- * Single-month rendering block — kept identical to the pre-existing per-month
- * table so the 12-month year view uses the exact same monthly layout the spec
- * requires. When the API returns no record for the month we still render the
- * table shell with zero values so every month is visible.
- */
-function MonthSection({
-  slice,
-  year,
-  stationno,
-}: {
-  slice: MonthSlice;
-  year: number;
-  stationno: string;
-}) {
-  const { month, record, rows } = slice;
-  const encoded = rows.length;
-  const daysTotal = calendarDaysInMonth(year, month);
-  const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
-
-  const fieldTotals = React.useMemo(() => {
-    const totals: Record<string, number> = {};
-    DETAIL_FIELDS.forEach((field) => {
-      totals[String(field.key)] = rows.reduce(
-        (sum, r) => sum + (Number((r as Record<string, unknown>)[field.key as string]) || 0),
-        0,
-      );
-    });
-    return totals;
-  }, [rows]);
-
-  const summaryData = React.useMemo<TargetAccomplishmentModel | null>(() => {
-    if (!record) return null;
-    return {
-      stationno: record.stationno,
-      month: record.month ?? month,
-      year: record.year ?? year,
-      totaltargetbplo: Number(record.totaltargetbplo ?? 0) || 0,
-      totaltargetgov: Number(record.totaltargetgov ?? 0) || 0,
-      totaltargetpeza: Number(record.totaltargetpeza ?? 0) || 0,
-      totaltargettieza: Number(record.totaltargettieza ?? 0) || 0,
-      totalAccomplishmentbplo: Number(record.totalAccomplishmentbplo ?? 0) || 0,
-      totalAccomplishmentgov: Number(record.totalAccomplishmentgov ?? 0) || 0,
-      totalAccomplishmentpeza: Number(record.totalAccomplishmentpeza ?? 0) || 0,
-      totalAccomplishmenttieza: Number(record.totalAccomplishmenttieza ?? 0) || 0,
-    };
-  }, [record, month, year]);
-
-  return (
-    <div className="space-y-3">
-      <Card className="border-border/60 p-4 shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="text-sm font-bold uppercase tracking-[0.15em] text-primary">
-            {monthName} {year}
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <MetaField label="Period" value={`${monthName} ${year}`} />
-            <MetaField label="Days Encoded" value={`${encoded} / ${daysTotal}`} />
-          </div>
-        </div>
-      </Card>
-
-      <TargetAccomplishmentPanel
-        stationno={stationno}
-        year={year}
-        month={month}
-        data={summaryData}
-      />
-
-      <Card className="overflow-hidden border-border/60 shadow-soft">
-        <div className="overflow-x-auto">
-          <table className="min-w-max border-separate border-spacing-0 text-[11px]">
-            <thead className="sticky top-0 z-30 bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th
-                  rowSpan={2}
-                  className="sticky left-0 top-0 z-40 min-w-[110px] border-b border-r bg-blue-700 px-3 py-2 text-left text-white"
-                >
-                  Date
-                </th>
-                {FIELD_GROUPS.map((group) => (
-                  <th
-                    key={group.category}
-                    colSpan={group.fields.length}
-                    className="border-b border-r px-2 py-2 text-center font-semibold"
-                  >
-                    {group.category}
-                  </th>
-                ))}
-                <th
-                  rowSpan={2}
-                  className="border-b border-r bg-slate-700 px-3 py-2 text-left text-white"
-                >
-                  TOTAL
-                </th>
-              </tr>
-              <tr>
-                {DETAIL_FIELDS.map((field) => (
-                  <th
-                    key={String(field.key)}
-                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900"
-                  >
-                    {field.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={DETAIL_FIELDS.length + 2} className="px-3 py-10 text-center text-muted-foreground">
-                    No daily records encoded for this month.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((r, index) => (
-                  <tr key={r.inventoryno} className={index % 2 === 1 ? "bg-muted/40" : "bg-card"}>
-                    <td className="sticky left-0 z-10 border-b border-r px-3 py-1.5 font-semibold bg-card tabular-nums">
-                      {r.dateinspected}
-                    </td>
-                    {DETAIL_FIELDS.map((field) => (
-                      <td key={String(field.key)} className="border-b border-r px-3 py-1.5 text-right tabular-nums">
-                        {(Number((r as Record<string, unknown>)[field.key as string]) || 0).toLocaleString()}
-                      </td>
-                    ))}
-                    <td className="border-b px-3 py-1.5 text-right tabular-nums">
-                      {DETAIL_FIELDS.reduce(
-                        (sum, field) => sum + (Number((r as Record<string, unknown>)[field.key as string]) || 0),
-                        0,
-                      ).toLocaleString()}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            {rows.length > 0 && (
-              <tfoot>
-                <tr className="border-t-2 border-border bg-muted/40 font-semibold">
-                  <td className="border-r px-3 py-2">Total</td>
-                  {DETAIL_FIELDS.map((field) => (
-                    <td key={String(field.key)} className="border-r px-3 py-2 text-right tabular-nums">
-                      {fieldTotals[String(field.key)]?.toLocaleString() ?? "0"}
-                    </td>
-                  ))}
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {rows
-                      .reduce(
-                        (sum, r) =>
-                          sum +
-                          DETAIL_FIELDS.reduce(
-                            (rowSum, field) =>
-                              rowSum + (Number((r as Record<string, unknown>)[field.key as string]) || 0),
-                            0,
-                          ),
-                        0,
-                      )
-                      .toLocaleString()}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-/**
- * Read-only year-wide breakdown — renders every month from January to
- * December using the same monthly table layout. Months without any record
- * remain visible with empty rows / zero totals per the spec.
+ * Read-only yearly overview:
+ *
+ *  1. `Monthly Target vs. Inspected` summary — driven by a Month dropdown that
+ *     defaults to the current calendar month. The Year is locked to the
+ *     Ledger record and displayed as a read-only field.
+ *  2. January–December table — every month rendered as its own row so months
+ *     without data still appear (with zero values), giving a complete
+ *     yearly overview.
  */
 function InventoryViewBody({
   stationno,
   year,
+  initialMonth,
 }: {
   stationno: string;
   year: number;
+  initialMonth?: number;
 }) {
   const [slices, setSlices] = React.useState<MonthSlice[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [selectedMonth, setSelectedMonth] = React.useState<number>(() => {
+    if (initialMonth && initialMonth >= 1 && initialMonth <= 12) return initialMonth;
+    return new Date().getMonth() + 1;
+  });
 
   React.useEffect(() => {
     let cancelled = false;
@@ -276,8 +139,8 @@ function InventoryViewBody({
       const seedStation = Array.isArray(sData) ? sData[0] : undefined;
       const provinceno = seedStation?.provinceno ?? EMPTY_GUID;
 
-      // Fire all 12 months in parallel — every month renders, even those
-      // without a record on the server.
+      // Fire all 12 months in parallel — every month must be present in the
+      // yearly table even when the server returns no record.
       const responses = await Promise.all(
         MONTHS.map((m) =>
           targetinventoryAPI.getMonthly(
@@ -298,12 +161,11 @@ function InventoryViewBody({
         const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
         if (!ok && !firstError) firstError = error || null;
         const record = ok && Array.isArray(data) ? data[0] ?? null : null;
-        const list = record?.fsisInventoryLedgerList ?? [];
-        const rows = list
-          .map(ledgerToRow)
-          .filter((r) => r.dateinspected)
-          .sort((a, b) => a.dateinspected.localeCompare(b.dateinspected));
-        return { month: MONTHS[index].value, record, rows };
+        return {
+          month: MONTHS[index].value,
+          record,
+          totals: aggregateMonth(record?.fsisInventoryLedgerList),
+        };
       });
 
       if (firstError) toast.error(firstError);
@@ -315,6 +177,25 @@ function InventoryViewBody({
     };
   }, [stationno, year]);
 
+  const currentSlice = slices.find((s) => s.month === selectedMonth) ?? null;
+  const summary = currentSlice ? toSummary(currentSlice.record, year, selectedMonth) : null;
+
+  const columnTotals = React.useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const field of DETAIL_FIELDS) {
+      totals[String(field.key)] = slices.reduce(
+        (sum, s) => sum + (Number(s.totals[field.key as keyof DailyInventoryDTO]) || 0),
+        0,
+      );
+    }
+    return totals;
+  }, [slices]);
+
+  const grandTotal = React.useMemo(
+    () => Object.values(columnTotals).reduce((a, b) => a + b, 0),
+    [columnTotals],
+  );
+
   if (loading) {
     return (
       <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
@@ -324,18 +205,147 @@ function InventoryViewBody({
   }
 
   return (
-    <div className="space-y-6">
-      {slices.map((slice) => (
-        <MonthSection key={slice.month} slice={slice} year={year} stationno={stationno} />
-      ))}
+    <div className="space-y-4">
+      {/* 1. Monthly Target vs. Inspected — month selector, year locked. */}
+      <Card className="border-border/60 p-4 shadow-soft">
+        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Month
+            </label>
+            <Select
+              value={String(selectedMonth)}
+              onValueChange={(v) => setSelectedMonth(Number(v))}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={String(m.value)}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Year
+            </label>
+            <ReadOnlyField value={year} title="Year is locked to the selected ledger record" />
+          </div>
+        </div>
+
+        <TargetAccomplishmentPanel
+          stationno={stationno}
+          year={year}
+          month={selectedMonth}
+          data={summary}
+        />
+      </Card>
+
+      {/* 2. January–December yearly overview. */}
+      <Card className="overflow-hidden border-border/60 shadow-soft">
+        <div className="overflow-x-auto">
+          <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+            <thead className="sticky top-0 z-30 bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th
+                  rowSpan={2}
+                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left text-white"
+                >
+                  Month
+                </th>
+                {FIELD_GROUPS.map((group) => (
+                  <th
+                    key={group.category}
+                    colSpan={group.fields.length}
+                    className="border-b border-r px-2 py-2 text-center font-semibold"
+                  >
+                    {group.category}
+                  </th>
+                ))}
+                <th
+                  rowSpan={2}
+                  className="border-b border-r bg-slate-700 px-3 py-2 text-right text-white"
+                >
+                  TOTAL
+                </th>
+              </tr>
+              <tr>
+                {DETAIL_FIELDS.map((field) => (
+                  <th
+                    key={String(field.key)}
+                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100"
+                  >
+                    {field.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {slices.map((slice, index) => {
+                const rowTotal = DETAIL_FIELDS.reduce(
+                  (sum, f) =>
+                    sum + (Number(slice.totals[f.key as keyof DailyInventoryDTO]) || 0),
+                  0,
+                );
+                const zebra = index % 2 === 1 ? "bg-muted/40" : "bg-card";
+                return (
+                  <tr key={slice.month} className={zebra}>
+                    <td
+                      className={`sticky left-0 z-10 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
+                    >
+                      {MONTHS[slice.month - 1].name}
+                    </td>
+                    {DETAIL_FIELDS.map((field) => {
+                      const v =
+                        Number(slice.totals[field.key as keyof DailyInventoryDTO]) || 0;
+                      return (
+                        <td
+                          key={String(field.key)}
+                          className="border-b border-r px-3 py-1.5 text-right tabular-nums"
+                        >
+                          {v.toLocaleString()}
+                        </td>
+                      );
+                    })}
+                    <td className="border-b px-3 py-1.5 text-right font-semibold tabular-nums">
+                      {rowTotal.toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-border bg-muted/40 font-semibold">
+                <td className="sticky left-0 z-10 border-r bg-muted/60 px-3 py-2">Total</td>
+                {DETAIL_FIELDS.map((field) => (
+                  <td
+                    key={String(field.key)}
+                    className="border-r px-3 py-2 text-right tabular-nums"
+                  >
+                    {(columnTotals[String(field.key)] ?? 0).toLocaleString()}
+                  </td>
+                ))}
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {grandTotal.toLocaleString()}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }
 
 /** Route page — kept for deep-linking / bookmarks. */
 export default function InventoryView() {
-  const { stationno = "", year = "" } = useParams();
+  const { stationno = "", year = "", month = "" } = useParams();
   const navigate = useNavigate();
+  const m = Number(month);
 
   return (
     <div className="space-y-6">
@@ -345,9 +355,9 @@ export default function InventoryView() {
             <Eye className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Inventory — Monthly Details</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance — Yearly Details</h1>
             <p className="text-sm text-muted-foreground">
-              Read-only breakdown of daily FSIS accomplishments across the year.
+              Read-only breakdown for the selected station and year.
             </p>
           </div>
         </div>
@@ -356,7 +366,11 @@ export default function InventoryView() {
         </Button>
       </div>
 
-      <InventoryViewBody stationno={stationno} year={Number(year)} />
+      <InventoryViewBody
+        stationno={stationno}
+        year={Number(year)}
+        initialMonth={m >= 1 && m <= 12 ? m : undefined}
+      />
     </div>
   );
 }
@@ -367,6 +381,7 @@ export function InventoryViewModal({
   onOpenChange,
   stationno,
   year,
+  month,
   stationName,
 }: {
   open: boolean;
@@ -374,9 +389,8 @@ export function InventoryViewModal({
   stationno: string;
   year: number;
   /**
-   * Retained for backwards compatibility with existing callers — the view
-   * now always renders all 12 months, so this value is only used for the
-   * dialog subtitle when supplied.
+   * Optional — when provided, the Month dropdown defaults to this value;
+   * otherwise the current calendar month is used per spec.
    */
   month?: number;
   stationName?: string;
@@ -386,26 +400,17 @@ export function InventoryViewModal({
       <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5 text-primary" /> Inventory — Monthly Details
+            <Eye className="h-5 w-5 text-primary" /> Fire Safety Compliance — Yearly Details
           </DialogTitle>
           <DialogDescription>
             {stationName ? `${stationName} · ` : ""}
-            {year} — read-only breakdown of daily FSIS accomplishments (January to December).
+            {year} — read-only yearly overview (January to December).
           </DialogDescription>
         </DialogHeader>
-        {open ? <InventoryViewBody stationno={stationno} year={year} /> : null}
+        {open ? (
+          <InventoryViewBody stationno={stationno} year={year} initialMonth={month} />
+        ) : null}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function MetaField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-[140px]">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className="text-sm font-semibold">{value}</div>
-    </div>
   );
 }
