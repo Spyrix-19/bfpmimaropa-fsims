@@ -20,6 +20,11 @@ import type { SearchStationModel } from "@/types/stationTypes";
 import { MONTHS } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
+import GentableSearchSelect from "@/components/gentable-search-select";
+import { Label } from "@/components/ui/label";
+import { Lock } from "lucide-react";
+import { isReportMonthLocked } from "@/pages/05_target-reference/helpers";
+import { FSIS_ISSUANCE_TABLE } from "./issuanceMode";
 
 import type {
   DailyInventoryDTO,
@@ -170,6 +175,10 @@ function InventoryEditBody({
   onCancel: () => void;
 }) {
   const { user } = useAuth();
+  const monthLocked = React.useMemo(
+    () => isReportMonthLocked(Number(year), Number(month)),
+    [year, month],
+  );
 
   const [rows, setRows] = React.useState<Record<number, MonthRow>>(() => {
     const init: Record<number, MonthRow> = {};
@@ -194,6 +203,12 @@ function InventoryEditBody({
   const [stationInfo, setStationInfo] = React.useState<Partial<SearchStationModel> | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+
+  // Mode of Issuance — mirrors the Add page (`FSIS ISSUANCE` gentable).
+  // Seeded from the selected month's first daily record so edits preserve
+  // the previously-recorded issuance mode by default.
+  const [issuanceModeNo, setIssuanceModeNo] = React.useState<string>("");
+  const [issuanceModeName, setIssuanceModeName] = React.useState<string>("");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -247,6 +262,12 @@ function InventoryEditBody({
       setInitialRows(snap);
       setMonthlySelected(selected);
       setMonthlyRecords(records);
+
+      // Seed Mode of Issuance from the selected month's first daily entry.
+      const seedMode = records[month]?.fsisInventoryLedgerList?.[0]?.fsicmode ?? 0;
+      setIssuanceModeNo(seedMode ? String(seedMode) : "");
+      setIssuanceModeName("");
+
       setLoading(false);
     })();
     return () => {
@@ -255,6 +276,7 @@ function InventoryEditBody({
   }, [stationno, year, month]);
 
   const updateCell = (monthValue: number, field: FieldKey | "remarks", value: string) => {
+    if (monthLocked) return;
     setRows((prev) => {
       const cur = prev[monthValue] ?? emptyMonthRow();
       let next: MonthRow;
@@ -344,6 +366,7 @@ function InventoryEditBody({
   };
 
   const handleSave = async () => {
+    if (monthLocked) return;
     setSaving(true);
     try {
       const changed = MONTHS.filter(
@@ -360,6 +383,7 @@ function InventoryEditBody({
         fsisUpdateInventoryList: changed.map((m) => {
           const r = rows[m.value];
           const existing = monthlyRecords[m.value]?.fsisInventoryLedgerList?.[0];
+          const modeNo = Number(issuanceModeNo);
           return {
             fsisno: existing?.fsisno ?? EMPTY_GUID,
             dateinspected: existing?.dateinspected ?? `${year}-${pad2(m.value)}-01`,
@@ -369,7 +393,9 @@ function InventoryEditBody({
             inspectgovcount: r.insp_gov,
             inspectpezacount: r.insp_peza,
             inspecttiezacount: r.insp_tieza,
-            fsicmode: 0,
+            fsicmode: Number.isFinite(modeNo)
+              ? modeNo
+              : Number(existing?.fsicmode ?? 0) || 0,
             fsecbuildingcount: r.fsec_building,
             fsecgovcount: r.fsec_gov,
             fsecpezacount: r.fsec_peza,
@@ -410,6 +436,15 @@ function InventoryEditBody({
         </Card>
       ) : (
         <>
+          {monthLocked && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                This reporting month is already completed and cannot be edited. Records are shown for reference only.
+              </span>
+            </div>
+          )}
+
           <div className="space-y-2">
             <TargetAccomplishmentPanel
               stationno={stationno}
@@ -424,14 +459,39 @@ function InventoryEditBody({
             </p>
           </div>
 
+          <Card className="space-y-1.5 border-border/60 p-4 shadow-soft">
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Mode of Issuance
+            </Label>
+            <div className="max-w-md">
+              <GentableSearchSelect
+                tablename={FSIS_ISSUANCE_TABLE}
+                value={issuanceModeNo || undefined}
+                valueName={issuanceModeName}
+                placeholder="Select issuance mode"
+                hideCode
+                disabled={monthLocked}
+                readOnly={monthLocked}
+                onChange={(detno, description) => {
+                  if (monthLocked) return;
+                  setIssuanceModeNo(detno);
+                  setIssuanceModeName(description);
+                }}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Applied to every month saved in this session.
+            </p>
+          </Card>
+
           <Card className="overflow-hidden border-border/60 shadow-soft">
-            <div className="max-h-[65vh] w-full max-w-full overflow-auto">
+            <div className="w-full max-w-full overflow-x-auto">
               <table className="min-w-max border-separate border-spacing-0 text-[11px]">
-                <thead className="sticky top-0 z-30">
+                <thead>
                   <tr>
                     <th
                       rowSpan={2}
-                      className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
+                      className="sticky left-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
                     >
                       Month
                     </th>
@@ -481,6 +541,8 @@ function InventoryEditBody({
                               type="number"
                               min={0}
                               value={String(r[f.key] ?? 0)}
+                              disabled={monthLocked}
+                              readOnly={monthLocked}
                               onChange={(e) => updateCell(m.value, f.key, e.target.value)}
                               className="h-8 w-[70px] rounded-none border-0 bg-transparent text-right tabular-nums focus-visible:ring-1"
                             />
@@ -490,6 +552,8 @@ function InventoryEditBody({
                           <Input
                             type="text"
                             value={r.remarks ?? ""}
+                            disabled={monthLocked}
+                            readOnly={monthLocked}
                             onChange={(e) => updateCell(m.value, "remarks", e.target.value)}
                             className="h-8 w-[220px] rounded-none border-0 bg-transparent focus-visible:ring-1"
                             placeholder="Notes…"
@@ -521,22 +585,26 @@ function InventoryEditBody({
               </table>
             </div>
             <div className="border-t bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
-              Enter monthly totals. Only rows that changed are saved.
+              {monthLocked
+                ? "This month is locked. Values are read-only."
+                : "Enter monthly totals. Only rows that changed are saved."}
             </div>
           </Card>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="outline" onClick={onCancel} className="gap-2">
-              <ArrowLeft className="h-4 w-4" /> Cancel
+              <ArrowLeft className="h-4 w-4" /> {monthLocked ? "Close" : "Cancel"}
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || loading}
-              className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {saving ? "Saving…" : "Save Changes"}
-            </Button>
+            {!monthLocked && (
+              <Button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {saving ? "Saving…" : "Save Changes"}
+              </Button>
+            )}
           </div>
         </>
       )}

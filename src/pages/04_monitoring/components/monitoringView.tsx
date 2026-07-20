@@ -88,6 +88,15 @@ interface MonthSlice {
   month: number;
   record: FSISInventoryMonthlyItem | null;
   totals: Partial<Record<keyof DailyInventoryDTO, number>>;
+  remarks: string;
+}
+
+/** Pick the most recent non-empty remarks across the month's daily entries. */
+function aggregateRemarks(list: FSISInventoryLedgerDailyItem[] | undefined): string {
+  if (!list || list.length === 0) return "";
+  const withRemarks = list.filter((l) => (l.remarks ?? "").trim().length > 0);
+  if (withRemarks.length === 0) return "";
+  return withRemarks[withRemarks.length - 1].remarks ?? "";
 }
 
 function toSummary(
@@ -174,6 +183,7 @@ function InventoryViewBody({
           month: MONTHS[index].value,
           record,
           totals: aggregateMonth(record?.fsisInventoryLedgerList),
+          remarks: aggregateRemarks(record?.fsisInventoryLedgerList),
         };
       });
 
@@ -281,6 +291,12 @@ function InventoryViewBody({
                 >
                   TOTAL
                 </th>
+                <th
+                  rowSpan={2}
+                  className="border-b bg-slate-700 px-3 py-2 text-left uppercase tracking-wider text-white min-w-[200px]"
+                >
+                  REMARKS
+                </th>
               </tr>
               <tr>
                 {DETAIL_FIELDS.map((field) => (
@@ -325,6 +341,12 @@ function InventoryViewBody({
                     <td className="border-b px-3 py-1.5 text-right font-semibold tabular-nums">
                       {rowTotal.toLocaleString()}
                     </td>
+                    <td
+                      className="max-w-[280px] truncate border-b px-3 py-1.5 text-left text-muted-foreground"
+                      title={slice.remarks || ""}
+                    >
+                      {slice.remarks || "—"}
+                    </td>
                   </tr>
                 );
               })}
@@ -346,6 +368,7 @@ function InventoryViewBody({
                 <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
                   {grandTotal.toLocaleString()}
                 </td>
+                <td className="border-t-2 border-border bg-accent px-3 py-2.5" aria-hidden />
               </tr>
             </tfoot>
           </table>

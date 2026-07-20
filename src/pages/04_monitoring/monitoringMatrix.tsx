@@ -19,6 +19,7 @@ import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
 import { inventoryAPI } from "@/services/inventoryAPI";
 import { CATEGORY_FIELDS, MONTH_NAMES, bucketScalar, sumMonths } from "@/lib/inventoryHelpers";
+import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -103,6 +104,8 @@ export default function InventoryMatrix({
   const [groups, setGroups] = React.useState<MatrixProvinceGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
+  // Export-only "Report Month" filter (0 = All months).
+  const [exportMonth, setExportMonth] = React.useState<number>(0);
 
   const fields = CATEGORY_FIELDS[category];
   const fieldKeys = fields.map((f) => String(f.key));
@@ -140,24 +143,120 @@ export default function InventoryMatrix({
     }
     setExporting(true);
     try {
+      // Fire the export API for server-side logging / audit. The workbook
+      // itself is built client-side from the per-category matrix data so
+      // the visual layout matches the ComplianceMatrix_2026.xlsx reference.
+      void targetinventoryAPI
+        .export({
+          searchkey: "",
+          reportyear: Number(year),
+          reportmonth: Number(exportMonth) || 0,
+          provinces: groups.map((g) => ({
+            provinceno: (g.stations[0]?.provinceno as string) ?? "",
+            stationnos: g.stations.map((s) => s.stationno),
+          })),
+        })
+        .catch(() => {
+          /* non-blocking */
+        });
+
+      // Pull the four per-category matrices in parallel so the export
+      // includes every column (Inspection, FSEC, FSIC, Notices) instead of
+      // the collapsed OVERALL totals shown on-screen.
+      const cats: InventoryCategory[] = ["INSPECTION", "FSEC", "FSIC", "NOTICES"];
+      const perCat = await Promise.all(
+        cats.map((c) =>
+          inventoryAPI.getInventoryMatrix(
+            {
+              year,
+              provinceno: provinceno || undefined,
+              stationno: stationno || undefined,
+              searchkey: "",
+            },
+            c,
+          ),
+        ),
+      );
+      const catGroups: MatrixProvinceGroup[][] = perCat.map((r) => {
+        const u = unwrap<MatrixProvinceGroup[]>(r);
+        return u.ok && Array.isArray(u.data) ? u.data : [];
+      });
+
+      // Merge per-station months across categories, keyed by stationno.
+      type Station = {
+        stationno: string;
+        stationCode: string;
+        stationName: string;
+        cityName: string;
+        months: Record<number, Record<string, number>>;
+      };
+      const merged: { province: string; stations: Station[] }[] = groups.map((g) => ({
+        province: g.province,
+        stations: g.stations.map((s) => ({
+          stationno: s.stationno,
+          stationCode: s.stationcode,
+          stationName: s.stationname,
+          cityName: "",
+          months: {} as Record<number, Record<string, number>>,
+        })),
+      }));
+      cats.forEach((cat, ci) => {
+        const cg = catGroups[ci];
+        cg.forEach((g) => {
+          const dest = merged.find((mg) => mg.province === g.province);
+          if (!dest) return;
+          g.stations.forEach((s) => {
+            const destStation = dest.stations.find((ds) => ds.stationno === s.stationno);
+            if (!destStation) return;
+            for (let m = 1; m <= 12; m++) {
+              const bucket = s.months?.[m] ?? {};
+              destStation.months[m] = {
+                ...(destStation.months[m] ?? {}),
+                ...Object.fromEntries(
+                  Object.entries(bucket).map(([k, v]) => [`${cat}::${k}`, Number(v) || 0]),
+                ),
+              };
+            }
+          });
+        });
+      });
+
+      // Flatten fields across categories in fixed order. Labels prefix the
+      // category so the workbook is grouped visually without collapsing.
+      const flatFields = cats.flatMap((cat) =>
+        CATEGORY_FIELDS[cat].map((f) => ({
+          key: `${cat}::${String(f.key)}`,
+          label: f.label,
+          category: cat,
+        })),
+      );
+
+      // If a specific report month is selected, zero every other month so
+      // the workbook still renders in the reference full-year layout but
+      // only the chosen month carries values.
+      if (exportMonth > 0) {
+        merged.forEach((g) =>
+          g.stations.forEach((s) => {
+            for (let m = 1; m <= 12; m++) {
+              if (m !== exportMonth) s.months[m] = {};
+            }
+          }),
+        );
+      }
+
       await exportComplianceMatrix({
         year,
-        groups: groups.map((g) => ({
-          province: g.province,
-          stations: g.stations.map((s) => ({
-            stationno: s.stationno,
-            stationCode: s.stationcode,
-            stationName: s.stationname,
-            cityName: "",
-            months: s.months,
-          })),
-        })),
-        fields: fields.map((f) => ({ key: String(f.key), label: f.label })),
+        groups: merged,
+        fields: flatFields,
         signatory: {
           rank: (user as unknown as { rankname?: string })?.rankname ?? user?.rankcode ?? "",
           fullname: user?.fullname ?? user?.name ?? "",
           designation: (user as unknown as { designation?: string })?.designation ?? "",
         },
+        filename:
+          exportMonth > 0
+            ? `ComplianceMatrix_${year}_${MONTH_NAMES[exportMonth - 1]}.xlsx`
+            : `ComplianceMatrix_${year}.xlsx`,
       });
       toast.success("Compliance Matrix exported.");
     } catch (err) {
@@ -215,6 +314,22 @@ export default function InventoryMatrix({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Select
+              value={String(exportMonth)}
+              onValueChange={(v) => setExportMonth(Number(v))}
+            >
+              <SelectTrigger className="h-9 w-[160px]" aria-label="Report month for export">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">All months</SelectItem>
+                {MONTH_NAMES.map((n, i) => (
+                  <SelectItem key={n} value={String(i + 1)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
               size="sm"

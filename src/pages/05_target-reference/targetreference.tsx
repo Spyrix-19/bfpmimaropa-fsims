@@ -26,6 +26,7 @@ import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import PaginationControls from "@/components/pagination";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import SecureDeleteDialog from "@/components/secure-delete-dialog";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
@@ -530,16 +531,20 @@ export default function TargetReferenceIndexPage() {
         lockFilters={matrixTarget != null}
       />
 
-      <ConfirmDialog
+      <SecureDeleteDialog
         open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        ContentIcon={Trash}
-        contentIconBgClass="bg-red-50"
-        contentIconColorClass="text-red-600"
+        onOpenChange={(o) => !deleting && setDeleteOpen(o)}
         title="Delete Target Reference?"
-        description="Are you sure you want to delete all monthly target records for the selected station and year? This action cannot be undone."
-        confirmLabel={deleting ? "Deleting…" : "Delete"}
-        confirmVariant="destructive"
+        subject={
+          deleteTarget ? (
+            <>
+              {deleteTarget.stationName ?? deleteTarget.stationCode ?? "Station"} — {deleteTarget.year}
+            </>
+          ) : null
+        }
+        description="This deletes every monthly target record for the selected station and year. This action cannot be undone."
+        confirmLabel="Delete"
+        deleting={deleting}
         onConfirm={confirmDelete}
       />
     </div>

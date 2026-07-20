@@ -13,6 +13,8 @@ import { MONTHS } from "@/lib/fsims-constants";
 export interface ComplianceField {
   key: string;
   label: string;
+  /** Category the field belongs to (INSPECTION | FSEC | FSIC | NOTICES). */
+  category?: string;
 }
 
 export interface ComplianceExportStation {
@@ -39,12 +41,25 @@ const FILL = {
   stationHead: "FF1D4ED8",
   quarter: "FF065F46",
   month: "FF059669",
-  cat: "FFD1FAE5",
+  fieldLabel: "FFECFDF5",
   semester: "FFF97316",
   annual: "FF1E3A8A",
   provTotal: "FFFEF08A",
   numberCol: "FFEFF6FF",
 };
+
+/** Per-category header banding — mirrors the reference ComplianceMatrix_2026.xlsx. */
+const CATEGORY_FILL: Record<string, { fg: string; font: string }> = {
+  INSPECTION: { fg: "FF0EA5E9", font: "FFFFFFFF" }, // sky
+  FSEC:       { fg: "FF10B981", font: "FFFFFFFF" }, // emerald
+  FSIC:       { fg: "FFF59E0B", font: "FF1F2937" }, // amber
+  NOTICES:    { fg: "FFF43F5E", font: "FFFFFFFF" }, // rose
+  DEFAULT:    { fg: "FF64748B", font: "FFFFFFFF" },
+};
+
+function catStyle(cat?: string) {
+  return CATEGORY_FILL[cat ?? "DEFAULT"] ?? CATEGORY_FILL.DEFAULT;
+}
 
 const NUMBER_FMT = "#,##0;(#,##0);-";
 
@@ -84,6 +99,18 @@ export async function exportComplianceMatrix(opts: {
   const { year, groups, fields, signatory, filename } = opts;
   const catSpan = fields.length;
 
+  // Compute contiguous category runs across the fields array so we can render
+  // the category banner row above the field labels (matches the reference
+  // ComplianceMatrix_2026.xlsx grouping visually).
+  type Run = { category: string; start: number; end: number };
+  const runs: Run[] = [];
+  fields.forEach((f, idx) => {
+    const c = f.category ?? "";
+    const last = runs[runs.length - 1];
+    if (last && last.category === c) last.end = idx;
+    else runs.push({ category: c, start: idx, end: idx });
+  });
+
   // Column layout: NO | Province | City | Station | months × cats | q-totals × cats | sem1 | sem2 | annual
   const COL = {
     NO: 1,
@@ -107,7 +134,7 @@ export async function exportComplianceMatrix(opts: {
   wb.creator = "FSIMS";
   wb.created = new Date();
   const ws = wb.addWorksheet(`Compliance Matrix ${year}`, {
-    views: [{ state: "frozen", xSplit: 4, ySplit: 4, showGridLines: false }],
+    views: [{ state: "frozen", xSplit: 4, ySplit: 5, showGridLines: false }],
     pageSetup: {
       orientation: "landscape",
       fitToPage: true,
@@ -126,16 +153,23 @@ export async function exportComplianceMatrix(opts: {
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
   ws.getRow(1).height = 26;
 
+  // 5-row banded header (matches the reference layout):
+  //  HR1 — Quarter / Semester / Annual banners
+  //  HR2 — Month names   (or Q-Total merged continuation)
+  //  HR3 — Category banners (INSPECTION | FSEC | FSIC | NOTICES)
+  //  HR4 — Field labels
   const HR1 = 2;
   const HR2 = 3;
   const HR3 = 4;
+  const HR4 = 5;
 
   // Station Information header
-  ws.mergeCells(HR1, COL.NO, HR3, COL.STATION);
+  ws.mergeCells(HR1, COL.NO, HR4, COL.STATION);
   const stationHead = ws.getCell(HR1, COL.NO);
   stationHead.value = "Station Information";
   stationHead.fill = fill(FILL.stationHead);
   Object.assign(stationHead, centerBoldWhite());
+  stationHead.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 12 };
 
   const quarters = [
     { label: "First Quarter", months: [0, 1, 2] },
@@ -155,7 +189,7 @@ export async function exportComplianceMatrix(opts: {
     Object.assign(cell, centerBoldWhite());
   });
 
-  // Month names row (each spans catSpan cols)
+  // Month names row — each month spans all its category+field cols.
   for (let m = 0; m < 12; m++) {
     const c1 = monthCatCol(m, 0);
     const c2 = monthCatCol(m, catSpan - 1);
@@ -166,19 +200,37 @@ export async function exportComplianceMatrix(opts: {
     Object.assign(cell, centerBoldWhite());
   }
 
-  // Category labels row (per month)
-  for (let m = 0; m < 12; m++) {
+  // Category banner row (HR3) — one merged band per category, per month.
+  // Field label row (HR4) — one cell per field.
+  const paintCategoryBanner = (row: number, baseCol: number, run: Run) => {
+    const c1 = baseCol + run.start;
+    const c2 = baseCol + run.end;
+    if (c2 > c1) ws.mergeCells(row, c1, row, c2);
+    const style = catStyle(run.category);
+    const cell = ws.getCell(row, c1);
+    cell.value = run.category || "";
+    cell.fill = fill(style.fg);
+    cell.font = { bold: true, size: 10, color: { argb: style.font } };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.border = border("thin", "FF334155");
+  };
+  const paintFieldLabels = (row: number, baseCol: number) => {
     fields.forEach((f, ci) => {
-      const cell = ws.getCell(HR3, monthCatCol(m, ci));
+      const cell = ws.getCell(row, baseCol + ci);
       cell.value = f.label;
-      cell.fill = fill(FILL.cat);
-      cell.font = { bold: true, size: 9, color: { argb: "FF064E3B" } };
-      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.fill = fill(FILL.fieldLabel);
+      cell.font = { bold: true, size: 9, color: { argb: "FF0F172A" } };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
       cell.border = border();
     });
+  };
+  for (let m = 0; m < 12; m++) {
+    const base = monthCatCol(m, 0);
+    runs.forEach((run) => paintCategoryBanner(HR3, base, run));
+    paintFieldLabels(HR4, base);
   }
 
-  // Quarter totals headers
+  // Quarter totals headers — banner spans HR1:HR2, category banners on HR3, field labels on HR4.
   quarters.forEach((q, qi) => {
     const c1 = qtotalCol(qi, 0);
     const c2 = qtotalCol(qi, catSpan - 1);
@@ -187,14 +239,8 @@ export async function exportComplianceMatrix(opts: {
     cell.value = `${q.label} Total`;
     cell.fill = fill(FILL.quarter);
     Object.assign(cell, centerBoldWhite());
-    fields.forEach((f, ci) => {
-      const sub = ws.getCell(HR3, qtotalCol(qi, ci));
-      sub.value = f.label;
-      sub.fill = fill(FILL.cat);
-      sub.font = { bold: true, size: 9, color: { argb: "FF064E3B" } };
-      sub.alignment = { horizontal: "center", vertical: "middle" };
-      sub.border = border();
-    });
+    runs.forEach((run) => paintCategoryBanner(HR3, c1, run));
+    paintFieldLabels(HR4, c1);
   });
 
   const bigTotals: { start: number; label: string; color: string }[] = [
@@ -208,20 +254,17 @@ export async function exportComplianceMatrix(opts: {
     cell.value = bt.label;
     cell.fill = fill(bt.color);
     Object.assign(cell, centerBoldWhite());
-    fields.forEach((f, ci) => {
-      const sub = ws.getCell(HR3, bt.start + ci);
-      sub.value = f.label;
-      sub.fill = fill(FILL.cat);
-      sub.font = { bold: true, size: 9, color: { argb: "FF064E3B" } };
-      sub.alignment = { horizontal: "center", vertical: "middle" };
-      sub.border = border();
-    });
+    runs.forEach((run) => paintCategoryBanner(HR3, bt.start, run));
+    paintFieldLabels(HR4, bt.start);
   });
 
-  [HR1, HR2, HR3].forEach((r) => (ws.getRow(r).height = r === HR3 ? 20 : 22));
+  ws.getRow(HR1).height = 24;
+  ws.getRow(HR2).height = 22;
+  ws.getRow(HR3).height = 20;
+  ws.getRow(HR4).height = 28;
 
   // Body rows
-  let cursor = HR3 + 1;
+  let cursor = HR4 + 1;
 
   const writeStationRow = (station: ComplianceExportStation, seq: number, provinceName: string) => {
     const row = ws.getRow(cursor);
@@ -371,7 +414,7 @@ export async function exportComplianceMatrix(opts: {
   desigCell.alignment = { horizontal: "left", vertical: "middle" };
 
   ws.pageSetup.printArea = `A1:${ws.getCell(desigRow, LAST).address}`;
-  ws.pageSetup.printTitlesRow = `${HR1}:${HR3}`;
+  ws.pageSetup.printTitlesRow = `${HR1}:${HR4}`;
 
   const buf = await wb.xlsx.writeBuffer();
   saveAs(

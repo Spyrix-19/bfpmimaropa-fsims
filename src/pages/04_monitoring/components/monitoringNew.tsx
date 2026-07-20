@@ -40,6 +40,7 @@ import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { FSISInventoryDTO } from "@/types/targetinventoryType";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
+import { inferIssuanceGroup, FSIS_ISSUANCE_TABLE, type IssuanceGroup } from "./issuanceMode";
 
 /* -------------------------------------------------------------------------- */
 /*  Field spec — a single declarative source drives layout, defaults, keys.   */
@@ -92,18 +93,6 @@ const OTHERS_FIELDS: NumericFieldSpec[] = [
   { key: "not_abatement", label: "AVATEMENT" },
   { key: "not_closure", label: "Closure" },
 ];
-
-type IssuanceGroup = "FSEC" | "FSIC" | "OTHERS" | null;
-
-/** Infer which issuance group a gentable row unlocks. Matches by recordcode
- *  first, then falls back to description keywords. */
-function inferIssuanceGroup(code: string, description: string): IssuanceGroup {
-  const hay = `${code} ${description}`.toUpperCase();
-  if (hay.includes("FSEC")) return "FSEC";
-  if (hay.includes("FSIC")) return "FSIC";
-  if (hay.includes("NOTICE") || hay.includes("OTHER") || hay.includes("ENFORCE")) return "OTHERS";
-  return null;
-}
 
 const ALL_NUMERIC_FIELDS = [
   ...DAILY_INSPECTION_FIELDS,
@@ -450,7 +439,7 @@ function InspectionsNewBody({
             <div className="max-w-sm">
               <Field label="Issuance Mode" required>
                 <GentableSearchSelect
-                  tablename="FSIS ISSUANCE"
+                  tablename={FSIS_ISSUANCE_TABLE}
                   value={issuanceModeNo || undefined}
                   valueName={issuanceModeName}
                   placeholder="Select issuance mode"

@@ -27,6 +27,7 @@ import AvatarWithFallback from "@/components/avatar-with-fallback";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import SecureDeleteDialog from "@/components/secure-delete-dialog";
 import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
 import { inventoryAPI } from "@/services/inventoryAPI";
 // Monthly ledger queries are moved to the editor modal to avoid
@@ -392,11 +393,13 @@ export default function FireSafetyCompliancePage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const resp = await inventoryAPI.deleteMonthlyInventory(
-        deleteTarget.stationno,
-        deleteTarget.year,
-        deleteTarget.month,
-      );
+      const resp = await targetinventoryAPI.delete({
+        stationno: deleteTarget.stationno,
+        reportyear: Number(deleteTarget.year),
+        reportmonth: Number(deleteTarget.month),
+        deletedby: user?.memberno ?? "anon",
+        roleno: Number(systemAccess?.roleno ?? 0) || 0,
+      });
       const { ok, error } = unwrap(resp);
       if (!ok) {
         toast.error(error || "Unable to delete monthly inventory.");
@@ -560,17 +563,21 @@ export default function FireSafetyCompliancePage() {
         />
       </div>
 
-      <ConfirmDialog
+      <SecureDeleteDialog
         open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onOpenChange={(o) => !o && !deleting && setDeleteTarget(null)}
         title="Delete Monthly Inventory?"
-        description={
-          deleteTarget
-            ? `This will soft-delete every daily record for ${deleteTarget.stationname} — ${MONTHS.find((m) => m.value === deleteTarget.month)?.name} ${deleteTarget.year}. Records can be restored by the administrator.`
-            : ""
+        subject={
+          deleteTarget ? (
+            <>
+              {deleteTarget.stationname} —{" "}
+              {MONTHS.find((m) => m.value === deleteTarget.month)?.name} {deleteTarget.year}
+            </>
+          ) : null
         }
-        confirmLabel={deleting ? "Deleting…" : "Delete"}
-        confirmVariant="destructive"
+        description="This soft-deletes every daily record for the month. Records can be restored by the administrator."
+        confirmLabel="Delete"
+        deleting={deleting}
         onConfirm={confirmDelete}
       />
 
