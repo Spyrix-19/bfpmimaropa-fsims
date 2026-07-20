@@ -256,7 +256,7 @@ function InventoryViewBody({
 
       {/* 2. January–December yearly overview. */}
       <Card className="overflow-hidden border-border/60 shadow-soft">
-        <div className="max-h-[65vh] overflow-auto">
+        <div className="max-h-[65vh] w-full max-w-full overflow-auto">
           <table className="min-w-max border-separate border-spacing-0 text-[11px]">
             <thead className="sticky top-0 z-30">
               <tr>
@@ -277,7 +277,7 @@ function InventoryViewBody({
                 ))}
                 <th
                   rowSpan={2}
-                  className="border-b border-r bg-slate-700 px-3 py-2 text-right uppercase tracking-wider text-white min-w-[80px]"
+                  className="border-b border-r bg-slate-700 px-3 py-2 text-center uppercase tracking-wider text-white min-w-[80px]"
                 >
                   TOTAL
                 </th>
@@ -300,11 +300,13 @@ function InventoryViewBody({
                     sum + (Number(slice.totals[f.key as keyof DailyInventoryDTO]) || 0),
                   0,
                 );
-                const zebra = index % 2 === 1 ? "bg-muted/40" : "bg-card";
+                // Solid zebra so the sticky Month column stays opaque
+                // while horizontally scrolling — matches the Edit page.
+                const zebra = index % 2 === 1 ? "bg-muted" : "bg-card";
                 return (
                   <tr key={slice.month} className={zebra}>
                     <td
-                      className={`sticky left-0 z-10 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
+                      className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
                     >
                       {MONTHS[slice.month - 1].name}
                     </td>
@@ -328,19 +330,20 @@ function InventoryViewBody({
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-border bg-muted/50 font-semibold">
-                <td className="sticky left-0 z-10 border-r bg-muted/60 px-3 py-2">
+              {/* Yearly summary row — solid emphasis, centered totals. */}
+              <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
+                <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
                   Total
                 </td>
                 {DETAIL_FIELDS.map((field) => (
                   <td
                     key={String(field.key)}
-                    className="border-r px-3 py-2 text-right tabular-nums"
+                    className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
                   >
                     {(columnTotals[String(field.key)] ?? 0).toLocaleString()}
                   </td>
                 ))}
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
                   {grandTotal.toLocaleString()}
                 </td>
               </tr>
@@ -408,9 +411,9 @@ export function InventoryViewModal({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+          <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <Eye className="h-5 w-5 text-primary" /> Fire Safety Compliance — Yearly Details
           </DialogTitle>
           <DialogDescription>
@@ -418,9 +421,11 @@ export function InventoryViewModal({
             {year} — read-only yearly overview (January to December).
           </DialogDescription>
         </DialogHeader>
-        {open ? (
-          <InventoryViewBody stationno={stationno} year={year} initialMonth={month} />
-        ) : null}
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
+          {open ? (
+            <InventoryViewBody stationno={stationno} year={year} initialMonth={month} />
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   );

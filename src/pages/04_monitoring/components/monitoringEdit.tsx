@@ -425,7 +425,7 @@ function InventoryEditBody({
           </div>
 
           <Card className="overflow-hidden border-border/60 shadow-soft">
-            <div className="max-h-[65vh] overflow-auto">
+            <div className="max-h-[65vh] w-full max-w-full overflow-auto">
               <table className="min-w-max border-separate border-spacing-0 text-[11px]">
                 <thead className="sticky top-0 z-30">
                   <tr>
@@ -464,12 +464,14 @@ function InventoryEditBody({
                 </thead>
                 <tbody>
                   {MONTHS.map((m, i) => {
-                    const zebra = i % 2 === 1 ? "bg-muted/40" : "bg-card";
+                    // Solid (non-transparent) zebra so the sticky Month
+                    // column never lets scrolling columns bleed through.
+                    const zebra = i % 2 === 1 ? "bg-muted" : "bg-card";
                     const r = rows[m.value] ?? emptyMonthRow();
                     return (
                       <tr key={m.value} className={zebra}>
                         <td
-                          className={`sticky left-0 z-10 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
+                          className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
                         >
                           {m.name}
                         </td>
@@ -498,19 +500,20 @@ function InventoryEditBody({
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-border bg-muted/50 font-semibold">
-                    <td className="sticky left-0 z-10 border-r bg-muted/60 px-3 py-2">
+                  {/* Yearly summary row — solid emphasis, centered totals. */}
+                  <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
+                    <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
                       Total
                     </td>
                     {FIELDS.map((f) => (
                       <td
                         key={f.key}
-                        className="border-r px-3 py-2 text-right tabular-nums"
+                        className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
                       >
                         {(columnTotals[f.key] ?? 0).toLocaleString()}
                       </td>
                     ))}
-                    <td className="px-3 py-2 text-right tabular-nums">
+                    <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
                       {grandTotal.toLocaleString()}
                     </td>
                   </tr>
@@ -630,7 +633,7 @@ export function InventoryEditModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-auto px-5 py-4">
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
           {open ? (
             <InventoryEditBody
               stationno={stationno}
