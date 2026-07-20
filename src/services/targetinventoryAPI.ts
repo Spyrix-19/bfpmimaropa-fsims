@@ -1,6 +1,7 @@
-import { apiPost, apiGet, NO_RETRY, GET_RETRY } from "@/lib/api";
+import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
+
 import {  FSISInventoryDTO,  FSISUpdateInventoryDTO,  TargetAccomplishmentParams,  TargetAccomplishmentModel,  FSISInventoryLedgerParams,
-  FSISInventoryLedgerItem,  FSISInventoryMonthlyParams,  FSISInventoryMonthlyItem,} from "@/types/targetinventoryType";
+  FSISInventoryLedgerItem,  FSISInventoryMonthlyParams,  FSISInventoryMonthlyItem, FSISInventoryDeleteParams, ExportFSISInventoryDTO} from "@/types/targetinventoryType";
 
 export const targetinventoryAPI = {
   async create(params: FSISInventoryDTO) {
@@ -34,5 +35,26 @@ export const targetinventoryAPI = {
       ...options,
     });
   },
+
+  async delete(params?: FSISInventoryDeleteParams) {
+    return await apiDelete("/api/v1/FSISInventory/Monthly/Delete", undefined, {
+      params,
+      ...MUTATION_RETRY_LIGHT,
+    });
+  },
+
+async export(
+    body: ExportFSISInventoryDTO,
+    options?: import("@/lib/api").ApiOptions
+  ) {
+    return await apiPost("/api/v1/FSISInventory/Export", body, {
+      ...GET_RETRY,
+      ...options,
+    });
+  }
+
+
+
+
 };
 

@@ -277,3 +277,23 @@ export interface TargetAccomplishmentModel {
   totalAccomplishmentpeza: number;
   totalAccomplishmenttieza: number;
 }
+
+export interface FSISInventoryDeleteParams {
+  stationno: string;
+  reportyear: number;
+  reportmonth: number;
+  deletedby: string;
+  roleno: number;
+}
+
+export interface ProvinceStationSelectionClass {
+  provinceno: string;
+  stationnos: string[];
+}
+
+export interface ExportFSISInventoryDTO {
+  searchkey: string;
+  reportyear: number;
+  reportmonth: number;
+  provinces: ProvinceStationSelectionClass[];
+}
