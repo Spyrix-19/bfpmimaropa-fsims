@@ -27,10 +27,16 @@ import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
 import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
 import type {
-  FSISInventoryMonthlyItem,
-  FSISInventoryLedgerDailyItem,
+  FSISInventoryMonthlyLedgerModel,
+  FSISInventoryMonthlyClass,
+  FSISIssuanceClassModel,
   TargetAccomplishmentModel,
 } from "@/types/targetinventoryType";
+
+// Page-local aliases — types/ is immutable; keep original names via aliases.
+type FSISInventoryMonthlyItem = FSISInventoryMonthlyLedgerModel;
+type FSISInventoryLedgerDailyItem = FSISInventoryMonthlyClass &
+  Partial<FSISIssuanceClassModel> & { dateinspected?: string | Date };
 import type { SearchStationModel } from "@/types/stationTypes";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 

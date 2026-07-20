@@ -1,191 +1,130 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { format, parseISO } from "date-fns";
+import { ArrowLeft, Building2, CalendarIcon, Loader2, Plus, Save, Table2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Table2 } from "lucide-react";
-import { toast } from "sonner";
-import { inventoryAPI } from "@/services/inventoryAPI";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
-import { stationAPI } from "@/services/stationAPI";
-import { targetinventoryAPI } from "@/services/targetinventoryAPI";
-import type { SearchStationModel } from "@/types/stationTypes";
-import { MONTHS } from "@/lib/fsims-constants";
-import { useAuth } from "@/lib/auth";
-import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
-import GentableSearchSelect from "@/components/gentable-search-select";
-import { Label } from "@/components/ui/label";
-import { Lock } from "lucide-react";
-import { isReportMonthLocked } from "@/pages/05_target-reference/helpers";
-import { FSIS_ISSUANCE_TABLE } from "./issuanceMode";
 
+import GentableSearchSelect from "@/components/gentable-search-select";
+
+import { useAuth } from "@/lib/auth";
+import { EMPTY_GUID, unwrap } from "@/lib/api-envelope";
+import { MONTHS } from "@/lib/fsims-constants";
+import { cn } from "@/lib/utils";
+
+import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+import { stationAPI } from "@/services/stationAPI";
+import type { SearchStationModel } from "@/types/stationTypes";
 import type {
-  DailyInventoryDTO,
-  DailyInventoryUpsertDTO,
-} from "@/types/inventoryType";
-import type {
-  FSISInventoryMonthlyItem,
-  FSISInventoryLedgerDailyItem,
+  FSISInventoryMonthlyLedgerModel,
+  FSISInventoryIssuanceClassDTO,
+  FSISUpdateInventoryClass,
+  FSISUpdateInventoryDTO,
   TargetAccomplishmentModel,
 } from "@/types/targetinventoryType";
-import type { FSISUpdateInventoryDTO } from "@/types/targetinventoryType";
 
-type FieldKey = keyof Pick<
-  DailyInventoryDTO,
-  | "insp_during"
-  | "insp_after"
-  | "insp_bplo"
-  | "insp_gov"
-  | "insp_peza"
-  | "insp_tieza"
-  | "fsec_building"
-  | "fsec_gov"
-  | "fsec_peza"
-  | "fsec_tieza"
-  | "fsic_occupancy"
-  | "fsic_bplo_new"
-  | "fsic_bplo_renewal"
-  | "fsic_gov"
-  | "fsic_peza"
-  | "fsic_tieza"
-  | "not_nod"
-  | "not_ntc"
-  | "not_ntcv"
-  | "not_abatement"
-  | "not_closure"
->;
+import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
+import { FSIS_ISSUANCE_TABLE } from "./issuanceMode";
 
-type Field = { key: FieldKey; label: string; group: string };
-const FIELDS: Field[] = [
-  { key: "insp_during", label: "During", group: "Inspection" },
-  { key: "insp_after", label: "After", group: "Inspection" },
-  { key: "insp_bplo", label: "1st BPLO", group: "Inspection" },
-  { key: "insp_gov", label: "1st GOV", group: "Inspection" },
-  { key: "insp_peza", label: "1st PEZA", group: "Inspection" },
-  { key: "insp_tieza", label: "1st TIEZA", group: "Inspection" },
-  { key: "fsec_building", label: "Building", group: "FSEC" },
-  { key: "fsec_gov", label: "Gov", group: "FSEC" },
-  { key: "fsec_peza", label: "PEZA", group: "FSEC" },
-  { key: "fsec_tieza", label: "TIEZA", group: "FSEC" },
-  { key: "fsic_occupancy", label: "Occupancy", group: "FSIC" },
-  { key: "fsic_bplo_new", label: "BPLO New", group: "FSIC" },
-  { key: "fsic_bplo_renewal", label: "BPLO Renew", group: "FSIC" },
-  { key: "fsic_gov", label: "Gov", group: "FSIC" },
-  { key: "fsic_peza", label: "PEZA", group: "FSIC" },
-  { key: "fsic_tieza", label: "TIEZA", group: "FSIC" },
-  { key: "not_nod", label: "NOD", group: "Notices" },
-  { key: "not_ntc", label: "NTC", group: "Notices" },
-  { key: "not_ntcv", label: "NTCV", group: "Notices" },
-  { key: "not_abatement", label: "Avatement", group: "Notices" },
-  { key: "not_closure", label: "Closure", group: "Notices" },
-];
+/* -------------------------------------------------------------------------- */
+/*  Local editable shapes — mirror DTO fields 1:1 (no adapter/alias).         */
+/* -------------------------------------------------------------------------- */
 
-const GROUPS = [
-  { label: "Inspection", tone: "bg-emerald-600 text-white", span: 6 },
-  { label: "FSEC", tone: "bg-sky-600 text-white", span: 4 },
-  { label: "FSIC", tone: "bg-indigo-600 text-white", span: 6 },
-  { label: "Notices", tone: "bg-amber-600 text-white", span: 5 },
-];
+interface InspectionEdit {
+  fsisno: string;
+  dateinspected: string; // ISO string retained from API
+  remarks: string;
 
-/** Group -> whether it is gated by the row's Mode of Issuance. */
-function isGatedGroup(group: string): boolean {
-  return group === "FSEC" || group === "FSIC" || group === "Notices";
+  inspectduringcount: number;
+  inspectaftercount: number;
+  inspectbplocount: number;
+  inspectgovcount: number;
+  inspectpezacount: number;
+  inspecttiezacount: number;
 }
 
-function pad2(n: number) {
-  return n < 10 ? `0${n}` : String(n);
+interface IssuanceEdit {
+  issuanceno: string;
+  fsicmode: number;
+  fsicmodename: string;
+
+  fsecbuildingcount: number;
+  fsecgovcount: number;
+  fsecpezacount: number;
+  fsectiezacount: number;
+
+  fsicoccupancycount: number;
+  fsicbplonewcount: number;
+  fsicbplorenewcount: number;
+  fsicgovcount: number;
+  fsicpezacount: number;
+  fsictiezacount: number;
+
+  nodcount: number;
+  ntccount: number;
+  ntcvcount: number;
+  avatementcount: number;
+  closurecount: number;
 }
 
-type MonthRow = Record<FieldKey, number> & { remarks: string; fsicmode: number };
-
-function emptyMonthRow(): MonthRow {
-  const base = {} as Record<FieldKey, number>;
-  for (const f of FIELDS) base[f.key] = 0;
-  return { ...base, remarks: "", fsicmode: 0 };
+function emptyIssuance(): IssuanceEdit {
+  return {
+    issuanceno: EMPTY_GUID,
+    fsicmode: 0,
+    fsicmodename: "",
+    fsecbuildingcount: 0,
+    fsecgovcount: 0,
+    fsecpezacount: 0,
+    fsectiezacount: 0,
+    fsicoccupancycount: 0,
+    fsicbplonewcount: 0,
+    fsicbplorenewcount: 0,
+    fsicgovcount: 0,
+    fsicpezacount: 0,
+    fsictiezacount: 0,
+    nodcount: 0,
+    ntccount: 0,
+    ntcvcount: 0,
+    avatementcount: 0,
+    closurecount: 0,
+  };
 }
 
-/** Aggregate a Monthly-endpoint ledger daily list into one editable row.
- *
- *  API shape (see /FSISInventory/Monthly):
- *    fsisInventoryLedgerList[] -> per-day row carrying `inspect*count` + `remarks`
- *      .issuancelist[]         -> per-issuance row carrying fsicmode + FSEC/FSIC/Notices counts
- *
- *  We sum inspection counts across daily rows, and FSEC/FSIC/Notices counts
- *  across every nested issuance row. fsicmode is seeded from the first
- *  issuance found (all issuances for a month share the same mode in practice). */
-function ledgerToMonthRow(list: FSISInventoryLedgerDailyItem[] | undefined): MonthRow {
-  const row = emptyMonthRow();
-  if (!list || list.length === 0) return row;
-  let firstMode = 0;
-  for (const l of list) {
-    row.insp_during += Number(l.inspectduringcount ?? 0) || 0;
-    row.insp_after += Number(l.inspectaftercount ?? 0) || 0;
-    row.insp_bplo += Number(l.inspectbplocount ?? 0) || 0;
-    row.insp_gov += Number(l.inspectgovcount ?? 0) || 0;
-    row.insp_peza += Number(l.inspectpezacount ?? 0) || 0;
-    row.insp_tieza += Number(l.inspecttiezacount ?? 0) || 0;
-
-    const issuances = Array.isArray(l.issuancelist) ? l.issuancelist : [];
-    // Fallback: if API returns issuance counts flat on the daily row (older
-    // shape / mocks), treat the daily row itself as a single issuance.
-    const source = issuances.length > 0 ? issuances : [l as unknown as typeof issuances[number]];
-    for (const iss of source) {
-      row.fsec_building += Number(iss.fsecbuildingcount ?? 0) || 0;
-      row.fsec_gov += Number(iss.fsecgovcount ?? 0) || 0;
-      row.fsec_peza += Number(iss.fsecpezacount ?? 0) || 0;
-      row.fsec_tieza += Number(iss.fsectiezacount ?? 0) || 0;
-      row.fsic_occupancy += Number(iss.fsicoccupancycount ?? 0) || 0;
-      row.fsic_bplo_new += Number(iss.fsicbplonewcount ?? 0) || 0;
-      row.fsic_bplo_renewal += Number(iss.fsicbplorenewcount ?? 0) || 0;
-      row.fsic_gov += Number(iss.fsicgovcount ?? 0) || 0;
-      row.fsic_peza += Number(iss.fsicpezacount ?? 0) || 0;
-      row.fsic_tieza += Number(iss.fsictiezacount ?? 0) || 0;
-      row.not_nod += Number(iss.nodcount ?? 0) || 0;
-      row.not_ntc += Number(iss.ntccount ?? 0) || 0;
-      row.not_ntcv += Number(iss.ntcvcount ?? 0) || 0;
-      row.not_abatement += Number(iss.avatementcount ?? 0) || 0;
-      row.not_closure += Number(iss.closurecount ?? 0) || 0;
-      if (!firstMode) firstMode = Number(iss.fsicmode ?? 0) || 0;
-    }
-  }
-  // Prefer the most recent non-empty remarks as the aggregated month remark.
-  const withRemarks = list.filter((l) => (l.remarks ?? "").trim().length > 0);
-  row.remarks = withRemarks.length > 0 ? withRemarks[withRemarks.length - 1].remarks : "";
-  row.fsicmode = firstMode || Number((list[0] as { fsicmode?: number })?.fsicmode ?? 0) || 0;
-  return row;
+function emptyInspection(iso: string): InspectionEdit {
+  return {
+    fsisno: EMPTY_GUID,
+    dateinspected: iso,
+    remarks: "",
+    inspectduringcount: 0,
+    inspectaftercount: 0,
+    inspectbplocount: 0,
+    inspectgovcount: 0,
+    inspectpezacount: 0,
+    inspecttiezacount: 0,
+  };
 }
 
-
-function rowsEqual(a: MonthRow, b: MonthRow): boolean {
-  if ((a.remarks ?? "") !== (b.remarks ?? "")) return false;
-  if ((a.fsicmode ?? 0) !== (b.fsicmode ?? 0)) return false;
-  for (const f of FIELDS) if (a[f.key] !== b[f.key]) return false;
-  return true;
+function toNum(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
 }
 
-function computeAccomplishmentForRow(r: MonthRow) {
-  const bplo = r.insp_bplo + r.fsic_bplo_new + r.fsic_bplo_renewal;
-  const gov = r.insp_gov + r.fsec_gov + r.fsic_gov;
-  const peza = r.insp_peza + r.fsec_peza + r.fsic_peza;
-  const tieza = r.insp_tieza + r.fsec_tieza + r.fsic_tieza;
-  return { bplo, gov, peza, tieza };
-}
+/* -------------------------------------------------------------------------- */
+/*  Editor body                                                                */
+/* -------------------------------------------------------------------------- */
 
-/**
- * Editor body — restores the original tabular layout:
- *
- *  1. `Monthly Target vs. Inspected` summary fixed to the selected record's
- *     year and month (no month/year selectors).
- *  2. January–December editable table with one row per month. The yearly
- *     total is rendered below the December row.
- */
 function InventoryEditBody({
   stationno,
   year,
@@ -200,101 +139,93 @@ function InventoryEditBody({
   onCancel: () => void;
 }) {
   const { user } = useAuth();
-  const selectedMonthLocked = React.useMemo(
-    () => isReportMonthLocked(Number(year), Number(month)),
-    [year, month],
-  );
-  const isRowLocked = React.useCallback(
-    (mv: number) => isReportMonthLocked(Number(year), Number(mv)),
-    [year],
-  );
 
-  const [rows, setRows] = React.useState<Record<number, MonthRow>>(() => {
-    const init: Record<number, MonthRow> = {};
-    for (const m of MONTHS) init[m.value] = emptyMonthRow();
-    return init;
-  });
-  const [initialRows, setInitialRows] = React.useState<Record<number, MonthRow>>(() => {
-    const init: Record<number, MonthRow> = {};
-    for (const m of MONTHS) init[m.value] = emptyMonthRow();
-    return init;
-  });
-  const [monthlySelected, setMonthlySelected] = React.useState<FSISInventoryMonthlyItem | null>(
-    null,
-  );
-  const [monthlyRecords, setMonthlyRecords] = React.useState<Record<number, FSISInventoryMonthlyItem | null>>(
-    () => {
-      const init: Record<number, FSISInventoryMonthlyItem | null> = {};
-      for (const m of MONTHS) init[m.value] = null;
-      return init;
-    },
-  );
-  const [stationInfo, setStationInfo] = React.useState<Partial<SearchStationModel> | null>(null);
+  const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? String(month);
+
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
 
-  // Per-row Mode of Issuance display name (looked up from GentableSearchSelect).
-  // Values are stored in each row's `fsicmode`. Names are UI-only and are
-  // seeded lazily by the picker's onChange.
-  const [modeNames, setModeNames] = React.useState<Record<number, string>>({});
+  const [record, setRecord] = React.useState<FSISInventoryMonthlyLedgerModel | null>(null);
+  const [inspection, setInspection] = React.useState<InspectionEdit>(() =>
+    emptyInspection(`${year}-${String(month).padStart(2, "0")}-01`),
+  );
+  const [issuances, setIssuances] = React.useState<IssuanceEdit[]>([]);
 
+  /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-
-      // Resolve station/province context first — Monthly endpoint requires
-      // Provinceno and the saved rows need full station identity.
-      const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
+      // Resolve provinceno — required by the Monthly endpoint.
+      const sResp = await stationAPI.search({
+        pageNumber: 1,
+        pageSize: 1,
+        searchKey: stationno,
+      });
       const { data: sData } = unwrap<SearchStationModel[]>(sResp);
-      const seedStation = Array.isArray(sData) ? sData[0] : undefined;
-      const provinceno = seedStation?.provinceno ?? EMPTY_GUID;
+      const seed = Array.isArray(sData) ? sData[0] : undefined;
+      const provinceno = seed?.provinceno ?? EMPTY_GUID;
 
-      // Fetch every month in parallel — the yearly table is always fully
-      // populated, even for months with no server-side record.
-      const responses = await Promise.all(
-        MONTHS.map((m) =>
-          targetinventoryAPI.getMonthly(
-            {
-              Stationno: stationno || EMPTY_GUID,
-              Provinceno: provinceno,
-              Reportyear: year,
-              Reportmonth: m.value,
-            },
-            { suppressGlobalLoading: true },
-          ),
-        ),
+      const resp = await targetinventoryAPI.getMonthly(
+        {
+          Stationno: stationno || EMPTY_GUID,
+          Provinceno: provinceno,
+          Reportyear: year,
+          Reportmonth: month,
+        },
+        { suppressGlobalLoading: true },
       );
       if (cancelled) return;
 
-      const built: Record<number, MonthRow> = {};
-      const records: Record<number, FSISInventoryMonthlyItem | null> = {};
-      let selected: FSISInventoryMonthlyItem | null = null;
-      let firstError: string | null = null;
-      responses.forEach((resp, index) => {
-        const monthValue = MONTHS[index].value;
-        const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
-        if (!ok && !firstError) firstError = error || null;
-        const record = ok && Array.isArray(data) ? data[0] ?? null : null;
-        built[monthValue] = ledgerToMonthRow(record?.fsisInventoryLedgerList);
-        records[monthValue] = record;
-        if (monthValue === month && record) selected = record;
-      });
-      if (firstError) toast.error(firstError);
+      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
+      if (!ok) toast.error(error || "Failed to load record.");
 
-      setStationInfo(seedStation ?? null);
-      setRows(built);
-      // Deep-copy the initial snapshot so change detection is reliable.
-      const snap: Record<number, MonthRow> = {};
-      for (const m of MONTHS) snap[m.value] = { ...built[m.value] };
-      setInitialRows(snap);
-      setMonthlySelected(selected);
-      setMonthlyRecords(records);
+      const head = Array.isArray(data) ? data[0] ?? null : null;
+      const daily = head?.fsisInventoryLedgerList?.[0];
 
-      // No global mode seeding needed — each row carries its own fsicmode
-      // via `ledgerToMonthRow` above.
-      setModeNames({});
-
+      if (daily) {
+        setInspection({
+          fsisno: daily.fsisno ?? EMPTY_GUID,
+          dateinspected:
+            typeof daily.dateinspected === "string"
+              ? daily.dateinspected
+              : new Date(daily.dateinspected as unknown as string).toISOString(),
+          remarks: daily.remarks ?? "",
+          inspectduringcount: toNum(daily.inspectduringcount),
+          inspectaftercount: toNum(daily.inspectaftercount),
+          inspectbplocount: toNum(daily.inspectbplocount),
+          inspectgovcount: toNum(daily.inspectgovcount),
+          inspectpezacount: toNum(daily.inspectpezacount),
+          inspecttiezacount: toNum(daily.inspecttiezacount),
+        });
+        const list = Array.isArray(daily.issuancelist) ? daily.issuancelist : [];
+        setIssuances(
+          list.map((iss) => ({
+            issuanceno: iss.issuanceno ?? EMPTY_GUID,
+            fsicmode: toNum(iss.fsicmode),
+            fsicmodename: "",
+            fsecbuildingcount: toNum(iss.fsecbuildingcount),
+            fsecgovcount: toNum(iss.fsecgovcount),
+            fsecpezacount: toNum(iss.fsecpezacount),
+            fsectiezacount: toNum(iss.fsectiezacount),
+            fsicoccupancycount: toNum(iss.fsicoccupancycount),
+            fsicbplonewcount: toNum(iss.fsicbplonewcount),
+            fsicbplorenewcount: toNum(iss.fsicbplorenewcount),
+            fsicgovcount: toNum(iss.fsicgovcount),
+            fsicpezacount: toNum(iss.fsicpezacount),
+            fsictiezacount: toNum(iss.fsictiezacount),
+            nodcount: toNum(iss.nodcount),
+            ntccount: toNum(iss.ntccount),
+            ntcvcount: toNum(iss.ntcvcount),
+            avatementcount: toNum(iss.avatementcount),
+            closurecount: toNum(iss.closurecount),
+          })),
+        );
+      } else {
+        setInspection(emptyInspection(`${year}-${String(month).padStart(2, "0")}-01`));
+        setIssuances([]);
+      }
+      setRecord(head);
       setLoading(false);
     })();
     return () => {
@@ -302,435 +233,475 @@ function InventoryEditBody({
     };
   }, [stationno, year, month]);
 
-  const updateCell = (monthValue: number, field: FieldKey | "remarks", value: string) => {
-    if (isRowLocked(monthValue)) return;
-    setRows((prev) => {
-      const cur = prev[monthValue] ?? emptyMonthRow();
-      let next: MonthRow;
-      if (field === "remarks") {
-        next = { ...cur, remarks: value };
-      } else {
-        const num = value === "" ? 0 : Math.max(0, Number(value) || 0);
-        next = { ...cur, [field]: num } as MonthRow;
+  /* ------------------------------- Handlers ------------------------------ */
+
+  const setInspField = (key: keyof InspectionEdit, raw: string) => {
+    setInspection((prev) => {
+      if (key === "remarks" || key === "fsisno" || key === "dateinspected") {
+        return { ...prev, [key]: raw } as InspectionEdit;
       }
-      return { ...prev, [monthValue]: next };
+      const cleaned = raw.replace(/[^0-9]/g, "");
+      const n = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+      return { ...prev, [key]: n } as InspectionEdit;
     });
   };
 
-  const updateRowMode = (monthValue: number, detno: string, name: string) => {
-    if (isRowLocked(monthValue)) return;
-    const modeNo = Number(detno) || 0;
-    setRows((prev) => {
-      const cur = prev[monthValue] ?? emptyMonthRow();
-      const next: MonthRow = { ...cur, fsicmode: modeNo };
-      // When mode is cleared, zero the gated (FSEC/FSIC/Notices) fields for
-      // this row — matches the Add page rule where those inputs are disabled
-      // (and thus effectively zero) until a mode is picked.
-      if (!modeNo) {
-        for (const f of FIELDS) if (isGatedGroup(f.group)) next[f.key] = 0;
-      }
-      return { ...prev, [monthValue]: next };
-    });
-    setModeNames((prev) => ({ ...prev, [monthValue]: name }));
+  const setIssField = (index: number, key: keyof IssuanceEdit, raw: string) => {
+    setIssuances((prev) =>
+      prev.map((iss, i) => {
+        if (i !== index) return iss;
+        if (key === "issuanceno" || key === "fsicmodename") {
+          return { ...iss, [key]: raw } as IssuanceEdit;
+        }
+        const cleaned = raw.replace(/[^0-9]/g, "");
+        const n = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+        return { ...iss, [key]: n } as IssuanceEdit;
+      }),
+    );
   };
 
-  const columnTotals = React.useMemo(() => {
-    const totals = {} as Record<FieldKey, number>;
-    for (const f of FIELDS) totals[f.key] = 0;
-    for (const m of MONTHS) {
-      const r = rows[m.value];
-      if (!r) continue;
-      for (const f of FIELDS) totals[f.key] += Number(r[f.key]) || 0;
-    }
-    return totals;
-  }, [rows]);
+  const setIssMode = (index: number, detno: string, name: string) => {
+    setIssuances((prev) =>
+      prev.map((iss, i) =>
+        i === index ? { ...iss, fsicmode: Number(detno) || 0, fsicmodename: name } : iss,
+      ),
+    );
+  };
 
-  const grandTotal = React.useMemo(
-    () => Object.values(columnTotals).reduce((a, b) => a + b, 0),
-    [columnTotals],
-  );
+  const addIssuance = () =>
+    setIssuances((prev) => [...prev, emptyIssuance()]);
 
-  // Live summary — targets stay pinned to the server's Monthly response for
-  // the selected month while accomplishments recompute from that month's
-  // in-progress edits.
+  const removeIssuance = (index: number) =>
+    setIssuances((prev) => prev.filter((_, i) => i !== index));
+
+  /* --------------------------- Target Accomp panel ----------------------- */
+
   const summaryData = React.useMemo<TargetAccomplishmentModel | null>(() => {
-    if (!monthlySelected) return null;
-    const live = computeAccomplishmentForRow(rows[month] ?? emptyMonthRow());
+    if (!record) return null;
+    const bplo = inspection.inspectbplocount +
+      issuances.reduce((s, i) => s + i.fsicbplonewcount + i.fsicbplorenewcount, 0);
+    const gov = inspection.inspectgovcount +
+      issuances.reduce((s, i) => s + i.fsecgovcount + i.fsicgovcount, 0);
+    const peza = inspection.inspectpezacount +
+      issuances.reduce((s, i) => s + i.fsecpezacount + i.fsicpezacount, 0);
+    const tieza = inspection.inspecttiezacount +
+      issuances.reduce((s, i) => s + i.fsectiezacount + i.fsictiezacount, 0);
     return {
-      stationno: monthlySelected.stationno,
-      month: monthlySelected.month ?? month,
-      year: monthlySelected.year ?? year,
-      totaltargetbplo: Number(monthlySelected.totaltargetbplo ?? 0) || 0,
-      totaltargetgov: Number(monthlySelected.totaltargetgov ?? 0) || 0,
-      totaltargetpeza: Number(monthlySelected.totaltargetpeza ?? 0) || 0,
-      totaltargettieza: Number(monthlySelected.totaltargettieza ?? 0) || 0,
-      totalAccomplishmentbplo: live.bplo,
-      totalAccomplishmentgov: live.gov,
-      totalAccomplishmentpeza: live.peza,
-      totalAccomplishmenttieza: live.tieza,
+      stationno: record.stationno,
+      month: record.month ?? month,
+      year: record.year ?? year,
+      totaltargetbplo: toNum(record.totaltargetbplo),
+      totaltargetgov: toNum(record.totaltargetgov),
+      totaltargetpeza: toNum(record.totaltargetpeza),
+      totaltargettieza: toNum(record.totaltargettieza),
+      totalAccomplishmentbplo: bplo,
+      totalAccomplishmentgov: gov,
+      totalAccomplishmentpeza: peza,
+      totalAccomplishmenttieza: tieza,
     };
-  }, [monthlySelected, rows, month, year]);
+  }, [record, inspection, issuances, month, year]);
 
-  const buildDto = (monthValue: number, r: MonthRow): DailyInventoryUpsertDTO => {
-    const iso = `${year}-${pad2(monthValue)}-01`;
-    return {
-      stationno,
-      stationcode: stationInfo?.stationcode ?? "",
-      stationname: stationInfo?.stationname ?? stationno,
-      cityno: stationInfo?.cityno ?? "",
-      cityname: stationInfo?.cityname ?? "",
-      provinceno: stationInfo?.provinceno ?? "",
-      provincename: stationInfo?.provincename ?? "",
-      dateinspected: iso,
-      insp_during: r.insp_during,
-      insp_after: r.insp_after,
-      insp_bplo: r.insp_bplo,
-      insp_gov: r.insp_gov,
-      insp_peza: r.insp_peza,
-      insp_tieza: r.insp_tieza,
-      fsec_building: r.fsec_building,
-      fsec_gov: r.fsec_gov,
-      fsec_peza: r.fsec_peza,
-      fsec_tieza: r.fsec_tieza,
-      fsic_occupancy: r.fsic_occupancy,
-      fsic_bplo_new: r.fsic_bplo_new,
-      fsic_bplo_renewal: r.fsic_bplo_renewal,
-      fsic_gov: r.fsic_gov,
-      fsic_peza: r.fsic_peza,
-      fsic_tieza: r.fsic_tieza,
-      not_nod: r.not_nod,
-      not_ntc: r.not_ntc,
-      not_ntcv: r.not_ntcv,
-      not_abatement: r.not_abatement,
-      not_closure: r.not_closure,
-      remarks: r.remarks,
-      encodedby: user?.memberno ?? "anon",
-      encodedbyname: user?.fullname ?? "Anonymous",
-    };
-  };
+  /* --------------------------------- Save -------------------------------- */
 
   const handleSave = async () => {
+    if (!record) {
+      toast.error("No record loaded.");
+      return;
+    }
     setSaving(true);
     try {
-      const changed = MONTHS.filter(
-        (m) =>
-          !isRowLocked(m.value) &&
-          !rowsEqual(rows[m.value], initialRows[m.value] ?? emptyMonthRow()),
-      );
-      if (changed.length === 0) {
-        toast.info("No changes to save.");
-        return;
-      }
+      const issuancelist: FSISInventoryIssuanceClassDTO[] = issuances.map((i) => ({
+        issuanceno: i.issuanceno || EMPTY_GUID,
+        fsicmode: i.fsicmode,
+        fsecbuildingcount: i.fsecbuildingcount,
+        fsecgovcount: i.fsecgovcount,
+        fsecpezacount: i.fsecpezacount,
+        fsectiezacount: i.fsectiezacount,
+        fsicoccupancycount: i.fsicoccupancycount,
+        fsicbplonewcount: i.fsicbplonewcount,
+        fsicbplorenewcount: i.fsicbplorenewcount,
+        fsicgovcount: i.fsicgovcount,
+        fsicpezacount: i.fsicpezacount,
+        fsictiezacount: i.fsictiezacount,
+        nodcount: i.nodcount,
+        ntccount: i.ntccount,
+        ntcvcount: i.ntcvcount,
+        avatementcount: i.avatementcount,
+        closurecount: i.closurecount,
+      }));
+
+      const item: FSISUpdateInventoryClass = {
+        fsisno: inspection.fsisno || EMPTY_GUID,
+        stationno,
+        dateinspected: inspection.dateinspected,
+        inspectduringcount: inspection.inspectduringcount,
+        inspectaftercount: inspection.inspectaftercount,
+        inspectbplocount: inspection.inspectbplocount,
+        inspectgovcount: inspection.inspectgovcount,
+        inspectpezacount: inspection.inspectpezacount,
+        inspecttiezacount: inspection.inspecttiezacount,
+        remarks: inspection.remarks ?? "",
+        updatedby: user?.memberno ?? "",
+        encodedby: user?.memberno ?? "",
+        issuancelist,
+      };
+
       const payload: FSISUpdateInventoryDTO = {
         stationno,
-        updatedby: user?.memberno ?? "anon",
-        encodedby: user?.memberno ?? "anon",
-        fsisUpdateInventoryList: changed.map((m) => {
-          const r = rows[m.value];
-          const existing = monthlyRecords[m.value]?.fsisInventoryLedgerList?.[0];
-          const modeNo = Number(r.fsicmode);
-          return {
-            fsisno: existing?.fsisno ?? EMPTY_GUID,
-            dateinspected: existing?.dateinspected ?? `${year}-${pad2(m.value)}-01`,
-            inspectduringcount: r.insp_during,
-            inspectaftercount: r.insp_after,
-            inspectbplocount: r.insp_bplo,
-            inspectgovcount: r.insp_gov,
-            inspectpezacount: r.insp_peza,
-            inspecttiezacount: r.insp_tieza,
-            fsicmode: Number.isFinite(modeNo) && modeNo > 0
-              ? modeNo
-              : Number(existing?.fsicmode ?? 0) || 0,
-            fsecbuildingcount: r.fsec_building,
-            fsecgovcount: r.fsec_gov,
-            fsecpezacount: r.fsec_peza,
-            fsectiezacount: r.fsec_tieza,
-            fsicoccupancycount: r.fsic_occupancy,
-            fsicbplonewcount: r.fsic_bplo_new,
-            fsicbplorenewcount: r.fsic_bplo_renewal,
-            fsicgovcount: r.fsic_gov,
-            fsicpezacount: r.fsic_peza,
-            fsictiezacount: r.fsic_tieza,
-            nodcount: r.not_nod,
-            ntccount: r.not_ntc,
-            ntcvcount: r.not_ntcv,
-            avatementcount: r.not_abatement,
-            closurecount: r.not_closure,
-            remarks: r.remarks,
-          };
-        }),
+        updatedby: user?.memberno ?? "",
+        encodedby: user?.memberno ?? "",
+        fsisUpdateInventoryList: [item],
       };
+
       const resp = await targetinventoryAPI.update(payload);
       const { ok, error } = unwrap(resp);
       if (!ok) {
         toast.error(error || "Failed to save changes.");
-      } else {
-        toast.success(`Saved ${changed.length} month${changed.length === 1 ? "" : "s"}.`);
-        onSaved();
+        return;
       }
+      toast.success("Fire safety compliance updated.");
+      onSaved();
     } finally {
       setSaving(false);
     }
   };
 
+  /* ---------------------------------- UI --------------------------------- */
+
+  if (loading) {
+    return (
+      <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      </Card>
+    );
+  }
+
+  const inspectedLabel = (() => {
+    try {
+      return format(parseISO(inspection.dateinspected), "PPP");
+    } catch {
+      return inspection.dateinspected;
+    }
+  })();
+
   return (
-    <div className="space-y-4">
-      {loading ? (
-        <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-        </Card>
-      ) : (
-        <>
-          {selectedMonthLocked && (
-            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
-              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                This reporting month is already completed and cannot be edited. Records are shown for reference only.
-              </span>
-            </div>
-          )}
+    <div className="space-y-6">
+      {/* Station Information ------------------------------------------------- */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <ReadOnlyField label="Station" value={record?.stationname ?? ""} />
+          <ReadOnlyField label="Province" value={record?.provincename ?? ""} />
+          <ReadOnlyField
+            label="Reporting Period"
+            value={`${monthName} ${year}`}
+            icon={<CalendarIcon className="h-4 w-4" />}
+          />
+          <ReadOnlyField label="Date Inspected" value={inspectedLabel} />
+        </div>
+      </Card>
 
-          <div className="space-y-2">
-            <TargetAccomplishmentPanel
-              stationno={stationno}
-              year={year}
-              month={month}
-              data={summaryData}
-            />
-            <p className="text-xs text-muted-foreground">
-              Displays the Monthly Target vs. Inspected summary for the selected reporting
-              month. The values below represent the annual Fire Safety Compliance record for
-              the selected year.
-            </p>
+      {/* Daily Inspection Activities ---------------------------------------- */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Inspection Activities"
+          subtitle={`Reporting month · ${monthName} ${year}`}
+        />
+
+        <TargetAccomplishmentPanel
+          stationno={stationno}
+          year={year}
+          month={month}
+          data={summaryData}
+        />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {/* MANUAL column */}
+          <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
+            <div className="mb-3 text-sm font-semibold text-foreground">MANUAL</div>
+            <div className="space-y-3">
+              <NumberField
+                label="Inspection During Construction"
+                value={inspection.inspectduringcount}
+                onChange={(v) => setInspField("inspectduringcount", v)}
+              />
+              <NumberField
+                label="Inspection for FSIC Occupancy"
+                value={inspection.inspectaftercount}
+                onChange={(v) => setInspField("inspectaftercount", v)}
+              />
+            </div>
           </div>
 
-          <Card className="overflow-hidden border-border/60 shadow-soft">
-            <div className="w-full max-w-full overflow-x-auto">
-              <table className="min-w-max border-separate border-spacing-0 text-[11px]">
-                <thead>
-                  {/* HR1 — macro grouping: Daily Inspection / Daily Issuance */}
-                  <tr>
-                    <th
-                      rowSpan={3}
-                      className="sticky left-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
-                    >
-                      Month
-                    </th>
-                    <th
-                      colSpan={6}
-                      className="border-b border-r bg-emerald-800 px-2 py-2 text-center uppercase tracking-wider text-white"
-                    >
-                      Daily Inspection Activities
-                    </th>
-                    <th
-                      colSpan={1 + 4 + 6 + 5}
-                      className="border-b border-r bg-indigo-800 px-2 py-2 text-center uppercase tracking-wider text-white"
-                    >
-                      Daily Issuance Activities
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className="border-b border-r bg-slate-700 px-3 py-2 text-left uppercase tracking-wider text-white min-w-[180px]"
-                    >
-                      Remarks
-                    </th>
-                  </tr>
-                  {/* HR2 — category banners; Mode column spans HR2+HR3 */}
-                  <tr>
-                    {GROUPS.map((g, gi) => {
-                      if (g.label === "FSEC") {
-                        // Insert the Mode of Issuance column banner just before FSEC.
-                        return (
-                          <React.Fragment key={g.label}>
-                            <th
-                              rowSpan={2}
-                              className="border-b border-r bg-fuchsia-700 px-2 py-2 text-center uppercase tracking-wider text-white min-w-[200px]"
-                            >
-                              Mode of Issuance
-                            </th>
-                            <th
-                              colSpan={g.span}
-                              className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${g.tone}`}
-                            >
-                              {g.label}
-                            </th>
-                          </React.Fragment>
-                        );
-                      }
-                      return (
-                        <th
-                          key={g.label}
-                          colSpan={g.span}
-                          className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${g.tone}`}
-                        >
-                          {g.label}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                  {/* HR3 — field labels */}
-                  <tr>
-                    {FIELDS.map((f) => (
-                      <th
-                        key={f.key}
-                        className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100"
-                      >
-                        {f.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {MONTHS.map((m, i) => {
-                    // Solid (non-transparent) zebra so the sticky Month
-                    // column never lets scrolling columns bleed through.
-                    const zebra = i % 2 === 1 ? "bg-muted" : "bg-card";
-                    const r = rows[m.value] ?? emptyMonthRow();
-                    const rowLocked = isRowLocked(m.value);
-                    const gatedDisabled = rowLocked || !r.fsicmode;
-                    return (
-                      <tr key={m.value} className={zebra}>
-                        <td
-                          className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
-                        >
-                          <span className="inline-flex items-center gap-1.5">
-                            {rowLocked ? (
-                              <Lock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                            ) : null}
-                            {m.name}
-                          </span>
-                        </td>
-                        {FIELDS.map((f, fi) => {
-                          const gated = isGatedGroup(f.group);
-                          const disabled = rowLocked || (gated && !r.fsicmode);
-                          // Insert Mode of Issuance cell just before the first FSEC field.
-                          const modeCell =
-                            f.group === "FSEC" && fi > 0 && FIELDS[fi - 1].group !== "FSEC" ? (
-                              <td key={`mode-${m.value}`} className="border-b border-r p-1">
-                                <GentableSearchSelect
-                                  tablename={FSIS_ISSUANCE_TABLE}
-                                  value={r.fsicmode ? String(r.fsicmode) : undefined}
-                                  valueName={modeNames[m.value] ?? ""}
-                                  placeholder="Select mode"
-                                  hideCode
-                                  disabled={rowLocked}
-                                  readOnly={rowLocked}
-                                  onChange={(detno, description) =>
-                                    updateRowMode(m.value, detno, description)
-                                  }
-                                />
-                              </td>
-                            ) : null;
-                          return (
-                            <React.Fragment key={f.key}>
-                              {modeCell}
-                              <td className="border-b border-r p-0">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={String(r[f.key] ?? 0)}
-                                  disabled={disabled}
-                                  readOnly={disabled}
-                                  onChange={(e) => updateCell(m.value, f.key, e.target.value)}
-                                  className="h-8 w-[70px] rounded-none border-0 bg-transparent text-right tabular-nums focus-visible:ring-1 disabled:opacity-60"
-                                />
-                              </td>
-                            </React.Fragment>
-                          );
-                        })}
-                        <td className="border-b border-r p-0">
-                          <Input
-                            type="text"
-                            value={r.remarks ?? ""}
-                            disabled={rowLocked}
-                            readOnly={rowLocked}
-                            onChange={(e) => updateCell(m.value, "remarks", e.target.value)}
-                            className="h-8 w-[220px] rounded-none border-0 bg-transparent focus-visible:ring-1"
-                            placeholder="Notes…"
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  {/* Yearly summary row — solid emphasis, centered totals. */}
-                  <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
-                    <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
-                      Total
-                    </td>
-                    {FIELDS.map((f, fi) => {
-                      const modeCell =
-                        f.group === "FSEC" && fi > 0 && FIELDS[fi - 1].group !== "FSEC" ? (
-                          <td
-                            key={`mode-total`}
-                            className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
-                          >
-                            —
-                          </td>
-                        ) : null;
-                      return (
-                        <React.Fragment key={f.key}>
-                          {modeCell}
-                          <td className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
-                            {(columnTotals[f.key] ?? 0).toLocaleString()}
-                          </td>
-                        </React.Fragment>
-                      );
-                    })}
-                    <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
-                      {grandTotal.toLocaleString()}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+          {/* FSIS COMPLIANCE column */}
+          <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4 lg:col-span-2">
+            <div className="mb-3 text-sm font-semibold text-foreground">FSIS COMPLIANCE</div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <NumberField
+                label="1st Inspection BPLO"
+                value={inspection.inspectbplocount}
+                onChange={(v) => setInspField("inspectbplocount", v)}
+              />
+              <NumberField
+                label="1st Inspection GOV"
+                value={inspection.inspectgovcount}
+                onChange={(v) => setInspField("inspectgovcount", v)}
+              />
+              <NumberField
+                label="1st Inspection PEZA"
+                value={inspection.inspectpezacount}
+                onChange={(v) => setInspField("inspectpezacount", v)}
+              />
+              <NumberField
+                label="1st Inspection TIEZA"
+                value={inspection.inspecttiezacount}
+                onChange={(v) => setInspField("inspecttiezacount", v)}
+              />
             </div>
-            <div className="border-t bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
-              Enter monthly totals. Locked months are shown for reference only.
-              Issuance-gated fields (FSEC, FSIC, Notices) unlock once a Mode of Issuance is chosen for that month.
-            </div>
-          </Card>
-
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="outline" onClick={onCancel} className="gap-2">
-              <ArrowLeft className="h-4 w-4" /> Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || loading}
-              className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {saving ? "Saving…" : "Save Changes"}
-            </Button>
           </div>
-        </>
-      )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground">Remarks</Label>
+          <Textarea
+            rows={3}
+            value={inspection.remarks}
+            onChange={(e) => setInspField("remarks", e.target.value.slice(0, 1000))}
+            placeholder="Additional notes about the inspection…"
+          />
+        </div>
+      </Card>
+
+      {/* Daily Issuance Activities ------------------------------------------ */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <div className="flex items-center justify-between">
+          <SectionTitle
+            title="Daily Issuance Activities"
+            subtitle={`${issuances.length} issuance${issuances.length === 1 ? "" : "s"}`}
+          />
+          <Button type="button" variant="outline" size="sm" onClick={addIssuance} className="gap-2">
+            <Plus className="h-4 w-4" /> Add Issuance
+          </Button>
+        </div>
+
+        {issuances.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+            No issuance records for this month.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {issuances.map((iss, idx) => (
+              <IssuanceCard
+                key={`${iss.issuanceno}-${idx}`}
+                index={idx}
+                issuance={iss}
+                onChangeField={(k, v) => setIssField(idx, k, v)}
+                onChangeMode={(no, name) => setIssMode(idx, no, name)}
+                onRemove={() => removeIssuance(idx)}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Actions ------------------------------------------------------------ */}
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" onClick={onCancel} className="gap-2">
+          <ArrowLeft className="h-4 w-4" /> Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? "Saving…" : "Save Changes"}
+        </Button>
+      </div>
     </div>
   );
 }
 
-/** Route page — kept for deep-linking. */
+/* -------------------------------------------------------------------------- */
+/*  Issuance card                                                              */
+/* -------------------------------------------------------------------------- */
+
+function IssuanceCard({
+  index,
+  issuance,
+  onChangeField,
+  onChangeMode,
+  onRemove,
+}: {
+  index: number;
+  issuance: IssuanceEdit;
+  onChangeField: (key: keyof IssuanceEdit, raw: string) => void;
+  onChangeMode: (detno: string, name: string) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold text-foreground">Issuance #{index + 1}</div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+          className="gap-1.5 text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" /> Remove
+        </Button>
+      </div>
+
+      <div className="mb-4 max-w-sm">
+        <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+          Mode of Issuance <span className="text-destructive">*</span>
+        </Label>
+        <GentableSearchSelect
+          tablename={FSIS_ISSUANCE_TABLE}
+          value={issuance.fsicmode ? String(issuance.fsicmode) : undefined}
+          valueName={issuance.fsicmodename}
+          placeholder="Select issuance mode"
+          hideCode
+          onChange={(detno, description) => onChangeMode(detno, description)}
+        />
+      </div>
+
+      <SubGroup title="Fire Safety Evaluation Certificate (FSEC)">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <NumberField label="FSEC - New Building" value={issuance.fsecbuildingcount} onChange={(v) => onChangeField("fsecbuildingcount", v)} />
+          <NumberField label="FSEC - New GOV" value={issuance.fsecgovcount} onChange={(v) => onChangeField("fsecgovcount", v)} />
+          <NumberField label="FSEC - New PEZA" value={issuance.fsecpezacount} onChange={(v) => onChangeField("fsecpezacount", v)} />
+          <NumberField label="FSEC - New TIEZA" value={issuance.fsectiezacount} onChange={(v) => onChangeField("fsectiezacount", v)} />
+        </div>
+      </SubGroup>
+
+      <div className="h-3" />
+
+      <SubGroup title="Fire Safety Inspection Certificate (FSIC)">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <NumberField label="FSIC - Occupancy" value={issuance.fsicoccupancycount} onChange={(v) => onChangeField("fsicoccupancycount", v)} />
+          <NumberField label="FSIC - Business New" value={issuance.fsicbplonewcount} onChange={(v) => onChangeField("fsicbplonewcount", v)} />
+          <NumberField label="FSIC - Business Renewal" value={issuance.fsicbplorenewcount} onChange={(v) => onChangeField("fsicbplorenewcount", v)} />
+          <NumberField label="FSIC - GOV" value={issuance.fsicgovcount} onChange={(v) => onChangeField("fsicgovcount", v)} />
+          <NumberField label="FSIC - PEZA" value={issuance.fsicpezacount} onChange={(v) => onChangeField("fsicpezacount", v)} />
+          <NumberField label="FSIC - TIEZA" value={issuance.fsictiezacount} onChange={(v) => onChangeField("fsictiezacount", v)} />
+        </div>
+      </SubGroup>
+
+      <div className="h-3" />
+
+      <SubGroup title="Other Notices">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <NumberField label="NOD" value={issuance.nodcount} onChange={(v) => onChangeField("nodcount", v)} />
+          <NumberField label="NTC" value={issuance.ntccount} onChange={(v) => onChangeField("ntccount", v)} />
+          <NumberField label="NTCV" value={issuance.ntcvcount} onChange={(v) => onChangeField("ntcvcount", v)} />
+          <NumberField label="Avatement" value={issuance.avatementcount} onChange={(v) => onChangeField("avatementcount", v)} />
+          <NumberField label="Closure" value={issuance.closurecount} onChange={(v) => onChangeField("closurecount", v)} />
+        </div>
+      </SubGroup>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Presentational helpers                                                     */
+/* -------------------------------------------------------------------------- */
+
+function SectionTitle({
+  title,
+  subtitle,
+  icon,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {icon}
+        {title}
+      </h2>
+      {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+    </div>
+  );
+}
+
+function SubGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/60 p-3">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: number;
+  onChange: (raw: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Input
+        type="number"
+        min={0}
+        step={1}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={value ?? 0}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
+        }}
+        className={cn("tabular-nums", disabled && "cursor-not-allowed opacity-60")}
+      />
+    </div>
+  );
+}
+
+function ReadOnlyField({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm">
+        {icon}
+        <span className="truncate">{value || "—"}</span>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Route + Modal exports                                                     */
+/* -------------------------------------------------------------------------- */
+
 export default function InventoryEdit() {
   const { stationno = "", year = "", month = "" } = useParams();
   const navigate = useNavigate();
   const y = Number(year);
   const m = Number(month);
   const monthName = MONTHS.find((mo) => mo.value === m)?.name ?? m;
-  const [seed, setSeed] = React.useState<SearchStationModel | null>(null);
-  React.useEffect(() => {
-    if (!stationno) return;
-    let cancelled = false;
-    (async () => {
-      const resp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
-      const { data } = unwrap<SearchStationModel[]>(resp);
-      if (cancelled) return;
-      setSeed(Array.isArray(data) && data[0] ? data[0] : null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [stationno]);
 
   return (
     <div className="space-y-6">
@@ -742,7 +713,7 @@ export default function InventoryEdit() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance Editor</h1>
             <p className="text-sm text-muted-foreground">
-              {seed?.stationname ?? stationno} · {seed?.provincename ?? ""} — {monthName} {y}
+              {stationno} — {monthName} {y}
             </p>
           </div>
         </div>
@@ -759,7 +730,6 @@ export default function InventoryEdit() {
   );
 }
 
-/** Modal wrapper — used from the FSIS Inventory ledger. */
 export function InventoryEditModal({
   open,
   onOpenChange,
@@ -793,7 +763,7 @@ export function InventoryEditModal({
               </DialogTitle>
               <DialogDescription>
                 {stationName ? `${stationName} · ` : ""}
-                {monthName} {year} — yearly editable overview.
+                {monthName} {year}
               </DialogDescription>
             </div>
           </div>

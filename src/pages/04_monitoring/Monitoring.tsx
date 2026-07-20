@@ -42,9 +42,16 @@ import {
 } from "@/lib/inventoryHelpers";
 import type { MonthlyInventoryRow } from "@/types/inventoryType";
 import type {
-  FSISInventoryMonthlyItem,
-  FSISInventoryLedgerDailyItem,
+  FSISInventoryMonthlyLedgerModel,
+  FSISInventoryMonthlyClass,
+  FSISIssuanceClassModel,
 } from "@/types/targetinventoryType";
+
+// Page-local aliases — the existing DTOs in `types/` are immutable; these
+// names keep this file's original semantics without touching type files.
+type FSISInventoryMonthlyItem = FSISInventoryMonthlyLedgerModel;
+type FSISInventoryLedgerDailyItem = FSISInventoryMonthlyClass &
+  Partial<FSISIssuanceClassModel> & { dateinspected?: string | Date };
 import type { SearchStationModel } from "@/types/stationTypes";
 
 

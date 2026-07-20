@@ -40,7 +40,7 @@ import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { FSISInventoryDTO } from "@/types/targetinventoryType";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
-import { inferIssuanceGroup, FSIS_ISSUANCE_TABLE, type IssuanceGroup } from "./issuanceMode";
+import { FSIS_ISSUANCE_TABLE } from "./issuanceMode";
 
 /* -------------------------------------------------------------------------- */
 /*  Field spec — a single declarative source drives layout, defaults, keys.   */
@@ -94,11 +94,14 @@ const OTHERS_FIELDS: NumericFieldSpec[] = [
   { key: "not_closure", label: "Closure" },
 ];
 
-const ALL_NUMERIC_FIELDS = [
-  ...DAILY_INSPECTION_FIELDS,
+const ISSUANCE_FIELDS = [
   ...ISSUANCE_FSEC_FIELDS,
   ...ISSUANCE_FSIC_FIELDS,
   ...OTHERS_FIELDS,
+];
+
+const ALL_NUMERIC_FIELDS = [
+  ...DAILY_INSPECTION_FIELDS,
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -131,6 +134,10 @@ type FormValues = z.infer<typeof schema>;
 
 const defaultNumeric = Object.fromEntries(
   ALL_NUMERIC_FIELDS.map((f) => [f.key, 0]),
+) as Record<string, number>;
+
+const defaultIssuance = Object.fromEntries(
+  ISSUANCE_FIELDS.map((f) => [f.key, 0]),
 ) as Record<string, number>;
 
 /* -------------------------------------------------------------------------- */
@@ -187,9 +194,12 @@ function InspectionsNewBody({
   }, [scope.provinceLocked, scope.provinceno, scope.provincename, scope.stationLocked, scope.stationno, scope.stationname]);
 
   const [numeric, setNumeric] = React.useState<Record<string, number>>(defaultNumeric);
-  const [issuanceModeNo, setIssuanceModeNo] = React.useState<string>("");
-  const [issuanceModeName, setIssuanceModeName] = React.useState<string>("");
-  const [issuanceGroup, setIssuanceGroup] = React.useState<IssuanceGroup>(null);
+  const [manualIssuance, setManualIssuance] = React.useState<Record<string, number>>(defaultIssuance);
+  const [fsisIssuance, setFsisIssuance] = React.useState<Record<string, number>>(defaultIssuance);
+  const [manualModeNo, setManualModeNo] = React.useState<string>("");
+  const [manualModeName, setManualModeName] = React.useState<string>("");
+  const [fsisModeNo, setFsisModeNo] = React.useState<string>("");
+  const [fsisModeName, setFsisModeName] = React.useState<string>("");
   const [remarks, setRemarks] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
@@ -241,11 +251,31 @@ function InspectionsNewBody({
     setSaving(true);
     try {
       const iso = format(reportingDate, "yyyy-MM-dd");
-      // fsicmode is the `detno` of the selected Issuance Mode row from the
-      // FSIS ISSUANCE gentable — NOT a locally-derived group index. Deriving
-      // it from `issuanceGroup` returned 0 whenever the string keywords in
-      // `inferIssuanceGroup` didn't match the gentable's recordcode/description.
-      const fsicmodeValue = Number(issuanceModeNo);
+      const buildIssuance = (
+        modeNo: string,
+        vals: Record<string, number>,
+      ) => {
+        const modeNum = Number(modeNo);
+        return {
+          issuanceno: EMPTY_GUID,
+          fsicmode: Number.isFinite(modeNum) ? modeNum : 0,
+          fsecbuildingcount: vals.fsec_new_building ?? 0,
+          fsecgovcount: vals.fsec_new_gov ?? 0,
+          fsecpezacount: vals.fsec_new_peza ?? 0,
+          fsectiezacount: vals.fsec_new_tieza ?? 0,
+          fsicoccupancycount: vals.fsic_occupancy ?? 0,
+          fsicbplonewcount: vals.fsic_business_new ?? 0,
+          fsicbplorenewcount: vals.fsic_business_renewal ?? 0,
+          fsicgovcount: vals.fsic_gov ?? 0,
+          fsicpezacount: vals.fsic_peza ?? 0,
+          fsictiezacount: vals.fsic_tieza ?? 0,
+          nodcount: vals.not_nod ?? 0,
+          ntccount: vals.not_ntc ?? 0,
+          ntcvcount: vals.not_ntcv ?? 0,
+          avatementcount: vals.not_abatement ?? 0,
+          closurecount: vals.not_closure ?? 0,
+        };
+      };
       const payload: FSISInventoryDTO = {
         fsisno: EMPTY_GUID,
         stationno: station.no,
@@ -256,25 +286,13 @@ function InspectionsNewBody({
         inspectgovcount: numeric.insp_1st_gov ?? 0,
         inspectpezacount: numeric.insp_1st_peza ?? 0,
         inspecttiezacount: numeric.insp_1st_tieza ?? 0,
-        fsicmode: Number.isFinite(fsicmodeValue) ? fsicmodeValue : 0,
-        fsecbuildingcount: numeric.fsec_new_building ?? 0,
-        fsecgovcount: numeric.fsec_new_gov ?? 0,
-        fsecpezacount: numeric.fsec_new_peza ?? 0,
-        fsectiezacount: numeric.fsec_new_tieza ?? 0,
-        fsicoccupancycount: numeric.fsic_occupancy ?? 0,
-        fsicbplonewcount: numeric.fsic_business_new ?? 0,
-        fsicbplorenewcount: numeric.fsic_business_renewal ?? 0,
-        fsicgovcount: numeric.fsic_gov ?? 0,
-        fsicpezacount: numeric.fsic_peza ?? 0,
-        fsictiezacount: numeric.fsic_tieza ?? 0,
-        nodcount: numeric.not_nod ?? 0,
-        ntccount: numeric.not_ntc ?? 0,
-        ntcvcount: numeric.not_ntcv ?? 0,
-        avatementcount: numeric.not_abatement ?? 0,
-        closurecount: numeric.not_closure ?? 0,
         remarks: remarks ?? "",
         updatedby: user?.memberno ?? "",
         encodedby: user?.memberno ?? "",
+        issuancelist: [
+          buildIssuance(manualModeNo, manualIssuance),
+          buildIssuance(fsisModeNo, fsisIssuance),
+        ],
       };
       const resp = await targetinventoryAPI.create(payload);
       const { ok, error } = unwrap(resp);
@@ -423,69 +441,100 @@ function InspectionsNewBody({
       <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
           title="Daily Issuance Activities"
-          subtitle={
-            issuanceGroup === "FSEC"
-              ? "Fire Safety Evaluation Certificate"
-              : issuanceGroup === "FSIC"
-                ? "Fire Safety Inspection Certificate"
-                : issuanceGroup === "OTHERS"
-                  ? "Enforcement & Other Notices"
-                  : "Select an issuance mode to begin"
-          }
+          subtitle="Encode issuances separately for MANUAL and FSIS"
         />
 
         <TooltipProvider delayDuration={150}>
-          <div className="space-y-4">
-            <div className="max-w-sm">
-              <Field label="Issuance Mode" required>
-                <GentableSearchSelect
-                  tablename={FSIS_ISSUANCE_TABLE}
-                  value={issuanceModeNo || undefined}
-                  valueName={issuanceModeName}
-                  placeholder="Select issuance mode"
-                  hideCode
-                  onChange={(detno, description, row) => {
-                    setIssuanceModeNo(detno);
-                    setIssuanceModeName(description);
-                    setIssuanceGroup(
-                      inferIssuanceGroup(row?.recordcode ?? "", description),
-                    );
-                  }}
-                />
-              </Field>
-            </div>
+          {(() => {
+            const makeSetter = (
+              setter: React.Dispatch<React.SetStateAction<Record<string, number>>>,
+            ) => (key: string, raw: string) => {
+              const cleaned = raw.replace(/[^0-9]/g, "");
+              const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+              setter((prev) => ({ ...prev, [key]: value }));
+            };
+            const setManualField = makeSetter(setManualIssuance);
+            const setFsisField = makeSetter(setFsisIssuance);
 
-            <div className="space-y-4">
-              <SubGroup title="Fire Safety Evaluation Certificate (FSEC)">
-                <NumericGrid
-                  fields={ISSUANCE_FSEC_FIELDS}
-                  values={numeric}
-                  errors={errors}
-                  onChange={setNumericField}
-                  disabled={!issuanceModeNo}
-                />
-              </SubGroup>
-              <SubGroup title="Fire Safety Inspection Certificate (FSIC)">
-                <NumericGrid
-                  fields={ISSUANCE_FSIC_FIELDS}
-                  values={numeric}
-                  errors={errors}
-                  onChange={setNumericField}
-                  disabled={!issuanceModeNo}
-                />
-              </SubGroup>
-              <SubGroup title="Other Notices">
-                <NumericGrid
-                  fields={OTHERS_FIELDS}
-                  values={numeric}
-                  errors={errors}
-                  onChange={setNumericField}
-                  disabled={!issuanceModeNo}
-                />
-              </SubGroup>
-            </div>
+            const renderColumn = (
+              heading: string,
+              modeNo: string,
+              modeName: string,
+              onModeChange: (no: string, name: string) => void,
+              values: Record<string, number>,
+              onFieldChange: (key: string, raw: string) => void,
+            ) => (
+              <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-4">
+                <div className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                  {heading}
+                </div>
+                <Field label="Issuance Mode" required>
+                  <GentableSearchSelect
+                    tablename={FSIS_ISSUANCE_TABLE}
+                    value={modeNo || undefined}
+                    valueName={modeName}
+                    placeholder="Select issuance mode"
+                    hideCode
+                    onChange={(detno, description) => onModeChange(detno, description)}
+                  />
+                </Field>
+                <SubGroup title="Fire Safety Evaluation Certificate (FSEC)">
+                  <NumericGrid
+                    fields={ISSUANCE_FSEC_FIELDS}
+                    values={values}
+                    errors={{}}
+                    onChange={onFieldChange}
+                    disabled={!modeNo}
+                  />
+                </SubGroup>
+                <SubGroup title="Fire Safety Inspection Certificate (FSIC)">
+                  <NumericGrid
+                    fields={ISSUANCE_FSIC_FIELDS}
+                    values={values}
+                    errors={{}}
+                    onChange={onFieldChange}
+                    disabled={!modeNo}
+                  />
+                </SubGroup>
+                <SubGroup title="Other Notices">
+                  <NumericGrid
+                    fields={OTHERS_FIELDS}
+                    values={values}
+                    errors={{}}
+                    onChange={onFieldChange}
+                    disabled={!modeNo}
+                  />
+                </SubGroup>
+              </div>
+            );
 
-          </div>
+            return (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {renderColumn(
+                  "MANUAL",
+                  manualModeNo,
+                  manualModeName,
+                  (no, name) => {
+                    setManualModeNo(no);
+                    setManualModeName(name);
+                  },
+                  manualIssuance,
+                  setManualField,
+                )}
+                {renderColumn(
+                  "FSIS",
+                  fsisModeNo,
+                  fsisModeName,
+                  (no, name) => {
+                    setFsisModeNo(no);
+                    setFsisModeName(name);
+                  },
+                  fsisIssuance,
+                  setFsisField,
+                )}
+              </div>
+            );
+          })()}
         </TooltipProvider>
 
         <Field label="Remarks">
