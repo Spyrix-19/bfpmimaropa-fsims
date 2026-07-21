@@ -39,6 +39,8 @@ import type { SearchStationModel } from "@/types/stationTypes";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
 import type {
   FSISInventoryMonthlyLedgerModel,
+  FSISInventoryMonthlyClass,
+  FSISIssuanceClassModel,
   FSISInventoryIssuanceClassDTO,
   FSISUpdateInventoryClass,
   FSISUpdateInventoryDTO,
@@ -202,11 +204,11 @@ function isDayLocked(dateStr: string): boolean {
 }
 
 /**
- * Build editable day structure from Detail API response.
+ * Build editable day structure from Monthly API response.
  * Creates one entry per calendar day, loading data from API list or empty.
  */
 function buildEditableDays(
-  list: FSISInventoryDetailItem[] | null | undefined,
+  list: Array<FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>> | null | undefined,
   year: number,
   month: number,
 ): Map<string, EditableDay> {
@@ -217,7 +219,36 @@ function buildEditableDays(
   if (Array.isArray(list)) {
     for (const item of list) {
       const key = normalizeDateKey(item?.dateinspected);
-      if (key) dataByDate.set(key, item);
+      if (key) {
+        // Map from monthly ledger fields to detail item fields
+        const mapped: FSISInventoryDetailItem = {
+          fsisno: item.fsisno ?? EMPTY_GUID,
+          dateinspected: item.dateinspected ?? key,
+          remarks: item.remarks ?? "",
+          inspectduringcount: num(item.inspectduringcount),
+          inspectaftercount: num(item.inspectaftercount),
+          inspectbplocount: num(item.inspectbplocount),
+          inspectgovcount: num(item.inspectgovcount),
+          inspectpezacount: num(item.inspectpezacount),
+          inspecttiezacount: num(item.inspecttiezacount),
+          fsecbuildingcount: num(item.fsecbuildingcount),
+          fsecgovcount: num(item.fsecgovcount),
+          fsecpezacount: num(item.fsecpezacount),
+          fsectiezacount: num(item.fsectiezacount),
+          fsicoccupancycount: num(item.fsicoccupancycount),
+          fsicbplonewcount: num(item.fsicbplonewcount),
+          fsicbplorenewcount: num(item.fsicbplorenewcount),
+          fsicgovcount: num(item.fsicgovcount),
+          fsicpezacount: num(item.fsicpezacount),
+          fsictiezacount: num(item.fsictiezacount),
+          nodcount: num(item.nodcount),
+          ntccount: num(item.ntccount),
+          ntcvcount: num(item.ntcvcount),
+          avatementcount: num(item.avatementcount),
+          closurecount: num(item.closurecount),
+        };
+        dataByDate.set(key, mapped);
+      }
     }
   }
 
@@ -291,8 +322,8 @@ function InventoryEditBody({
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
 
-  // Station info from Detail API
-  const [station, setStation] = React.useState<FSISInventoryDetailStation | null>(null);
+  // Station info from Monthly API
+  const [station, setStation] = React.useState<FSISInventoryMonthlyLedgerModel | null>(null);
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
 
   // Editable days indexed by YYYY-MM-DD
@@ -334,7 +365,7 @@ function InventoryEditBody({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await targetinventoryAPI.getDetail(
+      const resp = await targetinventoryAPI.getMonthly(
         {
           Stationno: stationno || EMPTY_GUID,
           Provinceno: provinceno,
@@ -345,13 +376,13 @@ function InventoryEditBody({
       );
       if (cancelled) return;
 
-      const { ok, data, error } = unwrap<FSISInventoryDetailStation[]>(resp);
-      if (!ok) toast.error(error || "Failed to load details.");
+      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
+      if (!ok) toast.error(error || "Failed to load monthly data.");
       const first = ok && Array.isArray(data) ? data[0] ?? null : null;
       
       setStation(first);
       
-      const days = buildEditableDays(first?.fsisInventoryDetailList, year, month);
+      const days = buildEditableDays(first?.fsisInventoryLedgerList, year, month);
       setEditableDays(days);
       setBaseline(JSON.stringify(Array.from(days.entries())));
       setLoading(false);
@@ -608,7 +639,7 @@ function InventoryEditBody({
                       return (
                         <td
                           key={String(field.key)}
-                          className="border-b border-r px-2 py-1.5 text-right"
+                          className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
                         >
                           {dayEntry.isLocked ? (
                             <span className="text-muted-foreground">
@@ -631,13 +662,46 @@ function InventoryEditBody({
                         </td>
                       );
                     })}
-                    <td className="border-b px-3 py-1.5 text-right font-semibold tabular-nums">
+                    <td className="border-b px-3 py-1.5 text-center font-semibold tabular-nums">
                       {rowTotal.toLocaleString()}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
+                <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
+                  Total
+                </td>
+                {DETAIL_FIELDS.map((field) => {
+                  const columnTotal = days.reduce(
+                    (sum, d) => sum + num(d.totals[field.key as keyof DailyInventoryDTO]),
+                    0
+                  );
+                  return (
+                    <td
+                      key={String(field.key)}
+                      className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
+                    >
+                      {columnTotal.toLocaleString()}
+                    </td>
+                  );
+                })}
+                <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
+                  {days.reduce(
+                    (sum, d) =>
+                      sum +
+                      DETAIL_FIELDS.reduce(
+                        (rowSum, f) =>
+                          rowSum + num(d.totals[f.key as keyof DailyInventoryDTO]),
+                        0
+                      ),
+                    0
+                  ).toLocaleString()}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
 
