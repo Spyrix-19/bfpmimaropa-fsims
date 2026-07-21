@@ -294,7 +294,7 @@ function InventoryViewBody({
       const hit = lookup.get(key);
       out.push({
         day: d,
-        label: `${monthName} ${d}`,
+        label: `${monthName} ${d}, ${year}`,
         key,
         totals: hit?.totals ?? {},
         remarks: hit?.remarks ?? "",
