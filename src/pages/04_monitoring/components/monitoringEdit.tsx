@@ -456,6 +456,7 @@ function InventoryEditBody({
     };
   }, [record, inspection, issuances, month, year]);
 
+  
   /* --------------------------------- Save -------------------------------- */
 
   const handleSave = async () => {
