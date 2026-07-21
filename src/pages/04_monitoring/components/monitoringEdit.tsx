@@ -540,14 +540,6 @@ function InventoryEditBody({
 
   /* ---------------------------------- UI --------------------------------- */
 
-  if (loading) {
-    return (
-      <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-      </Card>
-    );
-  }
-
   const inspectedLabel = (() => {
     try {
       return format(parseISO(inspection.dateinspected), "PPP");
@@ -592,6 +584,14 @@ function InventoryEditBody({
 
   const getEditableCellValue = (values: InspectionEdit | IssuanceEdit, key: string) =>
     Number(((values as unknown) as Record<string, number>)[key] ?? 0);
+
+  if (loading) {
+    return (
+      <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
