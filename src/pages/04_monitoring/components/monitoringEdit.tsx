@@ -78,6 +78,33 @@ const NOTICE_FIELDS = [
   { key: "closurecount", label: "Closure" },
 ] as const;
 
+type EditField = { key: string; label: string };
+
+type EditFieldGroup = {
+  category: "INSPECTION" | "FSEC" | "FSIC" | "NOTICES";
+  fields: readonly EditField[];
+};
+
+const EDIT_FIELD_GROUPS: readonly EditFieldGroup[] = [
+  { category: "INSPECTION", fields: INSP_FIELDS },
+  { category: "FSEC", fields: FSEC_FIELDS },
+  { category: "FSIC", fields: FSIC_FIELDS },
+  { category: "NOTICES", fields: NOTICE_FIELDS },
+];
+
+const EDIT_DETAIL_FIELDS: readonly EditField[] = [
+  ...INSP_FIELDS,
+  ...FSEC_FIELDS,
+  ...FSIC_FIELDS,
+  ...NOTICE_FIELDS,
+];
+
+const EDIT_GROUP_TONE: Record<EditFieldGroup["category"], string> = {
+  INSPECTION: "bg-emerald-600 text-white",
+  FSEC: "bg-sky-600 text-white",
+  FSIC: "bg-indigo-600 text-white",
+  NOTICES: "bg-amber-600 text-white",
+};
 
 
 /* -------------------------------------------------------------------------- */
@@ -534,6 +561,38 @@ function InventoryEditBody({
   const manualIdx = issuances.indexOf(manual);
   const fsisIdx = issuances.indexOf(fsis);
 
+  type EditRow =
+    | { label: string; values: InspectionEdit; rowKey: "inspection" }
+    | { label: string; values: IssuanceEdit; rowKey: "manual" | "fsis" };
+
+  const editRows = React.useMemo<EditRow[]>(
+    () => [
+      { label: "Inspection", values: inspection, rowKey: "inspection" },
+      { label: "MANUAL", values: manual, rowKey: "manual" },
+      { label: "FSIS", values: fsis, rowKey: "fsis" },
+    ],
+    [inspection, manual, fsis],
+  );
+
+  const handleEditCellChange = (rowKey: EditRow["rowKey"], fieldKey: string, raw: string) => {
+    const cleaned = raw.replace(/[^0-9]/g, "");
+    const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+    if (rowKey === "inspection") {
+      setInspection((prev) => ({ ...prev, [fieldKey]: value } as InspectionEdit));
+      return;
+    }
+    setIssuances((prev) =>
+      prev.map((iss) => {
+        if (rowKey === "manual" && iss.fsicmode === 96) return { ...iss, [fieldKey]: value } as IssuanceEdit;
+        if (rowKey === "fsis" && iss.fsicmode === 97) return { ...iss, [fieldKey]: value } as IssuanceEdit;
+        return iss;
+      }),
+    );
+  };
+
+  const getEditableCellValue = (values: InspectionEdit | IssuanceEdit, key: string) =>
+    Number(((values as unknown) as Record<string, number>)[key] ?? 0);
+
   return (
     <div className="space-y-6">
       {/* Station Information ------------------------------------------------- */}
@@ -551,12 +610,16 @@ function InventoryEditBody({
         </div>
       </Card>
 
-      {/* Daily Inspection Activities --------------------------------------- */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-        <SectionTitle
-          title="Daily Inspection Activities"
-          subtitle={`Daily inspection · ${inspectedLabel}`}
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <SectionTitle
+            title="Daily Compliance Details"
+            subtitle={`Daily inspection · ${inspectedLabel}`}
+          />
+          <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {monthName} {year}
+          </div>
+        </div>
 
         <TargetAccomplishmentPanel
           stationno={stationno}
@@ -565,42 +628,88 @@ function InventoryEditBody({
           data={summaryData}
         />
 
-        <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
-          <div className="mb-3 text-sm font-semibold text-foreground">Inspection Activities</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {INSP_FIELDS.map((f) => (
-              <NumericField
-                key={f.key}
-                label={f.label}
-                value={(inspection as unknown as Record<string, number>)[f.key] ?? 0}
-                disabled={locked}
-                onChange={(v) => setInspField(f.key as keyof InspectionEdit, v)}
-              />
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      {/* Daily Issuance Activities ----------------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
-        <SectionTitle
-          title="Daily Issuance Activities"
-          subtitle="Encode issuances separately for MANUAL and FSIS"
-        />
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <IssuanceEditColumn
-            heading="MANUAL"
-            values={manual as unknown as Record<string, number>}
-            disabled={locked}
-            onChange={(k, v) => setIssField(manualIdx, k as keyof IssuanceEdit, v)}
-          />
-          <IssuanceEditColumn
-            heading="FSIS"
-            values={fsis as unknown as Record<string, number>}
-            disabled={locked}
-            onChange={(k, v) => setIssField(fsisIdx, k as keyof IssuanceEdit, v)}
-          />
+        <div className="max-h-[58vh] w-full max-w-full overflow-auto">
+          <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+            <thead className="sticky top-0 z-30">
+              <tr>
+                <th
+                  rowSpan={2}
+                  className="sticky left-0 top-0 z-40 min-w-[140px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
+                >
+                  Type
+                </th>
+                {EDIT_FIELD_GROUPS.map((group) => (
+                  <th
+                    key={group.category}
+                    colSpan={group.fields.length}
+                    className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${EDIT_GROUP_TONE[group.category]}`}
+                  >
+                    {group.category}
+                  </th>
+                ))}
+                <th
+                  rowSpan={2}
+                  className="border-b border-r bg-slate-700 px-3 py-2 text-center uppercase tracking-wider text-white min-w-[80px]"
+                >
+                  TOTAL
+                </th>
+              </tr>
+              <tr>
+                {EDIT_DETAIL_FIELDS.map((field) => (
+                  <th
+                    key={field.key}
+                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100"
+                  >
+                    {field.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {editRows.map((row) => {
+                const rowTotal = EDIT_DETAIL_FIELDS.reduce<number>(
+                  (sum, field) => sum + getEditableCellValue(row.values, field.key),
+                  0,
+                );
+                const zebra = row.rowKey === "manual" ? "bg-muted" : row.rowKey === "fsis" ? "bg-card" : "bg-slate-50";
+                return (
+                  <tr key={row.rowKey} className={zebra}>
+                    <td className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}>
+                      {row.label}
+                    </td>
+                    {EDIT_DETAIL_FIELDS.map((field) => {
+                      const editable = Object.prototype.hasOwnProperty.call(row.values, field.key);
+                      return (
+                        <td
+                          key={field.key}
+                          className="border-b border-r px-2 py-1.5 text-right"
+                        >
+                          {editable ? (
+                            <Input
+                              type="number"
+                              min={0}
+                              step={1}
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={String(getEditableCellValue(row.values, field.key))}
+                              disabled={locked}
+                              onChange={(e) => handleEditCellChange(row.rowKey, field.key, e.target.value)}
+                              className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                            />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="border-b px-3 py-1.5 text-right font-semibold tabular-nums">
+                      {rowTotal.toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
         <div className="space-y-1.5">

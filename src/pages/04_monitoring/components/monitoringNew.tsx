@@ -79,8 +79,8 @@ const ISSUANCE_FSEC_FIELDS: NumericFieldSpec[] = [
 
 const ISSUANCE_FSIC_FIELDS: NumericFieldSpec[] = [
   { key: "fsic_occupancy", label: "FSIC - Occupancy" },
-  { key: "fsic_business_new", label: "FSIC - Business New" },
-  { key: "fsic_business_renewal", label: "FSIC - Business Renewal" },
+  { key: "fsic_business_new", label: "FSIC - BPLO New" },
+  { key: "fsic_business_renewal", label: "FSIC - BPLO Renewal" },
   { key: "fsic_gov", label: "FSIC - GOV" },
   { key: "fsic_peza", label: "FSIC - PEZA" },
   { key: "fsic_tieza", label: "FSIC - TIEZA" },
