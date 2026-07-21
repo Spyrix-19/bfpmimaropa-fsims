@@ -48,7 +48,6 @@ import type {
 } from "@/types/targetinventoryType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
-import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
 
 
 /* ========================================================================== */
@@ -150,11 +149,33 @@ const FIELD_TO_API: Record<string, keyof FSISInventoryDetailItem> = {
 
 type DayTotals = Partial<Record<keyof DailyInventoryDTO, number>>;
 
+interface EditableIssuance {
+  issuanceno: string;
+  fsicmode: number;
+  fsecbuildingcount: number;
+  fsecgovcount: number;
+  fsecpezacount: number;
+  fsectiezacount: number;
+  fsicoccupancycount: number;
+  fsicbplonewcount: number;
+  fsicbplorenewcount: number;
+  fsicgovcount: number;
+  fsicpezacount: number;
+  fsictiezacount: number;
+  nodcount: number;
+  ntccount: number;
+  ntcvcount: number;
+  avatementcount: number;
+  closurecount: number;
+}
+
 interface EditableDay {
   day: number;
   label: string;
   key: string;
-  data: FSISInventoryDetailItem;
+  inspection: FSISInventoryDetailItem;
+  manual: EditableIssuance;
+  fsis: EditableIssuance;
   isLocked: boolean;
   totals: DayTotals;
 }
@@ -206,6 +227,7 @@ function isDayLocked(dateStr: string): boolean {
 /**
  * Build editable day structure from Monthly API response.
  * Creates one entry per calendar day, loading data from API list or empty.
+ * Separates inspection data from MANUAL and FSIS issuance data.
  */
 function buildEditableDays(
   list: Array<FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>> | null | undefined,
@@ -215,65 +237,113 @@ function buildEditableDays(
   const map = new Map<string, EditableDay>();
   
   // Index API data by date
-  const dataByDate = new Map<string, FSISInventoryDetailItem>();
+  const dataByDate = new Map<string, FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>>();
   if (Array.isArray(list)) {
     for (const item of list) {
       const key = normalizeDateKey(item?.dateinspected);
-      if (key) {
-        // Map from monthly ledger fields to detail item fields
-        const mapped: FSISInventoryDetailItem = {
-          fsisno: item.fsisno ?? EMPTY_GUID,
-          dateinspected: item.dateinspected ?? key,
-          remarks: item.remarks ?? "",
-          inspectduringcount: num(item.inspectduringcount),
-          inspectaftercount: num(item.inspectaftercount),
-          inspectbplocount: num(item.inspectbplocount),
-          inspectgovcount: num(item.inspectgovcount),
-          inspectpezacount: num(item.inspectpezacount),
-          inspecttiezacount: num(item.inspecttiezacount),
-          fsecbuildingcount: num(item.fsecbuildingcount),
-          fsecgovcount: num(item.fsecgovcount),
-          fsecpezacount: num(item.fsecpezacount),
-          fsectiezacount: num(item.fsectiezacount),
-          fsicoccupancycount: num(item.fsicoccupancycount),
-          fsicbplonewcount: num(item.fsicbplonewcount),
-          fsicbplorenewcount: num(item.fsicbplorenewcount),
-          fsicgovcount: num(item.fsicgovcount),
-          fsicpezacount: num(item.fsicpezacount),
-          fsictiezacount: num(item.fsictiezacount),
-          nodcount: num(item.nodcount),
-          ntccount: num(item.ntccount),
-          ntcvcount: num(item.ntcvcount),
-          avatementcount: num(item.avatementcount),
-          closurecount: num(item.closurecount),
-        };
-        dataByDate.set(key, mapped);
-      }
+      if (key) dataByDate.set(key, item);
     }
   }
 
   const total = daysInMonth(year, month);
   const monthName = MONTHS[month - 1]?.name ?? "";
 
+  const defaultIssuance = (): EditableIssuance => ({
+    issuanceno: EMPTY_GUID,
+    fsicmode: 0,
+    fsecbuildingcount: 0,
+    fsecgovcount: 0,
+    fsecpezacount: 0,
+    fsectiezacount: 0,
+    fsicoccupancycount: 0,
+    fsicbplonewcount: 0,
+    fsicbplorenewcount: 0,
+    fsicgovcount: 0,
+    fsicpezacount: 0,
+    fsictiezacount: 0,
+    nodcount: 0,
+    ntccount: 0,
+    ntcvcount: 0,
+    avatementcount: 0,
+    closurecount: 0,
+  });
+
   for (let d = 1; d <= total; d++) {
     const key = toLocalKey(year, month, d);
     const label = `${monthName} ${d}, ${year}`;
     const apiData = dataByDate.get(key);
 
-    // Compute totals from data
+    // Extract inspection data
+    const inspection: FSISInventoryDetailItem = apiData
+      ? {
+          fsisno: apiData.fsisno ?? EMPTY_GUID,
+          dateinspected: apiData.dateinspected ?? key,
+          remarks: apiData.remarks ?? "",
+          inspectduringcount: num(apiData.inspectduringcount),
+          inspectaftercount: num(apiData.inspectaftercount),
+          inspectbplocount: num(apiData.inspectbplocount),
+          inspectgovcount: num(apiData.inspectgovcount),
+          inspectpezacount: num(apiData.inspectpezacount),
+          inspecttiezacount: num(apiData.inspecttiezacount),
+        }
+      : {
+          fsisno: EMPTY_GUID,
+          dateinspected: key,
+          remarks: "",
+          inspectduringcount: 0,
+          inspectaftercount: 0,
+          inspectbplocount: 0,
+          inspectgovcount: 0,
+          inspectpezacount: 0,
+          inspecttiezacount: 0,
+        };
+
+    // Extract issuance data per mode
+    let manual = defaultIssuance();
+    let fsis = defaultIssuance();
+
+    if (apiData && Array.isArray(apiData.issuancelist)) {
+      for (const iss of apiData.issuancelist) {
+        const mode = num(iss?.fsicmode);
+        const issuanceData: EditableIssuance = {
+          issuanceno: (iss?.issuanceno as string) ?? EMPTY_GUID,
+          fsicmode: mode,
+          fsecbuildingcount: num(iss?.fsecbuildingcount),
+          fsecgovcount: num(iss?.fsecgovcount),
+          fsecpezacount: num(iss?.fsecpezacount),
+          fsectiezacount: num(iss?.fsectiezacount),
+          fsicoccupancycount: num(iss?.fsicoccupancycount),
+          fsicbplonewcount: num(iss?.fsicbplonewcount),
+          fsicbplorenewcount: num(iss?.fsicbplorenewcount),
+          fsicgovcount: num(iss?.fsicgovcount),
+          fsicpezacount: num(iss?.fsicpezacount),
+          fsictiezacount: num(iss?.fsictiezacount),
+          nodcount: num(iss?.nodcount),
+          ntccount: num(iss?.ntccount),
+          ntcvcount: num(iss?.ntcvcount),
+          avatementcount: num(iss?.avatementcount),
+          closurecount: num(iss?.closurecount),
+        };
+
+        if (mode === 96) manual = issuanceData;
+        if (mode === 97) fsis = issuanceData;
+      }
+    }
+
+    // Compute totals from all fields
     const totals: DayTotals = {};
-    if (apiData) {
-      for (const field of DETAIL_FIELDS) {
+    for (const field of DETAIL_FIELDS) {
+      if (field.key.startsWith("insp_")) {
         const apiKey = FIELD_TO_API[String(field.key)];
         if (apiKey) {
-          totals[field.key as keyof DailyInventoryDTO] = num(
-            apiData[apiKey]
-          );
+          totals[field.key as keyof DailyInventoryDTO] = num(inspection[apiKey]);
         }
-      }
-    } else {
-      for (const field of DETAIL_FIELDS) {
-        totals[field.key as keyof DailyInventoryDTO] = 0;
+      } else {
+        const manualKey = FIELD_TO_API[String(field.key)] as keyof EditableIssuance | undefined;
+        if (manualKey && manualKey in manual) {
+          totals[field.key as keyof DailyInventoryDTO] =
+            num((manual as any)[manualKey]) + num((fsis as any)[manualKey]);
+        }
       }
     }
 
@@ -281,11 +351,9 @@ function buildEditableDays(
       day: d,
       label,
       key,
-      data: apiData ?? {
-        fsisno: EMPTY_GUID,
-        dateinspected: key,
-        remarks: "",
-      },
+      inspection,
+      manual,
+      fsis,
       isLocked: isDayLocked(key),
       totals,
     };
@@ -413,7 +481,7 @@ function InventoryEditBody({
 
   /* ------------------------------- Handlers ------------------------------ */
 
-  const updateDayField = (dayKey: string, fieldKey: string, raw: string) => {
+  const updateDayField = (dayKey: string, fieldKey: string, raw: string, issuanceMode: "manual" | "fsis" | "inspection") => {
     setEditableDays((prev) => {
       const newMap = new Map(prev);
       const day = newMap.get(dayKey);
@@ -422,11 +490,38 @@ function InventoryEditBody({
       const cleaned = raw.replace(/[^0-9]/g, "");
       const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
 
-      const apiKey = FIELD_TO_API[fieldKey] as keyof FSISInventoryDetailItem | undefined;
+      const apiKey = FIELD_TO_API[fieldKey] as keyof (FSISInventoryDetailItem | EditableIssuance) | undefined;
       if (!apiKey) return prev;
 
-      const newData = { ...day.data, [apiKey]: value };
-      newMap.set(dayKey, { ...day, data: newData, totals: { ...day.totals, [fieldKey]: value } });
+      let updated = { ...day };
+      
+      if (issuanceMode === "inspection") {
+        updated.inspection = { ...day.inspection, [apiKey]: value };
+      } else if (issuanceMode === "manual") {
+        updated.manual = { ...day.manual, [apiKey]: value };
+      } else if (issuanceMode === "fsis") {
+        updated.fsis = { ...day.fsis, [apiKey]: value };
+      }
+
+      // Recompute totals
+      const totals: DayTotals = {};
+      for (const f of DETAIL_FIELDS) {
+        if (f.key.startsWith("insp_")) {
+          const key = FIELD_TO_API[String(f.key)] as keyof FSISInventoryDetailItem;
+          if (key) {
+            totals[f.key as keyof DailyInventoryDTO] = num(updated.inspection[key]);
+          }
+        } else {
+          const key = FIELD_TO_API[String(f.key)] as keyof EditableIssuance;
+          if (key && key in updated.manual && key in updated.fsis) {
+            totals[f.key as keyof DailyInventoryDTO] =
+              num((updated.manual as any)[key]) + num((updated.fsis as any)[key]);
+          }
+        }
+      }
+      updated.totals = totals;
+
+      newMap.set(dayKey, updated);
       return newMap;
     });
   };
@@ -436,8 +531,8 @@ function InventoryEditBody({
       const newMap = new Map(prev);
       const day = newMap.get(dayKey);
       if (!day) return prev;
-      const newData = { ...day.data, remarks: remarks.slice(0, 1000) };
-      newMap.set(dayKey, { ...day, data: newData });
+      const newInspection = { ...day.inspection, remarks: remarks.slice(0, 1000) };
+      newMap.set(dayKey, { ...day, inspection: newInspection });
       return newMap;
     });
   };
@@ -465,20 +560,67 @@ function InventoryEditBody({
       for (const [, day] of editableDays) {
         if (day.isLocked) continue; // Skip locked days
 
+        // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes
+        const issuancelist: FSISInventoryIssuanceClassDTO[] = [];
+
+        if (day.manual.fsicmode === 96 || day.manual.fsicmode === 0) {
+          issuancelist.push({
+            issuanceno: day.manual.issuanceno || EMPTY_GUID,
+            fsicmode: 96,
+            fsecbuildingcount: day.manual.fsecbuildingcount,
+            fsecgovcount: day.manual.fsecgovcount,
+            fsecpezacount: day.manual.fsecpezacount,
+            fsectiezacount: day.manual.fsectiezacount,
+            fsicoccupancycount: day.manual.fsicoccupancycount,
+            fsicbplonewcount: day.manual.fsicbplonewcount,
+            fsicbplorenewcount: day.manual.fsicbplorenewcount,
+            fsicgovcount: day.manual.fsicgovcount,
+            fsicpezacount: day.manual.fsicpezacount,
+            fsictiezacount: day.manual.fsictiezacount,
+            nodcount: day.manual.nodcount,
+            ntccount: day.manual.ntccount,
+            ntcvcount: day.manual.ntcvcount,
+            avatementcount: day.manual.avatementcount,
+            closurecount: day.manual.closurecount,
+          });
+        }
+
+        if (day.fsis.fsicmode === 97 || (day.fsis.fsicmode === 0 && day.fsis.issuanceno !== EMPTY_GUID)) {
+          issuancelist.push({
+            issuanceno: day.fsis.issuanceno || EMPTY_GUID,
+            fsicmode: 97,
+            fsecbuildingcount: day.fsis.fsecbuildingcount,
+            fsecgovcount: day.fsis.fsecgovcount,
+            fsecpezacount: day.fsis.fsecpezacount,
+            fsectiezacount: day.fsis.fsectiezacount,
+            fsicoccupancycount: day.fsis.fsicoccupancycount,
+            fsicbplonewcount: day.fsis.fsicbplonewcount,
+            fsicbplorenewcount: day.fsis.fsicbplorenewcount,
+            fsicgovcount: day.fsis.fsicgovcount,
+            fsicpezacount: day.fsis.fsicpezacount,
+            fsictiezacount: day.fsis.fsictiezacount,
+            nodcount: day.fsis.nodcount,
+            ntccount: day.fsis.ntccount,
+            ntcvcount: day.fsis.ntcvcount,
+            avatementcount: day.fsis.avatementcount,
+            closurecount: day.fsis.closurecount,
+          });
+        }
+
         const item: FSISUpdateInventoryClass = {
-          fsisno: day.data.fsisno || EMPTY_GUID,
+          fsisno: day.inspection.fsisno || EMPTY_GUID,
           stationno,
           dateinspected: day.key,
-          inspectduringcount: num(day.data.inspectduringcount),
-          inspectaftercount: num(day.data.inspectaftercount),
-          inspectbplocount: num(day.data.inspectbplocount),
-          inspectgovcount: num(day.data.inspectgovcount),
-          inspectpezacount: num(day.data.inspectpezacount),
-          inspecttiezacount: num(day.data.inspecttiezacount),
-          remarks: (day.data.remarks ?? "").trim(),
+          inspectduringcount: day.inspection.inspectduringcount ?? 0,
+          inspectaftercount: day.inspection.inspectaftercount ?? 0,
+          inspectbplocount: day.inspection.inspectbplocount ?? 0,
+          inspectgovcount: day.inspection.inspectgovcount ?? 0,
+          inspectpezacount: day.inspection.inspectpezacount ?? 0,
+          inspecttiezacount: day.inspection.inspecttiezacount ?? 0,
+          remarks: (day.inspection.remarks ?? "").trim(),
           updatedby: user?.memberno ?? "",
           encodedby: user?.memberno ?? "",
-          issuancelist: [],
+          issuancelist,
         };
         updates.push(item);
       }
@@ -535,9 +677,24 @@ function InventoryEditBody({
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ReadOnlyField label="Station" value={station?.stationname ?? ""} />
-          <ReadOnlyField label="Province" value={station?.provincename ?? ""} />
-          <ReadOnlyField label="Reporting Month" value={`${monthName} ${year}`} />
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Station</span>
+            <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
+              <span className="truncate">{station?.stationname || "—"}</span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Province</span>
+            <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
+              <span className="truncate">{station?.provincename || "—"}</span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Reporting Month</span>
+            <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
+              <span className="truncate">{monthName} {year}</span>
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -583,7 +740,6 @@ function InventoryEditBody({
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
-                  rowSpan={2}
                   className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
                 >
                   Date
@@ -598,75 +754,344 @@ function InventoryEditBody({
                   </th>
                 ))}
                 <th
-                  rowSpan={2}
+                  className="border-b border-r bg-purple-600 px-3 py-2 text-center uppercase tracking-wider text-white min-w-[100px]"
+                >
+                  Mode of Issuance
+                </th>
+                <th
+                  className="border-b border-r bg-sky-600 px-2 py-2 text-center uppercase tracking-wider text-white"
+                  colSpan={4}
+                >
+                  FSEC
+                </th>
+                <th
+                  className="border-b border-r bg-indigo-600 px-2 py-2 text-center uppercase tracking-wider text-white"
+                  colSpan={6}
+                >
+                  FSIC
+                </th>
+                <th
+                  className="border-b border-r bg-amber-600 px-2 py-2 text-center uppercase tracking-wider text-white"
+                  colSpan={5}
+                >
+                  NOTICES
+                </th>
+                <th
                   className="border-b border-r bg-slate-700 px-3 py-2 text-center uppercase tracking-wider text-white min-w-[80px]"
                 >
-                  TOTAL
+                  Total
+                </th>
+                <th
+                  className="border-b bg-slate-700 px-3 py-2 text-left uppercase tracking-wider text-white min-w-[150px]"
+                >
+                  Remarks
                 </th>
               </tr>
               <tr>
+                <th className="border-b border-r bg-muted px-3 py-1" />
                 {DETAIL_FIELDS.map((field) => (
                   <th
                     key={String(field.key)}
-                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 min-w-[72px] dark:bg-emerald-950/60 dark:text-emerald-100"
+                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 min-w-[60px] dark:bg-emerald-950/60 dark:text-emerald-100"
                   >
                     {field.label}
                   </th>
                 ))}
+                <th className="border-b border-r bg-muted px-3 py-1" />
+                <th className="border-b px-3 py-1" />
               </tr>
             </thead>
             <tbody>
-              {days.map((dayEntry, index) => {
-                const rowTotal = DETAIL_FIELDS.reduce(
-                  (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
-                  0
-                );
-                const zebra = index % 2 === 1 ? "bg-muted" : "bg-card";
+              {days.map((dayEntry, dayIndex) => {
                 return (
-                  <tr key={dayEntry.key} className={zebra}>
-                    <td
-                      className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra} relative`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {dayEntry.isLocked && <Lock className="h-3 w-3 text-amber-600" />}
-                        {dayEntry.label}
-                      </div>
-                    </td>
-                    {DETAIL_FIELDS.map((field) => {
-                      const apiKey = FIELD_TO_API[String(field.key)];
-                      const value = apiKey
-                        ? num(dayEntry.data[apiKey])
-                        : 0;
-                      return (
-                        <td
-                          key={String(field.key)}
-                          className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
-                        >
-                          {dayEntry.isLocked ? (
-                            <span className="text-muted-foreground">
-                              {value.toLocaleString()}
-                            </span>
-                          ) : (
-                            <Input
-                              type="number"
-                              min={0}
-                              step={1}
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={String(value)}
-                              onChange={(e) =>
-                                updateDayField(dayEntry.key, String(field.key), e.target.value)
-                              }
-                              className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
-                            />
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="border-b px-3 py-1.5 text-center font-semibold tabular-nums">
-                      {rowTotal.toLocaleString()}
-                    </td>
-                  </tr>
+                  <React.Fragment key={dayEntry.key}>
+                    {/* MANUAL row */}
+                    <tr className={dayIndex % 2 === 0 ? "bg-card" : "bg-muted"}>
+                      <td
+                        className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${dayIndex % 2 === 0 ? "bg-card" : "bg-muted"}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {dayEntry.isLocked && <Lock className="h-3 w-3 text-amber-600" />}
+                          {dayEntry.label}
+                        </div>
+                      </td>
+                      {/* Inspection fields */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!field.key.startsWith("insp_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const value = apiKey ? num(dayEntry.inspection[apiKey]) : 0;
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                          >
+                            {dayEntry.isLocked ? (
+                              <span className="text-muted-foreground">
+                                {value.toLocaleString()}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={String(value)}
+                                onChange={(e) =>
+                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "inspection")
+                                }
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="border-b border-r px-3 py-1.5 text-center font-semibold">
+                        MANUAL
+                      </td>
+                      {/* FSEC fields */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!field.key.startsWith("fsec_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                          >
+                            {dayEntry.isLocked ? (
+                              <span className="text-muted-foreground">
+                                {value.toLocaleString()}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={String(value)}
+                                onChange={(e) =>
+                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "manual")
+                                }
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      {/* FSIC fields */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!field.key.startsWith("fsic_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                          >
+                            {dayEntry.isLocked ? (
+                              <span className="text-muted-foreground">
+                                {value.toLocaleString()}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={String(value)}
+                                onChange={(e) =>
+                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "manual")
+                                }
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      {/* NOTICES fields */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!field.key.startsWith("not_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                          >
+                            {dayEntry.isLocked ? (
+                              <span className="text-muted-foreground">
+                                {value.toLocaleString()}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={String(value)}
+                                onChange={(e) =>
+                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "manual")
+                                }
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="border-b px-3 py-1.5 text-center font-semibold tabular-nums">
+                        {DETAIL_FIELDS.reduce(
+                          (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
+                          0
+                        ).toLocaleString()}
+                      </td>
+                      <td className="border-b px-3 py-1.5 text-left text-muted-foreground text-[10px]">
+                        {dayEntry.inspection.remarks || "—"}
+                      </td>
+                    </tr>
+
+                    {/* FSIS row */}
+                    <tr className={dayIndex % 2 === 0 ? "bg-card" : "bg-muted"}>
+                      <td className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 ${dayIndex % 2 === 0 ? "bg-card" : "bg-muted"}`} />
+                      {/* Inspection fields */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!field.key.startsWith("insp_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const value = apiKey ? num(dayEntry.inspection[apiKey]) : 0;
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                          >
+                            {dayEntry.isLocked ? (
+                              <span className="text-muted-foreground">
+                                {value.toLocaleString()}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={String(value)}
+                                onChange={(e) =>
+                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "inspection")
+                                }
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="border-b border-r px-3 py-1.5 text-center font-semibold">
+                        FSIS
+                      </td>
+                      {/* FSEC fields */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!field.key.startsWith("fsec_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                          >
+                            {dayEntry.isLocked ? (
+                              <span className="text-muted-foreground">
+                                {value.toLocaleString()}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={String(value)}
+                                onChange={(e) =>
+                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "fsis")
+                                }
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      {/* FSIC fields */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!field.key.startsWith("fsic_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                          >
+                            {dayEntry.isLocked ? (
+                              <span className="text-muted-foreground">
+                                {value.toLocaleString()}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={String(value)}
+                                onChange={(e) =>
+                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "fsis")
+                                }
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      {/* NOTICES fields */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!field.key.startsWith("not_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                          >
+                            {dayEntry.isLocked ? (
+                              <span className="text-muted-foreground">
+                                {value.toLocaleString()}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={String(value)}
+                                onChange={(e) =>
+                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "fsis")
+                                }
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="border-b px-3 py-1.5 text-center font-semibold tabular-nums">
+                        {DETAIL_FIELDS.reduce(
+                          (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
+                          0
+                        ).toLocaleString()}
+                      </td>
+                      <td className="border-b px-3 py-1.5" />
+                    </tr>
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -689,6 +1114,7 @@ function InventoryEditBody({
                     </td>
                   );
                 })}
+                <td className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center" />
                 <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
                   {days.reduce(
                     (sum, d) =>
@@ -701,9 +1127,10 @@ function InventoryEditBody({
                     0
                   ).toLocaleString()}
                 </td>
+                <td className="border-t-2 border-border bg-accent px-3 py-2.5" />
               </tr>
             </tfoot>
-          </table>
+            </table>
           </div>
         </div>
 
