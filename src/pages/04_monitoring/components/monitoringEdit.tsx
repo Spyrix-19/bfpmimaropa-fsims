@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Building2, CalendarIcon, Loader2, Save, Table2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Building2, CalendarIcon, Loader2, Save, Table2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 
 
@@ -30,8 +40,6 @@ import { stationAPI } from "@/services/stationAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type {
   FSISInventoryMonthlyLedgerModel,
-  FSISInventoryMonthlyClass,
-  FSISIssuanceClassModel,
   FSISInventoryIssuanceClassDTO,
   FSISUpdateInventoryClass,
   FSISUpdateInventoryDTO,
@@ -39,14 +47,6 @@ import type {
 } from "@/types/targetinventoryType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
-
-// Mirror the view page palette so both pages share the same visual identity.
-const GROUP_TONE = {
-  INSPECTION: "bg-emerald-600 text-white",
-  FSEC: "bg-sky-600 text-white",
-  FSIC: "bg-indigo-600 text-white",
-  NOTICES: "bg-amber-600 text-white",
-} as const;
 
 const INSP_FIELDS = [
   { key: "inspectduringcount", label: "During" },
@@ -77,11 +77,7 @@ const NOTICE_FIELDS = [
   { key: "avatementcount", label: "Avatement" },
   { key: "closurecount", label: "Closure" },
 ] as const;
-type InspKey = (typeof INSP_FIELDS)[number]["key"];
-type IssuanceKey =
-  | (typeof FSEC_FIELDS)[number]["key"]
-  | (typeof FSIC_FIELDS)[number]["key"]
-  | (typeof NOTICE_FIELDS)[number]["key"];
+
 
 
 /* -------------------------------------------------------------------------- */
@@ -193,14 +189,10 @@ function InventoryEditBody({
 
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
 
   const [record, setRecord] = React.useState<FSISInventoryMonthlyLedgerModel | null>(null);
-  // Full year of slices — every month is displayed, target month is editable.
-  const [monthSlices, setMonthSlices] = React.useState<
-    { month: number; daily: FSISInventoryMonthlyClass | null }[]
-  >(() =>
-    MONTHS.map((m) => ({ month: m.value, daily: null })),
-  );
   const [inspection, setInspection] = React.useState<InspectionEdit>(() =>
     emptyInspection(`${year}-${String(month).padStart(2, "0")}-01`),
   );
@@ -208,6 +200,13 @@ function InventoryEditBody({
     { ...emptyIssuance(), fsicmode: 96, fsicmodename: "MANUAL" },
     { ...emptyIssuance(), fsicmode: 97, fsicmodename: "FSIS" },
   ]);
+  // Baseline snapshots to detect unsaved changes.
+  const [baseline, setBaseline] = React.useState<string>("");
+  const currentSnapshot = React.useMemo(
+    () => JSON.stringify({ inspection, issuances }),
+    [inspection, issuances],
+  );
+  const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
 
   /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
@@ -223,38 +222,21 @@ function InventoryEditBody({
       const seed = Array.isArray(sData) ? sData[0] : undefined;
       const provinceno = seed?.provinceno ?? EMPTY_GUID;
 
-      // Fetch every month in parallel so the full Jan–Dec matrix is populated.
-      const responses = await Promise.all(
-        MONTHS.map((m) =>
-          targetinventoryAPI.getMonthly(
-            {
-              Stationno: stationno || EMPTY_GUID,
-              Provinceno: provinceno,
-              Reportyear: year,
-              Reportmonth: m.value,
-            },
-            { suppressGlobalLoading: true },
-          ),
-        ),
+      // Fetch only the target reporting month — daily-basis single record.
+      const resp = await targetinventoryAPI.getMonthly(
+        {
+          Stationno: stationno || EMPTY_GUID,
+          Provinceno: provinceno,
+          Reportyear: year,
+          Reportmonth: month,
+        },
+        { suppressGlobalLoading: true },
       );
       if (cancelled) return;
-
-      let firstError: string | null = null;
-      const slices = responses.map((resp, idx) => {
-        const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
-        if (!ok && !firstError) firstError = error || null;
-        const head = ok && Array.isArray(data) ? data[0] ?? null : null;
-        return {
-          month: MONTHS[idx].value,
-          head,
-          daily: head?.fsisInventoryLedgerList?.[0] ?? null,
-        };
-      });
-      if (firstError) toast.error(firstError);
-
-      const target = slices.find((s) => s.month === month);
-      const head = target?.head ?? null;
-      const daily = target?.daily ?? null;
+      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
+      if (!ok && error) toast.error(error);
+      const head = ok && Array.isArray(data) ? data[0] ?? null : null;
+      const daily = head?.fsisInventoryLedgerList?.[0] ?? null;
 
       const normalizeIssuances = (
         list: Array<Partial<IssuanceEdit> & { fsicmode?: number | string }>,
@@ -293,7 +275,7 @@ function InventoryEditBody({
       };
 
       if (daily) {
-        setInspection({
+        const nextInsp: InspectionEdit = {
           fsisno: daily.fsisno ?? EMPTY_GUID,
           dateinspected:
             typeof daily.dateinspected === "string"
@@ -306,22 +288,46 @@ function InventoryEditBody({
           inspectgovcount: toNum(daily.inspectgovcount),
           inspectpezacount: toNum(daily.inspectpezacount),
           inspecttiezacount: toNum(daily.inspecttiezacount),
-        });
-        setIssuances(normalizeIssuances(
+        };
+        const nextIss = normalizeIssuances(
           Array.isArray(daily.issuancelist) ? (daily.issuancelist as Array<Partial<IssuanceEdit>>) : [],
-        ));
+        );
+        setInspection(nextInsp);
+        setIssuances(nextIss);
+        setBaseline(JSON.stringify({ inspection: nextInsp, issuances: nextIss }));
       } else {
-        setInspection(emptyInspection(`${year}-${String(month).padStart(2, "0")}-01`));
-        setIssuances(normalizeIssuances([]));
+        const nextInsp = emptyInspection(`${year}-${String(month).padStart(2, "0")}-01`);
+        const nextIss = normalizeIssuances([]);
+        setInspection(nextInsp);
+        setIssuances(nextIss);
+        setBaseline(JSON.stringify({ inspection: nextInsp, issuances: nextIss }));
       }
       setRecord(head);
-      setMonthSlices(slices.map((s) => ({ month: s.month, daily: s.daily })));
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
   }, [stationno, year, month]);
+
+  /* ---------------- Warn on browser-level navigation while dirty --------- */
+  React.useEffect(() => {
+    if (!isDirty || locked) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty, locked]);
+
+  const requestCancel = () => {
+    if (isDirty && !locked) {
+      setConfirmLeave("cancel");
+      return;
+    }
+    onCancel();
+  };
 
   /* ------------------------------- Handlers ------------------------------ */
 
@@ -350,6 +356,43 @@ function InventoryEditBody({
     );
   };
 
+
+  /* ------------------------------ Validation ----------------------------- */
+
+  const MAX_COUNT = 9999;
+
+  const validationErrors = React.useMemo(() => {
+    const errs: string[] = [];
+    const allNumeric: Array<[string, number]> = [
+      ...INSP_FIELDS.map((f) => [f.label, (inspection as unknown as Record<string, number>)[f.key] ?? 0] as [string, number]),
+      ...issuances.flatMap((iss) => {
+        const rec = iss as unknown as Record<string, number>;
+        return [
+          ...FSEC_FIELDS.map((f) => [`${iss.fsicmodename} · FSEC ${f.label}`, rec[f.key] ?? 0] as [string, number]),
+          ...FSIC_FIELDS.map((f) => [`${iss.fsicmodename} · FSIC ${f.label}`, rec[f.key] ?? 0] as [string, number]),
+          ...NOTICE_FIELDS.map((f) => [`${iss.fsicmodename} · ${f.label}`, rec[f.key] ?? 0] as [string, number]),
+        ];
+      }),
+    ];
+    for (const [label, val] of allNumeric) {
+      if (!Number.isFinite(val) || !Number.isInteger(val)) {
+        errs.push(`${label} must be a whole number.`);
+      } else if (val < 0) {
+        errs.push(`${label} cannot be negative.`);
+      } else if (val > MAX_COUNT) {
+        errs.push(`${label} exceeds the maximum of ${MAX_COUNT}.`);
+      }
+    }
+    // Notes required when any punitive notice was issued.
+    const noticeTotal = issuances.reduce(
+      (s, i) => s + i.nodcount + i.ntccount + i.ntcvcount + i.avatementcount + i.closurecount,
+      0,
+    );
+    if (noticeTotal > 0 && !inspection.remarks.trim()) {
+      errs.push("Remarks are required when notices (NOD/NTC/NTCV/Abatement/Closure) are issued.");
+    }
+    return errs;
+  }, [inspection, issuances]);
 
   /* --------------------------- Target Accomp panel ----------------------- */
 
@@ -381,12 +424,18 @@ function InventoryEditBody({
   /* --------------------------------- Save -------------------------------- */
 
   const handleSave = async () => {
+    setSaveError(null);
     if (!record) {
-      toast.error("No record loaded.");
+      setSaveError("No record loaded.");
       return;
     }
     if (locked) {
-      toast.error("This reporting month is locked and cannot be edited.");
+      setSaveError("This reporting month is locked and cannot be edited.");
+      return;
+    }
+    if (validationErrors.length > 0) {
+      setSaveError(validationErrors[0]);
+      toast.error("Please fix validation issues before saving.");
       return;
     }
     setSaving(true);
@@ -437,11 +486,18 @@ function InventoryEditBody({
       const resp = await targetinventoryAPI.update(payload);
       const { ok, error } = unwrap(resp);
       if (!ok) {
-        toast.error(error || "Failed to save changes.");
+        const msg = error || "Failed to save changes. Please try again.";
+        setSaveError(msg);
+        toast.error(msg);
         return;
       }
-      toast.success("Fire safety compliance updated.");
+      toast.success("Fire safety compliance updated successfully.");
+      setBaseline(currentSnapshot);
       onSaved();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unexpected error while saving.";
+      setSaveError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -487,10 +543,10 @@ function InventoryEditBody({
         </div>
       </Card>
 
-      {/* Matrix table ------------------------------------------------------- */}
+      {/* Daily Inspection Activities --------------------------------------- */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
-          title="Daily Inspection & Issuance Activities"
+          title="Daily Inspection Activities"
           subtitle={`Reporting month · ${monthName} ${year}`}
         />
 
@@ -501,392 +557,131 @@ function InventoryEditBody({
           data={summaryData}
         />
 
-        <YearlyMatrixEditor
-          slices={monthSlices}
-          targetMonth={month}
-          inspection={inspection}
-          issuances={issuances}
-          manualIdx={manualIdx}
-          fsisIdx={fsisIdx}
-          setInspField={setInspField}
-          setIssField={setIssField}
-          locked={locked}
+        <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
+          <div className="mb-3 text-sm font-semibold text-foreground">Inspection Activities</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {INSP_FIELDS.map((f) => (
+              <NumericField
+                key={f.key}
+                label={f.label}
+                value={(inspection as unknown as Record<string, number>)[f.key] ?? 0}
+                disabled={locked}
+                onChange={(v) => setInspField(f.key as keyof InspectionEdit, v)}
+              />
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* Daily Issuance Activities ----------------------------------------- */}
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Issuance Activities"
+          subtitle="Encode issuances separately for MANUAL and FSIS"
         />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <IssuanceEditColumn
+            heading="MANUAL"
+            values={manual as unknown as Record<string, number>}
+            disabled={locked}
+            onChange={(k, v) => setIssField(manualIdx, k as keyof IssuanceEdit, v)}
+          />
+          <IssuanceEditColumn
+            heading="FSIS"
+            values={fsis as unknown as Record<string, number>}
+            disabled={locked}
+            onChange={(k, v) => setIssField(fsisIdx, k as keyof IssuanceEdit, v)}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Remarks</label>
+          <Textarea
+            rows={3}
+            value={inspection.remarks}
+            disabled={locked}
+            onChange={(e) => setInspField("remarks", e.target.value.slice(0, 1000))}
+            placeholder="Additional notes about the inspection…"
+          />
+        </div>
       </Card>
 
       {/* Actions ------------------------------------------------------------ */}
+      {saveError && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex-1">
+            <div className="font-semibold">Unable to save changes</div>
+            <div className="text-xs opacity-90">{saveError}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSaveError(null)}
+            className="text-xs font-medium underline-offset-2 hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      {!saveError && validationErrors.length > 0 && !locked && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <div className="font-semibold">{validationErrors.length} validation issue{validationErrors.length > 1 ? "s" : ""}</div>
+            <ul className="mt-1 list-disc pl-4">
+              {validationErrors.slice(0, 3).map((m, i) => (
+                <li key={i}>{m}</li>
+              ))}
+              {validationErrors.length > 3 && <li>and {validationErrors.length - 3} more…</li>}
+            </ul>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap justify-end gap-2">
         {locked && (
           <div className="mr-auto rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100">
             This reporting month has already passed and is locked. Only the current and upcoming months can be edited.
           </div>
         )}
-        <Button variant="outline" onClick={onCancel} className="gap-2">
+        <Button variant="outline" onClick={requestCancel} className="gap-2" disabled={saving}>
           <ArrowLeft className="h-4 w-4" /> Cancel
         </Button>
         <Button
           onClick={handleSave}
-          disabled={saving || locked}
+          disabled={saving || locked || validationErrors.length > 0}
           className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saving ? "Saving…" : "Save Changes"}
+          {saving ? "Saving changes…" : isDirty ? "Save Changes" : "Saved"}
         </Button>
       </div>
+
+      <AlertDialog open={confirmLeave !== null} onOpenChange={(o) => !o && setConfirmLeave(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have edited daily inspection or issuance values. Leaving now will discard those changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmLeave(null);
+                onCancel();
+              }}
+            >
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Yearly matrix editor — colored group headers, all 12 months, totals row   */
-/* -------------------------------------------------------------------------- */
-
-function YearlyMatrixEditor({
-  slices,
-  targetMonth,
-  inspection,
-  issuances,
-  manualIdx,
-  fsisIdx,
-  setInspField,
-  setIssField,
-  locked,
-}: {
-  slices: { month: number; daily: FSISInventoryMonthlyClass | null }[];
-  targetMonth: number;
-  inspection: InspectionEdit;
-  issuances: IssuanceEdit[];
-  manualIdx: number;
-  fsisIdx: number;
-  setInspField: (key: keyof InspectionEdit, raw: string) => void;
-  setIssField: (index: number, key: keyof IssuanceEdit, raw: string) => void;
-  locked?: boolean;
-}) {
-  const manual = issuances[manualIdx];
-  const fsis = issuances[fsisIdx];
-
-  const modeOf = (
-    daily: FSISInventoryMonthlyClass | null,
-    mode: number,
-  ): FSISIssuanceClassModel | undefined => {
-    const list = (daily?.issuancelist ?? []) as FSISIssuanceClassModel[];
-    return list.find((i) => Number(i.fsicmode) === mode);
-  };
-
-  // Column totals: sum across every month, both MANUAL + FSIS modes.
-  const inspTotals: Record<InspKey, number> = React.useMemo(() => {
-    const acc = Object.fromEntries(INSP_FIELDS.map((f) => [f.key, 0])) as Record<InspKey, number>;
-    for (const s of slices) {
-      const src =
-        s.month === targetMonth
-          ? (inspection as unknown as Record<InspKey, number>)
-          : ((s.daily ?? {}) as unknown as Record<InspKey, number>);
-      for (const f of INSP_FIELDS) acc[f.key] += Number(src?.[f.key] ?? 0) || 0;
-    }
-    return acc;
-  }, [slices, targetMonth, inspection]);
-
-  const issTotals: Record<IssuanceKey, number> = React.useMemo(() => {
-    const keys = [...FSEC_FIELDS, ...FSIC_FIELDS, ...NOTICE_FIELDS];
-    const acc = Object.fromEntries(keys.map((f) => [f.key, 0])) as Record<IssuanceKey, number>;
-    for (const s of slices) {
-      if (s.month === targetMonth) {
-        for (const f of keys) {
-          acc[f.key] +=
-            (Number((manual as unknown as Record<string, number>)[f.key]) || 0) +
-            (Number((fsis as unknown as Record<string, number>)[f.key]) || 0);
-        }
-      } else {
-        const m = modeOf(s.daily, 96);
-        const fs = modeOf(s.daily, 97);
-        for (const f of keys) {
-          acc[f.key] +=
-            (Number((m as unknown as Record<string, number> | undefined)?.[f.key]) || 0) +
-            (Number((fs as unknown as Record<string, number> | undefined)?.[f.key]) || 0);
-        }
-      }
-    }
-    return acc;
-  }, [slices, targetMonth, manual, fsis]);
-
-  const grandTotal =
-    Object.values(inspTotals).reduce((a, b) => a + b, 0) +
-    Object.values(issTotals).reduce((a, b) => a + b, 0);
-
-  const readonlyCell =
-    "border border-border/60 px-2 py-1 text-right text-[11px] tabular-nums text-muted-foreground";
-  const editCell = "border border-border/60 p-1";
-
-  const renderRow = (
-    label: string,
-    src: Record<string, number> | undefined,
-    editable: boolean,
-    idx: number,
-  ) => {
-    const get = (k: string) => Number(src?.[k] ?? 0) || 0;
-    return (
-      <>
-        <td className="border border-border/60 bg-muted/40 px-2 py-1 text-center text-[11px] font-semibold text-foreground">
-          {label}
-        </td>
-        {[...FSEC_FIELDS, ...FSIC_FIELDS, ...NOTICE_FIELDS].map((f) =>
-          editable ? (
-            <td key={f.key} className={editCell}>
-              <CellNumber
-                value={get(f.key)}
-                onChange={(v) => setIssField(idx, f.key as keyof IssuanceEdit, v)}
-              />
-            </td>
-          ) : (
-            <td key={f.key} className={readonlyCell}>
-              {get(f.key).toLocaleString()}
-            </td>
-          ),
-        )}
-      </>
-    );
-  };
-
-  return (
-    <div className="overflow-x-auto rounded-lg border border-border/70">
-      <table className="w-full min-w-[1600px] border-collapse text-xs">
-        <thead>
-          <tr>
-            <th
-              rowSpan={2}
-              className="border border-border/60 bg-blue-700 px-3 py-2 text-center align-middle font-semibold uppercase tracking-wider text-white"
-            >
-              Month
-            </th>
-            <th
-              colSpan={INSP_FIELDS.length}
-              className={`border border-border/60 px-2 py-2 text-center uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
-            >
-              Inspection
-            </th>
-            <th
-              rowSpan={2}
-              className="border border-border/60 bg-slate-700 px-2 py-2 text-center align-middle font-semibold uppercase tracking-wider text-white"
-            >
-              Mode
-            </th>
-            <th
-              colSpan={FSEC_FIELDS.length}
-              className={`border border-border/60 px-2 py-2 text-center uppercase tracking-wider ${GROUP_TONE.FSEC}`}
-            >
-              FSEC
-            </th>
-            <th
-              colSpan={FSIC_FIELDS.length}
-              className={`border border-border/60 px-2 py-2 text-center uppercase tracking-wider ${GROUP_TONE.FSIC}`}
-            >
-              FSIC
-            </th>
-            <th
-              colSpan={NOTICE_FIELDS.length}
-              className={`border border-border/60 px-2 py-2 text-center uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
-            >
-              Notices
-            </th>
-            <th
-              rowSpan={2}
-              className="border border-border/60 bg-slate-700 px-3 py-2 text-center align-middle font-semibold uppercase tracking-wider text-white"
-            >
-              Total
-            </th>
-            <th
-              rowSpan={2}
-              className="border border-border/60 bg-slate-700 px-3 py-2 text-left align-middle font-semibold uppercase tracking-wider text-white"
-            >
-              Remarks
-            </th>
-          </tr>
-          <tr>
-            {INSP_FIELDS.map((f) => (
-              <th
-                key={f.key}
-                className="border border-border/60 bg-emerald-100 px-1.5 py-1 text-center text-[10px] font-bold uppercase text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100"
-              >
-                {f.label}
-              </th>
-            ))}
-            {FSEC_FIELDS.map((f) => (
-              <th
-                key={f.key}
-                className="border border-border/60 bg-sky-100 px-1.5 py-1 text-center text-[10px] font-bold uppercase text-sky-900 dark:bg-sky-950/60 dark:text-sky-100"
-              >
-                {f.label}
-              </th>
-            ))}
-            {FSIC_FIELDS.map((f) => (
-              <th
-                key={f.key}
-                className="border border-border/60 bg-indigo-100 px-1.5 py-1 text-center text-[10px] font-bold uppercase text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-100"
-              >
-                {f.label}
-              </th>
-            ))}
-            {NOTICE_FIELDS.map((f) => (
-              <th
-                key={f.key}
-                className="border border-border/60 bg-amber-100 px-1.5 py-1 text-center text-[10px] font-bold uppercase text-amber-900 dark:bg-amber-950/60 dark:text-amber-100"
-              >
-                {f.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {slices.map((s, i) => {
-            const monthName = MONTHS.find((mo) => mo.value === s.month)?.name ?? String(s.month);
-            const isTarget = s.month === targetMonth;
-            const isEditable = isTarget && !locked;
-            const zebra = i % 2 === 1 ? "bg-muted/30" : "bg-card";
-            const inspSrc = (
-              isTarget
-                ? (inspection as unknown as Record<string, number>)
-                : ((s.daily ?? {}) as unknown as Record<string, number>)
-            );
-            const manualSrc = isTarget
-              ? (manual as unknown as Record<string, number>)
-              : ((modeOf(s.daily, 96) ?? {}) as unknown as Record<string, number>);
-            const fsisSrc = isTarget
-              ? (fsis as unknown as Record<string, number>)
-              : ((modeOf(s.daily, 97) ?? {}) as unknown as Record<string, number>);
-
-            const rowTotal =
-              INSP_FIELDS.reduce((a, f) => a + (Number(inspSrc?.[f.key]) || 0), 0) +
-              [...FSEC_FIELDS, ...FSIC_FIELDS, ...NOTICE_FIELDS].reduce(
-                (a, f) =>
-                  a +
-                  (Number(manualSrc?.[f.key]) || 0) +
-                  (Number(fsisSrc?.[f.key]) || 0),
-                0,
-              );
-
-            return (
-              <React.Fragment key={s.month}>
-                {/* MANUAL row (also spans inspection + month + remarks). */}
-                <tr className={zebra}>
-                  <td
-                    rowSpan={2}
-                    className="border border-border/60 bg-blue-50 px-2 py-1.5 text-center align-middle text-[11px] font-bold text-blue-900 dark:bg-blue-950/40 dark:text-blue-100"
-                  >
-                    {monthName}
-                    {isEditable ? (
-                      <div className="mt-0.5 text-[9px] font-medium uppercase tracking-wide text-primary">
-                        Editing
-                      </div>
-                    ) : isTarget ? (
-                      <div className="mt-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                        Locked
-                      </div>
-                    ) : null}
-                  </td>
-                  {INSP_FIELDS.map((f) =>
-                    isEditable ? (
-                      <td key={f.key} rowSpan={2} className="border border-border/60 p-1 align-middle">
-                        <CellNumber
-                          value={Number(inspSrc?.[f.key]) || 0}
-                          onChange={(v) => setInspField(f.key as keyof InspectionEdit, v)}
-                        />
-                      </td>
-                    ) : (
-                      <td key={f.key} rowSpan={2} className={`${readonlyCell} align-middle`}>
-                        {(Number(inspSrc?.[f.key]) || 0).toLocaleString()}
-                      </td>
-                    ),
-                  )}
-                  {renderRow("MANUAL", manualSrc, isEditable, manualIdx)}
-                  <td
-                    rowSpan={2}
-                    className="border border-border/60 bg-accent px-2 py-1 text-center align-middle text-[11px] font-bold tabular-nums text-foreground"
-                  >
-                    {rowTotal.toLocaleString()}
-                  </td>
-                  <td rowSpan={2} className="border border-border/60 p-1 align-middle">
-                    {isEditable ? (
-                      <Textarea
-                        rows={3}
-                        value={inspection.remarks}
-                        onChange={(e) => setInspField("remarks", e.target.value.slice(0, 1000))}
-                        placeholder="Notes…"
-                        className="min-w-[160px] text-xs"
-                      />
-                    ) : (
-                      <span
-                        className="block max-w-[220px] truncate text-[11px] text-muted-foreground"
-                        title={isTarget ? inspection.remarks : s.daily?.remarks ?? ""}
-                      >
-                        {(isTarget ? inspection.remarks : s.daily?.remarks) || "—"}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-                {/* FSIS row. */}
-                <tr className={zebra}>{renderRow("FSIS", fsisSrc, isEditable, fsisIdx)}</tr>
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
-            <td className="border border-border/60 bg-accent px-3 py-2 text-left uppercase tracking-wide">
-              Total
-            </td>
-            {INSP_FIELDS.map((f) => (
-              <td
-                key={f.key}
-                className="border border-border/60 bg-accent px-2 py-2 text-center tabular-nums"
-              >
-                {inspTotals[f.key].toLocaleString()}
-              </td>
-            ))}
-            <td className="border border-border/60 bg-accent px-2 py-2 text-center">—</td>
-            {[...FSEC_FIELDS, ...FSIC_FIELDS, ...NOTICE_FIELDS].map((f) => (
-              <td
-                key={f.key}
-                className="border border-border/60 bg-accent px-2 py-2 text-center tabular-nums"
-              >
-                {issTotals[f.key as IssuanceKey].toLocaleString()}
-              </td>
-            ))}
-            <td className="border border-border/60 bg-accent px-3 py-2 text-center tabular-nums">
-              {grandTotal.toLocaleString()}
-            </td>
-            <td className="border border-border/60 bg-accent px-3 py-2" aria-hidden />
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Compact table-cell numeric input                                          */
-/* -------------------------------------------------------------------------- */
-
-function CellNumber({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (raw: string) => void;
-}) {
-  return (
-    <Input
-      type="number"
-      min={0}
-      step={1}
-      inputMode="numeric"
-      pattern="[0-9]*"
-      value={value ?? 0}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => {
-        if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
-      }}
-      className="h-8 w-full min-w-[56px] px-1.5 py-0 text-center text-xs tabular-nums"
-    />
   );
 }
 
@@ -894,6 +689,82 @@ function CellNumber({
 /* -------------------------------------------------------------------------- */
 /*  Presentational helpers                                                     */
 /* -------------------------------------------------------------------------- */
+
+function NumericField({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  disabled?: boolean;
+  onChange: (raw: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <Input
+        type="number"
+        min={0}
+        step={1}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={value ?? 0}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
+        }}
+        className={`tabular-nums ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+      />
+    </div>
+  );
+}
+
+function IssuanceEditColumn({
+  heading,
+  values,
+  disabled,
+  onChange,
+}: {
+  heading: string;
+  values: Record<string, number>;
+  disabled?: boolean;
+  onChange: (key: string, raw: string) => void;
+}) {
+  const renderGroup = (
+    title: string,
+    fields: ReadonlyArray<{ key: string; label: string }>,
+  ) => (
+    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
+      <div className="mb-3 text-sm font-semibold text-foreground">{title}</div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {fields.map((f) => (
+          <NumericField
+            key={f.key}
+            label={f.label}
+            value={values[f.key] ?? 0}
+            disabled={disabled}
+            onChange={(v) => onChange(f.key, v)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-4">
+      <div className="text-sm font-semibold uppercase tracking-wider text-foreground">
+        {heading}
+      </div>
+      {renderGroup("Fire Safety Evaluation Certificate (FSEC)", FSEC_FIELDS)}
+      {renderGroup("Fire Safety Inspection Certificate (FSIC)", FSIC_FIELDS)}
+      {renderGroup("Other Notices", NOTICE_FIELDS)}
+    </div>
+  );
+}
 
 function SectionTitle({
   title,
