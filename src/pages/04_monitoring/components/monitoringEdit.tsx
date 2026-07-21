@@ -577,8 +577,9 @@ function InventoryEditBody({
         />
 
         {/* Daily table */}
-        <div className="max-h-[65vh] w-full max-w-full overflow-auto">
-          <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+        <div className="max-h-[65vh] w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft">
+          <div className="overflow-auto">
+            <table className="min-w-max border-separate border-spacing-0 text-[11px]">
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
@@ -703,6 +704,7 @@ function InventoryEditBody({
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
 
         {/* Remarks section */}
