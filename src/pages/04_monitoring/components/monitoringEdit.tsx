@@ -184,9 +184,6 @@ function InventoryEditBody({
 
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? String(month);
 
-  // Past reporting months are read-only; current and future months remain editable.
-  const locked = React.useMemo(() => isReportMonthLocked(year, month), [year, month]);
-
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
@@ -200,6 +197,17 @@ function InventoryEditBody({
     { ...emptyIssuance(), fsicmode: 96, fsicmodename: "MANUAL" },
     { ...emptyIssuance(), fsicmode: 97, fsicmodename: "FSIS" },
   ]);
+
+  const locked = React.useMemo(() => {
+    const inspected = inspection.dateinspected ? new Date(inspection.dateinspected) : null;
+    if (inspected && !Number.isNaN(inspected.getTime())) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return inspected < today;
+    }
+    return isReportMonthLocked(year, month);
+  }, [inspection.dateinspected, year, month]);
+
   // Baseline snapshots to detect unsaved changes.
   const [baseline, setBaseline] = React.useState<string>("");
   const currentSnapshot = React.useMemo(
@@ -532,14 +540,14 @@ function InventoryEditBody({
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ReadOnlyField label="Station" value={record?.stationname ?? ""} />
+              <ReadOnlyField label="Station" value={record?.stationname ?? ""} />
           <ReadOnlyField label="Province" value={record?.provincename ?? ""} />
           <ReadOnlyField
-            label="Reporting Period"
-            value={`${monthName} ${year}`}
+            label="Date Inspected"
+            value={inspectedLabel}
             icon={<CalendarIcon className="h-4 w-4" />}
           />
-          <ReadOnlyField label="Date Inspected" value={inspectedLabel} />
+          <ReadOnlyField label="Reporting Month" value={`${monthName} ${year}`} />
         </div>
       </Card>
 
@@ -547,7 +555,7 @@ function InventoryEditBody({
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
           title="Daily Inspection Activities"
-          subtitle={`Reporting month · ${monthName} ${year}`}
+          subtitle={`Daily inspection · ${inspectedLabel}`}
         />
 
         <TargetAccomplishmentPanel
@@ -644,7 +652,7 @@ function InventoryEditBody({
       <div className="flex flex-wrap justify-end gap-2">
         {locked && (
           <div className="mr-auto rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100">
-            This reporting month has already passed and is locked. Only the current and upcoming months can be edited.
+            This inspection date has already passed and is locked. Only today and future dates may be edited.
           </div>
         )}
         <Button variant="outline" onClick={requestCancel} className="gap-2" disabled={saving}>
