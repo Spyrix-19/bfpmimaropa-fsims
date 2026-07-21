@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { AlertCircle, ArrowLeft, Building2, CalendarIcon, Loader2, Save, Table2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Building2, CalendarIcon, Loader2, Save, Table2, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card } from "@/components/ui/card";
@@ -27,17 +27,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-
-
 import { useAuth } from "@/lib/auth";
 import { EMPTY_GUID, unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { isReportMonthLocked } from "@/pages/05_target-reference/helpers";
-
+import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
 
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { stationAPI } from "@/services/stationAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
+import type { DailyInventoryDTO } from "@/types/inventoryType";
 import type {
   FSISInventoryMonthlyLedgerModel,
   FSISInventoryIssuanceClassDTO,
@@ -47,152 +46,228 @@ import type {
 } from "@/types/targetinventoryType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
+import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
 
-const INSP_FIELDS = [
-  { key: "inspectduringcount", label: "During" },
-  { key: "inspectaftercount", label: "After" },
-  { key: "inspectbplocount", label: "1st BPLO" },
-  { key: "inspectgovcount", label: "1st GOV" },
-  { key: "inspectpezacount", label: "1st PEZA" },
-  { key: "inspecttiezacount", label: "1st TIEZA" },
-] as const;
-const FSEC_FIELDS = [
-  { key: "fsecbuildingcount", label: "Building" },
-  { key: "fsecgovcount", label: "Gov" },
-  { key: "fsecpezacount", label: "PEZA" },
-  { key: "fsectiezacount", label: "TIEZA" },
-] as const;
-const FSIC_FIELDS = [
-  { key: "fsicoccupancycount", label: "Occupancy" },
-  { key: "fsicbplonewcount", label: "BPLO New" },
-  { key: "fsicbplorenewcount", label: "BPLO Renew" },
-  { key: "fsicgovcount", label: "Gov" },
-  { key: "fsicpezacount", label: "PEZA" },
-  { key: "fsictiezacount", label: "TIEZA" },
-] as const;
-const NOTICE_FIELDS = [
-  { key: "nodcount", label: "NOD" },
-  { key: "ntccount", label: "NTC" },
-  { key: "ntcvcount", label: "NTCV" },
-  { key: "avatementcount", label: "Avatement" },
-  { key: "closurecount", label: "Closure" },
-] as const;
 
-type EditField = { key: string; label: string };
+/* ========================================================================== */
+/*  Shared field definitions (mirror from monitoringView CATEGORY_FIELDS)   */
+/* ========================================================================== */
 
-type EditFieldGroup = {
-  category: "INSPECTION" | "FSEC" | "FSIC" | "NOTICES";
-  fields: readonly EditField[];
-};
+const CATEGORY_ORDER = ["INSPECTION", "FSEC", "FSIC", "NOTICES"] as const;
+const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
+  category,
+  fields: CATEGORY_FIELDS[category],
+}));
+const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
-const EDIT_FIELD_GROUPS: readonly EditFieldGroup[] = [
-  { category: "INSPECTION", fields: INSP_FIELDS },
-  { category: "FSEC", fields: FSEC_FIELDS },
-  { category: "FSIC", fields: FSIC_FIELDS },
-  { category: "NOTICES", fields: NOTICE_FIELDS },
-];
-
-const EDIT_DETAIL_FIELDS: readonly EditField[] = [
-  ...INSP_FIELDS,
-  ...FSEC_FIELDS,
-  ...FSIC_FIELDS,
-  ...NOTICE_FIELDS,
-];
-
-const EDIT_GROUP_TONE: Record<EditFieldGroup["category"], string> = {
+const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
   INSPECTION: "bg-emerald-600 text-white",
   FSEC: "bg-sky-600 text-white",
   FSIC: "bg-indigo-600 text-white",
   NOTICES: "bg-amber-600 text-white",
 };
 
+/* ========================================================================== */
+/*  Detail API shapes (per-day records)                                      */
+/* ========================================================================== */
 
-/* -------------------------------------------------------------------------- */
-/*  Local editable shapes — mirror DTO fields 1:1 (no adapter/alias).         */
-/* -------------------------------------------------------------------------- */
-
-interface InspectionEdit {
+interface FSISInventoryDetailItem {
   fsisno: string;
-  dateinspected: string; // ISO string retained from API
-  remarks: string;
+  dateinspected: string | Date;
+  remarks?: string | null;
 
-  inspectduringcount: number;
-  inspectaftercount: number;
-  inspectbplocount: number;
-  inspectgovcount: number;
-  inspectpezacount: number;
-  inspecttiezacount: number;
+  inspectduringcount?: number | null;
+  inspectaftercount?: number | null;
+  inspectbplocount?: number | null;
+  inspectgovcount?: number | null;
+  inspectpezacount?: number | null;
+  inspecttiezacount?: number | null;
+
+  fsecbuildingcount?: number | null;
+  fsecgovcount?: number | null;
+  fsecpezacount?: number | null;
+  fsectiezacount?: number | null;
+
+  fsicoccupancycount?: number | null;
+  fsicbplonewcount?: number | null;
+  fsicbplorenewcount?: number | null;
+  fsicgovcount?: number | null;
+  fsicpezacount?: number | null;
+  fsictiezacount?: number | null;
+
+  nodcount?: number | null;
+  ntccount?: number | null;
+  ntcvcount?: number | null;
+  avatementcount?: number | null;
+  closurecount?: number | null;
 }
 
-interface IssuanceEdit {
-  issuanceno: string;
-  fsicmode: number;
-  fsicmodename: string;
+interface FSISInventoryDetailStation {
+  stationno: string;
+  stationname?: string;
+  provincename?: string;
+  provinceno?: string;
+  month?: number;
+  year?: number;
 
-  fsecbuildingcount: number;
-  fsecgovcount: number;
-  fsecpezacount: number;
-  fsectiezacount: number;
+  totaltargetbplo?: number;
+  totaltargetgov?: number;
+  totaltargetpeza?: number;
+  totaltargettieza?: number;
+  totalAccomplishmentbplo?: number;
+  totalAccomplishmentgov?: number;
+  totalAccomplishmentpeza?: number;
+  totalAccomplishmenttieza?: number;
 
-  fsicoccupancycount: number;
-  fsicbplonewcount: number;
-  fsicbplorenewcount: number;
-  fsicgovcount: number;
-  fsicpezacount: number;
-  fsictiezacount: number;
-
-  nodcount: number;
-  ntccount: number;
-  ntcvcount: number;
-  avatementcount: number;
-  closurecount: number;
+  fsisInventoryDetailList?: FSISInventoryDetailItem[] | null;
 }
 
-function emptyIssuance(): IssuanceEdit {
-  return {
-    issuanceno: EMPTY_GUID,
-    fsicmode: 0,
-    fsicmodename: "",
-    fsecbuildingcount: 0,
-    fsecgovcount: 0,
-    fsecpezacount: 0,
-    fsectiezacount: 0,
-    fsicoccupancycount: 0,
-    fsicbplonewcount: 0,
-    fsicbplorenewcount: 0,
-    fsicgovcount: 0,
-    fsicpezacount: 0,
-    fsictiezacount: 0,
-    nodcount: 0,
-    ntccount: 0,
-    ntcvcount: 0,
-    avatementcount: 0,
-    closurecount: 0,
-  };
+const FIELD_TO_API: Record<string, keyof FSISInventoryDetailItem> = {
+  insp_during: "inspectduringcount",
+  insp_after: "inspectaftercount",
+  insp_bplo: "inspectbplocount",
+  insp_gov: "inspectgovcount",
+  insp_peza: "inspectpezacount",
+  insp_tieza: "inspecttiezacount",
+  fsec_building: "fsecbuildingcount",
+  fsec_gov: "fsecgovcount",
+  fsec_peza: "fsecpezacount",
+  fsec_tieza: "fsectiezacount",
+  fsic_occupancy: "fsicoccupancycount",
+  fsic_bplo_new: "fsicbplonewcount",
+  fsic_bplo_renewal: "fsicbplorenewcount",
+  fsic_gov: "fsicgovcount",
+  fsic_peza: "fsicpezacount",
+  fsic_tieza: "fsictiezacount",
+  not_nod: "nodcount",
+  not_ntc: "ntccount",
+  not_ntcv: "ntcvcount",
+  not_abatement: "avatementcount",
+  not_closure: "closurecount",
+};
+
+type DayTotals = Partial<Record<keyof DailyInventoryDTO, number>>;
+
+interface EditableDay {
+  day: number;
+  label: string;
+  key: string;
+  data: FSISInventoryDetailItem;
+  isLocked: boolean;
+  totals: DayTotals;
 }
 
-function emptyInspection(iso: string): InspectionEdit {
-  return {
-    fsisno: EMPTY_GUID,
-    dateinspected: iso,
-    remarks: "",
-    inspectduringcount: 0,
-    inspectaftercount: 0,
-    inspectbplocount: 0,
-    inspectgovcount: 0,
-    inspectpezacount: 0,
-    inspecttiezacount: 0,
-  };
+function toLocalKey(y: number, m: number, d: number): string {
+  const mm = String(m).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
 }
 
-function toNum(v: unknown): number {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+function normalizeDateKey(v: string | Date | null | undefined): string | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "string") {
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return null;
+    return toLocalKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  }
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    return toLocalKey(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  }
+  return null;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Editor body                                                                */
-/* -------------------------------------------------------------------------- */
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+function num(v: unknown): number {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Check if a given date has already passed (is before today at midnight)
+ */
+function isDayLocked(dateStr: string): boolean {
+  try {
+    const d = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d < today;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build editable day structure from Detail API response.
+ * Creates one entry per calendar day, loading data from API list or empty.
+ */
+function buildEditableDays(
+  list: FSISInventoryDetailItem[] | null | undefined,
+  year: number,
+  month: number,
+): Map<string, EditableDay> {
+  const map = new Map<string, EditableDay>();
+  
+  // Index API data by date
+  const dataByDate = new Map<string, FSISInventoryDetailItem>();
+  if (Array.isArray(list)) {
+    for (const item of list) {
+      const key = normalizeDateKey(item?.dateinspected);
+      if (key) dataByDate.set(key, item);
+    }
+  }
+
+  const total = daysInMonth(year, month);
+  const monthName = MONTHS[month - 1]?.name ?? "";
+
+  for (let d = 1; d <= total; d++) {
+    const key = toLocalKey(year, month, d);
+    const label = `${monthName} ${d}, ${year}`;
+    const apiData = dataByDate.get(key);
+
+    // Compute totals from data
+    const totals: DayTotals = {};
+    if (apiData) {
+      for (const field of DETAIL_FIELDS) {
+        const apiKey = FIELD_TO_API[String(field.key)];
+        if (apiKey) {
+          totals[field.key as keyof DailyInventoryDTO] = num(
+            apiData[apiKey]
+          );
+        }
+      }
+    } else {
+      for (const field of DETAIL_FIELDS) {
+        totals[field.key as keyof DailyInventoryDTO] = 0;
+      }
+    }
+
+    const entry: EditableDay = {
+      day: d,
+      label,
+      key,
+      data: apiData ?? {
+        fsisno: EMPTY_GUID,
+        dateinspected: key,
+        remarks: "",
+      },
+      isLocked: isDayLocked(key),
+      totals,
+    };
+    map.set(key, entry);
+  }
+
+  return map;
+}
+
+
+/* ========================================================================== */
+/*  Editor body — per-day editable table                                     */
+/* ========================================================================== */
 
 function InventoryEditBody({
   stationno,
@@ -216,30 +291,20 @@ function InventoryEditBody({
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
 
-  const [record, setRecord] = React.useState<FSISInventoryMonthlyLedgerModel | null>(null);
-  const [inspection, setInspection] = React.useState<InspectionEdit>(() =>
-    emptyInspection(`${year}-${String(month).padStart(2, "0")}-01`),
+  // Station info from Detail API
+  const [station, setStation] = React.useState<FSISInventoryDetailStation | null>(null);
+  const [provinceno, setProvinceno] = React.useState<string | null>(null);
+
+  // Editable days indexed by YYYY-MM-DD
+  const [editableDays, setEditableDays] = React.useState<Map<string, EditableDay>>(
+    new Map()
   );
-  const [issuances, setIssuances] = React.useState<IssuanceEdit[]>(() => [
-    { ...emptyIssuance(), fsicmode: 96, fsicmodename: "MANUAL" },
-    { ...emptyIssuance(), fsicmode: 97, fsicmodename: "FSIS" },
-  ]);
 
-  const locked = React.useMemo(() => {
-    const inspected = inspection.dateinspected ? new Date(inspection.dateinspected) : null;
-    if (inspected && !Number.isNaN(inspected.getTime())) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return inspected < today;
-    }
-    return isReportMonthLocked(year, month);
-  }, [inspection.dateinspected, year, month]);
-
-  // Baseline snapshots to detect unsaved changes.
+  // Baseline to detect unsaved changes
   const [baseline, setBaseline] = React.useState<string>("");
   const currentSnapshot = React.useMemo(
-    () => JSON.stringify({ inspection, issuances }),
-    [inspection, issuances],
+    () => JSON.stringify(Array.from(editableDays.entries())),
+    [editableDays]
   );
   const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
 
@@ -247,7 +312,6 @@ function InventoryEditBody({
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
       const sResp = await stationAPI.search({
         pageNumber: 1,
         pageSize: 1,
@@ -255,109 +319,61 @@ function InventoryEditBody({
       });
       const { data: sData } = unwrap<SearchStationModel[]>(sResp);
       const seed = Array.isArray(sData) ? sData[0] : undefined;
-      const provinceno = seed?.provinceno ?? EMPTY_GUID;
+      const prov = seed?.provinceno ?? EMPTY_GUID;
+      if (cancelled) return;
+      setProvinceno(prov);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [stationno]);
 
-      // Fetch only the target reporting month — daily-basis single record.
-      const resp = await targetinventoryAPI.getMonthly(
+  // Fetch Detail when provinceno is ready
+  React.useEffect(() => {
+    if (provinceno == null) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const resp = await targetinventoryAPI.getDetail(
         {
           Stationno: stationno || EMPTY_GUID,
           Provinceno: provinceno,
           Reportyear: year,
           Reportmonth: month,
         },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true }
       );
       if (cancelled) return;
-      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
-      if (!ok && error) toast.error(error);
-      const head = ok && Array.isArray(data) ? data[0] ?? null : null;
-      const daily = head?.fsisInventoryLedgerList?.[0] ?? null;
 
-      const normalizeIssuances = (
-        list: Array<Partial<IssuanceEdit> & { fsicmode?: number | string }>,
-      ): IssuanceEdit[] => {
-        const findMode = (mode: number): IssuanceEdit => {
-          const match = list.find((i) => toNum(i.fsicmode) === mode);
-          if (!match) {
-            return {
-              ...emptyIssuance(),
-              fsicmode: mode,
-              fsicmodename: mode === 96 ? "MANUAL" : "FSIS",
-            };
-          }
-          return {
-            issuanceno: (match.issuanceno as string) ?? EMPTY_GUID,
-            fsicmode: mode,
-            fsicmodename: mode === 96 ? "MANUAL" : "FSIS",
-            fsecbuildingcount: toNum(match.fsecbuildingcount),
-            fsecgovcount: toNum(match.fsecgovcount),
-            fsecpezacount: toNum(match.fsecpezacount),
-            fsectiezacount: toNum(match.fsectiezacount),
-            fsicoccupancycount: toNum(match.fsicoccupancycount),
-            fsicbplonewcount: toNum(match.fsicbplonewcount),
-            fsicbplorenewcount: toNum(match.fsicbplorenewcount),
-            fsicgovcount: toNum(match.fsicgovcount),
-            fsicpezacount: toNum(match.fsicpezacount),
-            fsictiezacount: toNum(match.fsictiezacount),
-            nodcount: toNum(match.nodcount),
-            ntccount: toNum(match.ntccount),
-            ntcvcount: toNum(match.ntcvcount),
-            avatementcount: toNum(match.avatementcount),
-            closurecount: toNum(match.closurecount),
-          };
-        };
-        return [findMode(96), findMode(97)];
-      };
-
-      if (daily) {
-        const nextInsp: InspectionEdit = {
-          fsisno: daily.fsisno ?? EMPTY_GUID,
-          dateinspected:
-            typeof daily.dateinspected === "string"
-              ? daily.dateinspected
-              : new Date(daily.dateinspected as unknown as string).toISOString(),
-          remarks: daily.remarks ?? "",
-          inspectduringcount: toNum(daily.inspectduringcount),
-          inspectaftercount: toNum(daily.inspectaftercount),
-          inspectbplocount: toNum(daily.inspectbplocount),
-          inspectgovcount: toNum(daily.inspectgovcount),
-          inspectpezacount: toNum(daily.inspectpezacount),
-          inspecttiezacount: toNum(daily.inspecttiezacount),
-        };
-        const nextIss = normalizeIssuances(
-          Array.isArray(daily.issuancelist) ? (daily.issuancelist as Array<Partial<IssuanceEdit>>) : [],
-        );
-        setInspection(nextInsp);
-        setIssuances(nextIss);
-        setBaseline(JSON.stringify({ inspection: nextInsp, issuances: nextIss }));
-      } else {
-        const nextInsp = emptyInspection(`${year}-${String(month).padStart(2, "0")}-01`);
-        const nextIss = normalizeIssuances([]);
-        setInspection(nextInsp);
-        setIssuances(nextIss);
-        setBaseline(JSON.stringify({ inspection: nextInsp, issuances: nextIss }));
-      }
-      setRecord(head);
+      const { ok, data, error } = unwrap<FSISInventoryDetailStation[]>(resp);
+      if (!ok) toast.error(error || "Failed to load details.");
+      const first = ok && Array.isArray(data) ? data[0] ?? null : null;
+      
+      setStation(first);
+      
+      const days = buildEditableDays(first?.fsisInventoryDetailList, year, month);
+      setEditableDays(days);
+      setBaseline(JSON.stringify(Array.from(days.entries())));
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [stationno, year, month]);
+  }, [stationno, provinceno, year, month]);
 
-  /* ---------------- Warn on browser-level navigation while dirty --------- */
+  /* ---------------------- Warn on unsaved changes ----------------------- */
   React.useEffect(() => {
-    if (!isDirty || locked) return;
+    if (!isDirty) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty, locked]);
+  }, [isDirty]);
 
   const requestCancel = () => {
-    if (isDirty && !locked) {
+    if (isDirty) {
       setConfirmLeave("cancel");
       return;
     }
@@ -366,157 +382,87 @@ function InventoryEditBody({
 
   /* ------------------------------- Handlers ------------------------------ */
 
-  const setInspField = (key: keyof InspectionEdit, raw: string) => {
-    setInspection((prev) => {
-      if (key === "remarks" || key === "fsisno" || key === "dateinspected") {
-        return { ...prev, [key]: raw } as InspectionEdit;
-      }
+  const updateDayField = (dayKey: string, fieldKey: string, raw: string) => {
+    setEditableDays((prev) => {
+      const newMap = new Map(prev);
+      const day = newMap.get(dayKey);
+      if (!day) return prev;
+
       const cleaned = raw.replace(/[^0-9]/g, "");
-      const n = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
-      return { ...prev, [key]: n } as InspectionEdit;
+      const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+
+      const apiKey = FIELD_TO_API[fieldKey] as keyof FSISInventoryDetailItem | undefined;
+      if (!apiKey) return prev;
+
+      const newData = { ...day.data, [apiKey]: value };
+      newMap.set(dayKey, { ...day, data: newData, totals: { ...day.totals, [fieldKey]: value } });
+      return newMap;
     });
   };
 
-  const setIssField = (index: number, key: keyof IssuanceEdit, raw: string) => {
-    setIssuances((prev) =>
-      prev.map((iss, i) => {
-        if (i !== index) return iss;
-        if (key === "issuanceno" || key === "fsicmodename") {
-          return { ...iss, [key]: raw } as IssuanceEdit;
-        }
-        const cleaned = raw.replace(/[^0-9]/g, "");
-        const n = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
-        return { ...iss, [key]: n } as IssuanceEdit;
-      }),
-    );
+  const updateDayRemarks = (dayKey: string, remarks: string) => {
+    setEditableDays((prev) => {
+      const newMap = new Map(prev);
+      const day = newMap.get(dayKey);
+      if (!day) return prev;
+      const newData = { ...day.data, remarks: remarks.slice(0, 1000) };
+      newMap.set(dayKey, { ...day, data: newData });
+      return newMap;
+    });
   };
 
-
-  /* ------------------------------ Validation ----------------------------- */
-
-  const MAX_COUNT = 9999;
-
-  const validationErrors = React.useMemo(() => {
-    const errs: string[] = [];
-    const allNumeric: Array<[string, number]> = [
-      ...INSP_FIELDS.map((f) => [f.label, (inspection as unknown as Record<string, number>)[f.key] ?? 0] as [string, number]),
-      ...issuances.flatMap((iss) => {
-        const rec = iss as unknown as Record<string, number>;
-        return [
-          ...FSEC_FIELDS.map((f) => [`${iss.fsicmodename} · FSEC ${f.label}`, rec[f.key] ?? 0] as [string, number]),
-          ...FSIC_FIELDS.map((f) => [`${iss.fsicmodename} · FSIC ${f.label}`, rec[f.key] ?? 0] as [string, number]),
-          ...NOTICE_FIELDS.map((f) => [`${iss.fsicmodename} · ${f.label}`, rec[f.key] ?? 0] as [string, number]),
-        ];
-      }),
-    ];
-    for (const [label, val] of allNumeric) {
-      if (!Number.isFinite(val) || !Number.isInteger(val)) {
-        errs.push(`${label} must be a whole number.`);
-      } else if (val < 0) {
-        errs.push(`${label} cannot be negative.`);
-      } else if (val > MAX_COUNT) {
-        errs.push(`${label} exceeds the maximum of ${MAX_COUNT}.`);
-      }
-    }
-    // Notes required when any punitive notice was issued.
-    const noticeTotal = issuances.reduce(
-      (s, i) => s + i.nodcount + i.ntccount + i.ntcvcount + i.avatementcount + i.closurecount,
-      0,
-    );
-    if (noticeTotal > 0 && !inspection.remarks.trim()) {
-      errs.push("Remarks are required when notices (NOD/NTC/NTCV/Abatement/Closure) are issued.");
-    }
-    return errs;
-  }, [inspection, issuances]);
-
-  /* --------------------------- Target Accomp panel ----------------------- */
-
-  const summaryData = React.useMemo<TargetAccomplishmentModel | null>(() => {
-    if (!record) return null;
-    const bplo = inspection.inspectbplocount +
-      issuances.reduce((s, i) => s + i.fsicbplonewcount + i.fsicbplorenewcount, 0);
-    const gov = inspection.inspectgovcount +
-      issuances.reduce((s, i) => s + i.fsecgovcount + i.fsicgovcount, 0);
-    const peza = inspection.inspectpezacount +
-      issuances.reduce((s, i) => s + i.fsecpezacount + i.fsicpezacount, 0);
-    const tieza = inspection.inspecttiezacount +
-      issuances.reduce((s, i) => s + i.fsectiezacount + i.fsictiezacount, 0);
-    return {
-      stationno: record.stationno,
-      month: record.month ?? month,
-      year: record.year ?? year,
-      totaltargetbplo: toNum(record.totaltargetbplo),
-      totaltargetgov: toNum(record.totaltargetgov),
-      totaltargetpeza: toNum(record.totaltargetpeza),
-      totaltargettieza: toNum(record.totaltargettieza),
-      totalAccomplishmentbplo: bplo,
-      totalAccomplishmentgov: gov,
-      totalAccomplishmentpeza: peza,
-      totalAccomplishmenttieza: tieza,
-    };
-  }, [record, inspection, issuances, month, year]);
-
-  
   /* --------------------------------- Save -------------------------------- */
 
   const handleSave = async () => {
     setSaveError(null);
-    if (!record) {
+    if (!station) {
       setSaveError("No record loaded.");
       return;
     }
-    if (locked) {
+
+    // Check if entire month is locked
+    if (isReportMonthLocked(year, month)) {
       setSaveError("This reporting month is locked and cannot be edited.");
       return;
     }
-    if (validationErrors.length > 0) {
-      setSaveError(validationErrors[0]);
-      toast.error("Please fix validation issues before saving.");
-      return;
-    }
+
     setSaving(true);
     try {
-      const issuancelist: FSISInventoryIssuanceClassDTO[] = issuances.map((i) => ({
-        issuanceno: i.issuanceno || EMPTY_GUID,
-        fsicmode: i.fsicmode,
-        fsecbuildingcount: i.fsecbuildingcount,
-        fsecgovcount: i.fsecgovcount,
-        fsecpezacount: i.fsecpezacount,
-        fsectiezacount: i.fsectiezacount,
-        fsicoccupancycount: i.fsicoccupancycount,
-        fsicbplonewcount: i.fsicbplonewcount,
-        fsicbplorenewcount: i.fsicbplorenewcount,
-        fsicgovcount: i.fsicgovcount,
-        fsicpezacount: i.fsicpezacount,
-        fsictiezacount: i.fsictiezacount,
-        nodcount: i.nodcount,
-        ntccount: i.ntccount,
-        ntcvcount: i.ntcvcount,
-        avatementcount: i.avatementcount,
-        closurecount: i.closurecount,
-      }));
+      // Prepare updates — only modified days
+      const updates: FSISUpdateInventoryClass[] = [];
 
-      const item: FSISUpdateInventoryClass = {
-        fsisno: inspection.fsisno || EMPTY_GUID,
-        stationno,
-        dateinspected: inspection.dateinspected,
-        inspectduringcount: inspection.inspectduringcount,
-        inspectaftercount: inspection.inspectaftercount,
-        inspectbplocount: inspection.inspectbplocount,
-        inspectgovcount: inspection.inspectgovcount,
-        inspectpezacount: inspection.inspectpezacount,
-        inspecttiezacount: inspection.inspecttiezacount,
-        remarks: inspection.remarks ?? "",
-        updatedby: user?.memberno ?? "",
-        encodedby: user?.memberno ?? "",
-        issuancelist,
-      };
+      for (const [, day] of editableDays) {
+        if (day.isLocked) continue; // Skip locked days
+
+        const item: FSISUpdateInventoryClass = {
+          fsisno: day.data.fsisno || EMPTY_GUID,
+          stationno,
+          dateinspected: day.key,
+          inspectduringcount: num(day.data.inspectduringcount),
+          inspectaftercount: num(day.data.inspectaftercount),
+          inspectbplocount: num(day.data.inspectbplocount),
+          inspectgovcount: num(day.data.inspectgovcount),
+          inspectpezacount: num(day.data.inspectpezacount),
+          inspecttiezacount: num(day.data.inspecttiezacount),
+          remarks: (day.data.remarks ?? "").trim(),
+          updatedby: user?.memberno ?? "",
+          encodedby: user?.memberno ?? "",
+          issuancelist: [],
+        };
+        updates.push(item);
+      }
+
+      if (updates.length === 0) {
+        toast.info("No changes to save.");
+        onSaved();
+        return;
+      }
 
       const payload: FSISUpdateInventoryDTO = {
         stationno,
         updatedby: user?.memberno ?? "",
         encodedby: user?.memberno ?? "",
-        fsisUpdateInventoryList: [item],
+        fsisUpdateInventoryList: updates,
       };
 
       const resp = await targetinventoryAPI.update(payload);
@@ -541,50 +487,8 @@ function InventoryEditBody({
 
   /* ---------------------------------- UI --------------------------------- */
 
-  const inspectedLabel = (() => {
-    try {
-      return format(parseISO(inspection.dateinspected), "PPP");
-    } catch {
-      return inspection.dateinspected;
-    }
-  })();
-
-  const manual = issuances.find((i) => i.fsicmode === 96) ?? issuances[0];
-  const fsis = issuances.find((i) => i.fsicmode === 97) ?? issuances[1];
-  const manualIdx = issuances.indexOf(manual);
-  const fsisIdx = issuances.indexOf(fsis);
-
-  type EditRow =
-    | { label: string; values: InspectionEdit; rowKey: "inspection" }
-    | { label: string; values: IssuanceEdit; rowKey: "manual" | "fsis" };
-
-  const editRows = React.useMemo<EditRow[]>(
-    () => [
-      { label: "Inspection", values: inspection, rowKey: "inspection" },
-      { label: "MANUAL", values: manual, rowKey: "manual" },
-      { label: "FSIS", values: fsis, rowKey: "fsis" },
-    ],
-    [inspection, manual, fsis],
-  );
-
-  const handleEditCellChange = (rowKey: EditRow["rowKey"], fieldKey: string, raw: string) => {
-    const cleaned = raw.replace(/[^0-9]/g, "");
-    const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
-    if (rowKey === "inspection") {
-      setInspection((prev) => ({ ...prev, [fieldKey]: value } as InspectionEdit));
-      return;
-    }
-    setIssuances((prev) =>
-      prev.map((iss) => {
-        if (rowKey === "manual" && iss.fsicmode === 96) return { ...iss, [fieldKey]: value } as IssuanceEdit;
-        if (rowKey === "fsis" && iss.fsicmode === 97) return { ...iss, [fieldKey]: value } as IssuanceEdit;
-        return iss;
-      }),
-    );
-  };
-
-  const getEditableCellValue = (values: InspectionEdit | IssuanceEdit, key: string) =>
-    Number(((values as unknown) as Record<string, number>)[key] ?? 0);
+  const days = Array.from(editableDays.values());
+  const allLocked = days.length > 0 && days.every((d) => d.isLocked);
 
   if (loading) {
     return (
@@ -600,22 +504,18 @@ function InventoryEditBody({
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <ReadOnlyField label="Station" value={record?.stationname ?? ""} />
-          <ReadOnlyField label="Province" value={record?.provincename ?? ""} />
-          <ReadOnlyField
-            label="Date Inspected"
-            value={inspectedLabel}
-            icon={<CalendarIcon className="h-4 w-4" />}
-          />
+          <ReadOnlyField label="Station" value={station?.stationname ?? ""} />
+          <ReadOnlyField label="Province" value={station?.provincename ?? ""} />
           <ReadOnlyField label="Reporting Month" value={`${monthName} ${year}`} />
         </div>
       </Card>
 
+      {/* Daily Compliance Details ------------------------------------------- */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <SectionTitle
             title="Daily Compliance Details"
-            subtitle={`Daily inspection · ${inspectedLabel}`}
+            subtitle="Per-day inspection and issuance tracking"
           />
           <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {monthName} {year}
@@ -626,24 +526,41 @@ function InventoryEditBody({
           stationno={stationno}
           year={year}
           month={month}
-          data={summaryData}
+          data={
+            station
+              ? {
+                  stationno: station.stationno,
+                  month: station.month ?? month,
+                  year: station.year ?? year,
+                  totaltargetbplo: num(station.totaltargetbplo),
+                  totaltargetgov: num(station.totaltargetgov),
+                  totaltargetpeza: num(station.totaltargetpeza),
+                  totaltargettieza: num(station.totaltargettieza),
+                  totalAccomplishmentbplo: num(station.totalAccomplishmentbplo),
+                  totalAccomplishmentgov: num(station.totalAccomplishmentgov),
+                  totalAccomplishmentpeza: num(station.totalAccomplishmentpeza),
+                  totalAccomplishmenttieza: num(station.totalAccomplishmenttieza),
+                }
+              : null
+          }
         />
 
-        <div className="max-h-[58vh] w-full max-w-full overflow-auto">
+        {/* Daily table */}
+        <div className="max-h-[65vh] w-full max-w-full overflow-auto">
           <table className="min-w-max border-separate border-spacing-0 text-[11px]">
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
                   rowSpan={2}
-                  className="sticky left-0 top-0 z-40 min-w-[140px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
+                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
                 >
-                  Type
+                  Date
                 </th>
-                {EDIT_FIELD_GROUPS.map((group) => (
+                {FIELD_GROUPS.map((group) => (
                   <th
                     key={group.category}
                     colSpan={group.fields.length}
-                    className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${EDIT_GROUP_TONE[group.category]}`}
+                    className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${GROUP_TONE[group.category]}`}
                   >
                     {group.category}
                   </th>
@@ -656,10 +573,10 @@ function InventoryEditBody({
                 </th>
               </tr>
               <tr>
-                {EDIT_DETAIL_FIELDS.map((field) => (
+                {DETAIL_FIELDS.map((field) => (
                   <th
-                    key={field.key}
-                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100"
+                    key={String(field.key)}
+                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 min-w-[72px] dark:bg-emerald-950/60 dark:text-emerald-100"
                   >
                     {field.label}
                   </th>
@@ -667,38 +584,49 @@ function InventoryEditBody({
               </tr>
             </thead>
             <tbody>
-              {editRows.map((row) => {
-                const rowTotal = EDIT_DETAIL_FIELDS.reduce<number>(
-                  (sum, field) => sum + getEditableCellValue(row.values, field.key),
-                  0,
+              {days.map((dayEntry, index) => {
+                const rowTotal = DETAIL_FIELDS.reduce(
+                  (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
+                  0
                 );
-                const zebra = row.rowKey === "manual" ? "bg-muted" : row.rowKey === "fsis" ? "bg-card" : "bg-slate-50";
+                const zebra = index % 2 === 1 ? "bg-muted" : "bg-card";
                 return (
-                  <tr key={row.rowKey} className={zebra}>
-                    <td className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}>
-                      {row.label}
+                  <tr key={dayEntry.key} className={zebra}>
+                    <td
+                      className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra} relative`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {dayEntry.isLocked && <Lock className="h-3 w-3 text-amber-600" />}
+                        {dayEntry.label}
+                      </div>
                     </td>
-                    {EDIT_DETAIL_FIELDS.map((field) => {
-                      const editable = Object.prototype.hasOwnProperty.call(row.values, field.key);
+                    {DETAIL_FIELDS.map((field) => {
+                      const apiKey = FIELD_TO_API[String(field.key)];
+                      const value = apiKey
+                        ? num(dayEntry.data[apiKey])
+                        : 0;
                       return (
                         <td
-                          key={field.key}
+                          key={String(field.key)}
                           className="border-b border-r px-2 py-1.5 text-right"
                         >
-                          {editable ? (
+                          {dayEntry.isLocked ? (
+                            <span className="text-muted-foreground">
+                              {value.toLocaleString()}
+                            </span>
+                          ) : (
                             <Input
                               type="number"
                               min={0}
                               step={1}
                               inputMode="numeric"
                               pattern="[0-9]*"
-                              value={String(getEditableCellValue(row.values, field.key))}
-                              disabled={locked}
-                              onChange={(e) => handleEditCellChange(row.rowKey, field.key, e.target.value)}
+                              value={String(value)}
+                              onChange={(e) =>
+                                updateDayField(dayEntry.key, String(field.key), e.target.value)
+                              }
                               className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
                             />
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                       );
@@ -713,14 +641,16 @@ function InventoryEditBody({
           </table>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Remarks</label>
+        {/* Remarks section */}
+        <div className="border-t pt-4">
+          <label className="text-xs font-medium text-muted-foreground">
+            General Remarks (applies to all days)
+          </label>
           <Textarea
             rows={3}
-            value={inspection.remarks}
-            disabled={locked}
-            onChange={(e) => setInspField("remarks", e.target.value.slice(0, 1000))}
-            placeholder="Additional notes about the inspection…"
+            placeholder="Additional notes…"
+            className="mt-2"
+            disabled={allLocked}
           />
         </div>
       </Card>
@@ -745,32 +675,22 @@ function InventoryEditBody({
           </button>
         </div>
       )}
-      {!saveError && validationErrors.length > 0 && !locked && (
+      {allLocked && (
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <div className="font-semibold">{validationErrors.length} validation issue{validationErrors.length > 1 ? "s" : ""}</div>
-            <ul className="mt-1 list-disc pl-4">
-              {validationErrors.slice(0, 3).map((m, i) => (
-                <li key={i}>{m}</li>
-              ))}
-              {validationErrors.length > 3 && <li>and {validationErrors.length - 3} more…</li>}
-            </ul>
+            <div className="font-semibold">All days have passed and are locked</div>
+            <p className="mt-1">Only today and future dates may be edited.</p>
           </div>
         </div>
       )}
       <div className="flex flex-wrap justify-end gap-2">
-        {locked && (
-          <div className="mr-auto rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100">
-            This inspection date has already passed and is locked. Only today and future dates may be edited.
-          </div>
-        )}
         <Button variant="outline" onClick={requestCancel} className="gap-2" disabled={saving}>
           <ArrowLeft className="h-4 w-4" /> Cancel
         </Button>
         <Button
           onClick={handleSave}
-          disabled={saving || locked || validationErrors.length > 0}
+          disabled={saving || allLocked}
           className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -803,86 +723,9 @@ function InventoryEditBody({
   );
 }
 
-
 /* -------------------------------------------------------------------------- */
 /*  Presentational helpers                                                     */
 /* -------------------------------------------------------------------------- */
-
-function NumericField({
-  label,
-  value,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  disabled?: boolean;
-  onChange: (raw: string) => void;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      <Input
-        type="number"
-        min={0}
-        step={1}
-        inputMode="numeric"
-        pattern="[0-9]*"
-        value={value ?? 0}
-        disabled={disabled}
-        readOnly={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
-        }}
-        className={`tabular-nums ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
-      />
-    </div>
-  );
-}
-
-function IssuanceEditColumn({
-  heading,
-  values,
-  disabled,
-  onChange,
-}: {
-  heading: string;
-  values: Record<string, number>;
-  disabled?: boolean;
-  onChange: (key: string, raw: string) => void;
-}) {
-  const renderGroup = (
-    title: string,
-    fields: ReadonlyArray<{ key: string; label: string }>,
-  ) => (
-    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
-      <div className="mb-3 text-sm font-semibold text-foreground">{title}</div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {fields.map((f) => (
-          <NumericField
-            key={f.key}
-            label={f.label}
-            value={values[f.key] ?? 0}
-            disabled={disabled}
-            onChange={(v) => onChange(f.key, v)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-4">
-      <div className="text-sm font-semibold uppercase tracking-wider text-foreground">
-        {heading}
-      </div>
-      {renderGroup("Fire Safety Evaluation Certificate (FSEC)", FSEC_FIELDS)}
-      {renderGroup("Fire Safety Inspection Certificate (FSIC)", FSIC_FIELDS)}
-      {renderGroup("Other Notices", NOTICE_FIELDS)}
-    </div>
-  );
-}
 
 function SectionTitle({
   title,
@@ -900,27 +743,6 @@ function SectionTitle({
         {title}
       </h2>
       {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
-    </div>
-  );
-}
-
-
-function ReadOnlyField({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm">
-        {icon}
-        <span className="truncate">{value || "—"}</span>
-      </div>
     </div>
   );
 }
