@@ -48,6 +48,14 @@ export const targetinventoryAPI = {
     });
   },
 
+  async getDetail(params: FSISInventoryMonthlyParams, options?: import("@/lib/api").ApiOptions) {
+    return await apiGet<FSISInventoryMonthlyLedgerModel[]>("/api/v1/FSISInventory/Detail", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
+  },
+
   async delete(params?: FSISInventoryDeleteParams) {
     return await apiDelete("/api/v1/FSISInventory/Monthly/Delete", undefined, {
       params,

@@ -27,16 +27,8 @@ import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
 import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
 import type {
-  FSISInventoryMonthlyLedgerModel,
-  FSISInventoryMonthlyClass,
-  FSISIssuanceClassModel,
   TargetAccomplishmentModel,
 } from "@/types/targetinventoryType";
-
-// Page-local aliases — types/ is immutable; keep original names via aliases.
-type FSISInventoryMonthlyItem = FSISInventoryMonthlyLedgerModel;
-type FSISInventoryLedgerDailyItem = FSISInventoryMonthlyClass;
-type FSISIssuanceItem = FSISIssuanceClassModel;
 import type { SearchStationModel } from "@/types/stationTypes";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
@@ -56,90 +48,179 @@ const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
   NOTICES: "bg-amber-600 text-white",
 };
 
-/** Sum a month's totals.
- *  - Inspection counts live on each ledger daily item.
- *  - FSEC / FSIC / Notice counts live inside each ledger's `issuancelist`
- *    (one entry per MANUAL/FSIS mode). Both modes are summed together. */
-function aggregateMonth(
-  list: FSISInventoryLedgerDailyItem[] | undefined,
-): Partial<Record<keyof DailyInventoryDTO, number>> {
-  const acc: Record<string, number> = {};
-  const add = (k: string, v: unknown) => {
-    acc[k] = (acc[k] ?? 0) + (Number(v ?? 0) || 0);
-  };
-  for (const l of list ?? []) {
-    add("insp_during", l.inspectduringcount);
-    add("insp_after", l.inspectaftercount);
-    add("insp_bplo", l.inspectbplocount);
-    add("insp_gov", l.inspectgovcount);
-    add("insp_peza", l.inspectpezacount);
-    add("insp_tieza", l.inspecttiezacount);
-    for (const i of (l.issuancelist ?? []) as FSISIssuanceItem[]) {
-      add("fsec_building", i.fsecbuildingcount);
-      add("fsec_gov", i.fsecgovcount);
-      add("fsec_peza", i.fsecpezacount);
-      add("fsec_tieza", i.fsectiezacount);
-      add("fsic_occupancy", i.fsicoccupancycount);
-      add("fsic_bplo_new", i.fsicbplonewcount);
-      add("fsic_bplo_renewal", i.fsicbplorenewcount);
-      add("fsic_gov", i.fsicgovcount);
-      add("fsic_peza", i.fsicpezacount);
-      add("fsic_tieza", i.fsictiezacount);
-      add("not_nod", i.nodcount);
-      add("not_ntc", i.ntccount);
-      add("not_ntcv", i.ntcvcount);
-      add("not_abatement", i.avatementcount);
-      add("not_closure", i.closurecount);
-    }
-  }
-  return acc as Partial<Record<keyof DailyInventoryDTO, number>>;
+/**
+ * Shape of a single item in `data[0].fsisInventoryDetailList`. All numeric
+ * count fields sit flat on the record (unlike Monthly, which nests issuance
+ * counts inside `issuancelist`).
+ */
+interface FSISInventoryDetailItem {
+  fsisno: string;
+  dateinspected: string | Date;
+  remarks?: string | null;
+
+  inspectduringcount?: number | null;
+  inspectaftercount?: number | null;
+  inspectbplocount?: number | null;
+  inspectgovcount?: number | null;
+  inspectpezacount?: number | null;
+  inspecttiezacount?: number | null;
+
+  fsecbuildingcount?: number | null;
+  fsecgovcount?: number | null;
+  fsecpezacount?: number | null;
+  fsectiezacount?: number | null;
+
+  fsicoccupancycount?: number | null;
+  fsicbplonewcount?: number | null;
+  fsicbplorenewcount?: number | null;
+  fsicgovcount?: number | null;
+  fsicpezacount?: number | null;
+  fsictiezacount?: number | null;
+
+  nodcount?: number | null;
+  ntccount?: number | null;
+  ntcvcount?: number | null;
+  avatementcount?: number | null;
+  closurecount?: number | null;
 }
 
-interface MonthSlice {
-  month: number;
-  record: FSISInventoryMonthlyItem | null;
-  totals: Partial<Record<keyof DailyInventoryDTO, number>>;
+interface FSISInventoryDetailStation {
+  stationno: string;
+  month?: number;
+  year?: number;
+
+  totaltargetbplo?: number;
+  totaltargetgov?: number;
+  totaltargetpeza?: number;
+  totaltargettieza?: number;
+  totalAccomplishmentbplo?: number;
+  totalAccomplishmentgov?: number;
+  totalAccomplishmentpeza?: number;
+  totalAccomplishmenttieza?: number;
+
+  fsisInventoryDetailList?: FSISInventoryDetailItem[] | null;
+}
+
+/** Map from our internal DailyInventoryDTO keys to the flat Detail API keys. */
+const FIELD_TO_API: Record<string, keyof FSISInventoryDetailItem> = {
+  insp_during: "inspectduringcount",
+  insp_after: "inspectaftercount",
+  insp_bplo: "inspectbplocount",
+  insp_gov: "inspectgovcount",
+  insp_peza: "inspectpezacount",
+  insp_tieza: "inspecttiezacount",
+  fsec_building: "fsecbuildingcount",
+  fsec_gov: "fsecgovcount",
+  fsec_peza: "fsecpezacount",
+  fsec_tieza: "fsectiezacount",
+  fsic_occupancy: "fsicoccupancycount",
+  fsic_bplo_new: "fsicbplonewcount",
+  fsic_bplo_renewal: "fsicbplorenewcount",
+  fsic_gov: "fsicgovcount",
+  fsic_peza: "fsicpezacount",
+  fsic_tieza: "fsictiezacount",
+  not_nod: "nodcount",
+  not_ntc: "ntccount",
+  not_ntcv: "ntcvcount",
+  not_abatement: "avatementcount",
+  not_closure: "closurecount",
+};
+
+type DayTotals = Partial<Record<keyof DailyInventoryDTO, number>>;
+
+interface DaySlice {
+  /** 1..31 — day-of-month. */
+  day: number;
+  /** Display label, e.g. "July 1". */
+  label: string;
+  /** YYYY-MM-DD local key (used internally only). */
+  key: string;
+  totals: DayTotals;
   remarks: string;
 }
 
-/** Pick the most recent non-empty remarks across the month's daily entries. */
-function aggregateRemarks(list: FSISInventoryLedgerDailyItem[] | undefined): string {
-  if (!list || list.length === 0) return "";
-  const withRemarks = list.filter((l) => (l.remarks ?? "").trim().length > 0);
-  if (withRemarks.length === 0) return "";
-  return withRemarks[withRemarks.length - 1].remarks ?? "";
-}
-
-function toSummary(
-  record: FSISInventoryMonthlyItem | null,
-  year: number,
-  month: number,
-): TargetAccomplishmentModel | null {
-  if (!record) return null;
-  return {
-    stationno: record.stationno,
-    month: record.month ?? month,
-    year: record.year ?? year,
-    totaltargetbplo: Number(record.totaltargetbplo ?? 0) || 0,
-    totaltargetgov: Number(record.totaltargetgov ?? 0) || 0,
-    totaltargetpeza: Number(record.totaltargetpeza ?? 0) || 0,
-    totaltargettieza: Number(record.totaltargettieza ?? 0) || 0,
-    totalAccomplishmentbplo: Number(record.totalAccomplishmentbplo ?? 0) || 0,
-    totalAccomplishmentgov: Number(record.totalAccomplishmentgov ?? 0) || 0,
-    totalAccomplishmentpeza: Number(record.totalAccomplishmentpeza ?? 0) || 0,
-    totalAccomplishmenttieza: Number(record.totalAccomplishmenttieza ?? 0) || 0,
-  };
+/** Local YYYY-MM-DD (no timezone shift). */
+function toLocalKey(y: number, m: number, d: number): string {
+  const mm = String(m).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
 }
 
 /**
- * Read-only yearly overview:
+ * Normalize an incoming `dateinspected` (string like "2026-07-21T00:00:00"
+ * or a Date) to a local YYYY-MM-DD key WITHOUT UTC drift. Strings that
+ * already start with `YYYY-MM-DD` are trusted as calendar dates.
+ */
+function normalizeDateKey(v: string | Date | null | undefined): string | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "string") {
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return null;
+    return toLocalKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  }
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    return toLocalKey(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  }
+  return null;
+}
+
+/** Days in month — correct for leap years via day-0 trick. */
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+function num(v: unknown): number {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Build a per-day lookup keyed by YYYY-MM-DD from the API list.
+ * Duplicate dates are aggregated by summing every numeric count field and
+ * concatenating remarks with " · " separators (empty remarks skipped).
+ */
+function buildDailyLookup(
+  list: FSISInventoryDetailItem[] | null | undefined,
+): Map<string, { totals: DayTotals; remarks: string }> {
+  const map = new Map<string, { totals: DayTotals; remarks: string }>();
+  if (!Array.isArray(list)) return map;
+
+  for (const rec of list) {
+    const key = normalizeDateKey(rec?.dateinspected);
+    if (!key) continue;
+
+    let bucket = map.get(key);
+    if (!bucket) {
+      bucket = { totals: {}, remarks: "" };
+      map.set(key, bucket);
+    }
+
+    for (const field of DETAIL_FIELDS) {
+      const apiKey = FIELD_TO_API[String(field.key)];
+      if (!apiKey) continue;
+      const prev = Number(bucket.totals[field.key as keyof DailyInventoryDTO] ?? 0);
+      bucket.totals[field.key as keyof DailyInventoryDTO] =
+        prev + num(rec[apiKey]);
+    }
+
+    const r = (rec?.remarks ?? "").toString().trim();
+    if (r) bucket.remarks = bucket.remarks ? `${bucket.remarks} · ${r}` : r;
+  }
+
+  return map;
+}
+
+/**
+ * Read-only monthly overview:
  *
- *  1. `Monthly Target vs. Inspected` summary — driven by a Month dropdown that
- *     defaults to the current calendar month. The Year is locked to the
- *     Ledger record and displayed as a read-only field.
- *  2. January–December table — every month rendered as its own row so months
- *     without data still appear (with zero values), giving a complete
- *     yearly overview.
+ *  1. `Monthly Target vs. Inspected` summary — driven by a Month dropdown
+ *     that defaults to the current calendar month. The Year is locked to
+ *     the Ledger record and displayed as a read-only field.
+ *  2. Daily breakdown table — EVERY day of the selected month is rendered
+ *     as its own row (July 1..31, Feb 1..28/29, etc.). Days without any
+ *     API record still appear with zero values and empty remarks.
  */
 function InventoryViewBody({
   stationno,
@@ -150,71 +231,100 @@ function InventoryViewBody({
   year: number;
   initialMonth?: number;
 }) {
-  const [slices, setSlices] = React.useState<MonthSlice[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [selectedMonth, setSelectedMonth] = React.useState<number>(() => {
     if (initialMonth && initialMonth >= 1 && initialMonth <= 12) return initialMonth;
     return new Date().getMonth() + 1;
   });
+  const [loading, setLoading] = React.useState(true);
+  const [station, setStation] = React.useState<FSISInventoryDetailStation | null>(null);
+  const [provinceno, setProvinceno] = React.useState<string | null>(null);
 
+  // Resolve provinceno once per station — Detail endpoint requires it.
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
-
-      // Resolve provinceno — Monthly endpoint requires it.
       const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
       const { data: sData } = unwrap<SearchStationModel[]>(sResp);
-      const seedStation = Array.isArray(sData) ? sData[0] : undefined;
-      const provinceno = seedStation?.provinceno ?? EMPTY_GUID;
+      if (cancelled) return;
+      const seed = Array.isArray(sData) ? sData[0] : undefined;
+      setProvinceno(seed?.provinceno ?? EMPTY_GUID);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [stationno]);
 
-      // Fire all 12 months in parallel — every month must be present in the
-      // yearly table even when the server returns no record.
-      const responses = await Promise.all(
-        MONTHS.map((m) =>
-          targetinventoryAPI.getMonthly(
-            {
-              Stationno: stationno || EMPTY_GUID,
-              Provinceno: provinceno,
-              Reportyear: year,
-              Reportmonth: m.value,
-            },
-            { suppressGlobalLoading: true },
-          ),
-        ),
+  // Fetch Detail whenever station / year / month changes.
+  React.useEffect(() => {
+    if (provinceno == null) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const resp = await targetinventoryAPI.getDetail(
+        {
+          Stationno: stationno || EMPTY_GUID,
+          Provinceno: provinceno,
+          Reportyear: year,
+          Reportmonth: selectedMonth,
+        },
+        { suppressGlobalLoading: true },
       );
       if (cancelled) return;
 
-      let firstError: string | null = null;
-      const built: MonthSlice[] = responses.map((resp, index) => {
-        const { ok, data, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
-        if (!ok && !firstError) firstError = error || null;
-        const record = ok && Array.isArray(data) ? data[0] ?? null : null;
-        return {
-          month: MONTHS[index].value,
-          record,
-          totals: aggregateMonth(record?.fsisInventoryLedgerList),
-          remarks: aggregateRemarks(record?.fsisInventoryLedgerList),
-        };
-      });
-
-      if (firstError) toast.error(firstError);
-      setSlices(built);
+      const { ok, data, error } = unwrap<FSISInventoryDetailStation[]>(resp);
+      if (!ok) toast.error(error || "Failed to load daily details.");
+      const first = ok && Array.isArray(data) ? data[0] ?? null : null;
+      setStation(first);
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [stationno, year]);
+  }, [stationno, provinceno, year, selectedMonth]);
 
-  const currentSlice = slices.find((s) => s.month === selectedMonth) ?? null;
-  const summary = currentSlice ? toSummary(currentSlice.record, year, selectedMonth) : null;
+  // Build every day of the selected month — always, even when the API
+  // response is empty or the list is null.
+  const slices = React.useMemo<DaySlice[]>(() => {
+    const lookup = buildDailyLookup(station?.fsisInventoryDetailList);
+    const total = daysInMonth(year, selectedMonth);
+    const monthName = MONTHS[selectedMonth - 1]?.name ?? "";
+    const out: DaySlice[] = [];
+    for (let d = 1; d <= total; d++) {
+      const key = toLocalKey(year, selectedMonth, d);
+      const hit = lookup.get(key);
+      out.push({
+        day: d,
+        label: `${monthName} ${d}`,
+        key,
+        totals: hit?.totals ?? {},
+        remarks: hit?.remarks ?? "",
+      });
+    }
+    return out;
+  }, [station, year, selectedMonth]);
+
+  const summary = React.useMemo<TargetAccomplishmentModel | null>(() => {
+    if (!station) return null;
+    return {
+      stationno: station.stationno,
+      month: station.month ?? selectedMonth,
+      year: station.year ?? year,
+      totaltargetbplo: num(station.totaltargetbplo),
+      totaltargetgov: num(station.totaltargetgov),
+      totaltargetpeza: num(station.totaltargetpeza),
+      totaltargettieza: num(station.totaltargettieza),
+      totalAccomplishmentbplo: num(station.totalAccomplishmentbplo),
+      totalAccomplishmentgov: num(station.totalAccomplishmentgov),
+      totalAccomplishmentpeza: num(station.totalAccomplishmentpeza),
+      totalAccomplishmenttieza: num(station.totalAccomplishmenttieza),
+    };
+  }, [station, year, selectedMonth]);
 
   const columnTotals = React.useMemo(() => {
     const totals: Record<string, number> = {};
     for (const field of DETAIL_FIELDS) {
       totals[String(field.key)] = slices.reduce(
-        (sum, s) => sum + (Number(s.totals[field.key as keyof DailyInventoryDTO]) || 0),
+        (sum, s) => sum + num(s.totals[field.key as keyof DailyInventoryDTO]),
         0,
       );
     }
@@ -275,7 +385,7 @@ function InventoryViewBody({
         />
       </Card>
 
-      {/* 2. January–December yearly overview. */}
+      {/* 2. Daily breakdown — every day of the selected month. */}
       <Card className="overflow-hidden border-border/60 shadow-soft">
         <div className="max-h-[65vh] w-full max-w-full overflow-auto">
           <table className="min-w-max border-separate border-spacing-0 text-[11px]">
@@ -285,7 +395,7 @@ function InventoryViewBody({
                   rowSpan={2}
                   className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
                 >
-                  Month
+                  Date
                 </th>
                 {FIELD_GROUPS.map((group) => (
                   <th
@@ -323,23 +433,21 @@ function InventoryViewBody({
             <tbody>
               {slices.map((slice, index) => {
                 const rowTotal = DETAIL_FIELDS.reduce(
-                  (sum, f) =>
-                    sum + (Number(slice.totals[f.key as keyof DailyInventoryDTO]) || 0),
+                  (sum, f) => sum + num(slice.totals[f.key as keyof DailyInventoryDTO]),
                   0,
                 );
-                // Solid zebra so the sticky Month column stays opaque
+                // Solid zebra so the sticky Date column stays opaque
                 // while horizontally scrolling — matches the Edit page.
                 const zebra = index % 2 === 1 ? "bg-muted" : "bg-card";
                 return (
-                  <tr key={slice.month} className={zebra}>
+                  <tr key={slice.key} className={zebra}>
                     <td
                       className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
                     >
-                      {MONTHS[slice.month - 1].name}
+                      {slice.label}
                     </td>
                     {DETAIL_FIELDS.map((field) => {
-                      const v =
-                        Number(slice.totals[field.key as keyof DailyInventoryDTO]) || 0;
+                      const v = num(slice.totals[field.key as keyof DailyInventoryDTO]);
                       return (
                         <td
                           key={String(field.key)}
@@ -363,7 +471,7 @@ function InventoryViewBody({
               })}
             </tbody>
             <tfoot>
-              {/* Yearly summary row — solid emphasis, centered totals. */}
+              {/* Monthly summary row — solid emphasis, centered totals. */}
               <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
                 <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
                   Total
@@ -403,9 +511,9 @@ export default function InventoryView() {
             <Eye className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance — Yearly Details</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance — Daily Details</h1>
             <p className="text-sm text-muted-foreground">
-              Read-only breakdown for the selected station and year.
+              Read-only day-by-day breakdown for the selected station and month.
             </p>
           </div>
         </div>
@@ -448,11 +556,11 @@ export function InventoryViewModal({
       <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
-            <Eye className="h-5 w-5 text-primary" /> Fire Safety Compliance — Yearly Details
+            <Eye className="h-5 w-5 text-primary" /> Fire Safety Compliance — Daily Details
           </DialogTitle>
           <DialogDescription>
             {stationName ? `${stationName} · ` : ""}
-            {year} — read-only yearly overview (January to December).
+            {year} — read-only day-by-day breakdown for the selected month.
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
