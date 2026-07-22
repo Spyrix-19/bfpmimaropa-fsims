@@ -61,19 +61,19 @@ const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
 }));
 const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
+// Spreadsheet-style palette matching the reference sample (pastel color-blocked headers).
 const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-emerald-600 text-white",
-  FSEC: "bg-sky-600 text-white",
-  FSIC: "bg-indigo-600 text-white",
-  NOTICES: "bg-amber-600 text-white",
+  INSPECTION: "bg-[hsl(210_85%_82%)] text-slate-900",
+  FSEC: "bg-[hsl(24_90%_75%)] text-slate-900",
+  FSIC: "bg-[hsl(215_20%_78%)] text-slate-900",
+  NOTICES: "bg-[hsl(215_20%_78%)] text-slate-900",
 };
 
 const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION:
-    "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100",
-  FSEC: "bg-sky-100 text-sky-900 dark:bg-sky-950/60 dark:text-sky-100",
-  FSIC: "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-100",
-  NOTICES: "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-100",
+  INSPECTION: "bg-[hsl(210_85%_92%)] text-slate-800",
+  FSEC: "bg-[hsl(24_90%_88%)] text-slate-800",
+  FSIC: "bg-[hsl(215_25%_88%)] text-slate-800",
+  NOTICES: "bg-[hsl(215_25%_88%)] text-slate-800",
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
@@ -747,75 +747,72 @@ function InventoryEditBody({
           }
         />
 
-        {/* Daily table */}
-        <div className="max-h-[65vh] w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft">
-          <div className="overflow-auto">
-            <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+        {/* Daily table — spreadsheet-style, scrolls in both axes */}
+        <div className="w-full max-w-full overflow-auto rounded-md border border-slate-300 shadow-soft" style={{ maxHeight: "70vh" }}>
+          <table className="min-w-max border-separate border-spacing-0 text-[11px] text-slate-900">
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
-                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
+                  rowSpan={2}
+                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r border-slate-300 bg-white px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900"
                 >
                   Date
                 </th>
-                {FIELD_GROUPS.map((group) => (
-                  <th
-                    key={group.category}
-                    colSpan={group.fields.length}
-                    className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${GROUP_TONE[group.category]}`}
-                  >
-                    {group.category}
-                  </th>
-                ))}
                 <th
-                  className="border-b border-r bg-purple-600 px-3 py-2 text-center uppercase tracking-wider text-white min-w-[100px]"
+                  colSpan={6}
+                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
                 >
-                  Mode of Issuance
+                  Inspection
                 </th>
                 <th
-                  className="border-b border-r bg-sky-600 px-2 py-2 text-center uppercase tracking-wider text-white"
+                  rowSpan={2}
+                  className="sticky top-0 z-30 border-b border-r border-slate-300 bg-slate-100 px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[90px]"
+                >
+                  Mode of<br />Issuance
+                </th>
+                <th
                   colSpan={4}
+                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSEC}`}
                 >
                   FSEC
                 </th>
                 <th
-                  className="border-b border-r bg-indigo-600 px-2 py-2 text-center uppercase tracking-wider text-white"
                   colSpan={6}
+                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSIC}`}
                 >
                   FSIC
                 </th>
                 <th
-                  className="border-b border-r bg-amber-600 px-2 py-2 text-center uppercase tracking-wider text-white"
                   colSpan={5}
+                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
                 >
-                  NOTICES
+                  Other Notices
                 </th>
                 <th
-                  className="border-b border-r bg-slate-700 px-3 py-2 text-center uppercase tracking-wider text-white min-w-[80px]"
+                  rowSpan={2}
+                  className="sticky top-0 z-30 border-b border-r border-slate-300 bg-slate-200 px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[70px]"
                 >
                   Total
                 </th>
                 <th
-                  className="border-b bg-slate-700 px-3 py-2 text-left uppercase tracking-wider text-white min-w-[150px]"
+                  rowSpan={2}
+                  className="sticky top-0 z-30 border-b border-slate-300 bg-slate-100 px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[160px]"
                 >
                   Remarks
                 </th>
               </tr>
               <tr>
-                <th className="border-b border-r bg-muted px-3 py-1" />
                 {DETAIL_FIELDS.map((field) => {
                   const cat = FIELD_CATEGORY.get(String(field.key)) ?? "INSPECTION";
                   return (
                     <th
                       key={String(field.key)}
-                      className={`border-b border-r px-1.5 py-1 text-right text-[10px] font-bold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
+                      className={`border-b border-r border-slate-300 px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
                     >
                       {field.label}
                     </th>
                   );
                 })}
-                <th className="border-b border-r bg-muted px-3 py-1" />
-                <th className="border-b px-3 py-1" />
               </tr>
             </thead>
             <tbody>
@@ -823,15 +820,17 @@ function InventoryEditBody({
                 return (
                   <React.Fragment key={dayEntry.key}>
                     {/* MANUAL row */}
-                    <tr className={dayIndex % 2 === 0 ? "bg-card" : "bg-muted"}>
+                    <tr className={dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                       <td
-                        className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${dayIndex % 2 === 0 ? "bg-card" : "bg-muted"}`}
+                        rowSpan={2}
+                        className={`sticky left-0 z-20 border-b border-r border-slate-300 px-3 py-1.5 align-middle text-[11px] font-semibold text-slate-900 ${dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
                       >
                         <div className="flex items-center gap-2">
                           {dayEntry.isLocked && <Lock className="h-3 w-3 text-amber-600" />}
                           {dayEntry.label}
                         </div>
                       </td>
+
                       {/* Inspection fields */}
                       {DETAIL_FIELDS.map((field) => {
                         if (!field.key.startsWith("insp_")) return null;
@@ -863,7 +862,8 @@ function InventoryEditBody({
                           </td>
                         );
                       })}
-                      <td className="border-b border-r px-3 py-1.5 text-center font-semibold">
+                      <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase text-slate-900">
+
                         MANUAL
                       </td>
                       {/* FSEC fields */}
@@ -971,8 +971,8 @@ function InventoryEditBody({
                     </tr>
 
                     {/* FSIS row */}
-                    <tr className={dayIndex % 2 === 0 ? "bg-card" : "bg-muted"}>
-                      <td className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 ${dayIndex % 2 === 0 ? "bg-card" : "bg-muted"}`} />
+                    <tr className={dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+
                       {/* Inspection fields */}
                       {DETAIL_FIELDS.map((field) => {
                         if (!field.key.startsWith("insp_")) return null;
@@ -1004,7 +1004,7 @@ function InventoryEditBody({
                           </td>
                         );
                       })}
-                      <td className="border-b border-r px-3 py-1.5 text-center font-semibold">
+                      <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase text-slate-900">
                         FSIS
                       </td>
                       {/* FSEC fields */}
@@ -1112,27 +1112,37 @@ function InventoryEditBody({
                 );
               })}
             </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
-                <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
+            <tfoot className="sticky bottom-0 z-20">
+              <tr className="bg-[hsl(48_96%_82%)] font-bold text-slate-900">
+                <td className="sticky left-0 z-30 border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
                   Total
                 </td>
-                {DETAIL_FIELDS.map((field) => {
+                {DETAIL_FIELDS.map((field, idx) => {
                   const columnTotal = days.reduce(
                     (sum, d) => sum + num(d.totals[field.key as keyof DailyInventoryDTO]),
                     0
                   );
-                  return (
+                  // Insert Mode-of-Issuance spacer cell between INSPECTION (6 fields) and FSEC
+                  const cells = [];
+                  if (idx === 6) {
+                    cells.push(
+                      <td
+                        key="__mode_spacer__"
+                        className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-2 py-2"
+                      />
+                    );
+                  }
+                  cells.push(
                     <td
                       key={String(field.key)}
-                      className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
+                      className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-2 py-2 text-center text-[11px] font-bold tabular-nums"
                     >
                       {columnTotal.toLocaleString()}
                     </td>
                   );
+                  return cells;
                 })}
-                <td className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center" />
-                <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
+                <td className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_72%)] px-3 py-2 text-center text-[11px] font-bold tabular-nums">
                   {days.reduce(
                     (sum, d) =>
                       sum +
@@ -1144,12 +1154,12 @@ function InventoryEditBody({
                     0
                   ).toLocaleString()}
                 </td>
-                <td className="border-t-2 border-border bg-accent px-3 py-2.5" />
+                <td className="border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-3 py-2" />
               </tr>
             </tfoot>
             </table>
-          </div>
         </div>
+
 
         {/* Remarks section */}
         <div className="border-t pt-4">
