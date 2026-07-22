@@ -68,6 +68,20 @@ const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
   NOTICES: "bg-amber-600 text-white",
 };
 
+const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
+  INSPECTION:
+    "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100",
+  FSEC: "bg-sky-100 text-sky-900 dark:bg-sky-950/60 dark:text-sky-100",
+  FSIC: "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-100",
+  NOTICES: "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-100",
+};
+
+const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
+  FIELD_GROUPS.flatMap((g) =>
+    g.fields.map((f) => [String(f.key), g.category] as const),
+  ),
+);
+
 /* ========================================================================== */
 /*  Detail API shapes (per-day records)                                      */
 /* ========================================================================== */
@@ -789,14 +803,17 @@ function InventoryEditBody({
               </tr>
               <tr>
                 <th className="border-b border-r bg-muted px-3 py-1" />
-                {DETAIL_FIELDS.map((field) => (
-                  <th
-                    key={String(field.key)}
-                    className="border-b border-r bg-emerald-100 px-1.5 py-1 text-right text-[10px] font-bold uppercase text-emerald-900 min-w-[60px] dark:bg-emerald-950/60 dark:text-emerald-100"
-                  >
-                    {field.label}
-                  </th>
-                ))}
+                {DETAIL_FIELDS.map((field) => {
+                  const cat = FIELD_CATEGORY.get(String(field.key)) ?? "INSPECTION";
+                  return (
+                    <th
+                      key={String(field.key)}
+                      className={`border-b border-r px-1.5 py-1 text-right text-[10px] font-bold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
+                    >
+                      {field.label}
+                    </th>
+                  );
+                })}
                 <th className="border-b border-r bg-muted px-3 py-1" />
                 <th className="border-b px-3 py-1" />
               </tr>

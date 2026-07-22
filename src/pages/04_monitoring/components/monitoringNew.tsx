@@ -13,6 +13,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -444,18 +452,12 @@ function InspectionsNewBody({
         />
 
         <TooltipProvider delayDuration={150}>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <IssuanceColumn
-              heading="MANUAL"
-              values={manualIssuance}
-              setValues={setManualIssuance}
-            />
-            <IssuanceColumn
-              heading="FSIS"
-              values={fsisIssuance}
-              setValues={setFsisIssuance}
-            />
-          </div>
+          <IssuanceTable
+            manualValues={manualIssuance}
+            fsisValues={fsisIssuance}
+            setManualValues={setManualIssuance}
+            setFsisValues={setFsisIssuance}
+          />
         </TooltipProvider>
 
         <Field label="Remarks">
@@ -603,47 +605,182 @@ function SectionTitle({
   );
 }
 
-function SubGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
-      <div className="mb-3 text-sm font-semibold text-foreground">{title}</div>
-      {children}
-    </div>
-  );
-}
-
-function IssuanceColumn({
-  heading,
-  values,
-  setValues,
+function IssuanceTable({
+  manualValues,
+  fsisValues,
+  setManualValues,
+  setFsisValues,
 }: {
-  heading: string;
-  values: Record<string, number>;
-  setValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  manualValues: Record<string, number>;
+  fsisValues: Record<string, number>;
+  setManualValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  setFsisValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 }) {
-  const onChange = React.useCallback(
-    (key: string, raw: string) => {
-      const cleaned = raw.replace(/[^0-9]/g, "");
-      const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
-      setValues((prev) => ({ ...prev, [key]: value }));
+  const makeHandler = React.useCallback(
+    (setter: React.Dispatch<React.SetStateAction<Record<string, number>>>) =>
+      (key: string, raw: string) => {
+        const cleaned = raw.replace(/[^0-9]/g, "");
+        const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+        setter((prev) => ({ ...prev, [key]: value }));
+      },
+    [],
+  );
+
+  const onManualChange = React.useMemo(() => makeHandler(setManualValues), [makeHandler, setManualValues]);
+  const onFsisChange = React.useMemo(() => makeHandler(setFsisValues), [makeHandler, setFsisValues]);
+
+  const groups: {
+    title: string;
+    fields: NumericFieldSpec[];
+    headClass: string;
+    subHeadClass: string;
+  }[] = [
+    {
+      title: "FSEC",
+      fields: ISSUANCE_FSEC_FIELDS,
+      headClass: "bg-sky-600 text-white",
+      subHeadClass:
+        "bg-sky-100 text-sky-900 dark:bg-sky-950/60 dark:text-sky-100",
     },
-    [setValues],
+    {
+      title: "FSIC",
+      fields: ISSUANCE_FSIC_FIELDS,
+      headClass: "bg-indigo-600 text-white",
+      subHeadClass:
+        "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-100",
+    },
+    {
+      title: "NOTICES",
+      fields: OTHERS_FIELDS,
+      headClass: "bg-amber-600 text-white",
+      subHeadClass:
+        "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-100",
+    },
+  ];
+
+  const shortLabel = (label: string) =>
+    label.replace(/^FSEC\s*-\s*/i, "").replace(/^FSIC\s*-\s*/i, "").toUpperCase();
+
+  const rowTotal = (values: Record<string, number>) =>
+    ISSUANCE_FIELDS.reduce((sum, f) => sum + (values[f.key] ?? 0), 0);
+
+  const colTotal = (key: string) =>
+    (manualValues[key] ?? 0) + (fsisValues[key] ?? 0);
+
+  const grandTotal = rowTotal(manualValues) + rowTotal(fsisValues);
+
+  const renderRow = (
+    rowLabel: string,
+    values: Record<string, number>,
+    onChange: (key: string, raw: string) => void,
+    zebra: boolean,
+  ) => (
+    <tr className={zebra ? "bg-card" : "bg-muted"}>
+      <td
+        className={cn(
+          "sticky left-0 z-20 border-b border-r px-3 py-1.5 text-center font-semibold uppercase tracking-wider",
+          zebra ? "bg-card" : "bg-muted",
+        )}
+      >
+        {rowLabel}
+      </td>
+      {groups.flatMap((g) =>
+        g.fields.map((f) => (
+          <td key={f.key} className="border-b border-r px-1.5 py-1.5 text-right">
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={String(values[f.key] ?? 0)}
+              onChange={(e) => onChange(f.key, e.target.value)}
+              onKeyDown={(e) => {
+                if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
+              }}
+              className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+            />
+          </td>
+        )),
+      )}
+      <td className="border-b px-3 py-1.5 text-center font-bold tabular-nums">
+        {rowTotal(values).toLocaleString()}
+      </td>
+    </tr>
   );
 
   return (
-    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-4">
-      <div className="text-sm font-semibold uppercase tracking-wider text-foreground">
-        {heading}
+    <div className="w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft">
+      <div className="overflow-auto">
+        <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+          <thead className="sticky top-0 z-30">
+            <tr>
+              <th
+                rowSpan={2}
+                className="sticky left-0 top-0 z-40 min-w-[110px] border-b border-r bg-blue-700 px-3 py-2 text-center align-middle uppercase tracking-wider text-white"
+              >
+                Issuance
+              </th>
+              {groups.map((g) => (
+                <th
+                  key={g.title}
+                  colSpan={g.fields.length}
+                  className={cn(
+                    "border-b border-r px-2 py-2 text-center uppercase tracking-wider",
+                    g.headClass,
+                  )}
+                >
+                  {g.title}
+                </th>
+              ))}
+              <th
+                rowSpan={2}
+                className="sticky right-0 top-0 z-40 min-w-[90px] border-b border-l bg-blue-700 px-3 py-2 text-center align-middle uppercase tracking-wider text-white"
+              >
+                Total
+              </th>
+            </tr>
+            <tr>
+              {groups.flatMap((g) =>
+                g.fields.map((f) => (
+                  <th
+                    key={f.key}
+                    className={cn(
+                      "min-w-[80px] border-b border-r px-1.5 py-1 text-center text-[10px] font-bold uppercase",
+                      g.subHeadClass,
+                    )}
+                    title={f.tooltip}
+                  >
+                    {shortLabel(f.label)}
+                  </th>
+                )),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {renderRow("MANUAL", manualValues, onManualChange, true)}
+            {renderRow("FSIS", fsisValues, onFsisChange, false)}
+            <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
+              <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
+                Total
+              </td>
+              {groups.flatMap((g) =>
+                g.fields.map((f) => (
+                  <td
+                    key={f.key}
+                    className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
+                  >
+                    {colTotal(f.key).toLocaleString()}
+                  </td>
+                )),
+              )}
+              <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
+                {grandTotal.toLocaleString()}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <SubGroup title="Fire Safety Evaluation Certificate (FSEC)">
-        <NumericGrid fields={ISSUANCE_FSEC_FIELDS} values={values} errors={{}} onChange={onChange} />
-      </SubGroup>
-      <SubGroup title="Fire Safety Inspection Certificate (FSIC)">
-        <NumericGrid fields={ISSUANCE_FSIC_FIELDS} values={values} errors={{}} onChange={onChange} />
-      </SubGroup>
-      <SubGroup title="Other Notices">
-        <NumericGrid fields={OTHERS_FIELDS} values={values} errors={{}} onChange={onChange} />
-      </SubGroup>
     </div>
   );
 }
