@@ -36,10 +36,7 @@ import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { isReportMonthLocked } from "@/pages/05_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
-import {
-  CATEGORY_FIELDS,
-  calendarDaysInMonth,
-} from "@/lib/inventoryHelpers";
+import { CATEGORY_FIELDS, calendarDaysInMonth } from "@/lib/inventoryHelpers";
 import type { MonthlyInventoryRow } from "@/types/inventoryType";
 import type {
   FSISInventoryMonthlyLedgerModel,
@@ -53,7 +50,6 @@ type FSISInventoryMonthlyItem = FSISInventoryMonthlyLedgerModel;
 type FSISInventoryLedgerDailyItem = FSISInventoryMonthlyClass &
   Partial<FSISIssuanceClassModel> & { dateinspected?: string | Date };
 import type { SearchStationModel } from "@/types/stationTypes";
-
 
 function DaysEncodedBadge({ encoded, total }: { encoded: number; total: number }) {
   const ratio = total ? encoded / total : 0;
@@ -134,17 +130,14 @@ function mapMonthlyItemToRow(
   fallbackYear = 0,
   fallbackMonth = 0,
 ): MonthlyInventoryRow {
-  const daily = Array.isArray(item.fsisInventoryLedgerList)
-    ? item.fsisInventoryLedgerList
-    : [];
+  const daily = Array.isArray(item.fsisInventoryLedgerList) ? item.fsisInventoryLedgerList : [];
   const breakdown = {
     inspection: sumBucket(daily, LEDGER_FIELD_MAP.inspection),
     fsec: sumBucket(daily, LEDGER_FIELD_MAP.fsec),
     fsic: sumBucket(daily, LEDGER_FIELD_MAP.fsic),
     notices: sumBucket(daily, LEDGER_FIELD_MAP.notices),
   };
-  const sumOf = (rec: Record<string, number>) =>
-    Object.values(rec).reduce((a, b) => a + b, 0);
+  const sumOf = (rec: Record<string, number>) => Object.values(rec).reduce((a, b) => a + b, 0);
   const totals = {
     inspection: sumOf(breakdown.inspection),
     fsec: sumOf(breakdown.fsec),
@@ -162,7 +155,10 @@ function mapMonthlyItemToRow(
     if (iso > latestDate) latestDate = iso;
   }
   if (!latestDate) {
-    const iso = String((item as { dateinspected?: string | Date }).dateinspected ?? "").slice(0, 10);
+    const iso = String((item as { dateinspected?: string | Date }).dateinspected ?? "").slice(
+      0,
+      10,
+    );
     if (iso && !iso.startsWith("1900")) latestDate = iso;
   }
 
@@ -438,11 +434,18 @@ export default function FireSafetyCompliancePage() {
           </div>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
-          <Button variant="outline" onClick={openMatrixGlobal} className="w-full justify-center gap-2 sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={openMatrixGlobal}
+            className="w-full justify-center gap-2 sm:w-auto"
+          >
             <LayoutGrid className="h-4 w-4" /> Compliance Matrix
           </Button>
           {canManage && (
-            <Button onClick={() => setAddOpen(true)} className="w-full justify-center gap-2 sm:w-auto">
+            <Button
+              onClick={() => setAddOpen(true)}
+              className="w-full justify-center gap-2 sm:w-auto"
+            >
               <Plus className="h-4 w-4" /> Add Record
             </Button>
           )}
@@ -609,7 +612,53 @@ export default function FireSafetyCompliancePage() {
         readOnly={!!matrixTarget}
       />
 
-      <InspectionsNewModal open={addOpen} onOpenChange={setAddOpen} onSaved={refresh} />
+      <InspectionsNewModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSaved={refresh}
+        onEditExisting={(stationno, year, month, stationName) => {
+          setEditTarget({
+            stationno,
+            stationname: stationName ?? "",
+            provinceno: "",
+            provincename: "",
+            cityname: "",
+            logoUrl: "",
+            year,
+            month,
+            stationcode: "",
+            key: `${stationno}|${year}|${month}`,
+            daysEncoded: 0,
+            daysInMonth: 0,
+            totals: {
+              inspection: 0,
+              fsec: 0,
+              fsic: 0,
+              notices: 0,
+            },
+            breakdown: {
+              inspection: {
+                inspectduring: 0,
+                insp_after: 0,
+                insp_bplo: 0,
+                insp_gov: 0,
+                insp_peza: 0,
+                insp_tieza: 0,
+              },
+              fsec: { fsec_building: 0, fsec_gov: 0, fsec_peza: 0, fsec_tieza: 0 },
+              fsic: {
+                fsic_occupancy: 0,
+                fsic_bplo_new: 0,
+                fsic_bplo_renewal: 0,
+                fsic_gov: 0,
+                fsic_peza: 0,
+                fsic_tieza: 0,
+              },
+              notices: { not_nod: 0, not_ntc: 0, not_ntcv: 0, not_abatement: 0, not_closure: 0 },
+            },
+          });
+        }}
+      />
 
       {viewTarget && (
         <InventoryViewModal
@@ -729,13 +778,13 @@ function ComplianceCard({
           </div>
           <div className="border-b border-border/60" />
           <div className="grid gap-3 md:grid-cols-2">
-            {[
-              DETAIL_SECTIONS.slice(0, 2),
-              DETAIL_SECTIONS.slice(2, 4),
-            ].map((group, groupIndex) => (
+            {[DETAIL_SECTIONS.slice(0, 2), DETAIL_SECTIONS.slice(2, 4)].map((group, groupIndex) => (
               <div key={groupIndex} className="space-y-3">
                 {group.map((section) => (
-                  <div key={section.key} className="rounded-xl border border-border/60 bg-white/80 overflow-hidden">
+                  <div
+                    key={section.key}
+                    className="rounded-xl border border-border/60 bg-white/80 overflow-hidden"
+                  >
                     <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-primary/10 px-3 py-2">
                       <span className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">
                         {section.title}

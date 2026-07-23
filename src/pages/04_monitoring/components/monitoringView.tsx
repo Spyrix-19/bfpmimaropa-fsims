@@ -44,17 +44,17 @@ const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
 // Match the spreadsheet-style palette used by monitoringEdit.
 const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-[hsl(210_85%_82%)] text-slate-900",
-  FSEC: "bg-[hsl(24_90%_75%)] text-slate-900",
-  FSIC: "bg-[hsl(215_20%_78%)] text-slate-900",
-  NOTICES: "bg-[hsl(215_20%_78%)] text-slate-900",
+  INSPECTION: "bg-sky-200 text-slate-900 dark:bg-sky-950/60 dark:text-sky-100",
+  FSEC: "bg-slate-200 text-slate-900 dark:bg-slate-950/60 dark:text-slate-100",
+  FSIC: "bg-indigo-200 text-slate-900 dark:bg-indigo-950/60 dark:text-indigo-100",
+  NOTICES: "bg-cyan-200 text-slate-900 dark:bg-cyan-950/60 dark:text-cyan-100",
 };
 
 const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-[hsl(210_85%_92%)] text-slate-800",
-  FSEC: "bg-[hsl(24_90%_88%)] text-slate-800",
-  FSIC: "bg-[hsl(215_25%_88%)] text-slate-800",
-  NOTICES: "bg-[hsl(215_25%_88%)] text-slate-800",
+  INSPECTION: "bg-sky-50 text-slate-800 dark:bg-sky-950/80 dark:text-sky-100",
+  FSEC: "bg-slate-50 text-slate-800 dark:bg-slate-950/80 dark:text-slate-100",
+  FSIC: "bg-indigo-50 text-slate-800 dark:bg-indigo-950/80 dark:text-indigo-100",
+  NOTICES: "bg-cyan-50 text-slate-800 dark:bg-cyan-950/80 dark:text-cyan-100",
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(

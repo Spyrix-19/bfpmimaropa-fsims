@@ -2,9 +2,10 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { z } from "zod";
-import { CalendarIcon, FilePlus2, Loader2, Save, Building2 } from "lucide-react";
+import { AlertTriangle, CalendarIcon, FilePlus2, Loader2, Save, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,17 +28,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
-
-
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
@@ -46,9 +40,11 @@ import { cn } from "@/lib/utils";
 
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
-import type { FSISInventoryDTO } from "@/types/targetinventoryType";
+import type {
+  FSISInventoryDTO,
+  FSISInventoryMonthlyLedgerModel,
+} from "@/types/targetinventoryType";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
-
 
 /* -------------------------------------------------------------------------- */
 /*  Field spec — a single declarative source drives layout, defaults, keys.   */
@@ -102,15 +98,9 @@ const OTHERS_FIELDS: NumericFieldSpec[] = [
   { key: "not_closure", label: "Closure" },
 ];
 
-const ISSUANCE_FIELDS = [
-  ...ISSUANCE_FSEC_FIELDS,
-  ...ISSUANCE_FSIC_FIELDS,
-  ...OTHERS_FIELDS,
-];
+const ISSUANCE_FIELDS = [...ISSUANCE_FSEC_FIELDS, ...ISSUANCE_FSIC_FIELDS, ...OTHERS_FIELDS];
 
-const ALL_NUMERIC_FIELDS = [
-  ...DAILY_INSPECTION_FIELDS,
-];
+const ALL_NUMERIC_FIELDS = [...DAILY_INSPECTION_FIELDS];
 
 /* -------------------------------------------------------------------------- */
 /*  Validation                                                                */
@@ -125,9 +115,7 @@ const nonNegativeInt = z.preprocess(
   z.number().int({ message: "Whole numbers only" }).min(0, { message: "Cannot be negative" }),
 );
 
-const numericShape = Object.fromEntries(
-  ALL_NUMERIC_FIELDS.map((f) => [f.key, nonNegativeInt]),
-);
+const numericShape = Object.fromEntries(ALL_NUMERIC_FIELDS.map((f) => [f.key, nonNegativeInt]));
 
 const schema = z
   .object({
@@ -140,13 +128,15 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-const defaultNumeric = Object.fromEntries(
-  ALL_NUMERIC_FIELDS.map((f) => [f.key, 0]),
-) as Record<string, number>;
+const defaultNumeric = Object.fromEntries(ALL_NUMERIC_FIELDS.map((f) => [f.key, 0])) as Record<
+  string,
+  number
+>;
 
-const defaultIssuance = Object.fromEntries(
-  ISSUANCE_FIELDS.map((f) => [f.key, 0]),
-) as Record<string, number>;
+const defaultIssuance = Object.fromEntries(ISSUANCE_FIELDS.map((f) => [f.key, 0])) as Record<
+  string,
+  number
+>;
 
 /* -------------------------------------------------------------------------- */
 /*  Screen body — used stand-alone AND inside the modal wrapper.              */
@@ -155,9 +145,11 @@ const defaultIssuance = Object.fromEntries(
 function InspectionsNewBody({
   onSaved,
   onCancel,
+  onEditExisting,
 }: {
   onSaved?: () => void;
   onCancel?: () => void;
+  onEditExisting?: (stationno: string, year: number, month: number, stationName?: string) => void;
 }) {
   const { user, systemAccess } = useAuth();
   const scope = React.useMemo(
@@ -199,10 +191,18 @@ function InspectionsNewBody({
         model: null,
       });
     }
-  }, [scope.provinceLocked, scope.provinceno, scope.provincename, scope.stationLocked, scope.stationno, scope.stationname]);
+  }, [
+    scope.provinceLocked,
+    scope.provinceno,
+    scope.provincename,
+    scope.stationLocked,
+    scope.stationno,
+    scope.stationname,
+  ]);
 
   const [numeric, setNumeric] = React.useState<Record<string, number>>(defaultNumeric);
-  const [manualIssuance, setManualIssuance] = React.useState<Record<string, number>>(defaultIssuance);
+  const [manualIssuance, setManualIssuance] =
+    React.useState<Record<string, number>>(defaultIssuance);
   const [fsisIssuance, setFsisIssuance] = React.useState<Record<string, number>>(defaultIssuance);
   // Mode of Issuance is fixed per column: MANUAL = 96, FSIS = 97.
   const manualModeNo = "96";
@@ -210,16 +210,69 @@ function InspectionsNewBody({
   const [remarks, setRemarks] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
+  const [duplicatePrompted, setDuplicatePrompted] = React.useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = React.useState(false);
+  const [pendingDuplicateTarget, setPendingDuplicateTarget] = React.useState<{
+    stationno: string;
+    year: number;
+    month: number;
+    stationName?: string;
+  } | null>(null);
 
   const year = reportingDate.getFullYear();
   const month = reportingDate.getMonth() + 1;
   const monthName = MONTHS.find((m) => m.value === month)?.name ?? "";
 
+  const formatDateKey = (value: string | Date | null | undefined) => {
+    if (!value) return null;
+    if (typeof value === "string") return value.slice(0, 10);
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return format(value, "yyyy-MM-dd");
+    return null;
+  };
+
+  const checkExistingDailyRecord = async (
+    stationNumber: string,
+    provinceNumber: string,
+    date: Date,
+  ) => {
+    const resp = await targetinventoryAPI.getMonthly(
+      {
+        Stationno: stationNumber || EMPTY_GUID,
+        Provinceno: provinceNumber || EMPTY_GUID,
+        Reportyear: date.getFullYear(),
+        Reportmonth: date.getMonth() + 1,
+      },
+      { suppressGlobalLoading: true },
+    );
+
+    const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
+    if (!ok) {
+      toast.error(error || "Unable to verify existing fire safety compliance record.");
+      return null;
+    }
+
+    const record = Array.isArray(data) ? (data[0] ?? null) : null;
+    if (!record || !Array.isArray(record.fsisInventoryLedgerList)) return null;
+
+    const checkKey = formatDateKey(date);
+    if (!checkKey) return null;
+
+    const existing = record.fsisInventoryLedgerList.find(
+      (item) => formatDateKey(item.dateinspected) === checkKey,
+    );
+    if (!existing) return null;
+
+    return {
+      stationno: stationNumber,
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+    };
+  };
+
   /* ------------------------- Monthly summary lookups ---------------------- */
   // Data now lives in <TargetAccomplishmentPanel/>, which fetches via
   // targetinventoryAPI.getTargetAccomplishment whenever (station, year, month)
   // changes and dedupes identical requests.
-
 
   /* --------------------------- Numeric handlers --------------------------- */
 
@@ -257,11 +310,37 @@ function InspectionsNewBody({
     setErrors({});
     setSaving(true);
     try {
+      const submitStationNo = scope.stationLocked
+        ? scope.stationno || station.no || ""
+        : station.no;
+
+      if (!submitStationNo || submitStationNo === EMPTY_GUID) {
+        toast.error("Please select a station.");
+        return;
+      }
+
+      if (!duplicatePrompted) {
+        const existing = await checkExistingDailyRecord(
+          submitStationNo,
+          province.no,
+          reportingDate,
+        );
+        if (existing) {
+          setDuplicatePrompted(true);
+          setPendingDuplicateTarget({
+            stationno: existing.stationno,
+            year: existing.year,
+            month: existing.month,
+            stationName: station.name || user?.stationname,
+          });
+          setDuplicateDialogOpen(true);
+          setSaving(false);
+          return;
+        }
+      }
+
       const iso = format(reportingDate, "yyyy-MM-dd");
-      const buildIssuance = (
-        modeNo: string,
-        vals: Record<string, number>,
-      ) => {
+      const buildIssuance = (modeNo: string, vals: Record<string, number>) => {
         const modeNum = Number(modeNo);
         return {
           issuanceno: EMPTY_GUID,
@@ -285,7 +364,7 @@ function InspectionsNewBody({
       };
       const payload: FSISInventoryDTO = {
         fsisno: EMPTY_GUID,
-        stationno: station.no,
+        stationno: submitStationNo,
         dateinspected: iso,
         inspectduringcount: numeric.insp_during_construction ?? 0,
         inspectaftercount: numeric.insp_fsic_occupancy ?? 0,
@@ -314,10 +393,34 @@ function InspectionsNewBody({
     }
   };
 
+  const handleDuplicateConfirm = () => {
+    if (pendingDuplicateTarget && onEditExisting) {
+      onEditExisting(
+        pendingDuplicateTarget.stationno,
+        pendingDuplicateTarget.year,
+        pendingDuplicateTarget.month,
+        pendingDuplicateTarget.stationName,
+      );
+    }
+    setDuplicatePrompted(false);
+    setPendingDuplicateTarget(null);
+    setDuplicateDialogOpen(false);
+  };
+
+  const handleDuplicateCancel = () => {
+    setDuplicatePrompted(false);
+    setPendingDuplicateTarget(null);
+    setDuplicateDialogOpen(false);
+  };
+
+  const handleDuplicateDialogOpenChange = (newOpen: boolean) => {
+    if (!newOpen && !pendingDuplicateTarget) {
+      setDuplicatePrompted(false);
+    }
+    setDuplicateDialogOpen(newOpen);
+  };
 
   /* ---------------------------------- UI ---------------------------------- */
-
-
 
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
@@ -325,11 +428,7 @@ function InspectionsNewBody({
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
         <div className="grid grid-cols-1 gap-4 sm:max-w-md">
-          <Field
-            label="Reporting Period As Of"
-            required
-            error={errors.reportingDate}
-          >
+          <Field label="Reporting Period As Of" required error={errors.reportingDate}>
             <Popover open={dateOpen} onOpenChange={setDateOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -392,9 +491,7 @@ function InspectionsNewBody({
               provinceno={province.no || undefined}
               disabled={scope.stationLocked}
               placeholder={
-                scope.stationLocked
-                  ? station.name || "Assigned station"
-                  : "Select station"
+                scope.stationLocked ? station.name || "Assigned station" : "Select station"
               }
               onChange={(no, name, _prov, model) => {
                 if (scope.stationLocked) return;
@@ -402,7 +499,11 @@ function InspectionsNewBody({
                 if (errors.stationno) setErrors((e) => ({ ...e, stationno: "" }));
                 // Auto-sync province from the selected station so the two
                 // pickers stay in lockstep (bi-directional cross-filter).
-                if (!scope.provinceLocked && model?.provinceno && model.provinceno !== province.no) {
+                if (
+                  !scope.provinceLocked &&
+                  model?.provinceno &&
+                  model.provinceno !== province.no
+                ) {
                   setProvince({
                     no: model.provinceno,
                     name: model.provincename ?? "",
@@ -413,10 +514,7 @@ function InspectionsNewBody({
               }}
             />
           </Field>
-
         </div>
-
-
       </Card>
 
       {/* 3. Daily Inspection Activities ------------------------------------ */}
@@ -426,12 +524,7 @@ function InspectionsNewBody({
           subtitle={`Reporting month · ${monthName} ${year}`}
         />
 
-        <TargetAccomplishmentPanel
-          stationno={station.no || undefined}
-          year={year}
-          month={month}
-        />
-
+        <TargetAccomplishmentPanel stationno={station.no || undefined} year={year} month={month} />
 
         <div className="space-y-4">
           <InspectionMatrix
@@ -493,6 +586,21 @@ function InspectionsNewBody({
 
       {/* Track auth context so unused-var lint stays quiet in stand-alone mode. */}
       <input type="hidden" value={user?.memberno ?? ""} readOnly />
+
+      <ConfirmDialog
+        open={duplicateDialogOpen}
+        onOpenChange={handleDuplicateDialogOpenChange}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="bg-amber-50"
+        contentIconColorClass="text-amber-700"
+        title="Fire Safety Compliance Already Exists"
+        description="A fire safety compliance record for this station and reporting date already exists. Open the existing record for editing instead."
+        confirmLabel="Edit Existing"
+        showCancel={true}
+        cancelLabel="Continue Adding"
+        onConfirm={handleDuplicateConfirm}
+        onCancel={handleDuplicateCancel}
+      />
     </form>
   );
 }
@@ -541,10 +649,12 @@ export function InspectionsNewModal({
   open,
   onOpenChange,
   onSaved,
+  onEditExisting,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onSaved?: () => void;
+  onEditExisting?: (stationno: string, year: number, month: number, stationName?: string) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -555,7 +665,9 @@ export function InspectionsNewModal({
               <FilePlus2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">Fire Safety Compliance Entry</DialogTitle>
+              <DialogTitle className="text-base font-bold">
+                Fire Safety Compliance Entry
+              </DialogTitle>
               <DialogDescription>
                 Select a reporting period and station, then encode daily accomplishments.
               </DialogDescription>
@@ -572,6 +684,10 @@ export function InspectionsNewModal({
                   onOpenChange(false);
                 }}
                 onCancel={() => onOpenChange(false)}
+                onEditExisting={(stationno, year, month, stationName) => {
+                  onOpenChange(false);
+                  onEditExisting?.(stationno, year, month, stationName);
+                }}
               />
             ) : null}
           </div>
@@ -580,10 +696,6 @@ export function InspectionsNewModal({
     </Dialog>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Presentational helpers                                                    */
-/* -------------------------------------------------------------------------- */
 
 function SectionTitle({
   title,
@@ -626,8 +738,14 @@ function IssuanceTable({
     [],
   );
 
-  const onManualChange = React.useMemo(() => makeHandler(setManualValues), [makeHandler, setManualValues]);
-  const onFsisChange = React.useMemo(() => makeHandler(setFsisValues), [makeHandler, setFsisValues]);
+  const onManualChange = React.useMemo(
+    () => makeHandler(setManualValues),
+    [makeHandler, setManualValues],
+  );
+  const onFsisChange = React.useMemo(
+    () => makeHandler(setFsisValues),
+    [makeHandler, setFsisValues],
+  );
 
   const groups: {
     title: string;
@@ -638,34 +756,33 @@ function IssuanceTable({
     {
       title: "FSEC",
       fields: ISSUANCE_FSEC_FIELDS,
-      headClass: "bg-sky-600 text-white",
-      subHeadClass:
-        "bg-sky-100 text-sky-900 dark:bg-sky-950/60 dark:text-sky-100",
+      headClass: "bg-sky-700 text-white dark:bg-sky-600",
+      subHeadClass: "bg-sky-100 text-sky-900 dark:bg-sky-950/60 dark:text-sky-100",
     },
     {
       title: "FSIC",
       fields: ISSUANCE_FSIC_FIELDS,
-      headClass: "bg-indigo-600 text-white",
-      subHeadClass:
-        "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-100",
+      headClass: "bg-slate-700 text-white dark:bg-slate-600",
+      subHeadClass: "bg-slate-100 text-slate-900 dark:bg-slate-950/60 dark:text-slate-100",
     },
     {
       title: "NOTICES",
       fields: OTHERS_FIELDS,
-      headClass: "bg-amber-600 text-white",
-      subHeadClass:
-        "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-100",
+      headClass: "bg-cyan-700 text-white dark:bg-cyan-600",
+      subHeadClass: "bg-cyan-100 text-cyan-900 dark:bg-cyan-950/60 dark:text-cyan-100",
     },
   ];
 
   const shortLabel = (label: string) =>
-    label.replace(/^FSEC\s*-\s*/i, "").replace(/^FSIC\s*-\s*/i, "").toUpperCase();
+    label
+      .replace(/^FSEC\s*-\s*/i, "")
+      .replace(/^FSIC\s*-\s*/i, "")
+      .toUpperCase();
 
   const rowTotal = (values: Record<string, number>) =>
     ISSUANCE_FIELDS.reduce((sum, f) => sum + (values[f.key] ?? 0), 0);
 
-  const colTotal = (key: string) =>
-    (manualValues[key] ?? 0) + (fsisValues[key] ?? 0);
+  const colTotal = (key: string) => (manualValues[key] ?? 0) + (fsisValues[key] ?? 0);
 
   const grandTotal = rowTotal(manualValues) + rowTotal(fsisValues);
 
@@ -910,9 +1027,7 @@ function InspectionMatrix({
           disabled && "cursor-not-allowed opacity-60",
         )}
       />
-      {errors[f.key] && (
-        <p className="text-[11px] font-medium text-destructive">{errors[f.key]}</p>
-      )}
+      {errors[f.key] && <p className="text-[11px] font-medium text-destructive">{errors[f.key]}</p>}
     </div>
   );
 
@@ -922,12 +1037,8 @@ function InspectionMatrix({
       <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
         <div className="mb-3 text-sm font-semibold text-foreground">Inspection Activities</div>
         <div className="space-y-4">
-          <div className="space-y-3">
-            {constructionRow && renderNumericInput(constructionRow)}
-          </div>
-          <div className="space-y-3">
-            {occupancyRow && renderNumericInput(occupancyRow)}
-          </div>
+          <div className="space-y-3">{constructionRow && renderNumericInput(constructionRow)}</div>
+          <div className="space-y-3">{occupancyRow && renderNumericInput(occupancyRow)}</div>
         </div>
       </div>
 

@@ -1,7 +1,16 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { AlertCircle, ArrowLeft, Building2, CalendarIcon, Loader2, Save, Table2, Lock } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  CalendarIcon,
+  Loader2,
+  Save,
+  Table2,
+  Lock,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Card } from "@/components/ui/card";
@@ -49,7 +58,6 @@ import type {
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
-
 /* ========================================================================== */
 /*  Shared field definitions (mirror from monitoringView CATEGORY_FIELDS)   */
 /* ========================================================================== */
@@ -63,23 +71,21 @@ const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
 // Spreadsheet-style palette matching the reference sample (pastel color-blocked headers).
 const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-[hsl(210_85%_82%)] text-slate-900",
-  FSEC: "bg-[hsl(24_90%_75%)] text-slate-900",
-  FSIC: "bg-[hsl(215_20%_78%)] text-slate-900",
-  NOTICES: "bg-[hsl(215_20%_78%)] text-slate-900",
+  INSPECTION: "bg-sky-200 text-slate-900 dark:bg-sky-950/60 dark:text-sky-100",
+  FSEC: "bg-slate-200 text-slate-900 dark:bg-slate-950/60 dark:text-slate-100",
+  FSIC: "bg-indigo-200 text-slate-900 dark:bg-indigo-950/60 dark:text-indigo-100",
+  NOTICES: "bg-cyan-200 text-slate-900 dark:bg-cyan-950/60 dark:text-cyan-100",
 };
 
 const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-[hsl(210_85%_92%)] text-slate-800",
-  FSEC: "bg-[hsl(24_90%_88%)] text-slate-800",
-  FSIC: "bg-[hsl(215_25%_88%)] text-slate-800",
-  NOTICES: "bg-[hsl(215_25%_88%)] text-slate-800",
+  INSPECTION: "bg-sky-50 text-slate-800 dark:bg-sky-950/80 dark:text-sky-100",
+  FSEC: "bg-slate-50 text-slate-800 dark:bg-slate-950/80 dark:text-slate-100",
+  FSIC: "bg-indigo-50 text-slate-800 dark:bg-indigo-950/80 dark:text-indigo-100",
+  NOTICES: "bg-cyan-50 text-slate-800 dark:bg-cyan-950/80 dark:text-cyan-100",
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
-  FIELD_GROUPS.flatMap((g) =>
-    g.fields.map((f) => [String(f.key), g.category] as const),
-  ),
+  FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [String(f.key), g.category] as const)),
 );
 
 /* ========================================================================== */
@@ -249,7 +255,7 @@ function buildEditableDays(
   month: number,
 ): Map<string, EditableDay> {
   const map = new Map<string, EditableDay>();
-  
+
   // Index API data by date
   const dataByDate = new Map<string, FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>>();
   if (Array.isArray(list)) {
@@ -377,7 +383,6 @@ function buildEditableDays(
   return map;
 }
 
-
 /* ========================================================================== */
 /*  Editor body — per-day editable table                                     */
 /* ========================================================================== */
@@ -409,15 +414,13 @@ function InventoryEditBody({
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
 
   // Editable days indexed by YYYY-MM-DD
-  const [editableDays, setEditableDays] = React.useState<Map<string, EditableDay>>(
-    new Map()
-  );
+  const [editableDays, setEditableDays] = React.useState<Map<string, EditableDay>>(new Map());
 
   // Baseline to detect unsaved changes
   const [baseline, setBaseline] = React.useState<string>("");
   const currentSnapshot = React.useMemo(
     () => JSON.stringify(Array.from(editableDays.entries())),
-    [editableDays]
+    [editableDays],
   );
   const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
 
@@ -454,16 +457,16 @@ function InventoryEditBody({
           Reportyear: year,
           Reportmonth: month,
         },
-        { suppressGlobalLoading: true }
+        { suppressGlobalLoading: true },
       );
       if (cancelled) return;
 
       const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
       if (!ok) toast.error(error || "Failed to load monthly data.");
-      const first = ok && Array.isArray(data) ? data[0] ?? null : null;
-      
+      const first = ok && Array.isArray(data) ? (data[0] ?? null) : null;
+
       setStation(first);
-      
+
       const days = buildEditableDays(first?.fsisInventoryLedgerList, year, month);
       setEditableDays(days);
       setBaseline(JSON.stringify(Array.from(days.entries())));
@@ -495,7 +498,12 @@ function InventoryEditBody({
 
   /* ------------------------------- Handlers ------------------------------ */
 
-  const updateDayField = (dayKey: string, fieldKey: string, raw: string, issuanceMode: "manual" | "fsis" | "inspection") => {
+  const updateDayField = (
+    dayKey: string,
+    fieldKey: string,
+    raw: string,
+    issuanceMode: "manual" | "fsis" | "inspection",
+  ) => {
     setEditableDays((prev) => {
       const newMap = new Map(prev);
       const day = newMap.get(dayKey);
@@ -504,11 +512,12 @@ function InventoryEditBody({
       const cleaned = raw.replace(/[^0-9]/g, "");
       const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
 
-      const apiKey = FIELD_TO_API[fieldKey] as keyof (FSISInventoryDetailItem | EditableIssuance) | undefined;
+      const apiKey = FIELD_TO_API[fieldKey] as
+        keyof (FSISInventoryDetailItem | EditableIssuance) | undefined;
       if (!apiKey) return prev;
 
-      let updated = { ...day };
-      
+      const updated = { ...day };
+
       if (issuanceMode === "inspection") {
         updated.inspection = { ...day.inspection, [apiKey]: value };
       } else if (issuanceMode === "manual") {
@@ -599,7 +608,10 @@ function InventoryEditBody({
           });
         }
 
-        if (day.fsis.fsicmode === 97 || (day.fsis.fsicmode === 0 && day.fsis.issuanceno !== EMPTY_GUID)) {
+        if (
+          day.fsis.fsicmode === 97 ||
+          (day.fsis.fsicmode === 0 && day.fsis.issuanceno !== EMPTY_GUID)
+        ) {
           issuancelist.push({
             issuanceno: day.fsis.issuanceno || EMPTY_GUID,
             fsicmode: 97,
@@ -706,7 +718,9 @@ function InventoryEditBody({
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">Reporting Month</span>
             <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
-              <span className="truncate">{monthName} {year}</span>
+              <span className="truncate">
+                {monthName} {year}
+              </span>
             </div>
           </div>
         </div>
@@ -748,7 +762,10 @@ function InventoryEditBody({
         />
 
         {/* Daily table — spreadsheet-style, scrolls in both axes */}
-        <div className="w-full max-w-full overflow-auto rounded-md border border-slate-300 shadow-soft" style={{ maxHeight: "70vh" }}>
+        <div
+          className="w-full max-w-full overflow-auto rounded-md border border-slate-300 shadow-soft"
+          style={{ maxHeight: "70vh" }}
+        >
           <table className="min-w-max border-separate border-spacing-0 text-[11px] text-slate-900">
             <thead className="sticky top-0 z-30">
               <tr>
@@ -768,7 +785,9 @@ function InventoryEditBody({
                   rowSpan={2}
                   className="sticky top-0 z-30 border-b border-r border-slate-300 bg-slate-100 px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[90px]"
                 >
-                  Mode of<br />Issuance
+                  Mode of
+                  <br />
+                  Issuance
                 </th>
                 <th
                   colSpan={4}
@@ -796,7 +815,7 @@ function InventoryEditBody({
                 </th>
                 <th
                   rowSpan={2}
-                  className="sticky top-0 z-30 border-b border-slate-300 bg-slate-100 px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[160px]"
+                  className="sticky top-0 z-30 border-b border-l border-slate-300 bg-slate-100 px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[160px]"
                 >
                   Remarks
                 </th>
@@ -855,7 +874,12 @@ function InventoryEditBody({
                                 pattern="[0-9]*"
                                 value={String(value)}
                                 onChange={(e) =>
-                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "inspection")
+                                  updateDayField(
+                                    dayEntry.key,
+                                    String(field.key),
+                                    e.target.value,
+                                    "inspection",
+                                  )
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
                               />
@@ -864,7 +888,6 @@ function InventoryEditBody({
                         );
                       })}
                       <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase text-slate-900">
-
                         MANUAL
                       </td>
                       {/* FSEC fields */}
@@ -890,7 +913,12 @@ function InventoryEditBody({
                                 pattern="[0-9]*"
                                 value={String(value)}
                                 onChange={(e) =>
-                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "manual")
+                                  updateDayField(
+                                    dayEntry.key,
+                                    String(field.key),
+                                    e.target.value,
+                                    "manual",
+                                  )
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
                               />
@@ -921,7 +949,12 @@ function InventoryEditBody({
                                 pattern="[0-9]*"
                                 value={String(value)}
                                 onChange={(e) =>
-                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "manual")
+                                  updateDayField(
+                                    dayEntry.key,
+                                    String(field.key),
+                                    e.target.value,
+                                    "manual",
+                                  )
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
                               />
@@ -952,7 +985,12 @@ function InventoryEditBody({
                                 pattern="[0-9]*"
                                 value={String(value)}
                                 onChange={(e) =>
-                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "manual")
+                                  updateDayField(
+                                    dayEntry.key,
+                                    String(field.key),
+                                    e.target.value,
+                                    "manual",
+                                  )
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
                               />
@@ -960,17 +998,22 @@ function InventoryEditBody({
                           </td>
                         );
                       })}
-                      <td rowSpan={2} className="border-b px-3 py-1.5 text-center align-middle font-semibold tabular-nums">
+                      <td
+                        rowSpan={2}
+                        className="border-b px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
+                      >
                         {DETAIL_FIELDS.reduce(
                           (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
-                          0
+                          0,
                         ).toLocaleString()}
                       </td>
-                      <td rowSpan={2} className="border-b px-3 py-1.5 text-left align-middle text-muted-foreground text-[10px]">
+                      <td
+                        rowSpan={2}
+                        className="border-b px-3 py-1.5 text-left align-middle text-muted-foreground text-[10px]"
+                      >
                         {dayEntry.inspection.remarks || "—"}
                       </td>
                     </tr>
-
 
                     {/* FSIS row */}
                     <tr className={dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}>
@@ -1002,7 +1045,12 @@ function InventoryEditBody({
                                 pattern="[0-9]*"
                                 value={String(value)}
                                 onChange={(e) =>
-                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "fsis")
+                                  updateDayField(
+                                    dayEntry.key,
+                                    String(field.key),
+                                    e.target.value,
+                                    "fsis",
+                                  )
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
                               />
@@ -1033,7 +1081,12 @@ function InventoryEditBody({
                                 pattern="[0-9]*"
                                 value={String(value)}
                                 onChange={(e) =>
-                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "fsis")
+                                  updateDayField(
+                                    dayEntry.key,
+                                    String(field.key),
+                                    e.target.value,
+                                    "fsis",
+                                  )
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
                               />
@@ -1064,7 +1117,12 @@ function InventoryEditBody({
                                 pattern="[0-9]*"
                                 value={String(value)}
                                 onChange={(e) =>
-                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "fsis")
+                                  updateDayField(
+                                    dayEntry.key,
+                                    String(field.key),
+                                    e.target.value,
+                                    "fsis",
+                                  )
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
                               />
@@ -1073,7 +1131,6 @@ function InventoryEditBody({
                         );
                       })}
                       {/* Total and Remarks are merged with the MANUAL row above (rowSpan=2) */}
-
                     </tr>
                   </React.Fragment>
                 );
@@ -1087,7 +1144,7 @@ function InventoryEditBody({
                 {DETAIL_FIELDS.map((field, idx) => {
                   const columnTotal = days.reduce(
                     (sum, d) => sum + num(d.totals[field.key as keyof DailyInventoryDTO]),
-                    0
+                    0,
                   );
                   // Insert Mode-of-Issuance spacer cell between INSPECTION (6 fields) and FSEC
                   const cells = [];
@@ -1096,7 +1153,7 @@ function InventoryEditBody({
                       <td
                         key="__mode_spacer__"
                         className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-2 py-2"
-                      />
+                      />,
                     );
                   }
                   cells.push(
@@ -1105,31 +1162,31 @@ function InventoryEditBody({
                       className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-2 py-2 text-center text-[11px] font-bold tabular-nums"
                     >
                       {columnTotal.toLocaleString()}
-                    </td>
+                    </td>,
                   );
                   return cells;
                 })}
                 <td className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_72%)] px-3 py-2 text-center text-[11px] font-bold tabular-nums">
-                  {days.reduce(
-                    (sum, d) =>
-                      sum +
-                      DETAIL_FIELDS.reduce(
-                        (rowSum, f) =>
-                          rowSum + num(d.totals[f.key as keyof DailyInventoryDTO]),
-                        0
-                      ),
-                    0
-                  ).toLocaleString()}
+                  {days
+                    .reduce(
+                      (sum, d) =>
+                        sum +
+                        DETAIL_FIELDS.reduce(
+                          (rowSum, f) => rowSum + num(d.totals[f.key as keyof DailyInventoryDTO]),
+                          0,
+                        ),
+                      0,
+                    )
+                    .toLocaleString()}
                 </td>
                 <td className="border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-3 py-2" />
               </tr>
             </tfoot>
-            </table>
+          </table>
         </div>
 
-
         {/* Remarks section */}
-        <div className="border-t pt-4">
+        <div className="border-t border-border/60 pt-4">
           <label className="text-xs font-medium text-muted-foreground">
             General Remarks (applies to all days)
           </label>
@@ -1190,7 +1247,8 @@ function InventoryEditBody({
           <AlertDialogHeader>
             <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have edited daily inspection or issuance values. Leaving now will discard those changes.
+              You have edited daily inspection or issuance values. Leaving now will discard those
+              changes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
