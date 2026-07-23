@@ -735,7 +735,7 @@ function IssuanceTable({
               ))}
               <th
                 rowSpan={2}
-                className="sticky right-0 top-0 z-40 min-w-[90px] border-b border-l bg-blue-700 px-3 py-2 text-center align-middle uppercase tracking-wider text-white"
+                className="min-w-[90px] border-b border-l bg-blue-700 px-3 py-2 text-center align-middle uppercase tracking-wider text-white"
               >
                 Total
               </th>

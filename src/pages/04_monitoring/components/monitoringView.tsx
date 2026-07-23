@@ -28,6 +28,9 @@ import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField"
 import type { DailyInventoryDTO } from "@/types/inventoryType";
 import type {
   TargetAccomplishmentModel,
+  FSISInventoryMonthlyLedgerModel,
+  FSISInventoryMonthlyClass,
+  FSISIssuanceClassModel,
 } from "@/types/targetinventoryType";
 import type { SearchStationModel } from "@/types/stationTypes";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
@@ -39,23 +42,19 @@ const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
 }));
 const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
-/** Group header tones — kept in lock-step with the Edit page (`monitoringEdit.tsx`)
- *  so both views share the same visual identity. */
+// Match the spreadsheet-style palette used by monitoringEdit.
 const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-emerald-600 text-white",
-  FSEC: "bg-sky-600 text-white",
-  FSIC: "bg-indigo-600 text-white",
-  NOTICES: "bg-amber-600 text-white",
+  INSPECTION: "bg-[hsl(210_85%_82%)] text-slate-900",
+  FSEC: "bg-[hsl(24_90%_75%)] text-slate-900",
+  FSIC: "bg-[hsl(215_20%_78%)] text-slate-900",
+  NOTICES: "bg-[hsl(215_20%_78%)] text-slate-900",
 };
 
-/** Sub-header tones per category — lighter shade of the group tone so each
- *  category's detail columns are visually distinct. */
 const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION:
-    "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100",
-  FSEC: "bg-sky-100 text-sky-900 dark:bg-sky-950/60 dark:text-sky-100",
-  FSIC: "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-100",
-  NOTICES: "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-100",
+  INSPECTION: "bg-[hsl(210_85%_92%)] text-slate-800",
+  FSEC: "bg-[hsl(24_90%_88%)] text-slate-800",
+  FSIC: "bg-[hsl(215_25%_88%)] text-slate-800",
+  NOTICES: "bg-[hsl(215_25%_88%)] text-slate-800",
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
@@ -64,61 +63,37 @@ const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
   ),
 );
 
-/**
- * Shape of a single item in `data[0].fsisInventoryDetailList`. All numeric
- * count fields sit flat on the record (unlike Monthly, which nests issuance
- * counts inside `issuancelist`).
- */
-interface FSISInventoryDetailItem {
-  fsisno: string;
-  dateinspected: string | Date;
-  remarks?: string | null;
-
-  inspectduringcount?: number | null;
-  inspectaftercount?: number | null;
-  inspectbplocount?: number | null;
-  inspectgovcount?: number | null;
-  inspectpezacount?: number | null;
-  inspecttiezacount?: number | null;
-
-  fsecbuildingcount?: number | null;
-  fsecgovcount?: number | null;
-  fsecpezacount?: number | null;
-  fsectiezacount?: number | null;
-
-  fsicoccupancycount?: number | null;
-  fsicbplonewcount?: number | null;
-  fsicbplorenewcount?: number | null;
-  fsicgovcount?: number | null;
-  fsicpezacount?: number | null;
-  fsictiezacount?: number | null;
-
-  nodcount?: number | null;
-  ntccount?: number | null;
-  ntcvcount?: number | null;
-  avatementcount?: number | null;
-  closurecount?: number | null;
+/** Flat inspection record extracted from a Monthly ledger row. */
+interface InspectionCounts {
+  remarks: string;
+  inspectduringcount: number;
+  inspectaftercount: number;
+  inspectbplocount: number;
+  inspectgovcount: number;
+  inspectpezacount: number;
+  inspecttiezacount: number;
 }
 
-interface FSISInventoryDetailStation {
-  stationno: string;
-  month?: number;
-  year?: number;
-
-  totaltargetbplo?: number;
-  totaltargetgov?: number;
-  totaltargetpeza?: number;
-  totaltargettieza?: number;
-  totalAccomplishmentbplo?: number;
-  totalAccomplishmentgov?: number;
-  totalAccomplishmentpeza?: number;
-  totalAccomplishmenttieza?: number;
-
-  fsisInventoryDetailList?: FSISInventoryDetailItem[] | null;
+interface IssuanceCounts {
+  fsecbuildingcount: number;
+  fsecgovcount: number;
+  fsecpezacount: number;
+  fsectiezacount: number;
+  fsicoccupancycount: number;
+  fsicbplonewcount: number;
+  fsicbplorenewcount: number;
+  fsicgovcount: number;
+  fsicpezacount: number;
+  fsictiezacount: number;
+  nodcount: number;
+  ntccount: number;
+  ntcvcount: number;
+  avatementcount: number;
+  closurecount: number;
 }
 
-/** Map from our internal DailyInventoryDTO keys to the flat Detail API keys. */
-const FIELD_TO_API: Record<string, keyof FSISInventoryDetailItem> = {
+/** Map DailyInventoryDTO keys to the flat API count keys. */
+const FIELD_TO_API: Record<string, string> = {
   insp_during: "inspectduringcount",
   insp_after: "inspectaftercount",
   insp_bplo: "inspectbplocount",
@@ -145,28 +120,22 @@ const FIELD_TO_API: Record<string, keyof FSISInventoryDetailItem> = {
 type DayTotals = Partial<Record<keyof DailyInventoryDTO, number>>;
 
 interface DaySlice {
-  /** 1..31 — day-of-month. */
   day: number;
-  /** Display label, e.g. "July 1". */
   label: string;
-  /** YYYY-MM-DD local key (used internally only). */
   key: string;
+  inspection: InspectionCounts;
+  manual: IssuanceCounts;
+  fsis: IssuanceCounts;
   totals: DayTotals;
   remarks: string;
 }
 
-/** Local YYYY-MM-DD (no timezone shift). */
 function toLocalKey(y: number, m: number, d: number): string {
   const mm = String(m).padStart(2, "0");
   const dd = String(d).padStart(2, "0");
   return `${y}-${mm}-${dd}`;
 }
 
-/**
- * Normalize an incoming `dateinspected` (string like "2026-07-21T00:00:00"
- * or a Date) to a local YYYY-MM-DD key WITHOUT UTC drift. Strings that
- * already start with `YYYY-MM-DD` are trusted as calendar dates.
- */
 function normalizeDateKey(v: string | Date | null | undefined): string | null {
   if (v == null || v === "") return null;
   if (typeof v === "string") {
@@ -182,7 +151,6 @@ function normalizeDateKey(v: string | Date | null | undefined): string | null {
   return null;
 }
 
-/** Days in month — correct for leap years via day-0 trick. */
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
@@ -192,51 +160,125 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/**
- * Build a per-day lookup keyed by YYYY-MM-DD from the API list.
- * Duplicate dates are aggregated by summing every numeric count field and
- * concatenating remarks with " · " separators (empty remarks skipped).
- */
-function buildDailyLookup(
-  list: FSISInventoryDetailItem[] | null | undefined,
-): Map<string, { totals: DayTotals; remarks: string }> {
-  const map = new Map<string, { totals: DayTotals; remarks: string }>();
-  if (!Array.isArray(list)) return map;
+const emptyIssuance = (): IssuanceCounts => ({
+  fsecbuildingcount: 0,
+  fsecgovcount: 0,
+  fsecpezacount: 0,
+  fsectiezacount: 0,
+  fsicoccupancycount: 0,
+  fsicbplonewcount: 0,
+  fsicbplorenewcount: 0,
+  fsicgovcount: 0,
+  fsicpezacount: 0,
+  fsictiezacount: 0,
+  nodcount: 0,
+  ntccount: 0,
+  ntcvcount: 0,
+  avatementcount: 0,
+  closurecount: 0,
+});
 
-  for (const rec of list) {
-    const key = normalizeDateKey(rec?.dateinspected);
-    if (!key) continue;
+function buildSlices(
+  list:
+    | Array<FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>>
+    | null
+    | undefined,
+  year: number,
+  month: number,
+): DaySlice[] {
+  const byDate = new Map<
+    string,
+    FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>
+  >();
+  if (Array.isArray(list)) {
+    for (const item of list) {
+      const key = normalizeDateKey(item?.dateinspected);
+      if (key) byDate.set(key, item);
+    }
+  }
 
-    let bucket = map.get(key);
-    if (!bucket) {
-      bucket = { totals: {}, remarks: "" };
-      map.set(key, bucket);
+  const total = daysInMonth(year, month);
+  const monthName = MONTHS[month - 1]?.name ?? "";
+  const out: DaySlice[] = [];
+
+  for (let d = 1; d <= total; d++) {
+    const key = toLocalKey(year, month, d);
+    const label = `${monthName} ${d}, ${year}`;
+    const rec = byDate.get(key);
+
+    const inspection: InspectionCounts = {
+      remarks: (rec?.remarks ?? "").toString(),
+      inspectduringcount: num(rec?.inspectduringcount),
+      inspectaftercount: num(rec?.inspectaftercount),
+      inspectbplocount: num(rec?.inspectbplocount),
+      inspectgovcount: num(rec?.inspectgovcount),
+      inspectpezacount: num(rec?.inspectpezacount),
+      inspecttiezacount: num(rec?.inspecttiezacount),
+    };
+
+    let manual = emptyIssuance();
+    let fsis = emptyIssuance();
+
+    if (rec && Array.isArray(rec.issuancelist)) {
+      for (const iss of rec.issuancelist) {
+        const mode = num(iss?.fsicmode);
+        const parsed: IssuanceCounts = {
+          fsecbuildingcount: num(iss?.fsecbuildingcount),
+          fsecgovcount: num(iss?.fsecgovcount),
+          fsecpezacount: num(iss?.fsecpezacount),
+          fsectiezacount: num(iss?.fsectiezacount),
+          fsicoccupancycount: num(iss?.fsicoccupancycount),
+          fsicbplonewcount: num(iss?.fsicbplonewcount),
+          fsicbplorenewcount: num(iss?.fsicbplorenewcount),
+          fsicgovcount: num(iss?.fsicgovcount),
+          fsicpezacount: num(iss?.fsicpezacount),
+          fsictiezacount: num(iss?.fsictiezacount),
+          nodcount: num(iss?.nodcount),
+          ntccount: num(iss?.ntccount),
+          ntcvcount: num(iss?.ntcvcount),
+          avatementcount: num(iss?.avatementcount),
+          closurecount: num(iss?.closurecount),
+        };
+        if (mode === 96) manual = parsed;
+        else if (mode === 97) fsis = parsed;
+      }
     }
 
+    const totals: DayTotals = {};
     for (const field of DETAIL_FIELDS) {
       const apiKey = FIELD_TO_API[String(field.key)];
       if (!apiKey) continue;
-      const prev = Number(bucket.totals[field.key as keyof DailyInventoryDTO] ?? 0);
-      bucket.totals[field.key as keyof DailyInventoryDTO] =
-        prev + num(rec[apiKey]);
+      if (String(field.key).startsWith("insp_")) {
+        totals[field.key as keyof DailyInventoryDTO] = num(
+          (inspection as any)[apiKey],
+        );
+      } else {
+        totals[field.key as keyof DailyInventoryDTO] =
+          num((manual as any)[apiKey]) + num((fsis as any)[apiKey]);
+      }
     }
 
-    const r = (rec?.remarks ?? "").toString().trim();
-    if (r) bucket.remarks = bucket.remarks ? `${bucket.remarks} · ${r}` : r;
+    out.push({
+      day: d,
+      label,
+      key,
+      inspection,
+      manual,
+      fsis,
+      totals,
+      remarks: inspection.remarks,
+    });
   }
 
-  return map;
+  return out;
 }
 
 /**
- * Read-only monthly overview:
- *
- *  1. `Monthly Target vs. Inspected` summary — driven by a Month dropdown
- *     that defaults to the current calendar month. The Year is locked to
- *     the Ledger record and displayed as a read-only field.
- *  2. Daily breakdown table — EVERY day of the selected month is rendered
- *     as its own row (July 1..31, Feb 1..28/29, etc.). Days without any
- *     API record still appear with zero values and empty remarks.
+ * Read-only monthly overview mirroring the Edit table:
+ *  - Two rows per day (MANUAL / FSIS) for FSEC, FSIC, and Other Notices.
+ *  - Inspection, Total, and Remarks columns are merged across the two rows
+ *    (rowSpan=2) so the day's values represent the combined MANUAL + FSIS
+ *    output.
  */
 function InventoryViewBody({
   stationno,
@@ -252,14 +294,19 @@ function InventoryViewBody({
     return new Date().getMonth() + 1;
   });
   const [loading, setLoading] = React.useState(true);
-  const [station, setStation] = React.useState<FSISInventoryDetailStation | null>(null);
+  const [station, setStation] = React.useState<FSISInventoryMonthlyLedgerModel | null>(
+    null,
+  );
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
 
-  // Resolve provinceno once per station — Detail endpoint requires it.
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
-      const sResp = await stationAPI.search({ pageNumber: 1, pageSize: 1, searchKey: stationno });
+      const sResp = await stationAPI.search({
+        pageNumber: 1,
+        pageSize: 1,
+        searchKey: stationno,
+      });
       const { data: sData } = unwrap<SearchStationModel[]>(sResp);
       if (cancelled) return;
       const seed = Array.isArray(sData) ? sData[0] : undefined;
@@ -270,13 +317,12 @@ function InventoryViewBody({
     };
   }, [stationno]);
 
-  // Fetch Detail whenever station / year / month changes.
   React.useEffect(() => {
     if (provinceno == null) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await targetinventoryAPI.getDetail(
+      const resp = await targetinventoryAPI.getMonthly(
         {
           Stationno: stationno || EMPTY_GUID,
           Provinceno: provinceno,
@@ -287,7 +333,7 @@ function InventoryViewBody({
       );
       if (cancelled) return;
 
-      const { ok, data, error } = unwrap<FSISInventoryDetailStation[]>(resp);
+      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
       if (!ok) toast.error(error || "Failed to load daily details.");
       const first = ok && Array.isArray(data) ? data[0] ?? null : null;
       setStation(first);
@@ -298,26 +344,10 @@ function InventoryViewBody({
     };
   }, [stationno, provinceno, year, selectedMonth]);
 
-  // Build every day of the selected month — always, even when the API
-  // response is empty or the list is null.
-  const slices = React.useMemo<DaySlice[]>(() => {
-    const lookup = buildDailyLookup(station?.fsisInventoryDetailList);
-    const total = daysInMonth(year, selectedMonth);
-    const monthName = MONTHS[selectedMonth - 1]?.name ?? "";
-    const out: DaySlice[] = [];
-    for (let d = 1; d <= total; d++) {
-      const key = toLocalKey(year, selectedMonth, d);
-      const hit = lookup.get(key);
-      out.push({
-        day: d,
-        label: `${monthName} ${d}, ${year}`,
-        key,
-        totals: hit?.totals ?? {},
-        remarks: hit?.remarks ?? "",
-      });
-    }
-    return out;
-  }, [station, year, selectedMonth]);
+  const slices = React.useMemo<DaySlice[]>(
+    () => buildSlices(station?.fsisInventoryLedgerList, year, selectedMonth),
+    [station, year, selectedMonth],
+  );
 
   const summary = React.useMemo<TargetAccomplishmentModel | null>(() => {
     if (!station) return null;
@@ -362,7 +392,6 @@ function InventoryViewBody({
 
   return (
     <div className="space-y-4">
-      {/* 1. Monthly Target vs. Inspected — month selector, year locked. */}
       <Card className="border-border/60 p-4 shadow-soft">
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
@@ -401,38 +430,58 @@ function InventoryViewBody({
         />
       </Card>
 
-      {/* 2. Daily breakdown — every day of the selected month. */}
       <Card className="overflow-hidden border-border/60 shadow-soft">
         <div className="max-h-[65vh] w-full max-w-full overflow-auto">
-          <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+          <table className="min-w-max border-separate border-spacing-0 text-[11px] text-slate-900">
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
                   rowSpan={2}
-                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r bg-blue-700 px-3 py-2 text-left uppercase tracking-wider text-white"
+                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r border-slate-300 bg-white px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider"
                 >
                   Date
                 </th>
-                {FIELD_GROUPS.map((group) => (
-                  <th
-                    key={group.category}
-                    colSpan={group.fields.length}
-                    className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${GROUP_TONE[group.category]}`}
-                  >
-                    {group.category}
-                  </th>
-                ))}
                 <th
-                  rowSpan={2}
-                  className="border-b border-r bg-slate-700 px-3 py-2 text-center uppercase tracking-wider text-white min-w-[80px]"
+                  colSpan={6}
+                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
                 >
-                  TOTAL
+                  Inspection
                 </th>
                 <th
                   rowSpan={2}
-                  className="border-b bg-slate-700 px-3 py-2 text-left uppercase tracking-wider text-white min-w-[200px]"
+                  className="border-b border-r border-slate-300 bg-slate-100 px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px]"
                 >
-                  REMARKS
+                  Mode of<br />Issuance
+                </th>
+                <th
+                  colSpan={4}
+                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSEC}`}
+                >
+                  FSEC
+                </th>
+                <th
+                  colSpan={6}
+                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSIC}`}
+                >
+                  FSIC
+                </th>
+                <th
+                  colSpan={5}
+                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
+                >
+                  Other Notices
+                </th>
+                <th
+                  rowSpan={2}
+                  className="border-b border-r border-slate-300 bg-slate-200 px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px]"
+                >
+                  Total
+                </th>
+                <th
+                  rowSpan={2}
+                  className="border-b border-slate-300 bg-slate-100 px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px]"
+                >
+                  Remarks
                 </th>
               </tr>
               <tr>
@@ -441,7 +490,7 @@ function InventoryViewBody({
                   return (
                     <th
                       key={String(field.key)}
-                      className={`border-b border-r px-1.5 py-1 text-right text-[10px] font-bold uppercase min-w-[72px] ${SUB_TONE[cat]}`}
+                      className={`border-b border-r border-slate-300 px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
                     >
                       {field.label}
                     </th>
@@ -450,63 +499,192 @@ function InventoryViewBody({
               </tr>
             </thead>
             <tbody>
-              {slices.map((slice, index) => {
+              {slices.map((slice, dayIndex) => {
+                const rowBg = dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50";
                 const rowTotal = DETAIL_FIELDS.reduce(
                   (sum, f) => sum + num(slice.totals[f.key as keyof DailyInventoryDTO]),
                   0,
                 );
-                // Solid zebra so the sticky Date column stays opaque
-                // while horizontally scrolling — matches the Edit page.
-                const zebra = index % 2 === 1 ? "bg-muted" : "bg-card";
                 return (
-                  <tr key={slice.key} className={zebra}>
-                    <td
-                      className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 font-semibold ${zebra}`}
-                    >
-                      {slice.label}
-                    </td>
-                    {DETAIL_FIELDS.map((field) => {
-                      const v = num(slice.totals[field.key as keyof DailyInventoryDTO]);
-                      return (
-                        <td
-                          key={String(field.key)}
-                          className="border-b border-r px-3 py-1.5 text-right tabular-nums"
-                        >
-                          {v.toLocaleString()}
-                        </td>
-                      );
-                    })}
-                    <td className="border-b px-3 py-1.5 text-right font-semibold tabular-nums">
-                      {rowTotal.toLocaleString()}
-                    </td>
-                    <td
-                      className="max-w-[280px] truncate border-b px-3 py-1.5 text-left text-muted-foreground"
-                      title={slice.remarks || ""}
-                    >
-                      {slice.remarks || "—"}
-                    </td>
-                  </tr>
+                  <React.Fragment key={slice.key}>
+                    {/* MANUAL row */}
+                    <tr className={rowBg}>
+                      <td
+                        rowSpan={2}
+                        className={`sticky left-0 z-20 border-b border-r border-slate-300 px-3 py-1.5 align-middle text-[11px] font-semibold ${rowBg}`}
+                      >
+                        {slice.label}
+                      </td>
+
+                      {/* Inspection — merged across MANUAL/FSIS rows */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!String(field.key).startsWith("insp_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const v = num((slice.inspection as any)[apiKey]);
+                        return (
+                          <td
+                            key={String(field.key)}
+                            rowSpan={2}
+                            className="border-b border-r border-slate-300 px-2 py-1.5 text-right align-middle tabular-nums"
+                          >
+                            {v.toLocaleString()}
+                          </td>
+                        );
+                      })}
+
+                      <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase">
+                        MANUAL
+                      </td>
+
+                      {/* FSEC (manual) */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!String(field.key).startsWith("fsec_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const v = num((slice.manual as any)[apiKey]);
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className="border-b border-r border-slate-300 px-2 py-1.5 text-right tabular-nums"
+                          >
+                            {v.toLocaleString()}
+                          </td>
+                        );
+                      })}
+
+                      {/* FSIC (manual) */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!String(field.key).startsWith("fsic_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const v = num((slice.manual as any)[apiKey]);
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className="border-b border-r border-slate-300 px-2 py-1.5 text-right tabular-nums"
+                          >
+                            {v.toLocaleString()}
+                          </td>
+                        );
+                      })}
+
+                      {/* NOTICES (manual) */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!String(field.key).startsWith("not_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const v = num((slice.manual as any)[apiKey]);
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className="border-b border-r border-slate-300 px-2 py-1.5 text-right tabular-nums"
+                          >
+                            {v.toLocaleString()}
+                          </td>
+                        );
+                      })}
+
+                      {/* Total — merged across MANUAL/FSIS rows */}
+                      <td
+                        rowSpan={2}
+                        className="border-b border-r border-slate-300 px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
+                      >
+                        {rowTotal.toLocaleString()}
+                      </td>
+                      <td
+                        rowSpan={2}
+                        className="max-w-[280px] truncate border-b border-slate-300 px-3 py-1.5 text-left align-middle text-muted-foreground text-[10px]"
+                        title={slice.remarks || ""}
+                      >
+                        {slice.remarks || "—"}
+                      </td>
+                    </tr>
+
+                    {/* FSIS row */}
+                    <tr className={rowBg}>
+                      {/* Inspection cells merged with MANUAL row above */}
+                      <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase">
+                        FSIS
+                      </td>
+
+                      {/* FSEC (fsis) */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!String(field.key).startsWith("fsec_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const v = num((slice.fsis as any)[apiKey]);
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className="border-b border-r border-slate-300 px-2 py-1.5 text-right tabular-nums"
+                          >
+                            {v.toLocaleString()}
+                          </td>
+                        );
+                      })}
+
+                      {/* FSIC (fsis) */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!String(field.key).startsWith("fsic_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const v = num((slice.fsis as any)[apiKey]);
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className="border-b border-r border-slate-300 px-2 py-1.5 text-right tabular-nums"
+                          >
+                            {v.toLocaleString()}
+                          </td>
+                        );
+                      })}
+
+                      {/* NOTICES (fsis) */}
+                      {DETAIL_FIELDS.map((field) => {
+                        if (!String(field.key).startsWith("not_")) return null;
+                        const apiKey = FIELD_TO_API[String(field.key)];
+                        const v = num((slice.fsis as any)[apiKey]);
+                        return (
+                          <td
+                            key={String(field.key)}
+                            className="border-b border-r border-slate-300 px-2 py-1.5 text-right tabular-nums"
+                          >
+                            {v.toLocaleString()}
+                          </td>
+                        );
+                      })}
+                      {/* Total & Remarks merged with MANUAL row above */}
+                    </tr>
+                  </React.Fragment>
                 );
               })}
             </tbody>
-            <tfoot>
-              {/* Monthly summary row — solid emphasis, centered totals. */}
-              <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
-                <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
+            <tfoot className="sticky bottom-0 z-20">
+              <tr className="bg-[hsl(48_96%_82%)] font-bold text-slate-900">
+                <td className="sticky left-0 z-30 border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
                   Total
                 </td>
-                {DETAIL_FIELDS.map((field) => (
-                  <td
-                    key={String(field.key)}
-                    className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
-                  >
-                    {(columnTotals[String(field.key)] ?? 0).toLocaleString()}
-                  </td>
-                ))}
-                <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
+                {DETAIL_FIELDS.map((field, idx) => {
+                  const columnTotal = columnTotals[String(field.key)] ?? 0;
+                  const cells: React.ReactNode[] = [];
+                  // Mode-of-Issuance spacer cell between INSPECTION (6) and FSEC.
+                  if (idx === 6) {
+                    cells.push(
+                      <td
+                        key="__mode_spacer__"
+                        className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-2 py-2"
+                      />,
+                    );
+                  }
+                  cells.push(
+                    <td
+                      key={String(field.key)}
+                      className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-2 py-2 text-center text-[11px] font-bold tabular-nums"
+                    >
+                      {columnTotal.toLocaleString()}
+                    </td>,
+                  );
+                  return cells;
+                })}
+                <td className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_72%)] px-3 py-2 text-center text-[11px] font-bold tabular-nums">
                   {grandTotal.toLocaleString()}
                 </td>
-                <td className="border-t-2 border-border bg-accent px-3 py-2.5" aria-hidden />
+                <td className="border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-3 py-2" />
               </tr>
             </tfoot>
           </table>
@@ -563,10 +741,6 @@ export function InventoryViewModal({
   onOpenChange: (o: boolean) => void;
   stationno: string;
   year: number;
-  /**
-   * Optional — when provided, the Month dropdown defaults to this value;
-   * otherwise the current calendar month is used per spec.
-   */
   month?: number;
   stationName?: string;
 }) {

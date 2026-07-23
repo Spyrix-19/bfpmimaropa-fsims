@@ -839,7 +839,8 @@ function InventoryEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            rowSpan={2}
+                            className={`border-b border-r px-2 py-1.5 align-middle ${dayEntry.isLocked ? "text-center" : "text-right"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -959,51 +960,22 @@ function InventoryEditBody({
                           </td>
                         );
                       })}
-                      <td className="border-b px-3 py-1.5 text-center font-semibold tabular-nums">
+                      <td rowSpan={2} className="border-b px-3 py-1.5 text-center align-middle font-semibold tabular-nums">
                         {DETAIL_FIELDS.reduce(
                           (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
                           0
                         ).toLocaleString()}
                       </td>
-                      <td className="border-b px-3 py-1.5 text-left text-muted-foreground text-[10px]">
+                      <td rowSpan={2} className="border-b px-3 py-1.5 text-left align-middle text-muted-foreground text-[10px]">
                         {dayEntry.inspection.remarks || "—"}
                       </td>
                     </tr>
 
+
                     {/* FSIS row */}
                     <tr className={dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                      {/* Inspection fields are merged with the MANUAL row above (rowSpan=2) */}
 
-                      {/* Inspection fields */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!field.key.startsWith("insp_")) return null;
-                        const apiKey = FIELD_TO_API[String(field.key)];
-                        const value = apiKey ? num(dayEntry.inspection[apiKey]) : 0;
-                        return (
-                          <td
-                            key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
-                          >
-                            {dayEntry.isLocked ? (
-                              <span className="text-muted-foreground">
-                                {value.toLocaleString()}
-                              </span>
-                            ) : (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={String(value)}
-                                onChange={(e) =>
-                                  updateDayField(dayEntry.key, String(field.key), e.target.value, "inspection")
-                                }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
                       <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase text-slate-900">
                         FSIS
                       </td>
@@ -1100,13 +1072,8 @@ function InventoryEditBody({
                           </td>
                         );
                       })}
-                      <td className="border-b px-3 py-1.5 text-center font-semibold tabular-nums">
-                        {DETAIL_FIELDS.reduce(
-                          (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
-                          0
-                        ).toLocaleString()}
-                      </td>
-                      <td className="border-b px-3 py-1.5" />
+                      {/* Total and Remarks are merged with the MANUAL row above (rowSpan=2) */}
+
                     </tr>
                   </React.Fragment>
                 );
