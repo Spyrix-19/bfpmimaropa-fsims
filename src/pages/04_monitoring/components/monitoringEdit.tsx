@@ -836,6 +836,10 @@ function InventoryEditBody({
             </thead>
             <tbody>
               {days.map((dayEntry, dayIndex) => {
+                const rowTotal = DETAIL_FIELDS.reduce(
+                  (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
+                  0,
+                );
                 return (
                   <React.Fragment key={dayEntry.key}>
                     {/* MANUAL row */}
@@ -846,7 +850,9 @@ function InventoryEditBody({
                       >
                         <div className="flex items-center gap-2">
                           {dayEntry.isLocked && <Lock className="h-3 w-3 text-amber-600" />}
-                          {dayEntry.label}
+                          <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""}>
+                            {dayEntry.label}
+                          </span>
                         </div>
                       </td>
 

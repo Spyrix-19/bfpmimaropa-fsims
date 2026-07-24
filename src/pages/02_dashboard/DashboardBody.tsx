@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   Target,
   CheckCircle2,
@@ -43,6 +44,8 @@ const {
   byMonth,
   byMonthSector,
   byProvince,
+  targetGapByProvince,
+  recentActivity,
   bySector,
   byApplication,
   sectorByApp,
@@ -152,6 +155,56 @@ function ChartCard({
   );
 }
 
+function ActivityCard({
+  title,
+  subtitle,
+  items,
+}: {
+  title: string;
+  subtitle?: string;
+  items: Array<{ station: string; action: string; value: string; time: string; badge: string }>;
+}) {
+  const badgeColors: Record<string, string> = {
+    FSEC: "bg-primary/10 text-primary",
+    FSIC: "bg-success/10 text-success",
+    NTC: "bg-warning/10 text-warning",
+    NOD: "bg-destructive/10 text-destructive",
+    Closure: "bg-secondary/10 text-secondary",
+  };
+
+  return (
+    <Card className="border-border/60 bg-card p-5 shadow-soft">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+      </div>
+      <div className="space-y-3">
+        {items.map((item, index) => (
+          <div key={index} className="rounded-2xl border border-border/60 bg-background p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">{item.station}</p>
+                <p className="text-xs text-muted-foreground">{item.action}</p>
+              </div>
+              <span
+                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  badgeColors[item.badge] ?? "bg-muted/10 text-muted-foreground"
+                }`}
+              >
+                {item.badge}
+              </span>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+              <span>{item.time}</span>
+              <span className="font-semibold text-foreground">{item.value}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 const tooltipStyle = {
   background: "var(--color-popover)",
   border: "1px solid var(--color-border)",
@@ -174,8 +227,60 @@ export function DashboardBody() {
           <span className="font-semibold text-primary">Sample data for representation.</span>{" "}
           The values, charts and activity below are placeholders to preview the dashboard layout.
           Filters do not affect these numbers.
+          <div className="mt-1 text-xs text-muted-foreground">Last updated: {summary.lastUpdated}</div>
         </div>
       </Card>
+
+      {/* Overview metrics */}
+      <div className="grid gap-3 lg:grid-cols-3">
+        <Card className="border-border/60 bg-card p-4 shadow-soft">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Inventory Records
+              </div>
+              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
+                {summary.inventory.toLocaleString()}
+              </div>
+            </div>
+            <Target className="h-6 w-6 text-primary" />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Total FSIS inventory entries this month.</p>
+        </Card>
+
+        <Card className="border-border/60 bg-card p-4 shadow-soft">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Issuance Records
+              </div>
+              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
+                {summary.issuance.toLocaleString()}
+              </div>
+            </div>
+            <ClipboardCheck className="h-6 w-6 text-success" />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Total FSIS issuance records logged this month</p>
+        </Card>
+
+        <Card className="border-border/60 bg-card p-4 shadow-soft">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Remaining Target Gap
+              </div>
+              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
+                {summary.targetGap.toLocaleString()}
+              </div>
+            </div>
+            <TrendingUp className="h-6 w-6 text-warning" />
+          </div>
+          <div className="mt-4">
+            <Progress value={completion} />
+            <p className="mt-2 text-xs text-muted-foreground">{completion}% of monthly target achieved</p>
+          </div>
+        </Card>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
@@ -231,11 +336,11 @@ export function DashboardBody() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <ChartCard
           title="Monthly Accomplishment Trend"
           subtitle="Target vs Actual per month"
-          className="lg:col-span-2"
+          className="xl:col-span-2"
         >
           <ResponsiveContainer>
             <LineChart data={byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -264,7 +369,24 @@ export function DashboardBody() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Inspections by Sector" subtitle="BPLO · GOVT · PEZA · TIEZA · OGA">
+        <ChartCard
+          title="Target Gap by Province"
+          subtitle="How far each province is from target"
+          className="xl:col-span-2"
+          height="h-64"
+        >
+          <ResponsiveContainer>
+            <BarChart data={targetGapByProvince} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="gap" fill={C.danger} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Inspections by Sector" subtitle="BPLO · GOVT · PEZA · TIEZA">
           <ResponsiveContainer>
             <BarChart data={bySector} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -381,7 +503,7 @@ export function DashboardBody() {
         <ChartCard
           title="Year-over-Year Comparison"
           subtitle={`${yoY.prevYear} vs ${yoY.currentYear} monthly actuals`}
-          className="lg:col-span-3"
+          className="xl:col-span-3"
         >
           <ResponsiveContainer>
             <LineChart data={yoY.data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -407,6 +529,12 @@ export function DashboardBody() {
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
+
+        <ActivityCard
+          title="Recent Dashboard Activity"
+          subtitle="Latest FSIS events from stations"
+          items={recentActivity}
+        />
       </div>
     </div>
   );

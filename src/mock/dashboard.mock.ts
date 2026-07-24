@@ -21,7 +21,7 @@ export const MONTHS = [
   "Dec",
 ] as const;
 
-export const SECTORS = ["BPLO", "GOVT", "PEZA", "TIEZA", "OGA"] as const;
+export const SECTORS = ["BPLO", "GOVT", "PEZA", "TIEZA"] as const;
 export type Sector = (typeof SECTORS)[number];
 
 export const APPLICATIONS = ["FSEC", "FSIC", "NTC", "NOD", "NTCV", "Closure"] as const;
@@ -42,13 +42,16 @@ export const SECTOR_COLORS: Record<Sector, string> = {
   GOVT: CHART_COLORS.success,
   PEZA: CHART_COLORS.warning,
   TIEZA: CHART_COLORS.purple,
-  OGA: CHART_COLORS.teal,
 };
 
 // ---------- Summary / KPI totals ----------
 export const summary = {
   target: 5200,
   actual: 4712,
+  inventory: 9120,
+  issuance: 6048,
+  targetGap: 488,
+  lastUpdated: "Today, 08:15 AM",
   fsec: 1420,
   fsic: 3986,
   ntc: 312,
@@ -86,7 +89,6 @@ export const byMonthSector: Array<Record<string, number | string>> = MONTHS.map(
   GOVT: 80 + i * 4 + (i % 2) * 6,
   PEZA: 40 + i * 3,
   TIEZA: 30 + i * 2 + (i % 4) * 3,
-  OGA: 55 + i * 3 + (i % 2) * 4,
 }));
 
 // ---------- Province target vs actual ----------
@@ -103,13 +105,55 @@ export const byProvince: ProvincePoint[] = [
   { name: "Marinduque", target: 500, actual: 468 },
 ];
 
+export const targetGapByProvince = byProvince.map((province) => ({
+  name: province.name,
+  gap: province.target - province.actual,
+}));
+
+export const recentActivity = [
+  {
+    station: "Puerto Princesa CFS",
+    action: "FSEC inspection updated",
+    value: "+12",
+    time: "12 mins ago",
+    badge: "FSEC",
+  },
+  {
+    station: "Calapan CFS",
+    action: "FSIC issuance completed",
+    value: "+9",
+    time: "25 mins ago",
+    badge: "FSIC",
+  },
+  {
+    station: "San Jose MFS",
+    action: "NTC advisory issued",
+    value: "+4",
+    time: "42 mins ago",
+    badge: "NTC",
+  },
+  {
+    station: "Odiongan MFS",
+    action: "NOD case filed",
+    value: "+2",
+    time: "1 hr ago",
+    badge: "NOD",
+  },
+  {
+    station: "Boac MFS",
+    action: "Closure follow-up scheduled",
+    value: "1",
+    time: "1 hr ago",
+    badge: "Closure",
+  },
+];
+
 // ---------- Sector totals ----------
 export const bySector = [
   { name: "BPLO", value: 1820 },
   { name: "GOVT", value: 1240 },
   { name: "PEZA", value: 620 },
   { name: "TIEZA", value: 490 },
-  { name: "OGA", value: 542 },
 ];
 
 // ---------- Application types ----------
@@ -129,7 +173,7 @@ export const sectorByApp: Array<Record<string, number | string>> = APPLICATIONS.
   GOVT: [380, 780, 60, 20, 8, 4][i],
   PEZA: [180, 380, 40, 12, 6, 2][i],
   TIEZA: [140, 280, 24, 8, 4, 2][i],
-  OGA: [200, 406, 98, 120, 58, 16][i],
+  // OGA removed from dashboard representation
 }));
 
 // ---------- Top stations ----------
@@ -164,6 +208,8 @@ export const dashboardMockData = {
   byMonth,
   byMonthSector,
   byProvince,
+  targetGapByProvince,
+  recentActivity,
   bySector,
   byApplication,
   sectorByApp,

@@ -513,7 +513,9 @@ function InventoryViewBody({
                         rowSpan={2}
                         className={`sticky left-0 z-20 border-b border-r border-slate-300 px-3 py-1.5 align-middle text-[11px] font-semibold ${rowBg}`}
                       >
-                        {slice.label}
+                        <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300" : ""}>
+                          {slice.label}
+                        </span>
                       </td>
 
                       {/* Inspection — merged across MANUAL/FSIS rows */}
