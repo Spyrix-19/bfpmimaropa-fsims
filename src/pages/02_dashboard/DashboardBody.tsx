@@ -231,57 +231,6 @@ export function DashboardBody() {
         </div>
       </Card>
 
-      {/* Overview metrics */}
-      <div className="grid gap-3 lg:grid-cols-3">
-        <Card className="border-border/60 bg-card p-4 shadow-soft">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Inventory Records
-              </div>
-              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
-                {summary.inventory.toLocaleString()}
-              </div>
-            </div>
-            <Target className="h-6 w-6 text-primary" />
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">Total FSIS inventory entries this month.</p>
-        </Card>
-
-        <Card className="border-border/60 bg-card p-4 shadow-soft">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Issuance Records
-              </div>
-              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
-                {summary.issuance.toLocaleString()}
-              </div>
-            </div>
-            <ClipboardCheck className="h-6 w-6 text-success" />
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">Total FSIS issuance records logged this month</p>
-        </Card>
-
-        <Card className="border-border/60 bg-card p-4 shadow-soft">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Remaining Target Gap
-              </div>
-              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
-                {summary.targetGap.toLocaleString()}
-              </div>
-            </div>
-            <TrendingUp className="h-6 w-6 text-warning" />
-          </div>
-          <div className="mt-4">
-            <Progress value={completion} />
-            <p className="mt-2 text-xs text-muted-foreground">{completion}% of monthly target achieved</p>
-          </div>
-        </Card>
-      </div>
-
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <KpiCard
@@ -419,6 +368,7 @@ export function DashboardBody() {
         <ChartCard
           title="Inspections by Application Type"
           subtitle="FSEC · FSIC · NTC · NOD · NTCV · Closure"
+          className="xl:col-span-4"
         >
           <ResponsiveContainer>
             <BarChart data={byApplication} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -534,6 +484,7 @@ export function DashboardBody() {
           title="Recent Dashboard Activity"
           subtitle="Latest FSIS events from stations"
           items={recentActivity}
+          className="xl:col-span-4"
         />
       </div>
     </div>

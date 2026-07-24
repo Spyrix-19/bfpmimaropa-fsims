@@ -39,7 +39,7 @@ export function FilterBar() {
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <SlidersHorizontal className="h-4 w-4 text-primary" /> Dashboard Filters
       </div>
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-6 xl:grid-cols-6">
         <Select value={filters.year} onValueChange={(v) => set({ year: v })}>
           <SelectTrigger>
             <SelectValue placeholder="Year" />
@@ -87,25 +87,11 @@ export function FilterBar() {
           value={filters.province.no !== "all" ? filters.province.no : undefined}
           valueName={filters.province.name}
           placeholder="All Provinces"
+          hideCode
           onChange={(no, name, item) =>
             set({
               province: { no, name, code: item?.locationcode ?? "" },
               city: EMPTY,
-              station: EMPTY,
-            })
-          }
-        />
-
-        <LocationSearchSelect
-          locationtype="CITY"
-          parentcode={filters.province.code ?? ""}
-          value={filters.city.no !== "all" ? filters.city.no : undefined}
-          valueName={filters.city.name}
-          placeholder="All Cities"
-          disabled={filters.province.no === "all"}
-          onChange={(no, name, item) =>
-            set({
-              city: { no, name, code: item?.locationcode ?? "" },
               station: EMPTY,
             })
           }
@@ -118,17 +104,12 @@ export function FilterBar() {
           onChange={(no, name) => set({ station: { no, name } })}
         />
 
-        <GentableSearchSelect
-          tablename="APPLICATION TYPE"
-          value={filters.category.no !== "all" ? filters.category.no : undefined}
-          valueName={filters.category.name}
-          placeholder="All Categories"
-          onChange={(no, name) => set({ category: { no, name } })}
-        />
-      </div>
-
-      <div className="mt-3 flex justify-end">
-        <Button variant="ghost" size="sm" onClick={reset}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={reset}
+          className="col-span-2 justify-self-end self-center md:col-span-1"
+        >
           <RotateCcw className="mr-2 h-3.5 w-3.5" /> Reset
         </Button>
       </div>

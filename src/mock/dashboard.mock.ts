@@ -48,9 +48,6 @@ export const SECTOR_COLORS: Record<Sector, string> = {
 export const summary = {
   target: 5200,
   actual: 4712,
-  inventory: 9120,
-  issuance: 6048,
-  targetGap: 488,
   lastUpdated: "Today, 08:15 AM",
   fsec: 1420,
   fsic: 3986,
