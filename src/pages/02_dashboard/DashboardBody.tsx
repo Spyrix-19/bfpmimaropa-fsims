@@ -285,11 +285,10 @@ export function DashboardBody() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ChartCard
           title="Monthly Accomplishment Trend"
           subtitle="Target vs Actual per month"
-          className="xl:col-span-2"
         >
           <ResponsiveContainer>
             <LineChart data={byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -321,7 +320,6 @@ export function DashboardBody() {
         <ChartCard
           title="Target Gap by Province"
           subtitle="How far each province is from target"
-          className="xl:col-span-2"
           height="h-64"
         >
           <ResponsiveContainer>
@@ -350,7 +348,6 @@ export function DashboardBody() {
         <ChartCard
           title="Target vs Actual by Province"
           subtitle="Provincial accomplishment"
-          className="lg:col-span-2"
         >
           <ResponsiveContainer>
             <BarChart data={byProvince} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -368,7 +365,7 @@ export function DashboardBody() {
         <ChartCard
           title="Inspections by Application Type"
           subtitle="FSEC · FSIC · NTC · NOD · NTCV · Closure"
-          className="xl:col-span-4"
+          className="xl:col-span-2"
         >
           <ResponsiveContainer>
             <BarChart data={byApplication} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -384,7 +381,6 @@ export function DashboardBody() {
         <ChartCard
           title="Monthly Trend by Sector"
           subtitle="Actual inspections per sector"
-          className="lg:col-span-3"
           height="h-80"
         >
           <ResponsiveContainer>
@@ -411,7 +407,6 @@ export function DashboardBody() {
         <ChartCard
           title="Sector Composition per Application Type"
           subtitle="Stacked by sector"
-          className="lg:col-span-2"
           height="h-80"
         >
           <ResponsiveContainer>
@@ -453,7 +448,7 @@ export function DashboardBody() {
         <ChartCard
           title="Year-over-Year Comparison"
           subtitle={`${yoY.prevYear} vs ${yoY.currentYear} monthly actuals`}
-          className="xl:col-span-3"
+          className="xl:col-span-2"
         >
           <ResponsiveContainer>
             <LineChart data={yoY.data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -484,7 +479,6 @@ export function DashboardBody() {
           title="Recent Dashboard Activity"
           subtitle="Latest FSIS events from stations"
           items={recentActivity}
-          className="xl:col-span-4"
         />
       </div>
     </div>
