@@ -235,7 +235,7 @@ function InspectionsNewBody({
     provinceNumber: string,
     date: Date,
   ) => {
-    const resp = await targetinventoryAPI.getMonthly(
+    const resp = await targetinventoryAPI.getMonthlyExist(
       {
         Stationno: stationNumber || EMPTY_GUID,
         Provinceno: provinceNumber || EMPTY_GUID,
@@ -245,22 +245,13 @@ function InspectionsNewBody({
       { suppressGlobalLoading: true },
     );
 
-    const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
+    const { ok, data, error } = unwrap<boolean>(resp);
     if (!ok) {
       toast.error(error || "Unable to verify existing fire safety compliance record.");
       return null;
     }
 
-    const record = Array.isArray(data) ? (data[0] ?? null) : null;
-    if (!record || !Array.isArray(record.fsisInventoryLedgerList)) return null;
-
-    const checkKey = formatDateKey(date);
-    if (!checkKey) return null;
-
-    const existing = record.fsisInventoryLedgerList.find(
-      (item) => formatDateKey(item.dateinspected) === checkKey,
-    );
-    if (!existing) return null;
+    if (!data) return null;
 
     return {
       stationno: stationNumber,
@@ -268,6 +259,30 @@ function InspectionsNewBody({
       month: date.getMonth() + 1,
     };
   };
+
+  React.useEffect(() => {
+    if (duplicatePrompted || !station.no || !province.no || !reportingDate) return;
+
+    let cancelled = false;
+
+    const lookupDuplicate = async () => {
+      const existing = await checkExistingDailyRecord(station.no, province.no, reportingDate);
+      if (cancelled || !existing) return;
+      setDuplicatePrompted(true);
+      setPendingDuplicateTarget({
+        stationno: existing.stationno,
+        year: existing.year,
+        month: existing.month,
+        stationName: station.name || user?.stationname,
+      });
+      setDuplicateDialogOpen(true);
+    };
+
+    lookupDuplicate();
+    return () => {
+      cancelled = true;
+    };
+  }, [duplicatePrompted, station.no, station.name, province.no, reportingDate, user?.stationname]);
 
   /* ------------------------- Monthly summary lookups ---------------------- */
   // Data now lives in <TargetAccomplishmentPanel/>, which fetches via

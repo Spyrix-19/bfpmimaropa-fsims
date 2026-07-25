@@ -40,6 +40,14 @@ export const targetinventoryAPI = {
     return await apiPost("/api/v1/FSISInventory/Monthly/Update", params, { ...NO_RETRY });
   },
 
+  async getMonthlyExist(params: FSISInventoryMonthlyParams, options?: import("@/lib/api").ApiOptions) {
+    return await apiGet<FSISInventoryMonthlyLedgerModel[]>("/api/v1/FSISInventory/Monthly/Exist", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
+  },
+
   async getMonthly(params: FSISInventoryMonthlyParams, options?: import("@/lib/api").ApiOptions) {
     return await apiGet<FSISInventoryMonthlyLedgerModel[]>("/api/v1/FSISInventory/Monthly", {
       params,
