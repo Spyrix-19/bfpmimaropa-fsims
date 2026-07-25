@@ -418,6 +418,86 @@ function InventoryEditBody({
 
   // Baseline to detect unsaved changes
   const [baseline, setBaseline] = React.useState<string>("");
+  const [baselineMap, setBaselineMap] = React.useState<Map<string, string>>(new Map());
+
+  const serializeDay = React.useCallback((day: EditableDay) => {
+    return JSON.stringify({
+      inspection: day.inspection,
+      manual: day.manual,
+      fsis: day.fsis,
+      isLocked: day.isLocked,
+    });
+  }, []);
+
+  const isDayModified = React.useCallback((originalSerialized: string, day: EditableDay) => {
+    try {
+      const orig = JSON.parse(originalSerialized) as {
+        inspection: Partial<FSISInventoryDetailItem>;
+        manual: Partial<EditableIssuance>;
+        fsis: Partial<EditableIssuance>;
+      };
+
+      // Inspection fields to compare
+      const inspKeys: (keyof FSISInventoryDetailItem)[] = [
+        "inspectduringcount",
+        "inspectaftercount",
+        "inspectbplocount",
+        "inspectgovcount",
+        "inspectpezacount",
+        "inspecttiezacount",
+      ];
+      for (const k of inspKeys) {
+        const o = Number(orig.inspection?.[k] ?? 0);
+        const n = Number(day.inspection?.[k] ?? 0);
+        if (o !== n) return true;
+      }
+      const oRemarks = String(orig.inspection?.remarks ?? "");
+      const nRemarks = String(day.inspection?.remarks ?? "");
+      if (oRemarks !== nRemarks) return true;
+
+      // Issuance numeric keys to compare
+      const issKeys: (keyof EditableIssuance)[] = [
+        "fsecbuildingcount",
+        "fsecgovcount",
+        "fsecpezacount",
+        "fsectiezacount",
+        "fsicoccupancycount",
+        "fsicbplonewcount",
+        "fsicbplorenewcount",
+        "fsicgovcount",
+        "fsicpezacount",
+        "fsictiezacount",
+        "nodcount",
+        "ntccount",
+        "ntcvcount",
+        "avatementcount",
+        "closurecount",
+      ];
+
+      for (const k of issKeys) {
+        const oM = Number(orig.manual?.[k] ?? 0);
+        const nM = Number((day.manual as any)[k] ?? 0);
+        if (oM !== nM) return true;
+        const oF = Number(orig.fsis?.[k] ?? 0);
+        const nF = Number((day.fsis as any)[k] ?? 0);
+        if (oF !== nF) return true;
+      }
+
+      // issuanceno changes should count as modification
+      const oManIss = String(orig.manual?.issuanceno ?? "");
+      const nManIss = String(day.manual.issuanceno ?? "");
+      if (oManIss !== nManIss) return true;
+      const oFsisIss = String(orig.fsis?.issuanceno ?? "");
+      const nFsisIss = String(day.fsis.issuanceno ?? "");
+      if (oFsisIss !== nFsisIss) return true;
+
+      // No meaningful changes detected
+      return false;
+    } catch {
+      return true; // if we can't parse original, assume changed
+    }
+  }, []);
+
   const currentSnapshot = React.useMemo(
     () => JSON.stringify(Array.from(editableDays.entries())),
     [editableDays],
@@ -470,6 +550,11 @@ function InventoryEditBody({
       const days = buildEditableDays(first?.fsisInventoryLedgerList, year, month);
       setEditableDays(days);
       setBaseline(JSON.stringify(Array.from(days.entries())));
+      setBaselineMap(
+        new Map(
+          Array.from(days.entries()).map(([dayKey, day]) => [dayKey, serializeDay(day)]),
+        ),
+      );
       setLoading(false);
     })();
     return () => {
@@ -582,6 +667,11 @@ function InventoryEditBody({
 
       for (const [, day] of editableDays) {
         if (day.isLocked) continue; // Skip locked days
+
+        const original = baselineMap.get(day.key);
+        if (original && !isDayModified(original, day)) {
+          continue; // No meaningful changes for this day
+        }
 
         // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes.
         // Always send both entries so the update payload matches the create structure.
