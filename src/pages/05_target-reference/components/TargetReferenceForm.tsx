@@ -494,12 +494,10 @@ export default function TargetReferenceForm({
             return (
             <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
               <td className="whitespace-nowrap px-3 py-1.5 font-medium">
-                <span className="inline-flex items-center gap-1">
-                  {m.name}
-                  {monthLocked && (
-                    <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Locked month" />
-                  )}
-                </span>
+                <div className="flex items-center gap-2">
+                  {monthLocked && <Lock className="h-3 w-3 text-amber-600" aria-label="Locked month" />}
+                  <span>{m.name}</span>
+                </div>
               </td>
               {sectors.map((s) => {
                 const key = `${m.value}-${s.detno}`;
