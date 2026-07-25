@@ -213,7 +213,7 @@ export default function TargetAccomplishmentPanel({
                     i % 2 === 1 && "bg-muted/20",
                   )}
                 >
-                  <td className="px-4 py-2 font-semibold text-slate-900 dark:text-slate-100">
+                  <td className="px-4 py-2 font-semibold text-foreground">
                     {r.label}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums">
@@ -225,9 +225,9 @@ export default function TargetAccomplishmentPanel({
                   <td
                     className={cn(
                       "px-4 py-2 text-right tabular-nums font-medium",
-                      stationno && r.variance > 0 && "text-amber-600 dark:text-amber-400",
+                      stationno && r.variance > 0 && "text-warning",
                       stationno && r.variance < 0 && "text-primary",
-                      stationno && r.variance === 0 && "text-emerald-600 dark:text-emerald-400",
+                      stationno && r.variance === 0 && "text-success",
                     )}
                   >
                     {stationno ? r.variance.toLocaleString() : "—"}
@@ -248,9 +248,9 @@ export default function TargetAccomplishmentPanel({
                 <td
                   className={cn(
                     "px-4 py-2 text-right tabular-nums",
-                    stationno && totalVariance > 0 && "text-amber-600 dark:text-amber-400",
+                    stationno && totalVariance > 0 && "text-warning",
                     stationno && totalVariance < 0 && "text-primary",
-                    stationno && totalVariance === 0 && "text-emerald-600 dark:text-emerald-400",
+                    stationno && totalVariance === 0 && "text-success",
                   )}
                 >
                   {stationno ? totalVariance.toLocaleString() : "—"}

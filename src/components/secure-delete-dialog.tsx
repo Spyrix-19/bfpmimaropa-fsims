@@ -91,7 +91,7 @@ export default function SecureDeleteDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-300">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full tone-danger-soft">
               <ShieldAlert className="h-5 w-5" />
             </div>
             <div className="flex-1">

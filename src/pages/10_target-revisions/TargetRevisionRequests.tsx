@@ -52,9 +52,19 @@ import {
 } from "@/pages/05_target-reference/revision/mockStore";
 import {
   REVISION_STATUS_LABEL,
+  type RevisionModule,
   type RevisionRequest,
   type RevisionStatus,
 } from "@/pages/05_target-reference/revision/types";
+
+interface TargetRevisionRequestsProps {
+  /** Restrict the ledger to a specific source module. Omit to show all. */
+  moduleFilter?: RevisionModule;
+  /** Optional override for the page heading. */
+  title?: string;
+  /** Optional override for the subheading. */
+  description?: string;
+}
 
 const STATUS_OPTIONS: (RevisionStatus | "ALL")[] = [
   "ALL",
@@ -179,7 +189,11 @@ function SettingsDialog({
   );
 }
 
-export default function TargetRevisionRequests() {
+export default function TargetRevisionRequests({
+  moduleFilter,
+  title,
+  description,
+}: TargetRevisionRequestsProps = {}) {
   useRevisionStore();
   const { user, systemAccess } = useAuth();
   const roleno = Number(systemAccess?.roleno ?? 0);
@@ -207,6 +221,7 @@ export default function TargetRevisionRequests() {
   const all = listRequests();
 
   const rows = all.filter((r) => {
+    if (moduleFilter && (r.module ?? "target-reference") !== moduleFilter) return false;
     if (status !== "ALL" && r.status !== status) return false;
     if (year !== "all" && String(r.reportyear) !== year) return false;
     if (month !== "all" && String(r.reportmonth) !== month) return false;
@@ -253,11 +268,11 @@ export default function TargetRevisionRequests() {
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
-            Target Revision Requests
+            {title ?? "Target Revision Requests"}
           </h1>
           <p className="text-xs text-muted-foreground">
-            Review, approve, or deny revision requests submitted against locked
-            Target Reference months.
+            {description ??
+              "Review, approve, or deny revision requests submitted against locked Target Reference months."}
           </p>
         </div>
         {isAuthorizedAdmin && (
@@ -404,7 +419,7 @@ export default function TargetRevisionRequests() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300"
+                            className="text-success hover:tone-success-soft"
                             onClick={() => handleApprove(r)}
                             title="Approve"
                           >
@@ -413,7 +428,7 @@ export default function TargetRevisionRequests() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-rose-700 hover:bg-rose-50 dark:text-rose-300"
+                            className="text-destructive hover:tone-danger-soft"
                             onClick={() => setDenyId(r.id)}
                             title="Deny"
                           >

@@ -62,7 +62,7 @@ const monthCatCol = (monthIdx0: number, catIdx: number) =>
 const qtotalCol = (qIdx0: number, catIdx: number) =>
   COL.QTOTAL_START + qIdx0 * 4 + catIdx;
 
-// Palette mirrors the web STYLE constants (bg-blue-700 / emerald / orange).
+// Palette mirrors the centralized web theme tokens (see src/lib/theme.ts).
 const FILL = {
   stationHead: "FF1D4ED8", // blue-700
   quarter: "FF065F46", // emerald-800

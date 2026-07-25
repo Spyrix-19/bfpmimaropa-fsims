@@ -31,24 +31,25 @@ import type {
   ExportInventoryStationClassModel,
 } from "@/types/targetinventoryType";
 import { exportComplianceMatrix } from "./components/matrixExport";
+import { MATRIX_TONE } from "@/lib/theme";
 
 const STYLE = {
-  stationHead: "bg-blue-700 text-white dark:bg-blue-800",
-  quarter: "bg-emerald-800 text-white dark:bg-emerald-900",
-  month: "bg-emerald-600 text-white dark:bg-emerald-700",
-  cat: "bg-slate-100 text-slate-900 dark:bg-slate-800/70 dark:text-slate-100",
-  catInsp: "bg-sky-600 text-white dark:bg-sky-700",
-  catFsec: "bg-emerald-600 text-white dark:bg-emerald-700",
-  catFsic: "bg-amber-500 text-slate-900 dark:bg-amber-600 dark:text-slate-950",
-  catNotice: "bg-rose-500 text-white dark:bg-rose-600",
-  catInspSub: "bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100",
-  catFsecSub: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100",
-  catFsicSub: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100",
-  catNoticeSub: "bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-100",
-  semester: "bg-orange-500 text-white dark:bg-orange-600",
-  annual: "bg-blue-900 text-white dark:bg-blue-950",
-  provTotalRow: "bg-yellow-100 text-yellow-950 font-bold dark:bg-yellow-900/40 dark:text-yellow-50",
-  provHeaderRow: "bg-slate-200 text-slate-900 font-bold dark:bg-slate-800 dark:text-slate-100",
+  stationHead: MATRIX_TONE.stationHead,
+  quarter: MATRIX_TONE.quarter,
+  month: MATRIX_TONE.month,
+  cat: MATRIX_TONE.cat,
+  catInsp: MATRIX_TONE.catInsp,
+  catFsec: MATRIX_TONE.catFsec,
+  catFsic: MATRIX_TONE.catFsic,
+  catNotice: MATRIX_TONE.catNotice,
+  catInspSub: MATRIX_TONE.catInspSub,
+  catFsecSub: MATRIX_TONE.catFsecSub,
+  catFsicSub: MATRIX_TONE.catFsicSub,
+  catNoticeSub: MATRIX_TONE.catNoticeSub,
+  semester: MATRIX_TONE.semester,
+  annual: MATRIX_TONE.annual,
+  provTotalRow: MATRIX_TONE.provTotalRow,
+  provHeaderRow: MATRIX_TONE.provHeaderRow,
 };
 
 const QUARTERS = [
@@ -914,7 +915,7 @@ function ProvinceBlock({
         <td
           colSpan={totalCols - 1}
           aria-hidden="true"
-          className="border-b border-t-2 border-t-slate-400/60 bg-slate-200"
+          className="border-b border-t-2 border-grid-strong group-row"
         />
       </tr>
       {group.stations.map((s, idx) => (

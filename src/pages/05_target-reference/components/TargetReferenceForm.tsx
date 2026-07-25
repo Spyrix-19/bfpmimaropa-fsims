@@ -578,7 +578,7 @@ export default function TargetReferenceForm({
               </td>
               <td className="whitespace-nowrap px-3 py-1.5 font-medium">
                 <div className="flex items-center gap-2">
-                  {monthLocked && <Lock className="h-3 w-3 text-amber-600" aria-label="Locked month" />}
+                  {monthLocked && <Lock className="h-3 w-3 text-warning" aria-label="Locked month" />}
                   <span>{m.name}</span>
                 </div>
               </td>
@@ -793,8 +793,8 @@ export default function TargetReferenceForm({
       open={duplicateDialogOpen}
       onOpenChange={handleDuplicateDialogOpenChange}
       ContentIcon={AlertTriangle}
-      contentIconBgClass="bg-amber-50"
-      contentIconColorClass="text-amber-700"
+      contentIconBgClass="tone-warning-soft"
+      contentIconColorClass="text-warning"
       title="Target Reference Already Exists"
       description={`A Target Reference already exists for this station and year (${year}).\n\nOpening the existing record for editing.`}
       confirmLabel="Edit Existing"

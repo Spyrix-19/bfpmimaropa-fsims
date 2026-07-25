@@ -60,8 +60,8 @@ export default function ConfirmDialog({
   cancelVariant = "outline",
   confirmClassName,
   cancelClassName,
-  contentIconBgClass = "bg-red-50",
-  contentIconColorClass = "text-red-600",
+  contentIconBgClass = "tone-danger-soft",
+  contentIconColorClass = "text-destructive",
   onCancel,
 }: ConfirmDialogProps) {
   return (

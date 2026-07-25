@@ -68,6 +68,7 @@ const ROUTE_MODULE: { prefix: string; module: AppModule }[] = [
   { prefix: "/settings", module: "settings" },
   { prefix: "/users", module: "users" },
   { prefix: "/target-revision-requests", module: "target-revisions" },
+  { prefix: "/monitoring-revision-requests", module: "target-revisions" },
   { prefix: "/revision-requests", module: "target-revisions" },
 ];
 

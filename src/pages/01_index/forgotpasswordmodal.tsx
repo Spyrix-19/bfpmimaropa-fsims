@@ -88,8 +88,8 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
         open={noticeOpen}
         onOpenChange={setNoticeOpen}
         ContentIcon={AlertTriangle}
-        contentIconBgClass="bg-red-50"
-        contentIconColorClass="text-red-600"
+        contentIconBgClass="tone-danger-soft"
+        contentIconColorClass="text-destructive"
         title="Password reset temporarily unavailable"
         description="Password reset is currently on hold. Please contact your system administrator for assistance. This feature will be available soon."
         confirmLabel="OK"

@@ -145,8 +145,8 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
             open={openConfirm}
             onOpenChange={setOpenConfirm}
             ContentIcon={AlertTriangle}
-            contentIconBgClass="bg-red-50"
-            contentIconColorClass="text-red-600"
+            contentIconBgClass="tone-danger-soft"
+            contentIconColorClass="text-destructive"
             title="Confirm password change"
             description="Are you sure you want to set this new password? This will update your account immediately."
             confirmLabel="Confirm"

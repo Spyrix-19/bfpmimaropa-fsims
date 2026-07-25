@@ -55,10 +55,10 @@ function DaysEncodedBadge({ encoded, total }: { encoded: number; total: number }
   const ratio = total ? encoded / total : 0;
   const tone =
     ratio >= 1
-      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+      ? "tone-success-soft"
       : ratio >= 0.25
-        ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-        : "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200";
+        ? "tone-warning-soft"
+        : "tone-danger-soft";
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${tone}`}
@@ -766,7 +766,7 @@ function ComplianceCard({
       <div className="flex-1 space-y-3 p-3">
         <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/80 p-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-900">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground">
               <ClipboardList className="h-4 w-4 text-primary" />
               Monthly Totals
             </div>
@@ -803,7 +803,7 @@ function ComplianceCard({
                               key={field.key}
                               className={index % 2 === 0 ? "bg-card" : "bg-muted/30"}
                             >
-                              <td className="px-3 py-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+                              <td className="px-3 py-2 text-sm font-medium text-foreground">
                                 {field.label}
                               </td>
                               <td

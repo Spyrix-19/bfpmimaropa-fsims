@@ -284,11 +284,28 @@ export function DashboardBody() {
         />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      {/* Row 1: Target Gap by Province | Monthly Accomplishment Trend (50/50) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ChartCard
+          title="Target Gap by Province"
+          subtitle="How far each province is from target"
+          height="h-72"
+        >
+          <ResponsiveContainer>
+            <BarChart data={targetGapByProvince} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="gap" fill={C.danger} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
         <ChartCard
           title="Monthly Accomplishment Trend"
           subtitle="Target vs Actual per month"
+          height="h-72"
         >
           <ResponsiveContainer>
             <LineChart data={byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -316,56 +333,15 @@ export function DashboardBody() {
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
+      </div>
 
-        <ChartCard
-          title="Target Gap by Province"
-          subtitle="How far each province is from target"
-          height="h-64"
-        >
-          <ResponsiveContainer>
-            <BarChart data={targetGapByProvince} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="gap" fill={C.danger} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Inspections by Sector" subtitle="BPLO · GOVT · PEZA · TIEZA">
-          <ResponsiveContainer>
-            <BarChart data={bySector} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Actual" fill={C.primary} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
-          title="Target vs Actual by Province"
-          subtitle="Provincial accomplishment"
-        >
-          <ResponsiveContainer>
-            <BarChart data={byProvince} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="target" fill={C.warning} radius={[4, 4, 0, 0]} name="Target" />
-              <Bar dataKey="actual" fill={C.primary} radius={[4, 4, 0, 0]} name="Actual" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
+      {/* Row 2: Inspections by Application Type (40) | Sector Composition (40) | Top Fire Stations (20) */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
         <ChartCard
           title="Inspections by Application Type"
           subtitle="FSEC · FSIC · NTC · NOD · NTCV · Closure"
           className="xl:col-span-2"
+          height="h-80"
         >
           <ResponsiveContainer>
             <BarChart data={byApplication} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -379,34 +355,9 @@ export function DashboardBody() {
         </ChartCard>
 
         <ChartCard
-          title="Monthly Trend by Sector"
-          subtitle="Actual inspections per sector"
-          height="h-80"
-        >
-          <ResponsiveContainer>
-            <LineChart data={byMonthSector} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {SECTORS.map((s) => (
-                <Line
-                  key={s}
-                  type="monotone"
-                  dataKey={s}
-                  stroke={SECTOR_COLORS[s]}
-                  strokeWidth={2}
-                  dot={{ r: 2 }}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
           title="Sector Composition per Application Type"
           subtitle="Stacked by sector"
+          className="xl:col-span-2"
           height="h-80"
         >
           <ResponsiveContainer>
@@ -429,7 +380,12 @@ export function DashboardBody() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Top Fire Stations" subtitle="Top 10 performing stations" height="h-80">
+        <ChartCard
+          title="Top Fire Stations"
+          subtitle="Top 10 performing stations"
+          className="md:col-span-2 xl:col-span-1"
+          height="h-80"
+        >
           <ResponsiveContainer>
             <BarChart
               data={byStation}
@@ -438,49 +394,111 @@ export function DashboardBody() {
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis type="number" {...axisProps} />
-              <YAxis type="category" dataKey="name" {...axisProps} width={140} />
+              <YAxis type="category" dataKey="name" {...axisProps} width={100} />
               <Tooltip contentStyle={tooltipStyle} />
               <Bar dataKey="actual" fill={C.teal} radius={[0, 4, 4, 0]} name="Actual" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
+      </div>
+
+      {/* Supplementary row: preserved charts (Inspections by Sector, Target vs Actual by Province) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ChartCard title="Inspections by Sector" subtitle="BPLO · GOVT · PEZA · TIEZA" height="h-72">
+          <ResponsiveContainer>
+            <BarChart data={bySector} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Actual" fill={C.primary} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
         <ChartCard
-          title="Year-over-Year Comparison"
-          subtitle={`${yoY.prevYear} vs ${yoY.currentYear} monthly actuals`}
-          className="xl:col-span-2"
+          title="Target vs Actual by Province"
+          subtitle="Provincial accomplishment"
+          height="h-72"
         >
           <ResponsiveContainer>
-            <LineChart data={yoY.data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <BarChart data={byProvince} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="name" {...axisProps} />
               <YAxis {...axisProps} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line
-                type="monotone"
-                dataKey={String(yoY.prevYear)}
-                stroke={C.warning}
-                strokeWidth={2}
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey={String(yoY.currentYear)}
-                stroke={C.primary}
-                strokeWidth={3}
-                dot={{ r: 3 }}
-              />
-            </LineChart>
+              <Bar dataKey="target" fill={C.warning} radius={[4, 4, 0, 0]} name="Target" />
+              <Bar dataKey="actual" fill={C.primary} radius={[4, 4, 0, 0]} name="Actual" />
+            </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-
-        <ActivityCard
-          title="Recent Dashboard Activity"
-          subtitle="Latest FSIS events from stations"
-          items={recentActivity}
-        />
       </div>
+
+      {/* Row 3: Monthly Trend by Sector (100%) */}
+      <ChartCard
+        title="Monthly Trend by Sector"
+        subtitle="Actual inspections per sector"
+        height="h-[420px] xl:h-[500px]"
+      >
+        <ResponsiveContainer>
+          <LineChart data={byMonthSector} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            {SECTORS.map((s) => (
+              <Line
+                key={s}
+                type="monotone"
+                dataKey={s}
+                stroke={SECTOR_COLORS[s]}
+                strokeWidth={2}
+                dot={{ r: 2 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* Row 4: Year-over-Year Comparison (100%) */}
+      <ChartCard
+        title="Year-over-Year Comparison"
+        subtitle={`${yoY.prevYear} vs ${yoY.currentYear} monthly actuals`}
+        height="h-[420px] xl:h-[500px]"
+      >
+        <ResponsiveContainer>
+          <LineChart data={yoY.data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Line
+              type="monotone"
+              dataKey={String(yoY.prevYear)}
+              stroke={C.warning}
+              strokeWidth={2}
+              dot={false}
+            />
+            <Line
+              type="monotone"
+              dataKey={String(yoY.currentYear)}
+              stroke={C.primary}
+              strokeWidth={3}
+              dot={{ r: 3 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* Row 5: Recent Dashboard Activity (100%) */}
+      <ActivityCard
+        title="Recent Dashboard Activity"
+        subtitle="Latest FSIS events from stations"
+        items={recentActivity}
+      />
     </div>
   );
 }

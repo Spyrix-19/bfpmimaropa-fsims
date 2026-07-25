@@ -120,7 +120,23 @@ export default function App() {
                     path="/target-revision-requests"
                     element={
                       <RequireAccess module="target-revisions">
-                        <TargetRevisionRequests />
+                        <TargetRevisionRequests
+                          moduleFilter="target-reference"
+                          title="Target Reference Requests"
+                          description="Review, approve, or deny revision requests submitted against locked Target Reference months."
+                        />
+                      </RequireAccess>
+                    }
+                  />
+                  <Route
+                    path="/monitoring-revision-requests"
+                    element={
+                      <RequireAccess module="target-revisions">
+                        <TargetRevisionRequests
+                          moduleFilter="monitoring"
+                          title="Monitoring (Compliance) Requests"
+                          description="Review, approve, or deny revision requests submitted against locked Fire Safety Compliance monitoring records."
+                        />
                       </RequireAccess>
                     }
                   />
@@ -132,6 +148,7 @@ export default function App() {
                       </RequireAccess>
                     }
                   />
+
 
 
                   <Route

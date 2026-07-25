@@ -25,9 +25,9 @@ export default function DeleteButton({
   icon,
 }: DeleteButtonProps) {
   const baseSquare =
-    "rounded-md p-2 bg-card text-red-600 border border-border transition-colors hover:bg-red-600 hover:text-white group-hover:bg-red-600 group-hover:text-white";
+    "rounded-md p-2 bg-card text-destructive border border-border transition-colors hover:bg-destructive hover:text-destructive-foreground group-hover:bg-destructive group-hover:text-destructive-foreground";
   const baseCircle =
-    "inline-flex items-center justify-center h-8 w-8 rounded-full bg-card border border-border shadow-sm text-red-600 hover:bg-red-600 hover:text-white transition-colors cursor-pointer";
+    "inline-flex items-center justify-center h-8 w-8 rounded-full bg-card border border-border shadow-sm text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors cursor-pointer";
 
   // Disabled: visually muted but still allow hover color change; force not-allowed cursor
   const disabledClass = "opacity-60 !cursor-not-allowed";

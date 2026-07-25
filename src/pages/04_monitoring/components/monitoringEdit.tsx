@@ -865,7 +865,7 @@ function InventoryEditBody({
       {(monthLocked || activeReq || (latestReq && latestReq.status !== "PENDING")) && (
         <Card className="flex flex-wrap items-center justify-between gap-3 border-border/60 bg-card p-4 shadow-soft">
           <div className="flex items-center gap-2 text-xs">
-            <Lock className="h-3.5 w-3.5 text-amber-600" />
+            <Lock className="h-3.5 w-3.5 text-warning" />
             <span className="font-medium">
               {revisionUnlocks
                 ? `Revision approved — ${monthName} ${year} is temporarily editable.`
@@ -941,10 +941,10 @@ function InventoryEditBody({
 
         {/* Daily table — spreadsheet-style, scrolls in both axes */}
         <div
-          className="w-full max-w-full overflow-auto rounded-md border border-slate-300 shadow-soft"
+          className="w-full max-w-full overflow-auto rounded-md border border-grid shadow-soft"
           style={{ maxHeight: "70vh" }}
         >
-          <table className="min-w-max border-separate border-spacing-0 text-[11px] text-slate-900">
+          <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
@@ -955,7 +955,7 @@ function InventoryEditBody({
                 </th>
                 <th
                   colSpan={6}
-                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
+                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
                 >
                   Inspection
                 </th>
@@ -969,19 +969,19 @@ function InventoryEditBody({
                 </th>
                 <th
                   colSpan={4}
-                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSEC}`}
+                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSEC}`}
                 >
                   FSEC
                 </th>
                 <th
                   colSpan={6}
-                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSIC}`}
+                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSIC}`}
                 >
                   FSIC
                 </th>
                 <th
                   colSpan={5}
-                  className={`border-b border-r border-slate-300 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
+                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
                 >
                   Other Notices
                 </th>
@@ -1027,7 +1027,7 @@ function InventoryEditBody({
                         className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
                       >
                         <div className="flex items-center gap-2">
-                          {dayEntry.isLocked && <Lock className="h-3 w-3 text-amber-600" />}
+                          {dayEntry.isLocked && <Lock className="h-3 w-3 text-warning" />}
                           <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""}>
                             {dayEntry.label}
                           </span>
@@ -1321,8 +1321,8 @@ function InventoryEditBody({
               })}
             </tbody>
             <tfoot className="sticky bottom-0 z-20">
-              <tr className="bg-[hsl(48_96%_82%)] font-bold text-slate-900">
-                <td className="sticky left-0 z-30 border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
+              <tr className="total-row font-bold text-foreground">
+                <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
                   Total
                 </td>
                 {DETAIL_FIELDS.map((field, idx) => {
@@ -1336,21 +1336,21 @@ function InventoryEditBody({
                     cells.push(
                       <td
                         key="__mode_spacer__"
-                        className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-2 py-2"
+                        className="border-r border-t-2 border-grid-strong total-row px-2 py-2"
                       />,
                     );
                   }
                   cells.push(
                     <td
                       key={String(field.key)}
-                      className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-2 py-2 text-center text-[11px] font-bold tabular-nums"
+                      className="border-r border-t-2 border-grid-strong total-row px-2 py-2 text-center text-[11px] font-bold tabular-nums"
                     >
                       {columnTotal.toLocaleString()}
                     </td>,
                   );
                   return cells;
                 })}
-                <td className="border-r border-t-2 border-slate-400 bg-[hsl(48_96%_72%)] px-3 py-2 text-center text-[11px] font-bold tabular-nums">
+                <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
                   {days
                     .reduce(
                       (sum, d) =>
@@ -1363,7 +1363,7 @@ function InventoryEditBody({
                     )
                     .toLocaleString()}
                 </td>
-                <td className="border-t-2 border-slate-400 bg-[hsl(48_96%_82%)] px-3 py-2" />
+                <td className="border-t-2 border-grid-strong total-row px-3 py-2" />
               </tr>
             </tfoot>
           </table>
@@ -1404,7 +1404,7 @@ function InventoryEditBody({
         </div>
       )}
       {allLocked && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100">
+        <div className="flex items-start gap-2 rounded-md border border-warning/40 tone-warning-soft px-3 py-2 text-xs">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <div className="font-semibold">All days have passed and are locked</div>

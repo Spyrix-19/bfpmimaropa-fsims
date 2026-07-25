@@ -1,42 +1,35 @@
+import { MATRIX_TONE, TABLE } from "@/lib/theme";
+
 /**
  * Shared color palette for the Monitoring module.
  *
  * All Monitoring pages (monitoringNew, monitoringEdit, monitoringView)
  * consume these tokens so that every primary header, sub-header, grouped
  * table header, and total/summary section belongs to one unified color
- * family (sky). Change values here to update the entire module.
+ * family (blue). Change values here to update the entire module.
  *
- * Hierarchy (light → dark, decreasing emphasis):
- *   HEADER_PRIMARY   → sky-700  (strongest, white text)
- *   HEADER_GROUP     → sky-600  (grouped table headers, white text)
- *   HEADER_SUB       → sky-500  (sub group table headers, white text)
- *   HEADER_SOFT      → sky-100  (pastel sub-header row / group tone)
- *   HEADER_SOFTER    → sky-50   (nested / alternate sub-header)
- *   TOTAL_ROW        → sky-50 + sky-900 text, sky-200 borders
- *   TOTAL_CELL_TEXT  → sky-900 (with dark-mode counterpart)
+ * Values are re-exported from the centralized design tokens in
+ * `src/lib/theme.ts` (backed by CSS variables in `src/styles.css`), so the
+ * module always matches the rest of the application in both light and dark
+ * mode. Hierarchy, strongest → softest: head-1 → head-2 → head-3 →
+ * head-soft → head-softer.
  */
 export const MONITORING_THEME = {
-  headerPrimary:
-    "bg-sky-700 text-white dark:bg-sky-800 dark:text-sky-50",
-  headerGroup:
-    "bg-sky-600 text-white dark:bg-sky-700 dark:text-sky-50",
-  headerSub:
-    "bg-sky-500 text-white dark:bg-sky-600 dark:text-sky-50",
-  headerSoft:
-    "bg-sky-100 text-sky-900 dark:bg-sky-950/60 dark:text-sky-100",
-  headerSofter:
-    "bg-sky-50 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100",
-  headerBorder: "border-sky-200 dark:border-sky-900/60",
+  headerPrimary: MATRIX_TONE.stationHead,
+  headerGroup: MATRIX_TONE.quarter,
+  headerSub: MATRIX_TONE.month,
+  headerSoft: MATRIX_TONE.cat,
+  headerSofter: MATRIX_TONE.catSofter,
+  headerBorder: "border-grid",
 
   // Standardized totals / grand total / summary treatment.
-  totalRow:
-    "bg-sky-50 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100",
-  totalBorder: "border-sky-200 dark:border-sky-900/60",
-  totalText: "text-sky-900 dark:text-sky-100",
+  totalRow: "head-softer",
+  totalBorder: "border-grid",
+  totalText: "text-foreground",
 
   // Zebra striping that remains within the family (used in matrices).
-  rowEven: "bg-card",
-  rowOdd: "bg-sky-50/40 dark:bg-sky-950/20",
+  rowEven: TABLE.rowEven,
+  rowOdd: TABLE.rowOdd,
 } as const;
 
 export type MonitoringThemeKey = keyof typeof MONITORING_THEME;

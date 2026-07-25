@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MATRIX_TONE } from "@/lib/theme";
 
 interface Props {
   open: boolean;
@@ -553,14 +554,14 @@ export default function TargetMatrixModal({
 /* ============================== Header ============================== */
 
 const STYLE = {
-  stationHead: "bg-blue-700 text-white dark:bg-blue-800",
-  quarter: "bg-emerald-800 text-white dark:bg-emerald-900",
-  month: "bg-emerald-600 text-white dark:bg-emerald-700",
-  cat: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100",
-  semester: "bg-orange-500 text-white dark:bg-orange-600",
-  annual: "bg-blue-900 text-white dark:bg-blue-950",
-  provTotalRow: "bg-yellow-100 text-yellow-950 font-bold dark:bg-yellow-900/40 dark:text-yellow-50",
-  provHeaderRow: "bg-slate-200 text-slate-900 font-bold dark:bg-slate-800 dark:text-slate-100",
+  stationHead: MATRIX_TONE.stationHead,
+  quarter: MATRIX_TONE.quarter,
+  month: MATRIX_TONE.month,
+  cat: MATRIX_TONE.cat,
+  semester: MATRIX_TONE.semester,
+  annual: MATRIX_TONE.annual,
+  provTotalRow: MATRIX_TONE.provTotalRow,
+  provHeaderRow: MATRIX_TONE.provHeaderRow,
 };
 
 function MatrixHeader() {
@@ -687,7 +688,7 @@ function ProvinceBlock({ group, totalCols }: { group: ProvinceGroup; totalCols: 
         <td
           colSpan={totalCols - 1}
           aria-hidden="true"
-          className="border-b border-t-2 border-t-slate-400/60 bg-slate-200"
+          className="border-b border-t-2 border-grid-strong group-row"
         />
       </tr>
 

@@ -338,7 +338,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
                           {r.badgeno || "—"}
                         </span>
                         {variant === "active" && r.rolename ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                          <span className="inline-flex items-center rounded-full tone-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
                             {r.rolename}
                           </span>
                         ) : null}
@@ -518,8 +518,8 @@ export default function UsersLedger({ variant, title, description }: Props) {
         open={!!target}
         onOpenChange={(o) => !o && setTarget(null)}
         ContentIcon={AlertTriangle}
-        contentIconBgClass={variant === "available" ? "bg-amber-50" : "bg-red-50"}
-        contentIconColorClass={variant === "available" ? "text-amber-700" : "text-red-600"}
+        contentIconBgClass={variant === "available" ? "tone-warning-soft" : "tone-danger-soft"}
+        contentIconColorClass={variant === "available" ? "text-warning" : "text-destructive"}
         title={variant === "available" ? "Activate User?" : "Deactivate User?"}
         description={
           target

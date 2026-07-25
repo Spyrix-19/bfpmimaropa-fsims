@@ -179,3 +179,214 @@
     box-shadow: var(--shadow-soft) !important;
   }
 }
+
+/* ==========================================================================
+   CENTRALIZED UI THEME TOKENS  (Blue Government design system)
+   --------------------------------------------------------------------------
+   Single source of truth for every surface, table header, status badge and
+   data-matrix tone used across the application. Light and dark values are
+   authored independently so dark mode is intentionally designed rather than
+   a simple inversion. Consume these through the utilities below or through
+   src/lib/theme.ts — never hardcode palette colors in components.
+   ========================================================================== */
+
+@theme inline {
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-surface: var(--surface);
+  --color-table-header: var(--head-soft);
+  --color-grid-line: var(--grid-line);
+}
+
+:root {
+  /* Neutral app surface between --background and --card */
+  --surface: oklch(0.975 0.01 245);
+
+  /* Informational accent (completes success / warning / destructive) */
+  --info: oklch(0.58 0.14 235);
+  --info-foreground: oklch(0.99 0.005 240);
+
+  /* Header hierarchy: strongest → softest (all one blue family) */
+  --head-1: oklch(0.42 0.13 252);
+  --head-1-foreground: oklch(0.99 0.005 240);
+  --head-2: oklch(0.5 0.15 250);
+  --head-2-foreground: oklch(0.99 0.005 240);
+  --head-3: oklch(0.58 0.15 248);
+  --head-3-foreground: oklch(0.99 0.005 240);
+  --head-soft: oklch(0.93 0.035 245);
+  --head-soft-foreground: oklch(0.28 0.06 250);
+  --head-softer: oklch(0.965 0.018 245);
+  --head-softer-foreground: oklch(0.3 0.05 250);
+
+  /* Table structure */
+  --grid-line: oklch(0.88 0.02 245);
+  --grid-line-strong: oklch(0.74 0.03 248);
+  --row-alt: oklch(0.975 0.012 245);
+  --row-hover: oklch(0.95 0.03 245);
+  --row-selected: oklch(0.92 0.05 248);
+  --group-row: oklch(0.91 0.025 246);
+  --group-row-foreground: oklch(0.24 0.05 250);
+  --total-row: oklch(0.95 0.055 90);
+  --total-row-foreground: oklch(0.3 0.06 80);
+  --total-row-strong: oklch(0.9 0.09 88);
+
+  /* Category tones for compliance matrices (Inspection / FSEC / FSIC / Notices) */
+  --tone-info: var(--info);
+  --tone-info-foreground: oklch(0.99 0.005 240);
+  --tone-info-soft: oklch(0.94 0.035 235);
+  --tone-info-soft-foreground: oklch(0.32 0.09 240);
+  --tone-success: oklch(0.52 0.13 158);
+  --tone-success-foreground: oklch(0.99 0.005 240);
+  --tone-success-soft: oklch(0.94 0.05 158);
+  --tone-success-soft-foreground: oklch(0.3 0.08 158);
+  --tone-warning: oklch(0.72 0.14 78);
+  --tone-warning-foreground: oklch(0.22 0.04 60);
+  --tone-warning-soft: oklch(0.95 0.06 85);
+  --tone-warning-soft-foreground: oklch(0.34 0.08 70);
+  --tone-danger: oklch(0.56 0.19 27);
+  --tone-danger-foreground: oklch(0.99 0.005 240);
+  --tone-danger-soft: oklch(0.94 0.045 25);
+  --tone-danger-soft-foreground: oklch(0.38 0.14 27);
+  --tone-neutral-soft: oklch(0.95 0.012 245);
+  --tone-neutral-soft-foreground: oklch(0.38 0.03 250);
+}
+
+.dark {
+  --surface: oklch(0.19 0.022 250);
+
+  --info: oklch(0.72 0.14 235);
+  --info-foreground: oklch(0.15 0.03 250);
+
+  --head-1: oklch(0.3 0.07 252);
+  --head-1-foreground: oklch(0.97 0.005 240);
+  --head-2: oklch(0.36 0.08 250);
+  --head-2-foreground: oklch(0.97 0.005 240);
+  --head-3: oklch(0.42 0.09 248);
+  --head-3-foreground: oklch(0.98 0.005 240);
+  --head-soft: oklch(0.28 0.05 250);
+  --head-soft-foreground: oklch(0.95 0.01 245);
+  --head-softer: oklch(0.24 0.035 250);
+  --head-softer-foreground: oklch(0.93 0.012 245);
+
+  --grid-line: oklch(1 0 0 / 14%);
+  --grid-line-strong: oklch(1 0 0 / 28%);
+  --row-alt: oklch(0.23 0.025 250);
+  --row-hover: oklch(0.28 0.035 250);
+  --row-selected: oklch(0.33 0.055 250);
+  --group-row: oklch(0.27 0.032 250);
+  --group-row-foreground: oklch(0.96 0.008 245);
+  --total-row: oklch(0.3 0.055 85);
+  --total-row-foreground: oklch(0.95 0.03 85);
+  --total-row-strong: oklch(0.36 0.075 85);
+
+  --tone-info: oklch(0.5 0.12 235);
+  --tone-info-foreground: oklch(0.98 0.005 240);
+  --tone-info-soft: oklch(0.3 0.06 235);
+  --tone-info-soft-foreground: oklch(0.92 0.04 235);
+  --tone-success: oklch(0.45 0.11 158);
+  --tone-success-foreground: oklch(0.98 0.005 240);
+  --tone-success-soft: oklch(0.29 0.06 158);
+  --tone-success-soft-foreground: oklch(0.91 0.06 158);
+  --tone-warning: oklch(0.6 0.12 78);
+  --tone-warning-foreground: oklch(0.98 0.01 80);
+  --tone-warning-soft: oklch(0.31 0.06 80);
+  --tone-warning-soft-foreground: oklch(0.92 0.07 85);
+  --tone-danger: oklch(0.5 0.17 27);
+  --tone-danger-foreground: oklch(0.98 0.005 240);
+  --tone-danger-soft: oklch(0.3 0.08 27);
+  --tone-danger-soft-foreground: oklch(0.9 0.06 25);
+  --tone-neutral-soft: oklch(0.27 0.025 250);
+  --tone-neutral-soft-foreground: oklch(0.9 0.012 245);
+}
+
+/* --- Surface / header utilities ------------------------------------------ */
+@utility bg-surface {
+  background-color: var(--surface);
+}
+@utility head-1 {
+  background-color: var(--head-1);
+  color: var(--head-1-foreground);
+}
+@utility head-2 {
+  background-color: var(--head-2);
+  color: var(--head-2-foreground);
+}
+@utility head-3 {
+  background-color: var(--head-3);
+  color: var(--head-3-foreground);
+}
+@utility head-soft {
+  background-color: var(--head-soft);
+  color: var(--head-soft-foreground);
+}
+@utility head-softer {
+  background-color: var(--head-softer);
+  color: var(--head-softer-foreground);
+}
+
+/* --- Table structure utilities ------------------------------------------- */
+@utility border-grid {
+  border-color: var(--grid-line);
+}
+@utility border-grid-strong {
+  border-color: var(--grid-line-strong);
+}
+@utility row-alt {
+  background-color: var(--row-alt);
+}
+@utility row-hover {
+  background-color: var(--row-hover);
+}
+@utility row-selected {
+  background-color: var(--row-selected);
+}
+@utility group-row {
+  background-color: var(--group-row);
+  color: var(--group-row-foreground);
+}
+@utility total-row {
+  background-color: var(--total-row);
+  color: var(--total-row-foreground);
+}
+@utility total-row-strong {
+  background-color: var(--total-row-strong);
+  color: var(--total-row-foreground);
+}
+
+/* --- Semantic tone utilities (badges, chips, matrix categories) ----------- */
+@utility tone-info {
+  background-color: var(--tone-info);
+  color: var(--tone-info-foreground);
+}
+@utility tone-info-soft {
+  background-color: var(--tone-info-soft);
+  color: var(--tone-info-soft-foreground);
+}
+@utility tone-success {
+  background-color: var(--tone-success);
+  color: var(--tone-success-foreground);
+}
+@utility tone-success-soft {
+  background-color: var(--tone-success-soft);
+  color: var(--tone-success-soft-foreground);
+}
+@utility tone-warning {
+  background-color: var(--tone-warning);
+  color: var(--tone-warning-foreground);
+}
+@utility tone-warning-soft {
+  background-color: var(--tone-warning-soft);
+  color: var(--tone-warning-soft-foreground);
+}
+@utility tone-danger {
+  background-color: var(--tone-danger);
+  color: var(--tone-danger-foreground);
+}
+@utility tone-danger-soft {
+  background-color: var(--tone-danger-soft);
+  color: var(--tone-danger-soft-foreground);
+}
+@utility tone-neutral-soft {
+  background-color: var(--tone-neutral-soft);
+  color: var(--tone-neutral-soft-foreground);
+}

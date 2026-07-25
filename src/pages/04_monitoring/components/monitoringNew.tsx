@@ -606,8 +606,8 @@ function InspectionsNewBody({
         open={duplicateDialogOpen}
         onOpenChange={handleDuplicateDialogOpenChange}
         ContentIcon={AlertTriangle}
-        contentIconBgClass="bg-amber-50"
-        contentIconColorClass="text-amber-700"
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
         title="Fire Safety Compliance Already Exists"
         description="A fire safety compliance record for this station and reporting date already exists. Open the existing record for editing instead."
         confirmLabel="Edit Existing"
@@ -1097,7 +1097,7 @@ function ReadOnlyTile({
       : tone === "success"
         ? "text-success"
         : tone === "warning"
-          ? "text-amber-600 dark:text-amber-400"
+          ? "text-warning"
           : "text-foreground";
   return (
     <Card className="border-border/60 bg-muted/30 p-4 shadow-none">

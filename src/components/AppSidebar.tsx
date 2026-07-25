@@ -79,10 +79,21 @@ const GROUPS: NavGroup[] = [
         icon: <Target className="h-4 w-4" />,
         module: "monitoring",
       },
+    ],
+  },
+  {
+    label: "Revision Requests",
+    items: [
       {
         to: "/target-revision-requests",
-        label: "Target Revision Requests",
-        icon: <ShieldCheck className="h-4 w-4" />,
+        label: "Target Reference Requests",
+        icon: <Target className="h-4 w-4" />,
+        module: "target-revisions",
+      },
+      {
+        to: "/monitoring-revision-requests",
+        label: "Monitoring (Compliance) Requests",
+        icon: <ClipboardList className="h-4 w-4" />,
         module: "target-revisions",
       },
       {

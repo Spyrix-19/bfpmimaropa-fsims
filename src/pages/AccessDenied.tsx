@@ -12,10 +12,10 @@ export default function AccessDenied() {
             className="pointer-events-none absolute inset-0 opacity-20"
             style={{
               backgroundImage:
-                "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.4), transparent 45%), radial-gradient(circle at 85% 60%, rgba(255,255,255,0.25), transparent 40%)",
+                "radial-gradient(circle at 20% 20%, color-mix(in oklab, var(--primary-foreground) 40%, transparent), transparent 45%), radial-gradient(circle at 85% 60%, color-mix(in oklab, var(--primary-foreground) 25%, transparent), transparent 40%)",
             }}
           />
-          <div className="relative mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/40 backdrop-blur">
+          <div className="relative mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-primary-foreground/15 ring-1 ring-primary-foreground/40 backdrop-blur">
             <ShieldAlert className="h-8 w-8 text-primary-foreground" />
           </div>
           <h1 className="relative mt-4 text-2xl font-bold tracking-tight text-primary-foreground">

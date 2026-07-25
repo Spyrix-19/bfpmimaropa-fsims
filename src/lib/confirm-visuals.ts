@@ -24,47 +24,47 @@ export const getConfirmVisuals = (title?: string) => {
   if (t.includes("reset password") || t.includes("reset"))
     return {
       ContentIcon: KeyRound,
-      contentIconBgClass: "bg-amber-50",
-      contentIconColorClass: "text-amber-700",
+      contentIconBgClass: "tone-warning-soft",
+      contentIconColorClass: "text-warning",
     };
   if (t.includes("change password"))
     return {
       ContentIcon: KeyRound,
-      contentIconBgClass: "bg-amber-50",
-      contentIconColorClass: "text-amber-700",
+      contentIconBgClass: "tone-warning-soft",
+      contentIconColorClass: "text-warning",
     };
   if (t.includes("expiry"))
     return {
       ContentIcon: CalendarClock,
-      contentIconBgClass: "bg-amber-50",
-      contentIconColorClass: "text-amber-700",
+      contentIconBgClass: "tone-warning-soft",
+      contentIconColorClass: "text-warning",
     };
   if (t.includes("lock"))
     return {
       ContentIcon: Lock,
-      contentIconBgClass: "bg-red-50",
+      contentIconBgClass: "tone-danger-soft",
       contentIconColorClass: "text-destructive",
       confirmVariant: "destructive" as const,
     };
   if (t.includes("deactivate"))
     return {
       ContentIcon: ShieldOff,
-      contentIconBgClass: "bg-red-50",
-      contentIconColorClass: "text-red-600",
+      contentIconBgClass: "tone-danger-soft",
+      contentIconColorClass: "text-destructive",
       confirmVariant: "destructive" as const,
     };
   if (t.includes("remove") || t.includes("delete"))
     return {
       ContentIcon: Trash2,
-      contentIconBgClass: "bg-red-50",
-      contentIconColorClass: "text-red-600",
+      contentIconBgClass: "tone-danger-soft",
+      contentIconColorClass: "text-destructive",
       confirmVariant: "destructive" as const,
     };
   if (t.includes("fingerprint") || t.includes("face"))
     return {
       ContentIcon: t.includes("fingerprint") ? Fingerprint : ScanFace,
-      contentIconBgClass: "bg-red-50",
-      contentIconColorClass: "text-red-600",
+      contentIconBgClass: "tone-danger-soft",
+      contentIconColorClass: "text-destructive",
       confirmVariant: t.includes("deactivate") ? ("destructive" as const) : undefined,
     };
   return {} as any;
