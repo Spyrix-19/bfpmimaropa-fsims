@@ -583,11 +583,10 @@ function InventoryEditBody({
       for (const [, day] of editableDays) {
         if (day.isLocked) continue; // Skip locked days
 
-        // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes
-        const issuancelist: FSISInventoryIssuanceClassDTO[] = [];
-
-        if (day.manual.fsicmode === 96 || day.manual.fsicmode === 0) {
-          issuancelist.push({
+        // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes.
+        // Always send both entries so the update payload matches the create structure.
+        const issuancelist: FSISInventoryIssuanceClassDTO[] = [
+          {
             issuanceno: day.manual.issuanceno || EMPTY_GUID,
             fsicmode: 96,
             fsecbuildingcount: day.manual.fsecbuildingcount,
@@ -605,14 +604,8 @@ function InventoryEditBody({
             ntcvcount: day.manual.ntcvcount,
             avatementcount: day.manual.avatementcount,
             closurecount: day.manual.closurecount,
-          });
-        }
-
-        if (
-          day.fsis.fsicmode === 97 ||
-          (day.fsis.fsicmode === 0 && day.fsis.issuanceno !== EMPTY_GUID)
-        ) {
-          issuancelist.push({
+          },
+          {
             issuanceno: day.fsis.issuanceno || EMPTY_GUID,
             fsicmode: 97,
             fsecbuildingcount: day.fsis.fsecbuildingcount,
@@ -630,8 +623,8 @@ function InventoryEditBody({
             ntcvcount: day.fsis.ntcvcount,
             avatementcount: day.fsis.avatementcount,
             closurecount: day.fsis.closurecount,
-          });
-        }
+          },
+        ];
 
         const item: FSISUpdateInventoryClass = {
           fsisno: day.inspection.fsisno || EMPTY_GUID,
