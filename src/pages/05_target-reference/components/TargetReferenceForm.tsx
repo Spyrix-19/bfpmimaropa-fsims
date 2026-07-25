@@ -3,7 +3,7 @@ import {  Dialog,  DialogContent,  DialogHeader,  DialogTitle,  DialogFooter,} f
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} from "@/components/ui/select";
-import { Building2, Calendar, Loader2, Save, X, AlertTriangle } from "lucide-react";
+import { Building2, Calendar, Loader2, Lock, Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn, buildYears, toWhole } from "@/lib/utils";
 import { MIMAROPA_REGION_CODE, MONTHS, SECTORS } from "@/lib/fsims-constants";
@@ -494,12 +494,12 @@ export default function TargetReferenceForm({
             return (
             <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
               <td className="whitespace-nowrap px-3 py-1.5 font-medium">
-                {m.name}
-                {monthLocked && (
-                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Locked
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1">
+                  {m.name}
+                  {monthLocked && (
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Locked month" />
+                  )}
+                </span>
               </td>
               {sectors.map((s) => {
                 const key = `${m.value}-${s.detno}`;
