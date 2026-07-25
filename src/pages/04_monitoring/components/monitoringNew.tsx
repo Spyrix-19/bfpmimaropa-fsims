@@ -611,10 +611,8 @@ function InspectionsNewBody({
         title="Fire Safety Compliance Already Exists"
         description="A fire safety compliance record for this station and reporting date already exists. Open the existing record for editing instead."
         confirmLabel="Edit Existing"
-        showCancel={true}
-        cancelLabel="Continue Adding"
+        showCancel={false}
         onConfirm={handleDuplicateConfirm}
-        onCancel={handleDuplicateCancel}
       />
     </form>
   );
