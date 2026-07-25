@@ -176,6 +176,13 @@ export interface FSISInventoryMonthlyParams {
   Reportmonth: number;
 }
 
+export interface FSISCheckInventoryMonthlyParams {
+  Stationno: string;
+  Provinceno: string;
+  /** Complete date based on Reporting Period as of (yyyy-MM-dd). */
+  Dateinspected: string;
+}
+
 
 export interface FSISInventoryMonthlyLedgerModel {
   stationno: string;

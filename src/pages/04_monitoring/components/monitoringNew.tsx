@@ -34,6 +34,7 @@ import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
+import { MONITORING_THEME } from "./monitoringTheme";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { cn } from "@/lib/utils";
@@ -239,8 +240,7 @@ function InspectionsNewBody({
       {
         Stationno: stationNumber || EMPTY_GUID,
         Provinceno: provinceNumber || EMPTY_GUID,
-        Reportyear: date.getFullYear(),
-        Reportmonth: date.getMonth() + 1,
+        Dateinspected: format(date, "yyyy-MM-dd"),
       },
       { suppressGlobalLoading: true },
     );
@@ -671,7 +671,11 @@ export function InspectionsNewModal({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+      <DialogContent
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+      >
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
@@ -769,20 +773,20 @@ function IssuanceTable({
     {
       title: "FSEC",
       fields: ISSUANCE_FSEC_FIELDS,
-      headClass: "bg-sky-700 text-white dark:bg-sky-600",
-      subHeadClass: "bg-sky-100 text-sky-900 dark:bg-sky-950/60 dark:text-sky-100",
+      headClass: MONITORING_THEME.headerGroup,
+      subHeadClass: MONITORING_THEME.headerSoft,
     },
     {
       title: "FSIC",
       fields: ISSUANCE_FSIC_FIELDS,
-      headClass: "bg-slate-700 text-white dark:bg-slate-600",
-      subHeadClass: "bg-slate-100 text-slate-900 dark:bg-slate-950/60 dark:text-slate-100",
+      headClass: MONITORING_THEME.headerGroup,
+      subHeadClass: MONITORING_THEME.headerSoft,
     },
     {
       title: "NOTICES",
       fields: OTHERS_FIELDS,
-      headClass: "bg-cyan-700 text-white dark:bg-cyan-600",
-      subHeadClass: "bg-cyan-100 text-cyan-900 dark:bg-cyan-950/60 dark:text-cyan-100",
+      headClass: MONITORING_THEME.headerGroup,
+      subHeadClass: MONITORING_THEME.headerSoft,
     },
   ];
 
@@ -847,7 +851,10 @@ function IssuanceTable({
             <tr>
               <th
                 rowSpan={2}
-                className="sticky left-0 top-0 z-40 min-w-[110px] border-b border-r bg-blue-700 px-3 py-2 text-center align-middle uppercase tracking-wider text-white"
+                className={cn(
+                  "sticky left-0 top-0 z-40 min-w-[110px] border-b border-r px-3 py-2 text-center align-middle uppercase tracking-wider",
+                  MONITORING_THEME.headerPrimary,
+                )}
               >
                 Issuance
               </th>
@@ -865,7 +872,10 @@ function IssuanceTable({
               ))}
               <th
                 rowSpan={2}
-                className="min-w-[90px] border-b border-l bg-blue-700 px-3 py-2 text-center align-middle uppercase tracking-wider text-white"
+                className={cn(
+                  "min-w-[90px] border-b border-l px-3 py-2 text-center align-middle uppercase tracking-wider",
+                  MONITORING_THEME.headerPrimary,
+                )}
               >
                 Total
               </th>

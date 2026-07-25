@@ -41,6 +41,17 @@ import { EMPTY_GUID, unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { isReportMonthLocked } from "@/pages/05_target-reference/helpers";
 import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
+import { MONITORING_THEME } from "./monitoringTheme";
+import RevisionRequestDialog from "@/pages/05_target-reference/revision/RevisionRequestDialog";
+import ReasonRemarksDialog from "@/pages/05_target-reference/revision/ReasonRemarksDialog";
+import RevisionStatusBadge from "@/pages/05_target-reference/revision/RevisionStatusBadge";
+import { useRevisionStore } from "@/pages/05_target-reference/revision/useRevisionStore";
+import {
+  getActiveRequestForCell,
+  getLatestRequestForCell,
+  userCancelRequest,
+  completeRequest,
+} from "@/pages/05_target-reference/revision/mockStore";
 
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { stationAPI } from "@/services/stationAPI";
@@ -69,19 +80,21 @@ const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
 }));
 const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
-// Spreadsheet-style palette matching the reference sample (pastel color-blocked headers).
+// Unified spreadsheet palette — every group and sub-group shares the same
+// primary color family (see monitoringTheme.ts). Category distinction is
+// preserved by grouping/labels, not by mixing unrelated hues.
 const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-sky-200 text-slate-900 dark:bg-sky-950/60 dark:text-sky-100",
-  FSEC: "bg-slate-200 text-slate-900 dark:bg-slate-950/60 dark:text-slate-100",
-  FSIC: "bg-indigo-200 text-slate-900 dark:bg-indigo-950/60 dark:text-indigo-100",
-  NOTICES: "bg-cyan-200 text-slate-900 dark:bg-cyan-950/60 dark:text-cyan-100",
+  INSPECTION: MONITORING_THEME.headerSoft,
+  FSEC: MONITORING_THEME.headerSoft,
+  FSIC: MONITORING_THEME.headerSoft,
+  NOTICES: MONITORING_THEME.headerSoft,
 };
 
 const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-sky-50 text-slate-800 dark:bg-sky-950/80 dark:text-sky-100",
-  FSEC: "bg-slate-50 text-slate-800 dark:bg-slate-950/80 dark:text-slate-100",
-  FSIC: "bg-indigo-50 text-slate-800 dark:bg-indigo-950/80 dark:text-indigo-100",
-  NOTICES: "bg-cyan-50 text-slate-800 dark:bg-cyan-950/80 dark:text-cyan-100",
+  INSPECTION: MONITORING_THEME.headerSofter,
+  FSEC: MONITORING_THEME.headerSofter,
+  FSIC: MONITORING_THEME.headerSofter,
+  NOTICES: MONITORING_THEME.headerSofter,
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
@@ -401,6 +414,7 @@ function InventoryEditBody({
   onCancel: () => void;
 }) {
   const { user } = useAuth();
+  useRevisionStore();
 
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? String(month);
 
@@ -408,6 +422,8 @@ function InventoryEditBody({
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
+  const [revisionOpen, setRevisionOpen] = React.useState(false);
+  const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
 
   // Station info from Monthly API
   const [station, setStation] = React.useState<FSISInventoryMonthlyLedgerModel | null>(null);
@@ -503,6 +519,23 @@ function InventoryEditBody({
     [editableDays],
   );
   const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
+
+  // ------- Revision request state (mirrors Target Reference process) -------
+  const activeReq = stationno
+    ? getActiveRequestForCell(stationno, year, month)
+    : undefined;
+  const latestReq = stationno
+    ? getLatestRequestForCell(stationno, year, month)
+    : undefined;
+  const isApproved = activeReq?.status === "APPROVED";
+  const isPending = activeReq?.status === "PENDING";
+  const isOwnPending =
+    isPending && activeReq?.requestedByUserId === (user?.memberno ?? "");
+  const monthLocked = isReportMonthLocked(year, month);
+  // When an APPROVED request is active, the whole month is temporarily
+  // unlocked — override per-day locks for rendering and save gating.
+  const revisionUnlocks = isApproved;
+
 
   /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
@@ -654,9 +687,13 @@ function InventoryEditBody({
       return;
     }
 
-    // Check if entire month is locked
-    if (isReportMonthLocked(year, month)) {
+    // Check if entire month is locked (approved revision temporarily unlocks it)
+    if (!revisionUnlocks && isReportMonthLocked(year, month)) {
       setSaveError("This reporting month is locked and cannot be edited.");
+      return;
+    }
+    if (isPending) {
+      setSaveError("A revision request is pending review. Editing is disabled until it is approved.");
       return;
     }
 
@@ -666,7 +703,8 @@ function InventoryEditBody({
       const updates: FSISUpdateInventoryClass[] = [];
 
       for (const [, day] of editableDays) {
-        if (day.isLocked) continue; // Skip locked days
+        if (!revisionUnlocks && day.isLocked) continue; // Skip locked days unless approved
+
 
         const original = baselineMap.get(day.key);
         if (original && !isDayModified(original, day)) {
@@ -757,6 +795,13 @@ function InventoryEditBody({
       }
       toast.success("Fire safety compliance updated successfully.");
       setBaseline(currentSnapshot);
+      // Complete an approved revision request — auto re-locks the month.
+      if (revisionUnlocks && activeReq) {
+        completeRequest(activeReq.id, {
+          userId: user?.memberno ?? "unknown",
+          name: user?.fullname || user?.name || "User",
+        });
+      }
       onSaved();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unexpected error while saving.";
@@ -769,7 +814,14 @@ function InventoryEditBody({
 
   /* ---------------------------------- UI --------------------------------- */
 
-  const days = Array.from(editableDays.values());
+  // When an APPROVED revision is active, treat all days as unlocked;
+  // when PENDING, force every day locked so no edits happen.
+  const rawDays = Array.from(editableDays.values());
+  const days = rawDays.map((d) => {
+    if (revisionUnlocks) return { ...d, isLocked: false };
+    if (isPending) return { ...d, isLocked: true };
+    return d;
+  });
   const allLocked = days.length > 0 && days.every((d) => d.isLocked);
 
   if (loading) {
@@ -809,6 +861,48 @@ function InventoryEditBody({
         </div>
       </Card>
 
+      {/* Revision status banner (mirrors Target Reference) ------------------ */}
+      {(monthLocked || activeReq || (latestReq && latestReq.status !== "PENDING")) && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-border/60 bg-card p-4 shadow-soft">
+          <div className="flex items-center gap-2 text-xs">
+            <Lock className="h-3.5 w-3.5 text-amber-600" />
+            <span className="font-medium">
+              {revisionUnlocks
+                ? `Revision approved — ${monthName} ${year} is temporarily editable.`
+                : isPending
+                  ? `Revision request pending review for ${monthName} ${year}.`
+                  : `${monthName} ${year} is locked.`}
+            </span>
+            {latestReq && <RevisionStatusBadge status={latestReq.status} />}
+          </div>
+          <div className="flex items-center gap-2">
+            {isOwnPending && activeReq && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:[color:white]"
+                onClick={() => setCancelRequestId(activeReq.id)}
+              >
+                Cancel Request
+              </Button>
+            )}
+            {!activeReq && monthLocked && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:[color:white]"
+                onClick={() => setRevisionOpen(true)}
+                disabled={!stationno}
+              >
+                <Lock className="h-3 w-3" /> Request Revision
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Daily Compliance Details ------------------------------------------- */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -820,6 +914,7 @@ function InventoryEditBody({
             {monthName} {year}
           </div>
         </div>
+
 
         <TargetAccomplishmentPanel
           stationno={stationno}
@@ -854,7 +949,7 @@ function InventoryEditBody({
               <tr>
                 <th
                   rowSpan={2}
-                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r border-slate-300 bg-white px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900"
+                  className={`sticky left-0 top-0 z-40 min-w-[120px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
                 >
                   Date
                 </th>
@@ -866,7 +961,7 @@ function InventoryEditBody({
                 </th>
                 <th
                   rowSpan={2}
-                  className="sticky top-0 z-30 border-b border-r border-slate-300 bg-slate-100 px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[90px]"
+                  className={`sticky top-0 z-30 border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
                 >
                   Mode of
                   <br />
@@ -892,13 +987,13 @@ function InventoryEditBody({
                 </th>
                 <th
                   rowSpan={2}
-                  className="sticky top-0 z-30 border-b border-r border-slate-300 bg-slate-200 px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[70px]"
+                  className={`sticky top-0 z-30 border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
                 >
                   Total
                 </th>
                 <th
                   rowSpan={2}
-                  className="sticky top-0 z-30 border-b border-l border-slate-300 bg-slate-100 px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider text-slate-900 min-w-[160px]"
+                  className={`sticky top-0 z-30 border-b border-l px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px] ${MONITORING_THEME.headerSoft}`}
                 >
                   Remarks
                 </th>
@@ -909,7 +1004,7 @@ function InventoryEditBody({
                   return (
                     <th
                       key={String(field.key)}
-                      className={`border-b border-r border-slate-300 px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
                     >
                       {field.label}
                     </th>
@@ -926,10 +1021,10 @@ function InventoryEditBody({
                 return (
                   <React.Fragment key={dayEntry.key}>
                     {/* MANUAL row */}
-                    <tr className={dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                    <tr className={dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}>
                       <td
                         rowSpan={2}
-                        className={`sticky left-0 z-20 border-b border-r border-slate-300 px-3 py-1.5 align-middle text-[11px] font-semibold text-slate-900 ${dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
+                        className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
                       >
                         <div className="flex items-center gap-2">
                           {dayEntry.isLocked && <Lock className="h-3 w-3 text-amber-600" />}
@@ -976,7 +1071,7 @@ function InventoryEditBody({
                           </td>
                         );
                       })}
-                      <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase text-slate-900">
+                      <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
                         MANUAL
                       </td>
                       {/* FSEC fields */}
@@ -1105,10 +1200,10 @@ function InventoryEditBody({
                     </tr>
 
                     {/* FSIS row */}
-                    <tr className={dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                    <tr className={dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}>
                       {/* Inspection fields are merged with the MANUAL row above (rowSpan=2) */}
 
-                      <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase text-slate-900">
+                      <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
                         FSIS
                       </td>
                       {/* FSEC fields */}
@@ -1323,7 +1418,7 @@ function InventoryEditBody({
         </Button>
         <Button
           onClick={handleSave}
-          disabled={saving || allLocked}
+          disabled={saving || allLocked || !isDirty}
           className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -1353,7 +1448,50 @@ function InventoryEditBody({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {revisionOpen && (
+        <RevisionRequestDialog
+          open={revisionOpen}
+          onOpenChange={setRevisionOpen}
+          module="monitoring"
+          station={{
+            stationno,
+            stationcode: station?.stationcode || "",
+            stationname: station?.stationname || "",
+            provinceno: provinceno || "",
+            provincename: station?.provincename || "",
+            cityname: station?.cityname || user?.cityname || "",
+          }}
+          year={year}
+          month={month}
+        />
+      )}
+
+      <ReasonRemarksDialog
+        open={!!cancelRequestId}
+        onOpenChange={(v) => !v && setCancelRequestId(null)}
+        title="Cancel Revision Request"
+        description="Provide the reason for cancelling this pending request."
+        reasonLabel="Cancellation Reason"
+        confirmLabel="Cancel Request"
+        confirmVariant="destructive"
+        onConfirm={({ reason, remarks }) => {
+          if (!cancelRequestId) return;
+          const res = userCancelRequest(cancelRequestId, {
+            userId: user?.memberno ?? "unknown",
+            name: user?.fullname || user?.name || "User",
+            reason,
+            remarks,
+          });
+          if (!res.ok) toast.error(res.error);
+          else {
+            toast.success("Revision request cancelled.");
+            setCancelRequestId(null);
+          }
+        }}
+      />
     </div>
+
   );
 }
 
@@ -1440,7 +1578,11 @@ export function InventoryEditModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+      <DialogContent
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+      >
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">

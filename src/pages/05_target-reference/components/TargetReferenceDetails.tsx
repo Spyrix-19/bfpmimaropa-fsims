@@ -109,7 +109,11 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[90vh] overflow-hidden min-h-0">
+      <DialogContent
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        className="max-w-3xl h-[90vh] overflow-hidden min-h-0"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Building2 className="h-4 w-4 text-primary" /> Target Reference Details

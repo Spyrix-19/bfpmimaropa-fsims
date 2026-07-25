@@ -355,15 +355,20 @@ export default function TargetReferenceIndexPage() {
           </div>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
-          <Button variant="outline" onClick={openMatrixGlobal} className="w-full justify-center gap-2 sm:w-auto">
-            <LayoutGrid className="h-4 w-4" /> Target Matrix
-          </Button>
           {canManage && (
             <AddButton onClick={handleAdd} className="w-full justify-center sm:w-auto">
               <Target className="h-4 w-4" /> Add Target
             </AddButton>
           )}
+          <Button
+            variant="outline"
+            onClick={openMatrixGlobal}
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+          >
+            <LayoutGrid className="h-4 w-4" /> Target Matrix
+          </Button>
         </div>
+
       </div>
 
       {/* Filters */}

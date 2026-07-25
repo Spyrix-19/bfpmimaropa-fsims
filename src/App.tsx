@@ -17,6 +17,12 @@ const Profile = lazy(() => import("@/pages/03_profile/Profile"));
 const AvailableUsers = lazy(() => import("@/pages/08_users/AvailableUsers"));
 const ActiveUsers = lazy(() => import("@/pages/08_users/ActiveUsers"));
 const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
+const TargetRevisionRequests = lazy(
+  () => import("@/pages/10_target-revisions/TargetRevisionRequests"),
+);
+const RevisionRequestsAll = lazy(
+  () => import("@/pages/11_revision-requests/RevisionRequestsAll"),
+);
 
 function RequireAccess({ module, children }: { module: AppModule; children: ReactElement }) {
   const { isAuthenticated, canAccess, initialized } = useAuth();
@@ -110,6 +116,23 @@ export default function App() {
                       </RequireAccess>
                     }
                   />
+                  <Route
+                    path="/target-revision-requests"
+                    element={
+                      <RequireAccess module="target-revisions">
+                        <TargetRevisionRequests />
+                      </RequireAccess>
+                    }
+                  />
+                  <Route
+                    path="/revision-requests"
+                    element={
+                      <RequireAccess module="target-revisions">
+                        <RevisionRequestsAll />
+                      </RequireAccess>
+                    }
+                  />
+
 
                   <Route
                     path="/reports"

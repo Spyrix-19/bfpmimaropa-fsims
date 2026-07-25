@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 import { stationAPI } from "@/services/stationAPI";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+import { MONITORING_THEME } from "./monitoringTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
@@ -42,19 +43,20 @@ const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
 }));
 const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
-// Match the spreadsheet-style palette used by monitoringEdit.
+// Unified palette — every group/sub-group shares the same color family
+// (see monitoringTheme.ts). Grouping is preserved by labels, not by hue.
 const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-sky-200 text-slate-900 dark:bg-sky-950/60 dark:text-sky-100",
-  FSEC: "bg-slate-200 text-slate-900 dark:bg-slate-950/60 dark:text-slate-100",
-  FSIC: "bg-indigo-200 text-slate-900 dark:bg-indigo-950/60 dark:text-indigo-100",
-  NOTICES: "bg-cyan-200 text-slate-900 dark:bg-cyan-950/60 dark:text-cyan-100",
+  INSPECTION: MONITORING_THEME.headerSoft,
+  FSEC: MONITORING_THEME.headerSoft,
+  FSIC: MONITORING_THEME.headerSoft,
+  NOTICES: MONITORING_THEME.headerSoft,
 };
 
 const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: "bg-sky-50 text-slate-800 dark:bg-sky-950/80 dark:text-sky-100",
-  FSEC: "bg-slate-50 text-slate-800 dark:bg-slate-950/80 dark:text-slate-100",
-  FSIC: "bg-indigo-50 text-slate-800 dark:bg-indigo-950/80 dark:text-indigo-100",
-  NOTICES: "bg-cyan-50 text-slate-800 dark:bg-cyan-950/80 dark:text-cyan-100",
+  INSPECTION: MONITORING_THEME.headerSofter,
+  FSEC: MONITORING_THEME.headerSofter,
+  FSIC: MONITORING_THEME.headerSofter,
+  NOTICES: MONITORING_THEME.headerSofter,
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
@@ -437,7 +439,7 @@ function InventoryViewBody({
               <tr>
                 <th
                   rowSpan={2}
-                  className="sticky left-0 top-0 z-40 min-w-[120px] border-b border-r border-slate-300 bg-white px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider"
+                  className={`sticky left-0 top-0 z-40 min-w-[120px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
                 >
                   Date
                 </th>
@@ -449,7 +451,7 @@ function InventoryViewBody({
                 </th>
                 <th
                   rowSpan={2}
-                  className="border-b border-r border-slate-300 bg-slate-100 px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px]"
+                  className={`border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
                 >
                   Mode of<br />Issuance
                 </th>
@@ -473,13 +475,13 @@ function InventoryViewBody({
                 </th>
                 <th
                   rowSpan={2}
-                  className="border-b border-r border-slate-300 bg-slate-200 px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px]"
+                  className={`border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
                 >
                   Total
                 </th>
                 <th
                   rowSpan={2}
-                  className="border-b border-slate-300 bg-slate-100 px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px]"
+                  className={`border-b px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px] ${MONITORING_THEME.headerSoft}`}
                 >
                   Remarks
                 </th>
@@ -490,7 +492,7 @@ function InventoryViewBody({
                   return (
                     <th
                       key={String(field.key)}
-                      className={`border-b border-r border-slate-300 px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
                     >
                       {field.label}
                     </th>
@@ -500,7 +502,7 @@ function InventoryViewBody({
             </thead>
             <tbody>
               {slices.map((slice, dayIndex) => {
-                const rowBg = dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50";
+                const rowBg = dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd;
                 const rowTotal = DETAIL_FIELDS.reduce(
                   (sum, f) => sum + num(slice.totals[f.key as keyof DailyInventoryDTO]),
                   0,
@@ -534,7 +536,7 @@ function InventoryViewBody({
                         );
                       })}
 
-                      <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase">
+                      <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
                         MANUAL
                       </td>
 
@@ -602,7 +604,7 @@ function InventoryViewBody({
                     {/* FSIS row */}
                     <tr className={rowBg}>
                       {/* Inspection cells merged with MANUAL row above */}
-                      <td className="border-b border-r border-slate-300 bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold uppercase">
+                      <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
                         FSIS
                       </td>
 
@@ -748,7 +750,11 @@ export function InventoryViewModal({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+      <DialogContent
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+      >
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <Eye className="h-5 w-5 text-primary" /> Fire Safety Compliance — Daily Details

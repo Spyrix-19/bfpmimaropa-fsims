@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import LocationSearchSelect from "@/components/location-search-select";
-import StationSearchSelect from "@/components/station-search-select";
+import LocationMultiSelect, { type SelectedLocation } from "@/pages/05_target-reference/components/LocationMultiSelect";
+import StationMultiSelect, { type SelectedStation } from "@/pages/05_target-reference/components/StationMultiSelect";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
 import { MONTH_NAMES, sumMonths } from "@/lib/inventoryHelpers";
@@ -23,10 +23,12 @@ import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { EMPTY_GUID } from "@/lib/utils";
 import { buildYears } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
-import type { SearchStationModel } from "@/types/stationTypes";
+import { resolveTargetScope } from "@/pages/05_target-reference/helpers";
+import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
 import type {
   FSISInventoryLedgerModel,
   FSISInventoryLedgerClass,
+  ExportInventoryStationClassModel,
 } from "@/types/targetinventoryType";
 import { exportComplianceMatrix } from "./components/matrixExport";
 
@@ -39,6 +41,10 @@ const STYLE = {
   catFsec: "bg-emerald-600 text-white dark:bg-emerald-700",
   catFsic: "bg-amber-500 text-slate-900 dark:bg-amber-600 dark:text-slate-950",
   catNotice: "bg-rose-500 text-white dark:bg-rose-600",
+  catInspSub: "bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100",
+  catFsecSub: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100",
+  catFsicSub: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100",
+  catNoticeSub: "bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-100",
   semester: "bg-orange-500 text-white dark:bg-orange-600",
   annual: "bg-blue-900 text-white dark:bg-blue-950",
   provTotalRow: "bg-yellow-100 text-yellow-950 font-bold dark:bg-yellow-900/40 dark:text-yellow-50",
@@ -89,6 +95,13 @@ const CATEGORY_STYLE: Record<ComplianceCategory, string> = {
   FSEC: STYLE.catFsec,
   FSIC: STYLE.catFsic,
   NOTICES: STYLE.catNotice,
+};
+
+const CATEGORY_SUB_STYLE: Record<ComplianceCategory, string> = {
+  INSPECTION: STYLE.catInspSub,
+  FSEC: STYLE.catFsecSub,
+  FSIC: STYLE.catFsicSub,
+  NOTICES: STYLE.catNoticeSub,
 };
 
 /** Contiguous [start,end] index runs per category — drives category banners. */
@@ -202,28 +215,76 @@ export default function InventoryMatrix({
   initialFilters,
   readOnly = false,
 }: Props) {
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  
+  const { user, systemAccess } = useAuth();
+  const scope = React.useMemo(
+    () => resolveTargetScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
   const currentYear = new Date().getFullYear();
   const YEARS = React.useMemo(buildYears, []);
 
   const [year, setYear] = React.useState<number>(initialFilters?.year ?? currentYear);
-  const [provinceno, setProvinceno] = React.useState<string>(initialFilters?.provinceno ?? "");
-  const [provincename, setProvincename] = React.useState<string>(
-    initialFilters?.provinceName ?? "ALL",
+  const [provinceFilters, setProvinceFilters] = React.useState<SelectedLocation[]>(
+    scope.provinceLocked
+      ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
+      : initialFilters?.provinceno
+        ? [{ locationno: initialFilters.provinceno, locationname: initialFilters.provinceName ?? "" }]
+        : [],
   );
-  const [stationno, setStationno] = React.useState<string>(initialFilters?.stationno ?? "");
-  const [stationname, setStationname] = React.useState<string>(
-    initialFilters?.stationName ?? "ALL",
+  const [stationFilters, setStationFilters] = React.useState<SelectedStation[]>(
+    scope.stationLocked
+      ? [
+          {
+            stationno: scope.stationno,
+            stationname: scope.stationname,
+            provinceno: scope.provinceno,
+            provincename: scope.provincename,
+          },
+        ]
+      : initialFilters?.stationno
+        ? [
+            {
+              stationno: initialFilters.stationno,
+              stationname: initialFilters.stationName ?? "",
+              provinceno: initialFilters?.provinceno ?? "",
+              provincename: initialFilters?.provinceName ?? "",
+            },
+          ]
+        : [],
   );
 
   React.useEffect(() => {
     if (!open) return;
     setYear(initialFilters?.year ?? currentYear);
-    setProvinceno(initialFilters?.provinceno ?? "");
-    setProvincename(initialFilters?.provinceName ?? "ALL");
-    setStationno(initialFilters?.stationno ?? "");
-    setStationname(initialFilters?.stationName ?? "ALL");
+    setProvinceFilters(
+      scope.provinceLocked
+        ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
+        : initialFilters?.provinceno
+          ? [{ locationno: initialFilters.provinceno, locationname: initialFilters.provinceName ?? "" }]
+          : [],
+    );
+    setStationFilters(
+      scope.stationLocked
+        ? [
+            {
+              stationno: scope.stationno,
+              stationname: scope.stationname,
+              provinceno: scope.provinceno,
+              provincename: scope.provincename,
+            },
+          ]
+        : initialFilters?.stationno
+        ? [
+            {
+              stationno: initialFilters.stationno,
+              stationname: initialFilters.stationName ?? "",
+              provinceno: initialFilters?.provinceno ?? "",
+              provincename: initialFilters?.provinceName ?? "",
+            },
+          ]
+        : [],
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     open,
@@ -235,25 +296,64 @@ export default function InventoryMatrix({
   const [groups, setGroups] = React.useState<ProvinceGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
-  // Export-only "Report Month" filter (0 = All months).
-  const [exportMonth, setExportMonth] = React.useState<number>(0);
+  // Export-only "Report Month" filter — required by the new Export API.
+  const [exportMonth, setExportMonth] = React.useState<number>(new Date().getMonth() + 1);
 
   const fields = COMPLIANCE_FIELDS;
   const fieldKeys = React.useMemo(() => fields.map((f) => String(f.key)), [fields]);
   const catSpan = fields.length;
   const categoryRuns = React.useMemo(computeCategoryRuns, []);
 
+  // Province/Station cross-sync — same rules used by TargetMatrix filters.
+  const handleProvincesChange = (next: SelectedLocation[]) => {
+    setProvinceFilters(next);
+    if (next.length === 0) {
+      setStationFilters((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+    const allowed = new Set(next.map((p) => p.locationno));
+    setStationFilters((prev) => {
+      const filtered = prev.filter((s) => allowed.has(s.provinceno));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  };
+
+  const handleStationsChange = (next: SelectedStation[]) => {
+    setStationFilters(next);
+    const seen = new Map<string, SelectedLocation>();
+    next.forEach((s) => {
+      if (!s.provinceno || seen.has(s.provinceno)) return;
+      seen.set(s.provinceno, { locationno: s.provinceno, locationname: s.provincename });
+    });
+    const derived = Array.from(seen.values());
+    // Merge derived provinces from station picks with any provinces the user
+    // already selected explicitly (so picking a station never removes a
+    // manually-selected province).
+    setProvinceFilters((prev) => {
+      const merged = [...prev];
+      const known = new Set(prev.map((p) => p.locationno));
+      derived.forEach((d) => {
+        if (!known.has(d.locationno)) {
+          merged.push(d);
+          known.add(d.locationno);
+        }
+      });
+      if (merged.length === prev.length) return prev;
+      return merged;
+    });
+  };
+
+  // Fetch the annual ledger once per year — the on-screen matrix filters the
+  // loaded groups client-side against the multi-selects.
   React.useEffect(() => {
     if (!open) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      // Real API — pull the entire year's ledger so the matrix can group by
-      // province → station → month client-side using the true DTO fields.
       const resp = await targetinventoryAPI.getInventoryLedger({
         searchkey: "",
-        stationno: stationno || EMPTY_GUID,
-        provinceno: provinceno || EMPTY_GUID,
+        stationno: EMPTY_GUID,
+        provinceno: EMPTY_GUID,
         reportyear: Number(year),
         pagenumber: 1,
         pagesize: 10000,
@@ -267,73 +367,119 @@ export default function InventoryMatrix({
     return () => {
       cancelled = true;
     };
-  }, [open, year, provinceno, stationno]);
+  }, [open, year]);
+
+  // Client-side view filter driven by the multi-selects.
+  const filteredGroups = React.useMemo<ProvinceGroup[]>(() => {
+    const provSet = new Set(provinceFilters.map((p) => p.locationno));
+    const stnSet = new Set(stationFilters.map((s) => s.stationno));
+    return groups
+      .filter((g) => provSet.size === 0 || provSet.has(g.provinceno))
+      .map((g) => ({
+        ...g,
+        stations:
+          stnSet.size === 0 ? g.stations : g.stations.filter((s) => stnSet.has(s.stationno)),
+      }))
+      .filter((g) => g.stations.length > 0);
+  }, [groups, provinceFilters, stationFilters]);
 
   const handleExport = async () => {
-    if (groups.length === 0) {
-      toast.info("No data available to export.");
+    // Validation — mirrors the AI SCRIPT "VALIDATION" section.
+    if (!year) {
+      toast.error("Please select a year.");
       return;
     }
+    if (!exportMonth) {
+      toast.error("Please select a report month.");
+      return;
+    }
+
+    // Build the API request from the current selections. When the user leaves
+    // ALL for either filter, fall back to what the on-screen matrix is
+    // showing (the full loaded year). We only send explicit station lists —
+    // the endpoint never receives a hardcoded province or station.
+    const sourceGroups = filteredGroups.length > 0 ? filteredGroups : groups;
+    const provinceMap = new Map<string, { provinceno: string; stationnos: Set<string> }>();
+    for (const g of sourceGroups) {
+      const key = g.provinceno || g.province;
+      const entry =
+        provinceMap.get(key) ?? { provinceno: g.provinceno, stationnos: new Set<string>() };
+      for (const s of g.stations) entry.stationnos.add(s.stationno);
+      provinceMap.set(key, entry);
+    }
+    const provincesPayload = Array.from(provinceMap.values())
+      .filter((p) => p.stationnos.size > 0)
+      .map((p) => ({ provinceno: p.provinceno, stationnos: Array.from(p.stationnos) }));
+
+    if (provincesPayload.length === 0) {
+      toast.error("Please select at least one province and station.");
+      return;
+    }
+
     setExporting(true);
     try {
-      // Fire the real export endpoint for server-side logging / audit. The
-      // workbook itself is built client-side from the already-loaded ledger
-      // groups (no re-fetch, no aliasing) so column identity matches the
-      // FSISInventoryLedgerClass DTO exactly.
-      void targetinventoryAPI
-        .export({
-          searchkey: "",
-          reportyear: Number(year),
-          reportmonth: Number(exportMonth) || 0,
-          provinces: groups.map((g) => ({
-            provinceno: g.provinceno || g.stations[0]?.provinceno || "",
-            stationnos: g.stations.map((s) => s.stationno),
-          })),
-        })
-        .catch(() => {
-          /* non-blocking */
-        });
+      const resp = await targetinventoryAPI.export({
+        searchkey: "",
+        reportyear: Number(year),
+        reportmonth: Number(exportMonth),
+        provinces: provincesPayload,
+      });
+      const { ok, data, error } = unwrap<ExportInventoryStationClassModel[]>(resp);
+      if (!ok || !Array.isArray(data)) {
+        toast.error(error || "Failed to export Compliance Matrix.");
+        return;
+      }
 
-      // Shape groups for the exporter — 1:1 with FSISInventoryLedgerClass keys.
-      const merged = groups.map((g) => ({
-        province: g.province,
-        stations: g.stations.map((s) => ({
-          stationno: s.stationno,
-          stationCode: s.stationcode,
-          stationName: s.stationname,
-          cityName: s.cityname ?? "",
-          months: (() => {
-            // Deep-clone month buckets so the exportMonth filter below can
-            // safely zero-out non-target months without mutating state.
-            const out: Record<number, Record<string, number>> = {};
-            for (let m = 1; m <= 12; m++) {
-              const src = s.months[m];
-              if (!src) continue;
-              out[m] = { ...src };
+      // Group returned stations by province name (response provinceno is
+      // often EMPTY_GUID), preserving request order.
+      const provinceOrder: string[] = [];
+      const byProvince = new Map<string, ExportInventoryStationClassModel[]>();
+      for (const st of data) {
+        const key = st.provincename || st.provinceno || "";
+        if (!byProvince.has(key)) {
+          byProvince.set(key, []);
+          provinceOrder.push(key);
+        }
+        byProvince.get(key)!.push(st);
+      }
+
+      const fieldKeyList = COMPLIANCE_FIELDS.map((f) => String(f.key));
+      const emptyBucket = () =>
+        Object.fromEntries(fieldKeyList.map((k) => [k, 0])) as Record<string, number>;
+
+      const merged = provinceOrder.map((provName) => {
+        const stations = (byProvince.get(provName) ?? [])
+          .slice()
+          .sort((a, b) => (a.stationcode || "").localeCompare(b.stationcode || ""))
+          .map((s) => {
+            const months: Record<number, Record<string, number>> = {};
+            const inv = Array.isArray(s.inventorylist) ? s.inventorylist : [];
+            for (const row of inv) {
+              const m = Number(row.reportmonth) || Number(exportMonth);
+              if (m < 1 || m > 12) continue;
+              const bucket = (months[m] ??= emptyBucket());
+              for (const k of fieldKeyList) {
+                bucket[k] += Number((row as unknown as Record<string, unknown>)[k] ?? 0) || 0;
+              }
             }
-            return out;
-          })(),
-        })),
-      }));
+            // Empty inventory still renders as a station row with zeros.
+            if (!months[exportMonth]) months[exportMonth] = emptyBucket();
+            return {
+              stationno: s.stationno,
+              stationCode: s.stationcode ?? "",
+              stationName: s.stationname ?? "",
+              cityName: s.cityname ?? "",
+              months,
+            };
+          });
+        return { province: provName, stations };
+      });
 
       const flatFields = COMPLIANCE_FIELDS.map((f) => ({
         key: String(f.key),
         label: f.label,
         category: f.category,
       }));
-
-      // If a specific report month is selected, zero every other month so
-      // the workbook still renders in the reference full-year layout but
-      // only the chosen month carries values.
-      if (exportMonth > 0) {
-        merged.forEach((g) =>
-          g.stations.forEach((s) => {
-            for (let m = 1; m <= 12; m++) {
-              if (m !== exportMonth) s.months[m] = {};
-            }
-          }),
-        );
-      }
 
       await exportComplianceMatrix({
         year,
@@ -344,10 +490,7 @@ export default function InventoryMatrix({
           fullname: user?.fullname ?? user?.name ?? "",
           designation: (user as unknown as { designation?: string })?.designation ?? "",
         },
-        filename:
-          exportMonth > 0
-            ? `ComplianceMatrix_${year}_${MONTH_NAMES[exportMonth - 1]}.xlsx`
-            : `ComplianceMatrix_${year}.xlsx`,
+        filename: `ComplianceMatrix_${year}_${MONTH_NAMES[exportMonth - 1]}.xlsx`,
       });
       toast.success("Compliance Matrix exported.");
     } catch (err) {
@@ -358,33 +501,14 @@ export default function InventoryMatrix({
     }
   };
 
-  const handleProvinceSelect = (no: string, name: string) => {
-    setProvinceno(no === "all" || !no ? "" : no);
-    setProvincename(name || "ALL");
-    setStationno("");
-    setStationname("ALL");
-  };
-
-  const handleStationSelect = (
-    no: string,
-    name: string,
-    _province?: string,
-    station?: SearchStationModel,
-  ) => {
-    setStationno(no === "all" || !no ? "" : no);
-    setStationname(name || "ALL");
-    if (station?.provinceno && !provinceno) {
-      setProvinceno(station.provinceno);
-      setProvincename(station.provincename || "");
-    }
-  };
-
   const totalCols = 1 + 12 * catSpan + 4 * catSpan + catSpan + catSpan + catSpan;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
         className="flex h-[90vh] w-[95vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
         <DialogHeader className="flex flex-row items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
@@ -457,7 +581,7 @@ export default function InventoryMatrix({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">All months</SelectItem>
+
                   {MONTH_NAMES.map((n, i) => (
                     <SelectItem key={n} value={String(i + 1)}>
                       {n}
@@ -472,17 +596,25 @@ export default function InventoryMatrix({
               </div>
               {readOnly ? (
                 <div className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm flex items-center text-muted-foreground">
-                  {provincename || "ALL"}
+                  {provinceFilters.length === 0
+                    ? "ALL"
+                    : provinceFilters.length === 1
+                      ? provinceFilters[0].locationname
+                      : `${provinceFilters.length} selected`}
                 </div>
+              ) : scope.provinceLocked ? (
+                <ReadOnlyField
+                  value={provinceFilters[0]?.locationname || scope.provincename}
+                  placeholder="Select province"
+                  title="Restricted to your assigned province"
+                />
               ) : (
-                <LocationSearchSelect
-                  value={provinceno}
-                  valueName={provincename}
+                <LocationMultiSelect
+                  value={provinceFilters}
                   locationtype="PROVINCE"
                   parentcode={MIMAROPA_REGION_CODE}
-                  onChange={handleProvinceSelect}
+                  onChange={handleProvincesChange}
                   placeholder="All provinces"
-                  showAllOption
                   hideCode
                   className="w-full"
                 />
@@ -494,16 +626,30 @@ export default function InventoryMatrix({
               </div>
               {readOnly ? (
                 <div className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm flex items-center text-muted-foreground">
-                  {stationname || "ALL"}
+                  {stationFilters.length === 0
+                    ? "ALL"
+                    : stationFilters.length === 1
+                      ? stationFilters[0].stationname
+                      : `${stationFilters.length} selected`}
                 </div>
+              ) : scope.stationLocked ? (
+                <ReadOnlyField
+                  value={stationFilters[0]?.stationname || scope.stationname}
+                  placeholder="Select station"
+                  title="Restricted to your assigned station"
+                />
               ) : (
-                <StationSearchSelect
-                  value={stationno}
-                  valueName={stationname}
-                  provinceno={provinceno || undefined}
-                  onChange={handleStationSelect}
+                <StationMultiSelect
+                  value={stationFilters}
+                  provinces={
+                    scope.provinceLocked
+                      ? [{ provinceno: scope.provinceno }]
+                      : provinceFilters.map((p) => ({ provinceno: p.locationno }))
+                  }
+                  reportyear={Number(year)}
+                  onChange={handleStationsChange}
                   placeholder="All stations"
-                  showAllOption
+                  alwaysEnabled
                 />
               )}
             </div>
@@ -512,16 +658,46 @@ export default function InventoryMatrix({
                 <ResetFiltersButton
                   onReset={() => {
                     setYear(initialFilters?.year ?? currentYear);
-                    setProvinceno(initialFilters?.provinceno ?? "");
-                    setProvincename(initialFilters?.provinceName ?? "ALL");
-                    setStationno(initialFilters?.stationno ?? "");
-                    setStationname(initialFilters?.stationName ?? "ALL");
+                    setProvinceFilters(
+                      scope.provinceLocked
+                        ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
+                        : initialFilters?.provinceno
+                          ? [
+                              {
+                                locationno: initialFilters.provinceno,
+                                locationname: initialFilters.provinceName ?? "",
+                              },
+                            ]
+                          : [],
+                    );
+                    setStationFilters(
+                      scope.stationLocked
+                        ? [
+                            {
+                              stationno: scope.stationno,
+                              stationname: scope.stationname,
+                              provinceno: scope.provinceno,
+                              provincename: scope.provincename,
+                            },
+                          ]
+                        : initialFilters?.stationno
+                          ? [
+                              {
+                                stationno: initialFilters.stationno,
+                                stationname: initialFilters.stationName ?? "",
+                                provinceno: initialFilters?.provinceno ?? "",
+                                provincename: initialFilters?.provinceName ?? "",
+                              },
+                            ]
+                          : [],
+                    );
                   }}
                 />
               </div>
             )}
           </div>
         </div>
+
 
         <div className="relative flex-1 overflow-auto">
           <table className="w-max min-w-full border-separate border-spacing-0 text-[11px]">
@@ -539,7 +715,7 @@ export default function InventoryMatrix({
                   </td>
                 </tr>
               )}
-              {!loading && groups.length === 0 && (
+              {!loading && filteredGroups.length === 0 && (
                 <tr>
                   <td
                     colSpan={totalCols}
@@ -550,21 +726,15 @@ export default function InventoryMatrix({
                 </tr>
               )}
               {!loading &&
-                groups.map((g) => (
+                filteredGroups.map((g) => (
+
                   <ProvinceBlock
                     key={g.province}
                     group={g}
                     totalCols={totalCols}
                     fieldKeys={fieldKeys}
                     year={Number(year)}
-                    onDrill={
-                      readOnly
-                        ? () => {}
-                        : (stationno, y, m) => {
-                            onOpenChange(false);
-                            navigate(`/monitoring/view/${stationno}/${y}/${m}`);
-                          }
-                    }
+                    onDrill={() => {}}
                   />
                 ))}
             </tbody>
@@ -581,14 +751,19 @@ function MatrixHeader({
   fields,
   catSpan,
 }: {
-  fields: { key: string; label: string }[] | { key: string | number; label: string }[];
+  fields: { key: string | number; label: string; category?: ComplianceCategory }[];
   catSpan: number;
 }) {
+  const CATS = computeCategoryRuns().map((r) => ({
+    label: r.category,
+    span: r.end - r.start + 1,
+    cls: CATEGORY_STYLE[r.category],
+  }));
   return (
     <thead className="sticky top-0 z-30">
       <tr>
         <th
-          rowSpan={3}
+          rowSpan={4}
           className={`sticky left-0 top-0 z-40 min-w-[240px] border-b border-r px-3 py-2 text-left uppercase tracking-wider ${STYLE.stationHead}`}
         >
           Station
@@ -652,6 +827,38 @@ function MatrixHeader({
       <tr>
         {QUARTERS.flatMap((q) =>
           q.months.flatMap((mv, monthIdx) =>
+            CATS.map((c, ci) => (
+              <th
+                key={`cat-${mv}-${c.label}`}
+                colSpan={c.span}
+                className={`border-b px-2 py-1 text-center text-[11px] font-semibold uppercase tracking-wider ${
+                  ci === CATS.length - 1 && monthIdx === 2
+                    ? "border-r-2 border-r-white/30"
+                    : "border-r"
+                } ${c.cls}`}
+              >
+                {c.label}
+              </th>
+            )),
+          ),
+        )}
+        {[0, 1, 2, 3, 4, 5, 6].map((grpIdx) =>
+          CATS.map((c, ci) => (
+            <th
+              key={`cat-total-${grpIdx}-${c.label}`}
+              colSpan={c.span}
+              className={`border-b px-2 py-1 text-center text-[11px] font-semibold uppercase tracking-wider ${
+                ci === CATS.length - 1 ? "border-r-2 border-r-white/40" : "border-r"
+              } ${c.cls}`}
+            >
+              {c.label}
+            </th>
+          )),
+        )}
+      </tr>
+      <tr>
+        {QUARTERS.flatMap((q) =>
+          q.months.flatMap((mv, monthIdx) =>
             fields.map((f, i) => (
               <th
                 key={`c-${mv}-${String(f.key)}`}
@@ -659,7 +866,7 @@ function MatrixHeader({
                   i === catSpan - 1 && monthIdx === 2
                     ? "border-r-2 border-r-emerald-800/60"
                     : "border-r"
-                } ${STYLE.cat}`}
+                } ${f.category ? CATEGORY_SUB_STYLE[f.category] : STYLE.cat}`}
               >
                 {f.label}
               </th>
@@ -672,7 +879,7 @@ function MatrixHeader({
               key={`c-final-${grpIdx}-${String(f.key)}`}
               className={`border-b px-1.5 py-1 text-right text-[10px] font-bold uppercase ${
                 i === catSpan - 1 ? "border-r-2 border-r-white/40" : "border-r"
-              } ${grpIdx <= 3 ? STYLE.quarter : grpIdx === 6 ? STYLE.annual : STYLE.semester}`}
+              } ${f.category ? CATEGORY_SUB_STYLE[f.category] : grpIdx <= 3 ? STYLE.quarter : grpIdx === 6 ? STYLE.annual : STYLE.semester}`}
             >
               {f.label}
             </th>
@@ -811,8 +1018,8 @@ function StationDataRow({
             key={`${station.stationno}-${mv}-${k}`}
             value={bucket?.[k] ?? 0}
             boundary={i === fieldKeys.length - 1 && quarterEnd}
-            onClick={() => onDrill(station.stationno, year, mv)}
           />
+
         ));
       })}
       {(["q1", "q2", "q3", "q4", "sem1", "sem2", "annual"] as const).map((grp) =>

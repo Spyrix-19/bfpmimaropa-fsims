@@ -37,7 +37,14 @@ const PERSONNEL = "PERSONNEL";
 
 /** Modules a user may be authorized against. Drives sidebar + route guards. */
 export type AppModule =
-  "dashboard" | "profile" | "inspections" | "monitoring" | "reports" | "settings" | "users";
+  "dashboard"
+  | "profile"
+  | "inspections"
+  | "monitoring"
+  | "reports"
+  | "settings"
+  | "users"
+  | "target-revisions";
 
 // All authenticated roles share page-level access to the common modules. The
 // `users` module is admin-only and gated below in `canAccess`.
@@ -60,6 +67,8 @@ const ROUTE_MODULE: { prefix: string; module: AppModule }[] = [
   { prefix: "/reports", module: "reports" },
   { prefix: "/settings", module: "settings" },
   { prefix: "/users", module: "users" },
+  { prefix: "/target-revision-requests", module: "target-revisions" },
+  { prefix: "/revision-requests", module: "target-revisions" },
 ];
 
 export function moduleForPath(pathname: string): AppModule {
@@ -555,6 +564,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       !!sa && codes.some((c) => (c || "").toUpperCase() === roleCode);
     const canAccess = (module: AppModule) => {
       if (!session?.user) return false;
+      if (module === "target-revisions") {
+        // Restricted to Super/Admin at MIMAROPA HQ (25) or NCR HQ (26).
+        const rn = sa?.roleno ?? 0;
+        const st = Number(session.user.stationtype ?? 0);
+        return (rn === 1 || rn === 2) && (st === 25 || st === 26);
+      }
       if (ADMIN_MODULES.has(module)) {
         const rn = sa?.roleno ?? 0;
         return rn === 1 || rn === 2;

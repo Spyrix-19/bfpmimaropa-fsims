@@ -20,6 +20,15 @@ import type { SearchStationModel } from "@/types/stationTypes";
 
 import type {  TargetReferenceClass,  TargetReferenceDetailModel,} from "@/types/targetreferenceType";
 import { resolveTargetScope, isReportMonthLocked } from "../helpers";
+import RevisionRequestDialog from "../revision/RevisionRequestDialog";
+import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
+import RevisionStatusBadge from "../revision/RevisionStatusBadge";
+import { useRevisionStore } from "../revision/useRevisionStore";
+import {
+  getActiveRequestForCell,
+  getLatestRequestForCell,
+  userCancelRequest,
+} from "../revision/mockStore";
 
 interface Props {
   open: boolean;
@@ -39,6 +48,9 @@ export default function TargetReferenceForm({
   onSaved,
 }: Props) {
   const { user, systemAccess } = useAuth();
+  useRevisionStore();
+  const [revisionMonth, setRevisionMonth] = React.useState<number | null>(null);
+  const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const scope = React.useMemo(
     () => resolveTargetScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
@@ -53,6 +65,7 @@ export default function TargetReferenceForm({
 
   const [year, setYear] = React.useState<number>(currentYear);
   const [cells, setCells] = React.useState<CellMap>({});
+  const [baselineCells, setBaselineCells] = React.useState<CellMap>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
   const [duplicatePrompted, setDuplicatePrompted] = React.useState(false);
@@ -222,6 +235,7 @@ export default function TargetReferenceForm({
     setErrors({});
     setSaving(false);
     setCells({});
+    setBaselineCells({});
     setExistingTargetNos({});
     setAutoEdit(false);
     setDuplicatePrompted(false);
@@ -272,6 +286,7 @@ export default function TargetReferenceForm({
       }
 
       setCells(nextCells);
+      setBaselineCells(nextCells);
       setExistingTargetNos(nextIds);
       setExistingLoading(false);
     })();
@@ -437,10 +452,25 @@ export default function TargetReferenceForm({
 
   const loadingGrid = sectorsLoading || existingLoading;
 
+  const isDirty = React.useMemo(() => {
+    const norm = (v: string | undefined) => {
+      const t = (v ?? "").trim();
+      if (t === "") return "";
+      const n = Number(t);
+      return Number.isFinite(n) ? String(n) : t;
+    };
+    const keys = new Set([...Object.keys(cells), ...Object.keys(baselineCells)]);
+    for (const k of keys) {
+      if (norm(cells[k]) !== norm(baselineCells[k])) return true;
+    }
+    return false;
+  }, [cells, baselineCells]);
+
   const handleDuplicateConfirm = () => {
     if (pendingDuplicateData) {
       setAutoEdit(true);
       setCells(pendingDuplicateData.cells);
+      setBaselineCells(pendingDuplicateData.cells);
       setExistingTargetNos(pendingDuplicateData.ids);
       setPendingDuplicateData(null);
     }
@@ -449,6 +479,7 @@ export default function TargetReferenceForm({
 
   const handleDuplicateCancel = () => {
     setCells({});
+    setBaselineCells({});
     setExistingTargetNos({});
     setPendingDuplicateData(null);
     setDuplicateDialogOpen(false);
@@ -475,6 +506,7 @@ export default function TargetReferenceForm({
       <table className="min-w-full border-collapse text-xs">
         <thead className="sticky top-0 z-10 bg-card">
           <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
+            <th className="border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">ACTION</th>
             <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Month</th>
             {sectors.map((s) => (
               <th
@@ -491,8 +523,59 @@ export default function TargetReferenceForm({
         <tbody>
           {MONTHS.map((m, i) => {
             const monthLocked = isEdit && isReportMonthLocked(Number(year), Number(m.value));
+            const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
+            const activeReq = revStation
+              ? getActiveRequestForCell(revStation, Number(year), Number(m.value))
+              : undefined;
+            const latestReq = revStation
+              ? getLatestRequestForCell(revStation, Number(year), Number(m.value))
+              : undefined;
+            const isOwnPending =
+              activeReq?.status === "PENDING" &&
+              activeReq.requestedByUserId === (user?.memberno ?? "");
             return (
             <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+              <td className="border-r border-border/60 bg-card px-2 py-1.5 text-center">
+                {!monthLocked ? (
+                  <span className="text-[11px] text-muted-foreground">—</span>
+                ) : activeReq ? (
+                  <div className="flex items-center justify-center gap-1.5">
+                    <RevisionStatusBadge status={activeReq.status} />
+                    {isOwnPending && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
+                        onClick={() => setCancelRequestId(activeReq.id)}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:!text-white"
+                      onClick={() => setRevisionMonth(Number(m.value))}
+                      disabled={!revStation}
+                      title={
+                        !revStation
+                          ? "Select a station to request a revision"
+                          : "Request Revision"
+                      }
+                    >
+                      <Lock className="h-3 w-3" /> Request Revision
+                    </Button>
+                    {latestReq && latestReq.status !== "PENDING" && (
+                      <RevisionStatusBadge status={latestReq.status} />
+                    )}
+                  </div>
+                )}
+              </td>
               <td className="whitespace-nowrap px-3 py-1.5 font-medium">
                 <div className="flex items-center gap-2">
                   {monthLocked && <Lock className="h-3 w-3 text-amber-600" aria-label="Locked month" />}
@@ -544,6 +627,7 @@ export default function TargetReferenceForm({
         </tbody>
         <tfoot className="sticky bottom-0 bg-card">
           <tr className="text-primary bg-card">
+            <td className="border-r border-t border-border/60 bg-card px-3 py-2" />
             <td className="border-t border-border/60 px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] bg-card">TOTAL</td>
             {sectors.map((s) => (
               <td key={s.detno} className="border-t border-border/60 bg-card px-3 py-2 text-right font-bold tabular-nums">
@@ -560,7 +644,11 @@ export default function TargetReferenceForm({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+        <DialogContent
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+        >
           <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
             <DialogTitle className="text-base font-bold">
               {isEdit ? "Edit Target Reference" : "Add Target Reference"}
@@ -692,7 +780,7 @@ export default function TargetReferenceForm({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={saving || loadingGrid || sectors.length === 0}
+            disabled={saving || loadingGrid || sectors.length === 0 || !isDirty}
             className="gap-2 bg-primary text-white hover:bg-primary/90"
           >
             <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save"}
@@ -712,6 +800,47 @@ export default function TargetReferenceForm({
       confirmLabel="Edit Existing"
       showCancel={false}
       onConfirm={handleDuplicateConfirm}
+    />
+
+    {revisionMonth !== null && (
+      <RevisionRequestDialog
+        open={revisionMonth !== null}
+        onOpenChange={(v) => !v && setRevisionMonth(null)}
+        station={{
+          stationno: stationNo,
+          stationcode: stationCode || "",
+          stationname: stationName || "",
+          provinceno: provinceno,
+          provincename: provincename,
+          cityname: station?.cityname ?? user?.cityname ?? "",
+        }}
+        year={Number(year)}
+        month={Number(revisionMonth)}
+      />
+    )}
+
+    <ReasonRemarksDialog
+      open={!!cancelRequestId}
+      onOpenChange={(v) => !v && setCancelRequestId(null)}
+      title="Cancel Revision Request"
+      description="Provide the reason for cancelling this pending request."
+      reasonLabel="Cancellation Reason"
+      confirmLabel="Cancel Request"
+      confirmVariant="destructive"
+      onConfirm={({ reason, remarks }) => {
+        if (!cancelRequestId) return;
+        const res = userCancelRequest(cancelRequestId, {
+          userId: user?.memberno ?? "unknown",
+          name: user?.fullname || user?.name || "User",
+          reason,
+          remarks,
+        });
+        if (!res.ok) toast.error(res.error);
+        else {
+          toast.success("Revision request cancelled.");
+          setCancelRequestId(null);
+        }
+      }}
     />
     </>
   );

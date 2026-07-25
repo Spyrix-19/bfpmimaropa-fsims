@@ -630,6 +630,7 @@ export default function FireSafetyCompliancePage() {
             key: `${stationno}|${year}|${month}`,
             daysEncoded: 0,
             daysInMonth: 0,
+            lastupdated: "",
             totals: {
               inspection: 0,
               fsec: 0,

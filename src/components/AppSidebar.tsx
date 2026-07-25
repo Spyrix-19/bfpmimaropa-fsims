@@ -9,6 +9,8 @@ import {
   Target,
   UserCheck,
   UserPlus,
+  ShieldCheck,
+  History,
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, type ReactNode } from "react";
@@ -76,6 +78,18 @@ const GROUPS: NavGroup[] = [
         label: "Target Reference",
         icon: <Target className="h-4 w-4" />,
         module: "monitoring",
+      },
+      {
+        to: "/target-revision-requests",
+        label: "Target Revision Requests",
+        icon: <ShieldCheck className="h-4 w-4" />,
+        module: "target-revisions",
+      },
+      {
+        to: "/revision-requests",
+        label: "All Revision Requests",
+        icon: <History className="h-4 w-4" />,
+        module: "target-revisions",
       },
     ],
   },
