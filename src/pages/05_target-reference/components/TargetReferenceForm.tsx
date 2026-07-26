@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { Building2, Calendar, Loader2, Lock, Save, X, AlertTriangle } from "lucide-react";
+import { Building2, Calendar, Loader2, Lock, RotateCcw, Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn, buildYears, toWhole } from "@/lib/utils";
 import { MONTHS, SECTORS } from "@/lib/fsims-constants";
@@ -569,7 +569,7 @@ export default function TargetReferenceForm({
                                   : "Request Revision"
                               }
                             >
-                              <Lock className="h-4 w-4" />
+                              <RotateCcw className="h-4 w-4" />
                             </Button>
                           </span>
                         </TooltipTrigger>

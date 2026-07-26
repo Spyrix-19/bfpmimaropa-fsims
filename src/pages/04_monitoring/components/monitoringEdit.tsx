@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Building2,
   Loader2,
+  RotateCcw,
   Save,
   Table2,
   Lock,
@@ -1074,7 +1075,7 @@ function InventoryEditBody({
                                     onClick={() => setRevisionOpen(true)}
                                     title="Request Revision"
                                   >
-                                    <Lock className="h-3 w-3" /> Request Revision
+                                    <RotateCcw className="h-3 w-3" /> Request Revision
                                   </Button>
                                   {latestReq && latestReq.status !== "PENDING" && (
                                     <RevisionStatusBadge status={latestReq.status} />
