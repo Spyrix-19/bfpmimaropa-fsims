@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { Building2, Calendar, Loader2, Lock, RotateCcw, Save, X, AlertTriangle } from "lucide-react";
+import { Building2, Calendar, Loader2, Lock, RotateCcw, Save, X, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, buildYears, toWhole } from "@/lib/utils";
 import { MONTHS, SECTORS } from "@/lib/fsims-constants";
@@ -205,6 +205,8 @@ export default function TargetReferenceForm({
 
   const [existingLoading, setExistingLoading] = React.useState(false);
   const [existingTargetNos, setExistingTargetNos] = React.useState<Record<string, string>>({});
+  const [existingEditable, setExistingEditable] = React.useState<Record<string, boolean>>({});
+  const [reloadNonce, setReloadNonce] = React.useState(0);
 
   React.useEffect(() => {
     if (!open) return;
@@ -259,6 +261,7 @@ export default function TargetReferenceForm({
       if (cancelled) return;
       const nextCells: CellMap = {};
       const nextIds: Record<string, string> = {};
+      const nextEditable: Record<string, boolean> = {};
       let hasAny = false;
       if (ok && data) {
         (data.targetreferencelist ?? []).forEach((it) => {
@@ -266,6 +269,7 @@ export default function TargetReferenceForm({
           if (!month || month < 1 || month > 12) return;
           const key = `${month}-${it.sectorno}`;
           nextCells[key] = String(it.targettotal ?? 0);
+          nextEditable[key] = Boolean(it.iseditable);
           if (it.targetno) {
             nextIds[key] = it.targetno;
             hasAny = true;
@@ -286,12 +290,13 @@ export default function TargetReferenceForm({
       setCells(nextCells);
       setBaselineCells(nextCells);
       setExistingTargetNos(nextIds);
+      setExistingEditable(nextEditable);
       setExistingLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, stationNo, year, isEditProp, duplicatePrompted, onOpenChange]);
+  }, [open, stationNo, year, isEditProp, duplicatePrompted, onOpenChange, reloadNonce]);
 
   const setCell = (month: number, sectorNo: number, raw: string) => {
     const key = `${month}-${sectorNo}`;
@@ -530,11 +535,55 @@ export default function TargetReferenceForm({
             const isOwnPending =
               activeReq?.status === "PENDING" &&
               activeReq.requestedByUserId === (user?.memberno ?? "");
+            // Row-level editable flag from server: if any sector cell in this
+            // month has iseditable=true, the row is unlocked for revision.
+            const rowEditable = sectors.some(
+              (s) => existingEditable[`${m.value}-${s.detno}`],
+            );
+            // Pick a referencekey (targetno) for the row — first cell with an id.
+            const rowReferenceKey =
+              sectors
+                .map((s) => existingTargetNos[`${m.value}-${s.detno}`])
+                .find((v) => v && v !== EMPTY_GUID) || "";
             return (
             <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
               <td className="border-r border-border/60 bg-card px-2 py-1.5 text-center">
                 {!monthLocked ? (
                   <span className="text-[11px] text-muted-foreground">—</span>
+                ) : rowEditable ? (
+                  <div className="flex items-center justify-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 px-2 text-[11px]"
+                      onClick={() => {
+                        if (latestReq) setCancelRequestId(latestReq.id);
+                        else toast.info("No active revision request to cancel.");
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" /> Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 px-2 text-[11px] border-destructive/40 text-destructive hover:bg-destructive hover:text-white [&_svg]:text-current"
+                      onClick={() => {
+                        // Clear the row's target totals; user must Save to persist.
+                        setCells((prev) => {
+                          const next = { ...prev };
+                          sectors.forEach((s) => {
+                            next[`${m.value}-${s.detno}`] = "0";
+                          });
+                          return next;
+                        });
+                        toast.info(`Cleared targets for ${m.name}. Click Save to apply.`);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </Button>
+                  </div>
                 ) : activeReq ? (
                   <div className="flex items-center justify-center gap-1.5">
                     <RevisionStatusBadge status={activeReq.status} />
@@ -568,6 +617,7 @@ export default function TargetReferenceForm({
                                   ? "Select a station to request a revision"
                                   : "Request Revision"
                               }
+                              data-referencekey={rowReferenceKey}
                             >
                               <RotateCcw className="h-4 w-4" />
                             </Button>
@@ -826,6 +876,12 @@ export default function TargetReferenceForm({
         }}
         year={Number(year)}
         month={Number(revisionMonth)}
+        referencekey={
+          sectors
+            .map((s) => existingTargetNos[`${revisionMonth}-${s.detno}`])
+            .find((v) => v && v !== EMPTY_GUID) || EMPTY_GUID
+        }
+        onSubmitted={() => setReloadNonce((n) => n + 1)}
       />
     )}
 

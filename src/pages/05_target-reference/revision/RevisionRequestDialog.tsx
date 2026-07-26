@@ -14,6 +14,8 @@ import { MONTHS } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
 import { createRequest, getSettings } from "./mockStore";
 import type { RevisionModule } from "./types";
+import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 
 interface Props {
   open: boolean;
@@ -30,6 +32,8 @@ interface Props {
   month: number;
   /** Source module. Defaults to "target-reference". */
   module?: RevisionModule;
+  /** Target row referencekey (targetno) sent to the API. */
+  referencekey?: string;
   onSubmitted?: () => void;
 }
 
@@ -53,6 +57,7 @@ export default function RevisionRequestDialog({
   year,
   month,
   module,
+  referencekey,
   onSubmitted,
 }: Props) {
   const { user } = useAuth();
@@ -74,9 +79,31 @@ export default function RevisionRequestDialog({
   const canSubmit =
     !submitting && (!settings.requireReason || reason.trim().length > 0);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
+
+    // Call the real API first.
+    const resp = await revisionrequestAPI.create({
+      requestno: EMPTY_GUID,
+      referencekey: referencekey || EMPTY_GUID,
+      stationno: station.stationno,
+      reportyear: year,
+      reportmonth: month,
+      requesttype: "TARGET",
+      requestremarks: reason,
+      statusno: 0,
+      requestedby: user?.memberno ?? EMPTY_GUID,
+    });
+    const { ok, error } = unwrap(resp);
+    if (!ok) {
+      toast.error(error || "Unable to submit revision request.");
+      setSubmitting(false);
+      return;
+    }
+
+    // Mirror into the local store so status badges / cancel controls
+    // remain reactive while the backend flag propagates.
     const res = createRequest({
       module,
       stationno: station.stationno,
@@ -93,9 +120,8 @@ export default function RevisionRequestDialog({
       remarks: "",
     });
     if (!res.ok) {
-      toast.error(res.error);
-      setSubmitting(false);
-      return;
+      // API succeeded but local mirror rejected (e.g., duplicate). Non-fatal.
+      console.warn("Local revision mirror failed:", res.error);
     }
     toast.success("Revision request submitted for review.");
     onSubmitted?.();
