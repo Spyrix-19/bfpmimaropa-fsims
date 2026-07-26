@@ -19,7 +19,7 @@ const AvailableUsers = lazy(() => import("@/pages/08_users/AvailableUsers"));
 const ActiveUsers = lazy(() => import("@/pages/08_users/ActiveUsers"));
 const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
 const TargetRevisionRequests = lazy(
-  () => import("@/pages/09_target-revisions/TargetRevisionRequests.tsx"),
+  () => import("@/pages/09_revisionrequest/RevisionRequests.tsx"),
 );
 
 function RequireAccess({ module, children }: { module: AppModule; children: ReactElement }) {
