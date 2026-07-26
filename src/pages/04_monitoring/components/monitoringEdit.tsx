@@ -944,9 +944,9 @@ function InventoryEditBody({
               <tr>
                 <th
                   rowSpan={2}
-                  className={`sticky left-0 top-0 z-40 min-w-[120px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+                  className={`sticky left-0 top-0 z-40 min-w-[180px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
                 >
-                  Date
+                  Date & Actions
                 </th>
                 <th
                   colSpan={6}
@@ -1021,11 +1021,49 @@ function InventoryEditBody({
                         rowSpan={2}
                         className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
                       >
-                        <div className="flex items-center gap-2">
-                          {dayEntry.isLocked && <Lock className="h-3 w-3 text-warning" />}
-                          <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""}>
-                            {dayEntry.label}
-                          </span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            {dayEntry.isLocked && <Lock className="h-3 w-3 text-warning" />}
+                            <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""}>
+                              {dayEntry.label}
+                            </span>
+                          </div>
+                          {monthLocked && (
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              {activeReq ? (
+                                <>
+                                  <RevisionStatusBadge status={activeReq.status} />
+                                  {isOwnPending && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
+                                      onClick={() => setCancelRequestId(activeReq.id)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:!text-white"
+                                    onClick={() => setRevisionOpen(true)}
+                                    title="Request Revision"
+                                  >
+                                    <Lock className="h-3 w-3" /> Request Revision
+                                  </Button>
+                                  {latestReq && latestReq.status !== "PENDING" && (
+                                    <RevisionStatusBadge status={latestReq.status} />
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
 
