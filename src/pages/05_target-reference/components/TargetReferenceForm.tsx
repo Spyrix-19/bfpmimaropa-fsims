@@ -434,6 +434,15 @@ export default function TargetReferenceForm({
       return;
     }
 
+    let resolvedExistingTargetNos = existingTargetNos;
+    if (isEdit) {
+      const existingLookup = await checkExistingTargetReference(submitStationNo, Number(year));
+      if (existingLookup?.ids && Object.keys(existingLookup.ids).length > 0) {
+        resolvedExistingTargetNos = { ...existingTargetNos, ...existingLookup.ids };
+        setExistingTargetNos(resolvedExistingTargetNos);
+      }
+    }
+
     const list: TargetReferenceClass[] = [];
     sectors.forEach((s) => {
       MONTHS.forEach((m) => {
@@ -441,7 +450,7 @@ export default function TargetReferenceForm({
         const raw = cells[key];
         const total = raw === "" || raw === undefined ? 0 : Number(raw);
         list.push({
-          targetno: existingTargetNos[key] ?? EMPTY_GUID,
+          targetno: resolvedExistingTargetNos[key] ?? EMPTY_GUID,
           sectorno: Number(s.detno),
           reportyear: Number(year),
           reportmonth: Number(m.value),
