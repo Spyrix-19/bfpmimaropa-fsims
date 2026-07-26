@@ -210,10 +210,14 @@ export default function TargetRevisionRequests({
 
   // Defense-in-depth: even though the route guard already blocks unauthorized
   // users, re-check on render before exposing admin actions.
+  const [status, setStatus] = React.useState<RevisionStatus | "ALL">("ALL");
   const [year, setYear] = React.useState<string>("all");
   const [month, setMonth] = React.useState<string>("all");
   const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
+  const [requestedBy, setRequestedBy] = React.useState<string>("");
+  const [dateFrom, setDateFrom] = React.useState<string>("");
+  const [dateTo, setDateTo] = React.useState<string>("");
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const [denyId, setDenyId] = React.useState<string | null>(null);
   const [cancelId, setCancelId] = React.useState<string | null>(null);
@@ -232,14 +236,27 @@ export default function TargetRevisionRequests({
     [stations],
   );
 
+  const requestedByQuery = requestedBy.trim().toLowerCase();
+  const fromTs = dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null;
+  const toTs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
+
   const rows = all.filter((r) => {
     if (moduleFilter && (r.module ?? "target-reference") !== moduleFilter) return false;
+    if (status !== "ALL" && r.status !== status) return false;
     if (year !== "all" && String(r.reportyear) !== year) return false;
     if (month !== "all" && String(r.reportmonth) !== month) return false;
     if (provinceIds.size > 0 && !provinceIds.has(r.provinceno)) return false;
     if (stationIds.size > 0 && !stationIds.has(r.stationno)) return false;
+    if (requestedByQuery && !(r.requestedByName || "").toLowerCase().includes(requestedByQuery)) return false;
+    if (fromTs !== null || toTs !== null) {
+      const ts = r.requestedAt ? new Date(r.requestedAt).getTime() : NaN;
+      if (Number.isNaN(ts)) return false;
+      if (fromTs !== null && ts < fromTs) return false;
+      if (toTs !== null && ts > toTs) return false;
+    }
     return true;
   });
+
 
   const detail = detailId ? all.find((r) => r.id === detailId) : null;
 
@@ -281,6 +298,19 @@ export default function TargetRevisionRequests({
           <Filter className="h-3.5 w-3.5" /> Filters
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <Label className="text-[11px]">Status</Label>
+            <Select value={status} onValueChange={(v) => setStatus(v as RevisionStatus | "ALL")}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s === "ALL" ? "All statuses" : REVISION_STATUS_LABEL[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label className="text-[11px]">Year</Label>
             <Select value={year} onValueChange={setYear}>
@@ -335,7 +365,35 @@ export default function TargetRevisionRequests({
               className="h-9"
             />
           </div>
+          <div>
+            <Label className="text-[11px]">Requested By</Label>
+            <Input
+              value={requestedBy}
+              onChange={(e) => setRequestedBy(e.target.value)}
+              placeholder="Name..."
+              className="h-9"
+            />
+          </div>
+          <div>
+            <Label className="text-[11px]">Date From</Label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9"
+            />
+          </div>
+          <div>
+            <Label className="text-[11px]">Date To</Label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9"
+            />
+          </div>
         </div>
+
       </div>
 
       {/* Table */}

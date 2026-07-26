@@ -90,15 +90,8 @@ const GROUPS: NavGroup[] = [
         label: "Revision Request",
         icon: <History className="h-4 w-4" />,
         module: "target-revisions",
-        children: [
-          {
-            to: "/settings",
-            label: "Settings",
-            icon: <Settings className="h-4 w-4" />,
-            module: "target-revisions",
-          },
-        ],
       },
+
     ],
   },
   {
