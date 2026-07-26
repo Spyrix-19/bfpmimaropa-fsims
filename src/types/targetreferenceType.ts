@@ -100,6 +100,8 @@ export interface TargetReferenceClassModel {
   reportmonth: number;
 
   targettotal: number;
+
+  iseditable: boolean;
 }
 
 export interface TargetReferenceDeleteParams {
