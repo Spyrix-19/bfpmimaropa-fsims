@@ -14,6 +14,7 @@ const TargetReference = lazy(() => import("@/pages/05_target-reference/targetref
 const Reports = lazy(() => import("@/pages/06_reports/MatrixReports.tsx"));
 const InspectionsNew = lazy(() => import("./pages/04_monitoring/components/monitoringNew.tsx"));
 const Profile = lazy(() => import("@/pages/03_profile/Profile"));
+const SettingsPage = lazy(() => import("@/pages/07_settings/Settings"));
 const AvailableUsers = lazy(() => import("@/pages/08_users/AvailableUsers"));
 const ActiveUsers = lazy(() => import("@/pages/08_users/ActiveUsers"));
 const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
@@ -171,12 +172,11 @@ export default function App() {
                     path="/settings"
                     element={
                       <RequireAccess module="settings">
-                        <div className="rounded-xl border border-border/60 bg-card/40 p-6 text-sm text-muted-foreground">
-                          Loading settings…
-                        </div>
+                        <SettingsPage />
                       </RequireAccess>
                     }
                   />
+
                   <Route
                     path="/users/available"
                     element={

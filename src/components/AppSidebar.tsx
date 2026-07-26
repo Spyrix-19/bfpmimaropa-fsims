@@ -5,15 +5,16 @@ import {
   ClipboardList,
   LogOut,
   FileBarChart2,
-  Settings,
   Target,
   UserCheck,
   UserPlus,
-  ShieldCheck,
   History,
+  Settings,
+  ChevronRight,
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, type ReactNode } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import bfpLogo from "@/assets/bfp-mimaropa.svg";
 import {
   Sidebar,
@@ -24,8 +25,12 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -37,6 +42,7 @@ interface NavItem {
   label: string;
   icon: ReactNode;
   module: AppModule;
+  children?: NavItem[];
 }
 
 interface NavGroup {
@@ -79,28 +85,19 @@ const GROUPS: NavGroup[] = [
         icon: <Target className="h-4 w-4" />,
         module: "monitoring",
       },
-    ],
-  },
-  {
-    label: "Revision Requests",
-    items: [
-      {
-        to: "/target-revision-requests",
-        label: "Target Reference Requests",
-        icon: <Target className="h-4 w-4" />,
-        module: "target-revisions",
-      },
-      {
-        to: "/monitoring-revision-requests",
-        label: "Monitoring (Compliance) Requests",
-        icon: <ClipboardList className="h-4 w-4" />,
-        module: "target-revisions",
-      },
       {
         to: "/revision-requests",
-        label: "All Revision Requests",
+        label: "Revision Request",
         icon: <History className="h-4 w-4" />,
         module: "target-revisions",
+        children: [
+          {
+            to: "/settings",
+            label: "Settings",
+            icon: <Settings className="h-4 w-4" />,
+            module: "target-revisions",
+          },
+        ],
       },
     ],
   },
@@ -115,11 +112,6 @@ const GROUPS: NavGroup[] = [
       },
     ],
   },
-  {
-    label: "System",
-    items: [
-    ],
-  }, 
   {
     label: "User",
     items: [
@@ -136,7 +128,7 @@ const GROUPS: NavGroup[] = [
         module: "users",
       },
     ],
-  }, 
+  },
 ];
 
 export function AppSidebar() {
@@ -200,16 +192,61 @@ export function AppSidebar() {
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {items.map((item) => (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton asChild isActive={isActive(item.to)} tooltip={item.label}>
-                        <Link to={item.to} onClick={closeOnMobile}>
-                          {item.icon}
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {items.map((item) => {
+                    const visibleChildren = item.children?.filter(canSee) ?? [];
+                    const hasChildren = visibleChildren.length > 0;
+                    const isItemActive = isActive(item.to);
+                    const isChildActive = visibleChildren.some((c) => isActive(c.to));
+                    const isOpen = isItemActive || isChildActive;
+
+                    if (!hasChildren) {
+                      return (
+                        <SidebarMenuItem key={item.to}>
+                          <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.label}>
+                            <Link to={item.to} onClick={closeOnMobile}>
+                              {item.icon}
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    }
+
+                    return (
+                      <Collapsible key={item.to} defaultOpen={isOpen} className="group/collapsible">
+                        <SidebarMenuItem>
+                          <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.label}>
+                            <Link to={item.to} onClick={closeOnMobile}>
+                              {item.icon}
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuAction
+                              aria-label={`Toggle ${item.label} menu`}
+                              className="transition-transform group-data-[state=open]/collapsible:rotate-90"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </SidebarMenuAction>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {visibleChildren.map((child) => (
+                                <SidebarMenuSubItem key={child.to}>
+                                  <SidebarMenuSubButton asChild isActive={isActive(child.to)}>
+                                    <Link to={child.to} onClick={closeOnMobile}>
+                                      {child.icon}
+                                      <span>{child.label}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      </Collapsible>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

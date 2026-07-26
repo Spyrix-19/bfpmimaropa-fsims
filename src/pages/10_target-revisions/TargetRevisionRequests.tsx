@@ -8,6 +8,13 @@ import {
   Ban,
   History,
 } from "lucide-react";
+import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+import LocationMultiSelect, {
+  type SelectedLocation,
+} from "@/pages/05_target-reference/components/LocationMultiSelect";
+import StationMultiSelect, {
+  type SelectedStation,
+} from "@/pages/05_target-reference/components/StationMultiSelect";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,7 +140,7 @@ function SettingsDialog({
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <ShieldCheck className="h-4 w-4 text-primary" />
-            Target Reference Settings
+            Revision Request Settings
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
             Configure monthly locking behavior. Values apply immediately.
@@ -203,14 +210,10 @@ export default function TargetRevisionRequests({
 
   // Defense-in-depth: even though the route guard already blocks unauthorized
   // users, re-check on render before exposing admin actions.
-  const [status, setStatus] = React.useState<RevisionStatus | "ALL">("ALL");
   const [year, setYear] = React.useState<string>("all");
   const [month, setMonth] = React.useState<string>("all");
-  const [province, setProvince] = React.useState("");
-  const [station, setStation] = React.useState("");
-  const [requestedBy, setRequestedBy] = React.useState("");
-  const [dateFrom, setDateFrom] = React.useState("");
-  const [dateTo, setDateTo] = React.useState("");
+  const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
+  const [stations, setStations] = React.useState<SelectedStation[]>([]);
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const [denyId, setDenyId] = React.useState<string | null>(null);
   const [cancelId, setCancelId] = React.useState<string | null>(null);
@@ -220,31 +223,21 @@ export default function TargetRevisionRequests({
 
   const all = listRequests();
 
+  const provinceIds = React.useMemo(
+    () => new Set(provinces.map((p) => p.locationno)),
+    [provinces],
+  );
+  const stationIds = React.useMemo(
+    () => new Set(stations.map((s) => s.stationno)),
+    [stations],
+  );
+
   const rows = all.filter((r) => {
     if (moduleFilter && (r.module ?? "target-reference") !== moduleFilter) return false;
-    if (status !== "ALL" && r.status !== status) return false;
     if (year !== "all" && String(r.reportyear) !== year) return false;
     if (month !== "all" && String(r.reportmonth) !== month) return false;
-    if (province && !r.provincename.toLowerCase().includes(province.toLowerCase()))
-      return false;
-    if (
-      station &&
-      !`${r.stationcode} ${r.stationname}`.toLowerCase().includes(station.toLowerCase())
-    )
-      return false;
-    if (
-      requestedBy &&
-      !r.requestedByName.toLowerCase().includes(requestedBy.toLowerCase())
-    )
-      return false;
-    if (dateFrom) {
-      const t = Date.parse(r.requestedAt);
-      if (!Number.isNaN(t) && t < Date.parse(dateFrom + "T00:00:00")) return false;
-    }
-    if (dateTo) {
-      const t = Date.parse(r.requestedAt);
-      if (!Number.isNaN(t) && t > Date.parse(dateTo + "T23:59:59")) return false;
-    }
+    if (provinceIds.size > 0 && !provinceIds.has(r.provinceno)) return false;
+    if (stationIds.size > 0 && !stationIds.has(r.stationno)) return false;
     return true;
   });
 
@@ -289,19 +282,6 @@ export default function TargetRevisionRequests({
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Label className="text-[11px]">Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as never)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s === "ALL" ? "All statuses" : REVISION_STATUS_LABEL[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
             <Label className="text-[11px]">Year</Label>
             <Select value={year} onValueChange={setYear}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -326,24 +306,34 @@ export default function TargetRevisionRequests({
             </Select>
           </div>
           <div>
-            <Label className="text-[11px]">Province</Label>
-            <Input value={province} onChange={(e) => setProvince(e.target.value)} placeholder="Contains…" className="h-9" />
+            <Label className="text-[11px]">Provinces</Label>
+            <LocationMultiSelect
+              value={provinces}
+              locationtype="PROVINCE"
+              parentcode={MIMAROPA_REGION_CODE}
+              onChange={(sel) => {
+                setProvinces(sel);
+                if (sel.length > 0) {
+                  const allowed = new Set(sel.map((p) => p.locationno));
+                  setStations((prev) => prev.filter((s) => allowed.has(s.provinceno)));
+                }
+              }}
+              placeholder="All provinces"
+              hideCode
+              className="h-9"
+            />
           </div>
           <div>
-            <Label className="text-[11px]">Station</Label>
-            <Input value={station} onChange={(e) => setStation(e.target.value)} placeholder="Code or name…" className="h-9" />
-          </div>
-          <div>
-            <Label className="text-[11px]">Requested By</Label>
-            <Input value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} placeholder="Name…" className="h-9" />
-          </div>
-          <div>
-            <Label className="text-[11px]">Date From</Label>
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9" />
-          </div>
-          <div>
-            <Label className="text-[11px]">Date To</Label>
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9" />
+            <Label className="text-[11px]">Stations</Label>
+            <StationMultiSelect
+              value={stations}
+              provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+              reportyear={year !== "all" ? Number(year) : 0}
+              onChange={setStations}
+              placeholder="All stations"
+              alwaysEnabled
+              className="h-9"
+            />
           </div>
         </div>
       </div>
