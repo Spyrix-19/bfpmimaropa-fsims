@@ -18,6 +18,7 @@ import { MONTHS, REGION_NAME } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { unwrap } from "@/lib/api-envelope";
 import { inventoryAPI } from "@/services/inventoryAPI";
+import FilterField from "@/components/filter-field";
 import {
   CATEGORY_FIELDS,
   MONTH_NAMES,
@@ -242,17 +243,6 @@ export default function Reports() {
           </table>
         </div>
       </Card>
-    </div>
-  );
-}
-
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <div className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
-      </div>
-      {children}
     </div>
   );
 }

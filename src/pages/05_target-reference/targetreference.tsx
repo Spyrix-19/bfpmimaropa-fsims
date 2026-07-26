@@ -372,10 +372,7 @@ export default function TargetReferenceIndexPage() {
       {/* Filters */}
       <Card className="border-border/60 p-4">
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-          <div className="space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-              Year
-            </div>
+              <FilterField label="Year">
             <Select value={year} onValueChange={setYear}>
               <SelectTrigger>
                 <SelectValue />
@@ -388,12 +385,9 @@ export default function TargetReferenceIndexPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FilterField>
 
-          <div className="space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-              Province
-            </div>
+          <FilterField label="Province">
             {scope.provinceLocked ? (
               <ReadOnlyField
                 value={provinceFilterName || scope.provincename}
@@ -413,12 +407,9 @@ export default function TargetReferenceIndexPage() {
                 showAllOption
               />
             )}
-          </div>
+          </FilterField>
 
-          <div className="space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-              Station
-            </div>
+          <FilterField label="Station">
             {scope.stationLocked ? (
               <ReadOnlyField
                 value={stationFilterName || scope.stationname}
@@ -442,12 +433,9 @@ export default function TargetReferenceIndexPage() {
                 showAllOption
               />
             )}
-          </div>
+          </FilterField>
 
-          <div className="space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-              Target Interval
-            </div>
+          <FilterField label="Target Interval">
             <Select value={period} onValueChange={(v) => setPeriod(v as TargetPeriod)}>
               <SelectTrigger>
                 <SelectValue />
@@ -460,7 +448,7 @@ export default function TargetReferenceIndexPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FilterField>
 
           <div className="flex items-end justify-end md:justify-start lg:justify-end">
             <ResetFiltersButton onReset={handleResetFilters} />

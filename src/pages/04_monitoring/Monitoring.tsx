@@ -21,6 +21,7 @@ import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import PaginationControls from "@/components/pagination";
 import ResetFiltersButton from "@/components/reset-filters-button";
+import FilterField from "@/components/filter-field";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
@@ -681,17 +682,6 @@ export default function FireSafetyCompliancePage() {
           onSaved={refresh}
         />
       )}
-    </div>
-  );
-}
-
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <div className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
-      </div>
-      {children}
     </div>
   );
 }

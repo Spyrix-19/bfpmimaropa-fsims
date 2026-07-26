@@ -18,7 +18,7 @@ import StationMultiSelect, {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import FilterField from "@/components/filter-field";
 import {
   Select,
   SelectContent,
@@ -43,6 +43,7 @@ import {
 import { MONTHS } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
+import ResetFiltersButton from "@/components/reset-filters-button";
 
 import RevisionStatusBadge from "@/pages/05_target-reference/revision/RevisionStatusBadge";
 import ReasonRemarksDialog from "@/pages/05_target-reference/revision/ReasonRemarksDialog";
@@ -58,7 +59,6 @@ import {
   updateSettings,
 } from "@/pages/05_target-reference/revision/mockStore";
 import {
-  REVISION_STATUS_LABEL,
   type RevisionModule,
   type RevisionRequest,
   type RevisionStatus,
@@ -72,16 +72,6 @@ interface TargetRevisionRequestsProps {
   /** Optional override for the subheading. */
   description?: string;
 }
-
-const STATUS_OPTIONS: (RevisionStatus | "ALL")[] = [
-  "ALL",
-  "PENDING",
-  "APPROVED",
-  "DENIED",
-  "CANCELLED",
-  "COMPLETED",
-  "EXPIRED",
-];
 
 function fmtDT(iso?: string) {
   if (!iso) return "—";
@@ -210,13 +200,10 @@ export default function TargetRevisionRequests({
 
   // Defense-in-depth: even though the route guard already blocks unauthorized
   // users, re-check on render before exposing admin actions.
-  const [status, setStatus] = React.useState<RevisionStatus | "ALL">("ALL");
   const [year, setYear] = React.useState<string>("all");
   const [month, setMonth] = React.useState<string>("all");
   const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
-  const [dateFrom, setDateFrom] = React.useState<string>("");
-  const [dateTo, setDateTo] = React.useState<string>("");
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const [denyId, setDenyId] = React.useState<string | null>(null);
   const [cancelId, setCancelId] = React.useState<string | null>(null);
@@ -235,26 +222,21 @@ export default function TargetRevisionRequests({
     [stations],
   );
 
-  const fromTs = dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null;
-  const toTs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
-
   const rows = all.filter((r) => {
     if (moduleFilter && (r.module ?? "target-reference") !== moduleFilter) return false;
-    if (status !== "ALL" && r.status !== status) return false;
     if (year !== "all" && String(r.reportyear) !== year) return false;
     if (month !== "all" && String(r.reportmonth) !== month) return false;
     if (provinceIds.size > 0 && !provinceIds.has(r.provinceno)) return false;
     if (stationIds.size > 0 && !stationIds.has(r.stationno)) return false;
-    
-    if (fromTs !== null || toTs !== null) {
-      const ts = r.requestedAt ? new Date(r.requestedAt).getTime() : NaN;
-      if (Number.isNaN(ts)) return false;
-      if (fromTs !== null && ts < fromTs) return false;
-      if (toTs !== null && ts > toTs) return false;
-    }
     return true;
   });
 
+  const handleResetFilters = () => {
+    setYear("all");
+    setMonth("all");
+    setProvinces([]);
+    setStations([]);
+  };
 
   const detail = detailId ? all.find((r) => r.id === detailId) : null;
 
@@ -290,27 +272,9 @@ export default function TargetRevisionRequests({
         )}
       </div>
 
-      {/* Filters */}
       <div className="rounded-lg border border-border/60 bg-card/40 p-3">
-        <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <Filter className="h-3.5 w-3.5" /> Filters
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <Label className="text-[11px]">Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as RevisionStatus | "ALL")}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s === "ALL" ? "All statuses" : REVISION_STATUS_LABEL[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-[11px]">Year</Label>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <FilterField label="Year">
             <Select value={year} onValueChange={setYear}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -320,9 +284,8 @@ export default function TargetRevisionRequests({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-[11px]">Month</Label>
+          </FilterField>
+          <FilterField label="Month">
             <Select value={month} onValueChange={setMonth}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -332,9 +295,8 @@ export default function TargetRevisionRequests({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-[11px]">Provinces</Label>
+          </FilterField>
+          <FilterField label="Provinces">
             <LocationMultiSelect
               value={provinces}
               locationtype="PROVINCE"
@@ -350,9 +312,8 @@ export default function TargetRevisionRequests({
               hideCode
               className="h-9"
             />
-          </div>
-          <div>
-            <Label className="text-[11px]">Stations</Label>
+          </FilterField>
+          <FilterField label="Stations">
             <StationMultiSelect
               value={stations}
               provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
@@ -362,27 +323,11 @@ export default function TargetRevisionRequests({
               alwaysEnabled
               className="h-9"
             />
-          </div>
-          <div>
-            <Label className="text-[11px]">Date From</Label>
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="h-9"
-            />
-          </div>
-          <div>
-            <Label className="text-[11px]">Date To</Label>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="h-9"
-            />
+          </FilterField>
+          <div className="flex items-end justify-end">
+            <ResetFiltersButton onReset={handleResetFilters} />
           </div>
         </div>
-
       </div>
 
       {/* Table */}
@@ -390,33 +335,32 @@ export default function TargetRevisionRequests({
         <table className="min-w-full border-collapse text-xs">
           <thead className="bg-muted/50 uppercase tracking-wider text-[10px] text-primary">
             <tr>
-              {[
-                "Status",
-                "Requested",
-                "Year",
-                "Month",
-                "Province",
-                "City",
-                "Station Code",
-                "Station Name",
-                "Requested By",
-                "Reason",
-                "Lock",
-                "Reviewed By",
-                "Reviewed",
-                "Decision Remarks",
-                "Actions",
-              ].map((h) => (
-                <th key={h} className="whitespace-nowrap border-b border-border/60 px-2 py-1.5 text-left font-semibold">
-                  {h}
-                </th>
-              ))}
+            {[
+              "Status",
+              "Requested",
+              "Year",
+              "Month",
+              "Province",
+              "City",
+              "Station Code",
+              "Station Name",
+              "Reason",
+              "Lock",
+              "Reviewed By",
+              "Reviewed",
+              "Decision Remarks",
+              "Actions",
+            ].map((h) => (
+              <th key={h} className="whitespace-nowrap border-b border-border/60 px-2 py-1.5 text-left font-semibold">
+                {h}
+              </th>
+            ))}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={15} className="py-10 text-center text-muted-foreground">
+                <td colSpan={14} className="py-10 text-center text-muted-foreground">
                   No revision requests match the current filters.
                 </td>
               </tr>
@@ -433,7 +377,6 @@ export default function TargetRevisionRequests({
                   <td className="px-2 py-1.5">{r.cityname || "—"}</td>
                   <td className="px-2 py-1.5">{r.stationcode || "—"}</td>
                   <td className="px-2 py-1.5">{r.stationname || "—"}</td>
-                  <td className="px-2 py-1.5">{r.requestedByName}</td>
                   <td className="max-w-[240px] truncate px-2 py-1.5" title={r.reason}>{r.reason}</td>
                   <td className="px-2 py-1.5">{locked ? "Locked" : "Unlocked"}</td>
                   <td className="px-2 py-1.5">{r.reviewedByName || "—"}</td>

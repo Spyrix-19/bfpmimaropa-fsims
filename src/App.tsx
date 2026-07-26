@@ -19,10 +19,7 @@ const AvailableUsers = lazy(() => import("@/pages/08_users/AvailableUsers"));
 const ActiveUsers = lazy(() => import("@/pages/08_users/ActiveUsers"));
 const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
 const TargetRevisionRequests = lazy(
-  () => import("@/pages/10_target-revisions/TargetRevisionRequests"),
-);
-const RevisionRequestsAll = lazy(
-  () => import("@/pages/11_revision-requests/RevisionRequestsAll"),
+  () => import("@/pages/09_target-revisions/TargetRevisionRequests.tsx"),
 );
 
 function RequireAccess({ module, children }: { module: AppModule; children: ReactElement }) {
@@ -145,7 +142,10 @@ export default function App() {
                     path="/revision-requests"
                     element={
                       <RequireAccess module="target-revisions">
-                        <RevisionRequestsAll />
+                        <TargetRevisionRequests
+                          title="Revision Requests"
+                          description="Review, approve, or deny all revision requests submitted against locked records."
+                        />
                       </RequireAccess>
                     }
                   />
