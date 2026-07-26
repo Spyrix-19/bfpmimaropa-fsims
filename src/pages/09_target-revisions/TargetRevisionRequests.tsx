@@ -297,10 +297,10 @@ export default function TargetRevisionRequests({
                   key={t.value}
                   type="button"
                   onClick={() => setActiveTab(t.value)}
-                  className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                     active
                       ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-background hover:text-foreground"
+                      : "text-muted-foreground hover:bg-background/80 hover:text-foreground hover:shadow-sm"
                   }`}
                 >
                   <span>{t.label}</span>

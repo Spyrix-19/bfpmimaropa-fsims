@@ -682,31 +682,31 @@ function ComplianceCard({
   const grandTotal = row.totals.inspection + row.totals.fsec + row.totals.fsic + row.totals.notices;
 
   return (
-    <Card className="flex flex-col overflow-hidden border-border/60 shadow-soft transition-shadow hover:shadow-elegant">
+    <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
       {/* Header — mirrors TargetReference card */}
-      <div className="flex items-start gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4">
+      <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-blue-50 dark:from-slate-700/40 via-blue-50/50 dark:via-slate-700/20 to-transparent dark:to-transparent p-4">
         <AvatarWithFallback
           entity={{ name: row.stationname }}
           src={row.logoUrl || undefined}
           name={row.stationname}
-          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-primary/20"
+          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-blue-200 dark:ring-slate-600"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+            <span className="rounded-md bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
               {row.stationcode}
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
               {monthName} {row.year}
             </span>
           </div>
-          <div className="mt-1 text-sm font-bold">{row.stationname}</div>
-          <div className="text-[11px] text-muted-foreground">
+          <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">{row.stationname}</div>
+          <div className="text-[11px] text-muted-foreground dark:text-slate-400">
             {row.cityname} · {row.provincename}
           </div>
         </div>
         <div
-          className="grid h-10 w-14 place-items-center rounded-lg bg-primary/10 text-center text-primary"
+          className="grid h-10 w-14 place-items-center rounded-lg bg-blue-100 dark:bg-slate-600 text-center text-blue-700 dark:text-blue-300"
           title="Grand Total"
         >
           <div className="text-[8px] font-bold uppercase leading-none">Total</div>
@@ -716,33 +716,33 @@ function ComplianceCard({
 
       {/* Body */}
       <div className="flex-1 space-y-3 p-3">
-        <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/80 p-3">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/40 dark:border-border/50 bg-card dark:bg-slate-800/60 p-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground">
-              <ClipboardList className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground dark:text-slate-100">
+              <ClipboardList className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               Monthly Totals
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <DaysEncodedBadge encoded={row.daysEncoded} total={row.daysInMonth} />
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              <span className="rounded-full bg-blue-100 dark:bg-slate-600 px-3 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
                 {grandTotal.toLocaleString()} total
               </span>
             </div>
           </div>
-          <div className="border-b border-border/60" />
+          <div className="border-b border-border/40 dark:border-border/50" />
           <div className="grid gap-3 md:grid-cols-2">
             {[DETAIL_SECTIONS.slice(0, 2), DETAIL_SECTIONS.slice(2, 4)].map((group, groupIndex) => (
               <div key={groupIndex} className="space-y-3">
                 {group.map((section) => (
                   <div
                     key={section.key}
-                    className="rounded-xl border border-border/60 bg-white/80 overflow-hidden"
+                    className="rounded-xl border border-border/40 dark:border-border/50 bg-card dark:bg-slate-800/50 overflow-hidden"
                   >
-                    <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-primary/10 px-3 py-2">
-                      <span className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+                    <div className="flex items-center justify-between gap-2 border-b border-border/40 dark:border-border/50 bg-blue-50 dark:bg-slate-700/60 px-3 py-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.15em] text-blue-600 dark:text-blue-400">
                         {section.title}
                       </span>
-                      <span className="text-sm font-semibold text-primary tabular-nums">
+                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
                         {row.totals[section.key].toLocaleString()}
                       </span>
                     </div>
@@ -753,14 +753,14 @@ function ComplianceCard({
                           return (
                             <tr
                               key={field.key}
-                              className={index % 2 === 0 ? "bg-card" : "bg-muted/30"}
+                              className={index % 2 === 0 ? "bg-card dark:bg-slate-800/30" : "bg-blue-50/40 dark:bg-slate-700/30"}
                             >
-                              <td className="px-3 py-2 text-sm font-medium text-foreground">
+                              <td className="px-3 py-2 text-sm font-medium text-foreground dark:text-slate-200">
                                 {field.label}
                               </td>
                               <td
                                 className={`px-3 py-2 text-right tabular-nums ${
-                                  value === 0 ? "text-muted-foreground/60" : ""
+                                  value === 0 ? "text-muted-foreground dark:text-slate-500" : "text-foreground dark:text-slate-100 font-semibold"
                                 }`}
                               >
                                 {value.toLocaleString()}
@@ -769,7 +769,7 @@ function ComplianceCard({
                           );
                         })}
                         {section.key === "fsec" && (
-                          <tr className="h-8 bg-card">
+                          <tr className="h-8 bg-card dark:bg-slate-800/30">
                             <td className="px-3 py-2" />
                             <td className="px-3 py-2" />
                           </tr>
@@ -783,19 +783,19 @@ function ComplianceCard({
           </div>
         </div>
 
-        <div className="text-[10px] text-muted-foreground">
+        <div className="text-[10px] text-muted-foreground dark:text-slate-400">
           Last updated: {row.lastupdated ? new Date(row.lastupdated).toLocaleString() : "—"}
         </div>
       </div>
 
       {/* Footer */}
-      <div className="flex flex-wrap items-center justify-end gap-1.5 border-t bg-muted/20 p-2">
+      <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border/40 dark:border-border/50 bg-muted/10 dark:bg-slate-800/30 p-2">
         <button
           type="button"
           onClick={onView}
           aria-label="View details"
           title="View"
-          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white"
+          className="rounded-md p-2 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-slate-600 transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300"
         >
           <Eye className="h-4 w-4" />
         </button>
@@ -806,7 +806,7 @@ function ComplianceCard({
           onClick={onMatrix}
           aria-label="View Matrix"
           title="View Matrix"
-          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white"
+          className="rounded-md p-2 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-slate-600 transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300"
         >
           <Grid3x3 className="h-4 w-4" />
         </button>
