@@ -47,12 +47,7 @@ import RevisionRequestDialog from "@/pages/05_target-reference/revision/Revision
 import ReasonRemarksDialog from "@/pages/05_target-reference/revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "@/pages/05_target-reference/revision/RevisionStatusBadge";
 import { useRevisionStore } from "@/pages/05_target-reference/revision/useRevisionStore";
-import {
-  getActiveRequestForCell,
-  getLatestRequestForCell,
-  userCancelRequest,
-  completeRequest,
-} from "@/pages/05_target-reference/revision/mockStore";
+import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { stationAPI } from "@/services/stationAPI";
@@ -424,6 +419,7 @@ function InventoryEditBody({
   const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
   const [revisionOpen, setRevisionOpen] = React.useState(false);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
+  const [revisionRequestRefreshTick, setRevisionRequestRefreshTick] = React.useState(0);
 
   // Station info from Monthly API
   const [station, setStation] = React.useState<FSISInventoryMonthlyLedgerModel | null>(null);
@@ -520,17 +516,62 @@ function InventoryEditBody({
   );
   const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
 
-  // ------- Revision request state (mirrors Target Reference process) -------
-  const activeReq = stationno
-    ? getActiveRequestForCell(stationno, year, month)
-    : undefined;
-  const latestReq = stationno
-    ? getLatestRequestForCell(stationno, year, month)
-    : undefined;
-  const isApproved = activeReq?.status === "APPROVED";
-  const isPending = activeReq?.status === "PENDING";
-  const isOwnPending =
-    isPending && activeReq?.requestedByUserId === (user?.memberno ?? "");
+  // ------- Revision request state (from the live API) -------
+  const [revisionRequestState, setRevisionRequestState] = React.useState<{
+    requestno: string;
+    statuscode?: string;
+    statusname?: string;
+  } | null>(null);
+  React.useEffect(() => {
+    if (!stationno || !year || !month) {
+      setRevisionRequestState(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const resp = await revisionrequestAPI.getLedger(
+        {
+          stationno,
+          reportyear: Number(year),
+          reportmonth: Number(month),
+          provinceno: provinceno || EMPTY_GUID,
+          requesttype: "ISSUANCE",
+          pagenumber: 1,
+          pagesize: 20,
+        },
+        { suppressGlobalLoading: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<[{ requestno: string; statuscode?: string; statusname?: string }]>(resp);
+      if (ok && Array.isArray(data) && data.length > 0) {
+        setRevisionRequestState(data[0]);
+      } else {
+        setRevisionRequestState(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [stationno, year, month, provinceno, revisionRequestRefreshTick]);
+  const activeReq = revisionRequestState;
+  const latestReq = revisionRequestState;
+  const activeReqStatus = activeReq?.statuscode?.toUpperCase() === "PENDING"
+    ? "PENDING"
+    : activeReq?.statuscode?.toUpperCase() === "APPROVED"
+      ? "APPROVED"
+      : activeReq?.statuscode?.toUpperCase() === "CANCELLED"
+        ? "CANCELLED"
+        : null;
+  const latestReqStatus = latestReq?.statuscode?.toUpperCase() === "PENDING"
+    ? "PENDING"
+    : latestReq?.statuscode?.toUpperCase() === "APPROVED"
+      ? "APPROVED"
+      : latestReq?.statuscode?.toUpperCase() === "CANCELLED"
+        ? "CANCELLED"
+        : null;
+  const isApproved = activeReqStatus === "APPROVED";
+  const isPending = activeReqStatus === "PENDING";
+  const isOwnPending = isPending;
   const monthLocked = isReportMonthLocked(year, month);
   // When an APPROVED request is active, the whole month is temporarily
   // unlocked — override per-day locks for rendering and save gating.
@@ -793,12 +834,8 @@ function InventoryEditBody({
       }
       toast.success("Fire safety compliance updated successfully.");
       setBaseline(currentSnapshot);
-      // Complete an approved revision request — auto re-locks the month.
       if (revisionUnlocks && activeReq) {
-        completeRequest(activeReq.id, {
-          userId: user?.memberno ?? "unknown",
-          name: user?.fullname || user?.name || "User",
-        });
+        setRevisionRequestRefreshTick((n) => n + 1);
       }
       onSaved();
     } catch (e) {
@@ -860,7 +897,7 @@ function InventoryEditBody({
       </Card>
 
       {/* Revision status banner (mirrors Target Reference) ------------------ */}
-      {(monthLocked || activeReq || (latestReq && latestReq.status !== "PENDING")) && (
+      {(monthLocked || activeReq || (latestReqStatus && latestReqStatus !== "PENDING")) && (
         <Card className="flex flex-wrap items-center justify-between gap-3 border-border/60 bg-card p-4 shadow-soft">
           <div className="flex items-center gap-2 text-xs">
             <Lock className="h-3.5 w-3.5 text-warning" />
@@ -871,7 +908,7 @@ function InventoryEditBody({
                   ? `Revision request pending review for ${monthName} ${year}.`
                   : `${monthName} ${year} is locked.`}
             </span>
-            {latestReq && <RevisionStatusBadge status={latestReq.status} />}
+            {latestReqStatus && <RevisionStatusBadge status={latestReqStatus} />}
           </div>
           <div className="flex items-center gap-2">
             {isOwnPending && activeReq && (
@@ -880,7 +917,7 @@ function InventoryEditBody({
                 variant="outline"
                 size="sm"
                 className="h-8 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:[color:white]"
-                onClick={() => setCancelRequestId(activeReq.id)}
+                onClick={() => setCancelRequestId(activeReq.requestno)}
               >
                 Cancel Request
               </Button>
@@ -1052,14 +1089,14 @@ function InventoryEditBody({
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {activeReq ? (
                                 <>
-                                  <RevisionStatusBadge status={activeReq.status} />
+                                  <RevisionStatusBadge status={activeReqStatus ?? "PENDING"} />
                                   {isOwnPending && (
                                     <Button
                                       type="button"
                                       variant="ghost"
                                       size="sm"
                                       className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
-                                      onClick={() => setCancelRequestId(activeReq.id)}
+                                      onClick={() => setCancelRequestId(activeReq.requestno)}
                                     >
                                       Cancel
                                     </Button>
@@ -1077,8 +1114,8 @@ function InventoryEditBody({
                                   >
                                     <RotateCcw className="h-3 w-3" /> Request Revision
                                   </Button>
-                                  {latestReq && latestReq.status !== "PENDING" && (
-                                    <RevisionStatusBadge status={latestReq.status} />
+                                  {latestReqStatus && latestReqStatus !== "PENDING" && (
+                                    <RevisionStatusBadge status={latestReqStatus} />
                                   )}
                                 </>
                               )}
@@ -1528,19 +1565,23 @@ function InventoryEditBody({
         reasonLabel="Cancellation Reason"
         confirmLabel="Cancel Request"
         confirmVariant="destructive"
-        onConfirm={({ reason, remarks }) => {
+        onConfirm={async ({ reason, remarks }) => {
           if (!cancelRequestId) return;
-          const res = userCancelRequest(cancelRequestId, {
-            userId: user?.memberno ?? "unknown",
-            name: user?.fullname || user?.name || "User",
-            reason,
-            remarks,
+          const resp = await revisionrequestAPI.status({
+            requestno: cancelRequestId,
+            requesttype: "ISSUANCE",
+            remarks: [reason, remarks].filter(Boolean).join(" — "),
+            statusno: 155,
+            taggedby: user?.memberno ?? "",
           });
-          if (!res.ok) toast.error(res.error);
-          else {
-            toast.success("Revision request cancelled.");
-            setCancelRequestId(null);
+          const { ok, error } = unwrap(resp);
+          if (!ok) {
+            toast.error(error || "Unable to cancel revision request.");
+            return;
           }
+          toast.success("Revision request cancelled.");
+          setCancelRequestId(null);
+          setRevisionRequestRefreshTick((n) => n + 1);
         }}
       />
     </div>

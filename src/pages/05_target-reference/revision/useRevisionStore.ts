@@ -1,11 +1,9 @@
 import * as React from "react";
-import { subscribe } from "./mockStore";
 
 /**
- * Force a re-render whenever the centralized mock store mutates.
- * Any component that reads request/settings state should call this hook.
+ * Compatibility hook for components that still invoke it.
+ * Revision state is now driven by the real revision request API.
  */
 export function useRevisionStore() {
-  const [, force] = React.useReducer((n: number) => n + 1, 0);
-  React.useEffect(() => subscribe(() => force()), []);
+  return null;
 }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ShieldCheck, Check, X as XIcon, Ban, Loader2 } from "lucide-react";
+import { ShieldCheck, Check, X as XIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
@@ -74,7 +74,8 @@ export default function TargetRevisionRequests({
   const isAuthorizedAdmin =
     (roleno === 1 || roleno === 2) && (stationtype === 25 || stationtype === 26);
 
-  const [year, setYear] = React.useState<string>("all");
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = React.useState<string>(String(currentYear));
   const [month, setMonth] = React.useState<string>("all");
   const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
@@ -147,7 +148,7 @@ export default function TargetRevisionRequests({
   }, [year, month, provinces, stations, effectiveModule, page, pageSize, refreshTick]);
 
   const handleResetFilters = () => {
-    setYear("all");
+    setYear(String(currentYear));
     setMonth("all");
     setProvinces([]);
     setStations([]);
@@ -155,9 +156,7 @@ export default function TargetRevisionRequests({
 
   // Row action state.
   const [rejectTarget, setRejectTarget] = React.useState<FSISEditRequestModel | null>(null);
-  const [cancelTarget, setCancelTarget] = React.useState<FSISEditRequestModel | null>(null);
   const [approveTarget, setApproveTarget] = React.useState<FSISEditRequestModel | null>(null);
-  const [deleteTarget, setDeleteTarget] = React.useState<FSISEditRequestModel | null>(null);
   const [busy, setBusy] = React.useState(false);
 
   const doStatus = async (r: FSISEditRequestModel, statusno: number, remarks: string) => {
@@ -182,27 +181,6 @@ export default function TargetRevisionRequests({
             ? "Request rejected."
             : "Request cancelled.";
       toast.success(label);
-      refresh();
-      return true;
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const doDelete = async (r: FSISEditRequestModel) => {
-    setBusy(true);
-    try {
-      const resp = await revisionrequestAPI.delete({
-        requestno: r.requestno,
-        deletedby: user?.memberno ?? "",
-        roleno,
-      });
-      const { ok, error } = unwrap(resp);
-      if (!ok) {
-        toast.error(error || "Unable to delete request.");
-        return false;
-      }
-      toast.success("Request deleted.");
       refresh();
       return true;
     } finally {
@@ -362,21 +340,6 @@ export default function TargetRevisionRequests({
                           />
                         </>
                       )}
-                      {(isPending || isApproved) && (
-                        <EditButton
-                          variant="square"
-                          tooltip="Cancel Request"
-                          ariaLabel="Cancel Request"
-                          icon={<Ban className="h-4 w-4" />}
-                          onClick={() => setCancelTarget(r)}
-                        />
-                      )}
-                      <DeleteButton
-                        variant="square"
-                        tooltip="Delete Request"
-                        ariaLabel="Delete Request"
-                        onClick={() => setDeleteTarget(r)}
-                      />
                     </div>
                   </td>
 
@@ -475,44 +438,6 @@ export default function TargetRevisionRequests({
         }}
       />
 
-      {/* Cancel */}
-      <ReasonRemarksDialog
-        open={!!cancelTarget}
-        onOpenChange={(v) => !v && setCancelTarget(null)}
-        title="Cancel Revision Request"
-        description="Provide the reason for cancellation. Both fields are required."
-        reasonLabel="Cancellation Reason"
-        confirmLabel="Cancel Request"
-        confirmVariant="destructive"
-        onConfirm={async ({ reason, remarks }) => {
-          if (!cancelTarget) return;
-          const combined = [reason, remarks].filter(Boolean).join(" — ");
-          const ok = await doStatus(cancelTarget, STATUS_CANCELLED, combined);
-          if (ok) setCancelTarget(null);
-        }}
-      />
-
-      {/* Delete */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
-        title="Delete Revision Request?"
-        description={
-          deleteTarget
-            ? `Delete the revision request for ${deleteTarget.stationname} — ${monthYearLabel(
-                deleteTarget.reportyear,
-                deleteTarget.reportmonth,
-              )}? This action cannot be undone.`
-            : ""
-        }
-        confirmLabel={busy ? "Deleting…" : "Delete"}
-        confirmVariant="destructive"
-        onConfirm={async () => {
-          if (!deleteTarget) return;
-          const ok = await doDelete(deleteTarget);
-          if (ok) setDeleteTarget(null);
-        }}
-      />
     </div>
   );
 }

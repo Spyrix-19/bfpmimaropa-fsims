@@ -1,8 +1,6 @@
 /**
- * Types for the Target Reference Revision Request workflow.
- * Isolated to the Target Reference module. Backend-authority is simulated
- * via a centralized mock store (see mockStore.ts) — the shape mirrors what
- * a real backend API would return.
+ * Types for the Target Reference revision request workflow.
+ * Shared across target reference, monitoring, and revision request views.
  */
 
 export type RevisionStatus =

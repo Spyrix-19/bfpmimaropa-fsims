@@ -20,16 +20,12 @@ import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
 
 import type {  TargetReferenceClass,  TargetReferenceDetailModel,} from "@/types/targetreferenceType";
+import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import { resolveTargetScope, isReportMonthLocked } from "../helpers";
 import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { useRevisionStore } from "../revision/useRevisionStore";
-import {
-  getActiveRequestForCell,
-  getLatestRequestForCell,
-  userCancelRequest,
-} from "../revision/mockStore";
 
 interface Props {
   open: boolean;
@@ -52,6 +48,7 @@ export default function TargetReferenceForm({
   useRevisionStore();
   const [revisionMonth, setRevisionMonth] = React.useState<number | null>(null);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
+  const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
   const scope = React.useMemo(
     () => resolveTargetScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
@@ -206,6 +203,8 @@ export default function TargetReferenceForm({
   const [existingLoading, setExistingLoading] = React.useState(false);
   const [existingTargetNos, setExistingTargetNos] = React.useState<Record<string, string>>({});
   const [existingEditable, setExistingEditable] = React.useState<Record<string, boolean>>({});
+  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
+  const [revisionRequestsLoading, setRevisionRequestsLoading] = React.useState(false);
   const [reloadNonce, setReloadNonce] = React.useState(0);
 
   React.useEffect(() => {
@@ -230,6 +229,43 @@ export default function TargetReferenceForm({
       setSelectedStationLabel("");
     }
   }, [open, station, stationNo, scope.stationLocked, scope.provinceLocked, user?.stationname, user?.provincename]);
+
+  React.useEffect(() => {
+    if (!open || !stationNo || stationNo === EMPTY_GUID) {
+      setRevisionRequests([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setRevisionRequestsLoading(true);
+      const resp = await revisionrequestAPI.getLedger(
+        {
+          stationno: stationNo,
+          reportyear: Number(year),
+          reportmonth: 0,
+          provinceno: provinceno || EMPTY_GUID,
+          requesttype: "TARGET",
+          pagenumber: 1,
+          pagesize: 100,
+        },
+        { suppressGlobalLoading: true },
+      );
+      if (cancelled) return;
+      const { ok, data, error } = unwrap<FSISEditRequestModel[]>(resp);
+      if (ok && Array.isArray(data)) {
+        setRevisionRequests(data);
+      } else {
+        toast.error(error || "Unable to load revision requests.");
+        setRevisionRequests([]);
+      }
+      setRevisionRequestsLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, stationNo, year, provinceno, reloadNonce]);
 
   // Reset baseline state when opening
   React.useEffect(() => {
@@ -526,15 +562,9 @@ export default function TargetReferenceForm({
           {MONTHS.map((m, i) => {
             const monthLocked = isEdit && isReportMonthLocked(Number(year), Number(m.value));
             const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
-            const activeReq = revStation
-              ? getActiveRequestForCell(revStation, Number(year), Number(m.value))
-              : undefined;
-            const latestReq = revStation
-              ? getLatestRequestForCell(revStation, Number(year), Number(m.value))
-              : undefined;
-            const isOwnPending =
-              activeReq?.status === "PENDING" &&
-              activeReq.requestedByUserId === (user?.memberno ?? "");
+            const activeReq = revisionRequests.find((req) => req.reportmonth === Number(m.value));
+            const latestReq = activeReq;
+            const isOwnPending = false;
             // Row-level editable flag from server: if any sector cell in this
             // month has iseditable=true, the row is unlocked for revision.
             const rowEditable = sectors.some(
@@ -558,7 +588,7 @@ export default function TargetReferenceForm({
                       size="sm"
                       className="h-8 gap-1 px-2 text-[11px]"
                       onClick={() => {
-                        if (latestReq) setCancelRequestId(latestReq.id);
+                        if (activeReq ?? latestReq) setCancelRequestId((activeReq ?? latestReq)?.requestno ?? null);
                         else toast.info("No active revision request to cancel.");
                       }}
                     >
@@ -570,15 +600,8 @@ export default function TargetReferenceForm({
                       size="sm"
                       className="h-8 gap-1 px-2 text-[11px] border-destructive/40 text-destructive hover:bg-destructive hover:text-white [&_svg]:text-current"
                       onClick={() => {
-                        // Clear the row's target totals; user must Save to persist.
-                        setCells((prev) => {
-                          const next = { ...prev };
-                          sectors.forEach((s) => {
-                            next[`${m.value}-${s.detno}`] = "0";
-                          });
-                          return next;
-                        });
-                        toast.info(`Cleared targets for ${m.name}. Click Save to apply.`);
+                        if (latestReq) setDeleteRequestId(latestReq.requestno);
+                        else toast.info("No revision request to delete.");
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -586,17 +609,15 @@ export default function TargetReferenceForm({
                   </div>
                 ) : activeReq ? (
                   <div className="flex items-center justify-center gap-1.5">
-                    {isOwnPending && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
-                        onClick={() => setCancelRequestId(activeReq.id)}
-                      >
-                        Cancel
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
+                      onClick={() => setCancelRequestId(activeReq.requestno)}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-1.5">
@@ -637,9 +658,7 @@ export default function TargetReferenceForm({
                   {monthLocked && <Lock className="h-3 w-3 text-warning" aria-label="Locked month" />}
                   <span>{m.name}</span>
                   {activeReq ? (
-                    <RevisionStatusBadge status={activeReq.status} />
-                  ) : latestReq && latestReq.status !== "PENDING" ? (
-                    <RevisionStatusBadge status={latestReq.status} />
+                    <RevisionStatusBadge status={activeReq.statuscode?.toUpperCase() === "PENDING" ? "PENDING" : activeReq.statuscode?.toUpperCase() === "APPROVED" ? "APPROVED" : "CANCELLED"} />
                   ) : null}
                 </div>
               </td>
@@ -894,19 +913,48 @@ export default function TargetReferenceForm({
       reasonLabel="Cancellation Reason"
       confirmLabel="Cancel Request"
       confirmVariant="destructive"
-      onConfirm={({ reason, remarks }) => {
+      onConfirm={async ({ reason, remarks }) => {
         if (!cancelRequestId) return;
-        const res = userCancelRequest(cancelRequestId, {
-          userId: user?.memberno ?? "unknown",
-          name: user?.fullname || user?.name || "User",
-          reason,
-          remarks,
+        const resp = await revisionrequestAPI.status({
+          requestno: cancelRequestId,
+          requesttype: "TARGET",
+          remarks: [reason, remarks].filter(Boolean).join(" — "),
+          statusno: 155,
+          taggedby: user?.memberno ?? "",
         });
-        if (!res.ok) toast.error(res.error);
-        else {
-          toast.success("Revision request cancelled.");
-          setCancelRequestId(null);
+        const { ok, error } = unwrap(resp);
+        if (!ok) {
+          toast.error(error || "Unable to cancel revision request.");
+          return;
         }
+        toast.success("Revision request cancelled.");
+        setCancelRequestId(null);
+        setReloadNonce((n) => n + 1);
+      }}
+    />
+
+    <ConfirmDialog
+      open={!!deleteRequestId}
+      onOpenChange={(v) => !v && setDeleteRequestId(null)}
+      title="Delete Revision Request?"
+      description="This will permanently delete the selected revision request."
+      confirmLabel="Delete"
+      confirmVariant="destructive"
+      onConfirm={async () => {
+        if (!deleteRequestId) return;
+        const resp = await revisionrequestAPI.delete({
+          requestno: deleteRequestId,
+          deletedby: user?.memberno ?? "",
+          roleno: Number(systemAccess?.roleno ?? 0),
+        });
+        const { ok, error } = unwrap(resp);
+        if (!ok) {
+          toast.error(error || "Unable to delete revision request.");
+          return;
+        }
+        toast.success("Revision request deleted.");
+        setDeleteRequestId(null);
+        setReloadNonce((n) => n + 1);
       }}
     />
     </>

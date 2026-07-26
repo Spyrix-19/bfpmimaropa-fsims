@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { MONTHS } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
-import { createRequest, getSettings } from "./mockStore";
 import type { RevisionModule } from "./types";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
@@ -63,7 +62,6 @@ export default function RevisionRequestDialog({
   const { user } = useAuth();
   const [reason, setReason] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
-  const settings = getSettings();
 
   React.useEffect(() => {
     if (!open) {
@@ -76,8 +74,7 @@ export default function RevisionRequestDialog({
     user?.fullname || user?.name || user?.badgeno || "Current user";
   const monthName = MONTHS.find((m) => m.value === month)?.name ?? String(month);
 
-  const canSubmit =
-    !submitting && (!settings.requireReason || reason.trim().length > 0);
+  const canSubmit = !submitting && reason.trim().length > 0;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -102,27 +99,6 @@ export default function RevisionRequestDialog({
       return;
     }
 
-    // Mirror into the local store so status badges / cancel controls
-    // remain reactive while the backend flag propagates.
-    const res = createRequest({
-      module,
-      stationno: station.stationno,
-      stationcode: station.stationcode,
-      stationname: station.stationname,
-      provinceno: station.provinceno,
-      provincename: station.provincename,
-      cityname: station.cityname,
-      reportyear: year,
-      reportmonth: month,
-      requestedByUserId: user?.memberno ?? "unknown",
-      requestedByName: requestedBy,
-      reason,
-      remarks: "",
-    });
-    if (!res.ok) {
-      // API succeeded but local mirror rejected (e.g., duplicate). Non-fatal.
-      console.warn("Local revision mirror failed:", res.error);
-    }
     toast.success("Revision request submitted for review.");
     onSubmitted?.();
     onOpenChange(false);
@@ -145,7 +121,7 @@ export default function RevisionRequestDialog({
         <div className="grid gap-3 px-5 py-4">
           <div>
             <Label className="text-xs font-semibold">
-              Reason {settings.requireReason && <span className="text-destructive">*</span>}
+              Reason <span className="text-destructive">*</span>
             </Label>
             <Textarea
               value={reason}
