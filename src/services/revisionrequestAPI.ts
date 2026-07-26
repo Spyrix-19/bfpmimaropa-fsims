@@ -1,6 +1,7 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 import { FSISEditRequestDetailModel, FSISEditRequestDetailParams, FSISEditRequestDTO, 
-    FSISEditRequestModel, FSISEditRequestDeleteParams, FSISEditRequestLedgerParams} from "@/types/revisionrequestType";
+    FSISEditRequestModel, FSISEditRequestDeleteParams, FSISEditRequestLedgerParams,
+    FSISEditRequestStatusDTO} from "@/types/revisionrequestType";
 
 
 
@@ -31,6 +32,11 @@ export const revisionrequestAPI = {
       ...MUTATION_RETRY_LIGHT,
     });
   },
+
+async status(params: FSISEditRequestStatusDTO) {
+    return await apiPost("/api/v1/FSISEditRequest/Status/Update", params, { ...NO_RETRY });
+  }, 
+
 
 
   
