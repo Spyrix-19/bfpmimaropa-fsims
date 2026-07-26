@@ -1,4 +1,6 @@
 import * as React from "react";
+import { usePagination } from "@/hooks/usePagination";
+import { ScopedLocationFilterPair } from "@/components/shared/ScopedLocationFilterPair";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,17 +19,17 @@ import {
   LayoutGrid,
   Target,
   Loader2,
-  Trash,
-} from "lucide-react";
+  } from "lucide-react";
 import { toast } from "sonner";
 
 import AddButton from "@/components/add-button";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import PaginationControls from "@/components/pagination";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
+
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
+import FilterField from "@/components/filter-field";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import ResetFiltersButton from "@/components/reset-filters-button";
@@ -123,8 +125,7 @@ export default function TargetReferenceIndexPage() {
   );
   const YEARS = React.useMemo(buildYears, []);
   const [period, setPeriod] = React.useState<TargetPeriod>("MONTHLY");
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(12);
+  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
 
   // Re-apply scope defaults whenever the authenticated scope resolves/changes.
   React.useEffect(() => {
@@ -263,7 +264,6 @@ export default function TargetReferenceIndexPage() {
     setPage(1);
   }, [year, provinceFilter, stationFilter, pageSize]);
 
-
   const handleProvinceSelect = (locationno: string, locationname: string) => {
     setProvinceFilter(locationno);
     setProvinceFilterName(locationname);
@@ -387,53 +387,15 @@ export default function TargetReferenceIndexPage() {
             </Select>
           </FilterField>
 
-          <FilterField label="Province">
-            {scope.provinceLocked ? (
-              <ReadOnlyField
-                value={provinceFilterName || scope.provincename}
-                placeholder="Select province"
-                title="Restricted to your assigned province"
-              />
-            ) : (
-              <LocationSearchSelect
-                value={provinceFilter}
-                valueName={provinceFilterName || undefined}
-                locationtype="PROVINCE"
-                parentcode={MIMAROPA_REGION_CODE}
-                onChange={handleProvinceSelect}
-                placeholder="Select province"
-                className="w-full"
-                hideCode
-                showAllOption
-              />
-            )}
-          </FilterField>
-
-          <FilterField label="Station">
-            {scope.stationLocked ? (
-              <ReadOnlyField
-                value={stationFilterName || scope.stationname}
-                placeholder="Select station"
-                title="Restricted to your assigned station"
-              />
-            ) : (
-              <StationSearchSelect
-                value={stationFilter}
-                valueName={stationFilterName || undefined}
-                provinceno={
-                  provinceFilter && provinceFilter !== EMPTY_GUID
-                    ? provinceFilter
-                    : scope.provinceLocked
-                      ? scope.provinceno
-                      : undefined
-                }
-                onChange={handleStationSelect}
-                placeholder="Select station"
-                className="w-full"
-                showAllOption
-              />
-            )}
-          </FilterField>
+          <ScopedLocationFilterPair
+            scope={scope}
+            provinceValue={provinceFilter}
+            provinceLabel={provinceFilterName}
+            stationValue={stationFilter}
+            stationLabel={stationFilterName}
+            onProvinceChange={handleProvinceSelect}
+            onStationChange={handleStationSelect}
+          />
 
           <FilterField label="Target Interval">
             <Select value={period} onValueChange={(v) => setPeriod(v as TargetPeriod)}>

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { ChevronDown, ChevronLeft, ChevronRight, Search, Loader2, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ type Props = {
   alwaysEnabled?: boolean;
 };
 
-const PAGE_SIZE = 10;
+import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
 
 /**
  * Multi-select station picker backed by `stationAPI.searchMultiple`. Reloads
@@ -59,18 +60,14 @@ export default function StationMultiSelect({
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
-  const [debounced, setDebounced] = React.useState("");
+  const debounced = useDebouncedValue(search, 300);
   const [page, setPage] = React.useState(1);
   const [rows, setRows] = React.useState<SearchStationModel[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    const t = setTimeout(() => {
-      setDebounced(search);
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [search]);
+    setPage(1);
+  }, [debounced]);
 
   // Reload when popover open / search / page / provinces change.
   const provincesKey = React.useMemo(

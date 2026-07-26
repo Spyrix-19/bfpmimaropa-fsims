@@ -3,7 +3,6 @@ import { ShieldCheck, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogFooter,
   DialogTitle,
   DialogDescription,

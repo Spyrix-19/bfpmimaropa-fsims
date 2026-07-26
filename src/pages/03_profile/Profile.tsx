@@ -41,7 +41,7 @@ import {
 } from "@/lib/utils";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import GentableSelect, { type Option } from "@/components/gentable-select";
-import GentableSearchSelect from "@/components/gentable-search-select";
+
 import OfficeSearchSelect from "@/components/office-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import type {
@@ -958,7 +958,6 @@ export default function Profile() {
                   </p>
                 </div>
               )}
-
 
               <div className="md:col-span-2">
                 <Label>Unit / Station</Label>

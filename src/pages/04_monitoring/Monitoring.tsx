@@ -1,4 +1,6 @@
 import * as React from "react";
+import { usePagination } from "@/hooks/usePagination";
+import { ScopedLocationFilterPair } from "@/components/shared/ScopedLocationFilterPair";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,10 +29,10 @@ import DeleteButton from "@/components/delete-button";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
+
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
 import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
-import { inventoryAPI } from "@/services/inventoryAPI";
+
 // Monthly ledger queries are moved to the editor modal to avoid
 // calling the heavy Monthly endpoint on the main listing view.
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
@@ -221,8 +223,7 @@ export default function FireSafetyCompliancePage() {
   const [stationname, setStationname] = React.useState<string>(
     scope.stationLocked ? scope.stationname : "ALL",
   );
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(12);
+  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
 
   const [rows, setRows] = React.useState<MonthlyInventoryRow[]>([]);
   const [total, setTotal] = React.useState<number>(0);
@@ -481,52 +482,15 @@ export default function FireSafetyCompliancePage() {
             </SelectContent>
           </Select>
         </FilterField>
-        <FilterField label="Province">
-          {scope.provinceLocked ? (
-            <ReadOnlyField
-              value={provincename || scope.provincename}
-              placeholder="Select province"
-              title="Restricted to your assigned province"
-            />
-          ) : (
-            <LocationSearchSelect
-              value={provinceno}
-              valueName={provincename || undefined}
-              locationtype="PROVINCE"
-              parentcode={MIMAROPA_REGION_CODE}
-              onChange={handleProvinceSelect}
-              placeholder="Select province"
-              className="w-full"
-              hideCode
-              showAllOption
-            />
-          )}
-        </FilterField>
-        <FilterField label="Station">
-          {scope.stationLocked ? (
-            <ReadOnlyField
-              value={stationname || scope.stationname}
-              placeholder="Select station"
-              title="Restricted to your assigned station"
-            />
-          ) : (
-            <StationSearchSelect
-              value={stationno}
-              valueName={stationname || undefined}
-              provinceno={
-                provinceno && provinceno !== EMPTY_GUID
-                  ? provinceno
-                  : scope.provinceLocked
-                    ? scope.provinceno
-                    : undefined
-              }
-              onChange={handleStationSelect}
-              placeholder="Select station"
-              className="w-full"
-              showAllOption
-            />
-          )}
-        </FilterField>
+        <ScopedLocationFilterPair
+          scope={scope}
+          provinceValue={provinceno}
+          provinceLabel={provincename}
+          stationValue={stationno}
+          stationLabel={stationname}
+          onProvinceChange={handleProvinceSelect}
+          onStationChange={handleStationSelect}
+        />
         <div className="flex items-end justify-end md:col-span-2 lg:col-span-1">
           <ResetFiltersButton onReset={handleResetFilters} />
         </div>

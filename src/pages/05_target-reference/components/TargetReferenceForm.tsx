@@ -6,10 +6,10 @@ import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} fr
 import { Building2, Calendar, Loader2, Lock, Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn, buildYears, toWhole } from "@/lib/utils";
-import { MIMAROPA_REGION_CODE, MONTHS, SECTORS } from "@/lib/fsims-constants";
+import { MONTHS, SECTORS } from "@/lib/fsims-constants";
 
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import LocationSearchSelect from "@/components/location-search-select";
+
 import StationSearchSelect from "@/components/station-search-select";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/auth";
@@ -202,7 +202,6 @@ export default function TargetReferenceForm({
   const sectors = SECTORS;
   const sectorsLoading = false;
 
-
   const [existingLoading, setExistingLoading] = React.useState(false);
   const [existingTargetNos, setExistingTargetNos] = React.useState<Record<string, string>>({});
 
@@ -243,8 +242,6 @@ export default function TargetReferenceForm({
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
   }, [open, editing, currentYear, scope.provinceLocked, scope.provinceno, user?.provinceno]);
-
-
 
   // Load existing values for edit — Detail endpoint returns the station's
   // full year in a single call, including database TargetNo for each cell.
@@ -294,7 +291,6 @@ export default function TargetReferenceForm({
       cancelled = true;
     };
   }, [open, stationNo, year, isEditProp, duplicatePrompted, onOpenChange]);
-
 
   const setCell = (month: number, sectorNo: number, raw: string) => {
     const key = `${month}-${sectorNo}`;

@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType, type ReactNode } from "react";
+import { Suspense, type ComponentType, type ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 
 export function LazyChartCard<TProps extends object>({

@@ -1,4 +1,4 @@
-import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
+import { apiPost, apiGet, NO_RETRY, GET_RETRY } from "@/lib/api";
 import { ActivateUserAccessRoleDTO, DeactivateUserAccessRoleDTO, UserModel, UserParams } from "@/types/userType";
 
 export const userAPI = {
@@ -25,7 +25,5 @@ export const userAPI = {
       ...options,
     });
   },
-
-
 
 };

@@ -9,7 +9,7 @@ export default function FilterField({
 }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
         {label}
       </div>
       {children}

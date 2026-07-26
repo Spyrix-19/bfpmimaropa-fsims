@@ -9,7 +9,6 @@ import {
   UserCheck,
   UserPlus,
   History,
-  Settings,
   ChevronRight,
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";

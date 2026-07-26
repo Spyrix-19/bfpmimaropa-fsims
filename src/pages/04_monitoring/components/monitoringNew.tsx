@@ -13,14 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
 import {
   Dialog,
   DialogContent,
@@ -43,8 +36,7 @@ import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type {
   FSISInventoryDTO,
-  FSISInventoryMonthlyLedgerModel,
-} from "@/types/targetinventoryType";
+  } from "@/types/targetinventoryType";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
 /* -------------------------------------------------------------------------- */

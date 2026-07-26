@@ -1,11 +1,10 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format, parseISO } from "date-fns";
+
 import {
   AlertCircle,
   ArrowLeft,
   Building2,
-  CalendarIcon,
   Loader2,
   Save,
   Table2,
@@ -64,8 +63,7 @@ import type {
   FSISInventoryIssuanceClassDTO,
   FSISUpdateInventoryClass,
   FSISUpdateInventoryDTO,
-  TargetAccomplishmentModel,
-} from "@/types/targetinventoryType";
+  } from "@/types/targetinventoryType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
@@ -536,7 +534,6 @@ function InventoryEditBody({
   // unlocked — override per-day locks for rendering and save gating.
   const revisionUnlocks = isApproved;
 
-
   /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
     let cancelled = false;
@@ -704,7 +701,6 @@ function InventoryEditBody({
 
       for (const [, day] of editableDays) {
         if (!revisionUnlocks && day.isLocked) continue; // Skip locked days unless approved
-
 
         const original = baselineMap.get(day.key);
         if (original && !isDayModified(original, day)) {
@@ -914,7 +910,6 @@ function InventoryEditBody({
             {monthName} {year}
           </div>
         </div>
-
 
         <TargetAccomplishmentPanel
           stationno={stationno}

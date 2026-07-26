@@ -11,7 +11,6 @@ import { useFilters, type RefFilter } from "@/lib/filters";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
-import GentableSearchSelect from "@/components/gentable-search-select";
 
 const MONTHS = [
   "January",

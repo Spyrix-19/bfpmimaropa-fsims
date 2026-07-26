@@ -2,8 +2,7 @@ import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT }
 
 import { TargetReferenceDTO, TargetReferenceDetailParams, TargetReferenceDetailModel, 
   TargetReferenceLedgerParams, TargetReferenceModel, TargetReferenceDeleteParams, 
-  TargetReferenceExportParams, ExportTargetReferenceRequest } from "@/types/targetreferenceType";
-
+  ExportTargetReferenceRequest } from "@/types/targetreferenceType";
 
 export const targetreferenceAPI = {
   async create(params: TargetReferenceDTO) {

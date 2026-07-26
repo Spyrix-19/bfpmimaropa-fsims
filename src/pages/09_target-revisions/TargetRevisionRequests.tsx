@@ -1,6 +1,5 @@
 import * as React from "react";
 import {
-  Filter,
   ShieldCheck,
   Eye,
   Check,
@@ -61,7 +60,6 @@ import {
 import {
   type RevisionModule,
   type RevisionRequest,
-  type RevisionStatus,
 } from "@/pages/05_target-reference/revision/types";
 
 interface TargetRevisionRequestsProps {
@@ -208,6 +206,10 @@ export default function TargetRevisionRequests({
   const [denyId, setDenyId] = React.useState<string | null>(null);
   const [cancelId, setCancelId] = React.useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<RevisionModule>(
+    moduleFilter ?? "target-reference",
+  );
+  const effectiveModule: RevisionModule = moduleFilter ?? activeTab;
 
   const YEARS = React.useMemo(buildYears, []);
 
@@ -223,7 +225,7 @@ export default function TargetRevisionRequests({
   );
 
   const rows = all.filter((r) => {
-    if (moduleFilter && (r.module ?? "target-reference") !== moduleFilter) return false;
+    if ((r.module ?? "target-reference") !== effectiveModule) return false;
     if (year !== "all" && String(r.reportyear) !== year) return false;
     if (month !== "all" && String(r.reportmonth) !== month) return false;
     if (provinceIds.size > 0 && !provinceIds.has(r.provinceno)) return false;
@@ -272,7 +274,54 @@ export default function TargetRevisionRequests({
         )}
       </div>
 
+      {!moduleFilter && (() => {
+        const counts = all.reduce(
+          (acc, r) => {
+            const m = (r.module ?? "target-reference") as RevisionModule;
+            acc[m] = (acc[m] ?? 0) + 1;
+            return acc;
+          },
+          { "target-reference": 0, monitoring: 0 } as Record<RevisionModule, number>,
+        );
+        const tabs: { value: RevisionModule; label: string }[] = [
+          { value: "target-reference", label: "Target Reference" },
+          { value: "monitoring", label: "Monitoring (Compliance)" },
+        ];
+        return (
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-1">
+            {tabs.map((t) => {
+              const active = activeTab === t.value;
+              const count = counts[t.value] ?? 0;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setActiveTab(t.value)}
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                    active
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-background hover:text-foreground"
+                  }`}
+                >
+                  <span>{t.label}</span>
+                  <span
+                    className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      active
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-border/60 text-foreground"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       <div className="rounded-lg border border-border/60 bg-card/40 p-3">
+
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <FilterField label="Year">
             <Select value={year} onValueChange={setYear}>

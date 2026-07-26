@@ -1,4 +1,5 @@
 import * as React from "react";
+import { usePagination } from "@/hooks/usePagination";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -17,6 +18,8 @@ import PaginationControls from "@/components/pagination";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
+import FilterField from "@/components/filter-field";
+import ResetFiltersButton from "@/components/reset-filters-button";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { useAuth, FSIMS_SYSTEMNO, resolveLocationScope } from "@/lib/auth";
@@ -70,8 +73,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
     stationEditable ? "" : user?.stationname || "",
   );
   const [search, setSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(10);
+  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
 
   const [rows, setRows] = React.useState<UserModel[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -237,6 +239,15 @@ export default function UsersLedger({ variant, title, description }: Props) {
   const actionLabel = variant === "available" ? "Activate" : "Deactivate";
   const ActionIcon = variant === "available" ? ShieldCheck : ShieldOff;
 
+  const handleResetFilters = () => {
+    setSearch("");
+    setProvinceno(provinceEditable ? EMPTY_GUID : user?.provinceno || EMPTY_GUID);
+    setProvincename(provinceEditable ? "" : user?.provincename || "");
+    setStationno(stationEditable ? EMPTY_GUID : user?.stationno || EMPTY_GUID);
+    setStationname(stationEditable ? "" : user?.stationname || "");
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -250,55 +261,60 @@ export default function UsersLedger({ variant, title, description }: Props) {
       </div>
 
       {/* Filters */}
-      <Card className="grid gap-3 border-border/60 p-4 md:grid-cols-2 lg:grid-cols-3">
-        <FilterField label="Search">
-          <SearchKey
-            value={search}
-            onChange={setSearch}
-            placeholder="Search name, badge, rank…"
-            widthClass="w-full"
-          />
-        </FilterField>
-        <FilterField label="Province">
-          <LocationSearchSelect
-            value={provinceno}
-            valueName={provincename}
-            locationtype="PROVINCE"
-            parentcode={MIMAROPA_REGION_CODE}
-            showAllOption
-            hideCode
-            readOnly={!provinceEditable}
-            onChange={(no, name) => {
-              setProvinceno(no);
-              setProvincename(name);
-              // Reset station when province changes
-              setStationno(EMPTY_GUID);
-              setStationname("");
-            }}
-            placeholder="Select province"
-          />
-        </FilterField>
-        <FilterField label="Station">
-          <StationSearchSelect
-            value={stationno}
-            valueName={stationname}
-            provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
-            showAllOption
-            readOnly={!stationEditable}
-            disabled={
-              stationEditable && (!provinceno || provinceno === EMPTY_GUID)
-            }
-            onChange={(no, name) => {
-              setStationno(no);
-              setStationname(name);
-            }}
-            placeholder={
-              stationEditable && (!provinceno || provinceno === EMPTY_GUID)
-                ? "Select province first"
-                : "Select station"
-            }
-          />
-        </FilterField>
+      <Card className="border-border/60 p-4">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <FilterField label="Search">
+            <SearchKey
+              value={search}
+              onChange={setSearch}
+              placeholder="Search name, badge, rank…"
+              widthClass="w-full"
+            />
+          </FilterField>
+          <FilterField label="Province">
+            <LocationSearchSelect
+              value={provinceno}
+              valueName={provincename}
+              locationtype="PROVINCE"
+              parentcode={MIMAROPA_REGION_CODE}
+              showAllOption
+              hideCode
+              readOnly={!provinceEditable}
+              onChange={(no, name) => {
+                setProvinceno(no);
+                setProvincename(name);
+                // Reset station when province changes
+                setStationno(EMPTY_GUID);
+                setStationname("");
+              }}
+              placeholder="Select province"
+            />
+          </FilterField>
+          <FilterField label="Station">
+            <StationSearchSelect
+              value={stationno}
+              valueName={stationname}
+              provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
+              showAllOption
+              readOnly={!stationEditable}
+              disabled={
+                stationEditable && (!provinceno || provinceno === EMPTY_GUID)
+              }
+              onChange={(no, name) => {
+                setStationno(no);
+                setStationname(name);
+              }}
+              placeholder={
+                stationEditable && (!provinceno || provinceno === EMPTY_GUID)
+                  ? "Select province first"
+                  : "Select station"
+              }
+            />
+          </FilterField>
+          <div className="flex items-end justify-end md:justify-start lg:justify-end">
+            <ResetFiltersButton onReset={handleResetFilters} />
+          </div>
+        </div>
       </Card>
 
       {loading ? (

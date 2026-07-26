@@ -1,6 +1,7 @@
 import * as React from "react";
+import { Banner } from "@/components/shared";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+
 import {
   Select,
   SelectContent,
@@ -108,15 +109,11 @@ export default function Reports() {
 
   if (restricted) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Card className="max-w-md p-8 text-center">
-          <FileBarChart2 className="mx-auto mb-3 h-10 w-10 text-primary" />
-          <h2 className="text-xl font-semibold">Reports are restricted</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Sign in as an administrator to generate reports.
-          </p>
-        </Card>
-      </div>
+      <Banner
+        icon={FileBarChart2}
+        title="Reports are restricted"
+        description="Sign in as an administrator to generate reports."
+      />
     );
   }
 

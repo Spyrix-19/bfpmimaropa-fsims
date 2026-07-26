@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ResponsiveContainer, Tooltip, Legend, LegendProps } from "recharts";
+import { ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { cn } from "@/lib/utils";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
