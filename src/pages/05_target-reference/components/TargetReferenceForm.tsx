@@ -3,6 +3,7 @@ import {  Dialog,  DialogContent,  DialogHeader,  DialogTitle,  DialogFooter,} f
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} from "@/components/ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Building2, Calendar, Loader2, Lock, Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn, buildYears, toWhole } from "@/lib/utils";
@@ -551,21 +552,34 @@ export default function TargetReferenceForm({
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:!text-white"
-                      onClick={() => setRevisionMonth(Number(m.value))}
-                      disabled={!revStation}
-                      title={
-                        !revStation
-                          ? "Select a station to request a revision"
-                          : "Request Revision"
-                      }
-                    >
-                      <Lock className="h-3 w-3" /> Request Revision
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 rounded-md border-primary/40 text-primary shadow-none [&_svg]:text-current"
+                              onClick={() => setRevisionMonth(Number(m.value))}
+                              disabled={!revStation}
+                              aria-label={
+                                !revStation
+                                  ? "Select a station to request a revision"
+                                  : "Request Revision"
+                              }
+                            >
+                              <Lock className="h-4 w-4" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {!revStation
+                            ? "Select a station to request a revision"
+                            : "Request Revision"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     {latestReq && latestReq.status !== "PENDING" && (
                       <RevisionStatusBadge status={latestReq.status} />
                     )}

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -884,16 +885,34 @@ function InventoryEditBody({
               </Button>
             )}
             {!activeReq && monthLocked && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:[color:white]"
-                onClick={() => setRevisionOpen(true)}
-                disabled={!stationno}
-              >
-                <Lock className="h-3 w-3" /> Request Revision
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 rounded-md border-primary/40 text-primary shadow-none [&_svg]:text-current"
+                        onClick={() => setRevisionOpen(true)}
+                        disabled={!stationno}
+                        aria-label={
+                          !stationno
+                            ? "Select a station to request a revision"
+                            : "Request Revision"
+                        }
+                      >
+                        <Lock className="h-4 w-4" />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {!stationno
+                      ? "Select a station to request a revision"
+                      : "Request Revision"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </Card>
