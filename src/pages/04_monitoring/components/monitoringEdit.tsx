@@ -46,7 +46,6 @@ import { MONITORING_THEME } from "./monitoringTheme";
 import RevisionRequestDialog from "@/pages/05_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/05_target-reference/revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "@/pages/05_target-reference/revision/RevisionStatusBadge";
-import { useRevisionStore } from "@/pages/05_target-reference/revision/useRevisionStore";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
@@ -409,7 +408,6 @@ function InventoryEditBody({
   onCancel: () => void;
 }) {
   const { user } = useAuth();
-  useRevisionStore();
 
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? String(month);
 

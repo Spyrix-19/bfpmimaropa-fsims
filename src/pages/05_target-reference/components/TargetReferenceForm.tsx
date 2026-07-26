@@ -25,7 +25,7 @@ import { resolveTargetScope, isReportMonthLocked } from "../helpers";
 import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
-import { useRevisionStore } from "../revision/useRevisionStore";
+import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 
 interface Props {
   open: boolean;
@@ -45,7 +45,6 @@ export default function TargetReferenceForm({
   onSaved,
 }: Props) {
   const { user, systemAccess } = useAuth();
-  useRevisionStore();
   const [revisionMonth, setRevisionMonth] = React.useState<number | null>(null);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);

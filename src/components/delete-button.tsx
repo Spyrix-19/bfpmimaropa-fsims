@@ -25,7 +25,7 @@ export default function DeleteButton({
   icon,
 }: DeleteButtonProps) {
   const baseSquare =
-    "rounded-md p-2 bg-card text-destructive border border-border transition-colors hover:bg-destructive hover:text-destructive-foreground group-hover:bg-destructive group-hover:text-destructive-foreground";
+    "rounded-md p-2 bg-card text-destructive border border-border transition-colors hover:bg-destructive hover:text-destructive-foreground group-hover:bg-destructive group-hover:text-destructive-foreground cursor-pointer";
   const baseCircle =
     "inline-flex items-center justify-center h-8 w-8 rounded-full bg-card border border-border shadow-sm text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors cursor-pointer";
 
