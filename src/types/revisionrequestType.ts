@@ -51,7 +51,9 @@ export interface FSISEditRequestDetailModel {
 export interface FSISEditRequestLedgerParams {
   stationno: string;
   reportyear: number;
+  reportmonth: number;
   provinceno: string;
+  requesttype: string;
   pagenumber: number;
   pagesize: number;
 }
@@ -71,6 +73,8 @@ export interface FSISEditRequestModel {
   statusno: number;
   statuscode: string;
   statusname: string;
+  fullname?: string;
+  daterequested?: string;
 }
 
 

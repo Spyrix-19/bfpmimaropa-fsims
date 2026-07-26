@@ -586,7 +586,6 @@ export default function TargetReferenceForm({
                   </div>
                 ) : activeReq ? (
                   <div className="flex items-center justify-center gap-1.5">
-                    <RevisionStatusBadge status={activeReq.status} />
                     {isOwnPending && (
                       <Button
                         type="button"
@@ -630,9 +629,6 @@ export default function TargetReferenceForm({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    {latestReq && latestReq.status !== "PENDING" && (
-                      <RevisionStatusBadge status={latestReq.status} />
-                    )}
                   </div>
                 )}
               </td>
@@ -640,6 +636,11 @@ export default function TargetReferenceForm({
                 <div className="flex items-center gap-2">
                   {monthLocked && <Lock className="h-3 w-3 text-warning" aria-label="Locked month" />}
                   <span>{m.name}</span>
+                  {activeReq ? (
+                    <RevisionStatusBadge status={activeReq.status} />
+                  ) : latestReq && latestReq.status !== "PENDING" ? (
+                    <RevisionStatusBadge status={latestReq.status} />
+                  ) : null}
                 </div>
               </td>
               {sectors.map((s) => {
