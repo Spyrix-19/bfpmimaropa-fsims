@@ -342,17 +342,15 @@ export default function TargetReferenceIndexPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elegant">
-            <Target className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Target Reference</h1>
-            <p className="text-sm text-muted-foreground">
-              Review Fire Safety Inspection target plans for each station, organized by year with
-              automatic totals and summary metrics.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            Target Reference
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Review Fire Safety Inspection target plans for each station, organized by year with
+            automatic totals and summary metrics.
+          </p>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
           {canManage && (

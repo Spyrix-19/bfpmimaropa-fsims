@@ -67,14 +67,12 @@ export default function Settings({ onClose }: { onClose?: () => void } = {}) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elegant">
-            <SettingsIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Settings</h1>
-            <p className="text-sm text-muted-foreground">System preferences for FSIMS — {REGION_NAME}.</p>
-          </div>
+        <div>
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <SettingsIcon className="h-5 w-5 text-primary" />
+            Settings
+          </h1>
+          <p className="text-xs text-muted-foreground">System preferences for FSIMS — {REGION_NAME}.</p>
         </div>
         {onClose ? (
           <div className="flex gap-2">

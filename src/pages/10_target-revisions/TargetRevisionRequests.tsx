@@ -215,7 +215,6 @@ export default function TargetRevisionRequests({
   const [month, setMonth] = React.useState<string>("all");
   const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
-  const [requestedBy, setRequestedBy] = React.useState<string>("");
   const [dateFrom, setDateFrom] = React.useState<string>("");
   const [dateTo, setDateTo] = React.useState<string>("");
   const [detailId, setDetailId] = React.useState<string | null>(null);
@@ -236,7 +235,6 @@ export default function TargetRevisionRequests({
     [stations],
   );
 
-  const requestedByQuery = requestedBy.trim().toLowerCase();
   const fromTs = dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null;
   const toTs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
 
@@ -247,7 +245,7 @@ export default function TargetRevisionRequests({
     if (month !== "all" && String(r.reportmonth) !== month) return false;
     if (provinceIds.size > 0 && !provinceIds.has(r.provinceno)) return false;
     if (stationIds.size > 0 && !stationIds.has(r.stationno)) return false;
-    if (requestedByQuery && !(r.requestedByName || "").toLowerCase().includes(requestedByQuery)) return false;
+    
     if (fromTs !== null || toTs !== null) {
       const ts = r.requestedAt ? new Date(r.requestedAt).getTime() : NaN;
       if (Number.isNaN(ts)) return false;
@@ -273,7 +271,7 @@ export default function TargetRevisionRequests({
   const monthName = (m: number) => MONTHS.find((x) => x.value === m)?.name ?? String(m);
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
@@ -362,15 +360,6 @@ export default function TargetRevisionRequests({
               onChange={setStations}
               placeholder="All stations"
               alwaysEnabled
-              className="h-9"
-            />
-          </div>
-          <div>
-            <Label className="text-[11px]">Requested By</Label>
-            <Input
-              value={requestedBy}
-              onChange={(e) => setRequestedBy(e.target.value)}
-              placeholder="Name..."
               className="h-9"
             />
           </div>

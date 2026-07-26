@@ -150,7 +150,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
   );
 
   const main = (
-    <main className="flex-1 px-3 py-6 sm:px-4 sm:py-8">
+    <main className="flex-1 px-3 py-3 sm:px-4 sm:py-4">
       <div className="w-full">{children}</div>
     </main>
   );

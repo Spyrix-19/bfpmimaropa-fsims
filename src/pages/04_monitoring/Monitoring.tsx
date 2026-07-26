@@ -422,16 +422,14 @@ export default function FireSafetyCompliancePage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elegant">
-            <ClipboardList className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance</h1>
-            <p className="text-sm text-muted-foreground">
-              Fire safety compliance accomplishments grouped by station, month, and year.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            Fire Safety Compliance
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Fire safety compliance accomplishments grouped by station, month, and year.
+          </p>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
           <Button

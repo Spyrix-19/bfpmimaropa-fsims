@@ -515,14 +515,12 @@ export default function Profile() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elegant">
-            <UserCircle2 className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">My Profile</h1>
-            <p className="text-sm text-muted-foreground">Your account information and system access.</p>
-          </div>
+        <div>
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <UserCircle2 className="h-5 w-5 text-primary" />
+            My Profile
+          </h1>
+          <p className="text-xs text-muted-foreground">Your account information and system access.</p>
         </div>
       </div>
 

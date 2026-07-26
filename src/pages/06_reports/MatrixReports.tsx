@@ -124,16 +124,14 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elegant">
-            <FileBarChart2 className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Matrix Report</h1>
-            <p className="text-sm text-muted-foreground">
-              Target vs Actual across every reporting period — {REGION_NAME}.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <FileBarChart2 className="h-5 w-5 text-primary" />
+            Matrix Report
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Target vs Actual across every reporting period — {REGION_NAME}.
+          </p>
         </div>
       </div>
 
