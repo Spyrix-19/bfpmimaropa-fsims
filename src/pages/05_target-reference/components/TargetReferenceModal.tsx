@@ -339,7 +339,7 @@ export default function TargetReferenceForm({
           nextCells[`${month}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
           nextEditableStatus[String(month)] = Number(it.editablestatus ?? 0);
           nextIsRevReq[String(month)] = Boolean(it.isrevisionrequest);
-          if (it.targetno) {
+          if (it.targetno && it.targetno !== EMPTY_GUID) {
             nextIds[String(month)] = it.targetno;
             hasAny = true;
           }
@@ -402,7 +402,7 @@ export default function TargetReferenceForm({
       nextCells[`${month}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
       nextCells[`${month}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
       nextCells[`${month}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-      if (it.targetno) nextIds[String(month)] = it.targetno;
+      if (it.targetno && it.targetno !== EMPTY_GUID) nextIds[String(month)] = it.targetno;
     });
 
     return { cells: nextCells, ids: nextIds };
@@ -485,8 +485,9 @@ export default function TargetReferenceForm({
         govtotal !== Number(baselineCells[govKey] ?? 0) ||
         piezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
         tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
+      const existingTargetNo = resolvedExistingTargetNos[String(m.value)];
       return {
-        targetno: resolvedExistingTargetNos[String(m.value)] ?? EMPTY_GUID,
+        targetno: existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
         reportyear: Number(year),
         reportmonth: Number(m.value),
         bplototal,
@@ -917,7 +918,10 @@ export default function TargetReferenceForm({
         year={Number(year)}
         month={Number(revisionMonth)}
         referencekey={
-          existingTargetNos[String(revisionMonth)] || EMPTY_GUID
+          existingTargetNos[String(revisionMonth)] &&
+          existingTargetNos[String(revisionMonth)] !== EMPTY_GUID
+            ? existingTargetNos[String(revisionMonth)]
+            : EMPTY_GUID
         }
         onSubmitted={() => setReloadNonce((n) => n + 1)}
       />
