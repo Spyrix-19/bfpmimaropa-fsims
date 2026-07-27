@@ -660,7 +660,7 @@ export default function TargetReferenceForm({
                       }}
                     />
                   </div>
-                ) : (
+                ) : serverIsEditable ? null : (
                   <div className="flex items-center justify-center gap-1.5">
                     <EditButton
                       variant="square"
