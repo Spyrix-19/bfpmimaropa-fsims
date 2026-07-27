@@ -73,7 +73,6 @@ interface GroupItem {
   stationCode: string;
   stationName: string;
   province: string;
-  city: string;
   logoUrl: string;
   row: TargetReferenceModel;
 }
@@ -86,7 +85,6 @@ function toGroup(row: TargetReferenceModel, year: number): GroupItem {
     stationCode: row.stationcode ?? "",
     stationName: row.stationname ?? "",
     province: row.provincename ?? "—",
-    city: row.cityname ?? "",
     logoUrl: row.logourl ?? "",
     row,
   };
@@ -578,7 +576,7 @@ function TargetCard({
           </div>
           <div className="mt-1 text-sm font-bold">{group.stationName}</div>
           <div className="text-[11px] text-muted-foreground">
-            {group.city} · {group.province}
+            {group.province}
           </div>
         </div>
         <div

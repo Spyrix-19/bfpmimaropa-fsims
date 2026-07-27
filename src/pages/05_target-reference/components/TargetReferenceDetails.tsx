@@ -1,11 +1,5 @@
 import * as React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Building2, Loader2, X } from "lucide-react";
 import { MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
@@ -94,18 +88,7 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
       }
     : null;
 
-  const completeAddress = detail
-    ? [
-        detail.streetaddress,
-        detail.barangayname,
-        detail.cityname,
-        detail.provincename,
-        detail.regionname,
-        detail.zipcode,
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : "";
+  const completeAddress = detail ? detail.provincename : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,21 +138,9 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                   </div>
                   <div>
                     <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Municipality
-                    </div>
-                    <div className="text-sm">{detail.cityname}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                       Year
                     </div>
                     <div className="text-sm font-semibold">{target?.reportyear}</div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Complete Address
-                    </div>
-                    <div className="text-sm">{completeAddress || "—"}</div>
                   </div>
                 </div>
               </div>

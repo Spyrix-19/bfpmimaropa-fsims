@@ -10,8 +10,8 @@ import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { unwrap } from "@/lib/api-envelope";
 import type {
   TargetReferenceModel,
-  ExportTargetReferenceRequest,
-  ProvinceStationSelection,
+  ExportTargetReferenceRequestDTO,
+  ProvinceStationSelectionClass,
   ProvinceExportModel,
 } from "@/types/targetreferenceType";
 import { sectorKey, resolveTargetScope } from "../helpers";
@@ -92,7 +92,7 @@ function buildStationRow(m: TargetReferenceModel): StationRow {
     stationno: m.stationno,
     stationCode: m.stationcode ?? "",
     stationName: m.stationname ?? "",
-    cityName: m.cityname ?? "",
+    cityName: "",
     province: m.provincename ?? "—",
     logoUrl: m.logourl ?? "",
     months,
@@ -146,7 +146,7 @@ function buildGroupsFromExport(provinces: ProvinceExportModel[]): ProvinceGroup[
 function buildProvinceSelections(
   provinces: SelectedLocation[],
   stations: SelectedStation[],
-): ProvinceStationSelection[] {
+): ProvinceStationSelectionClass[] {
   // Group selected stations by their provinceno.
   const byProv = new Map<string, string[]>();
   stations.forEach((s) => {
@@ -246,7 +246,7 @@ export default function TargetMatrixModal({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const body: ExportTargetReferenceRequest = {
+      const body: ExportTargetReferenceRequestDTO = {
         searchkey: "",
         reportyear: Number(yearFilter),
         provinces: provinceSelections,

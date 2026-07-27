@@ -24,17 +24,8 @@ export interface TargetReferenceDetailModel {
   stationno: string;
   stationcode: string;
   stationname: string;
-  regionno?: string;
-  regioncode?: string;
-  regionname?: string;
   provinceno: string;
   provincename: string;
-  cityno?: string;
-  cityname?: string;
-  zipcode?: string;
-  barangayno?: string;
-  barangayname?: string;
-  streetaddress?: string;
   logourl: string;
   targetreferencelist: TargetReferenceDetailClassModel[];
 }

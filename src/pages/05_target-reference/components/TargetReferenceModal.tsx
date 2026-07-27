@@ -142,17 +142,17 @@ export default function TargetReferenceForm({
             stationno: detail.stationno,
             stationcode: detail.stationcode ?? "",
             stationname: detail.stationname ?? "",
-            regionno: detail.regionno ?? "",
-            regioncode: detail.regioncode ?? "",
-            regionname: detail.regionname ?? "",
+            regionno: "",
+            regioncode: "",
+            regionname: "",
             provinceno: detail.provinceno ?? "",
             provincename: detail.provincename ?? "",
-            cityno: detail.cityno ?? "",
-            cityname: detail.cityname ?? "",
-            zipcode: detail.zipcode ?? "",
-            barangayno: detail.barangayno ?? "",
-            barangayname: detail.barangayname ?? "",
-            streetaddress: detail.streetaddress ?? "",
+            cityno: "",
+            cityname: "",
+            zipcode: "",
+            barangayno: "",
+            barangayname: "",
+            streetaddress: "",
             logourl: detail.logourl ?? "",
             filetype: "",
           };
@@ -392,18 +392,7 @@ export default function TargetReferenceForm({
   const stationCode = station?.stationcode ?? "";
   const stationName = station?.stationname ?? "";
   const logoUrl = station?.logourl ?? "";
-  const completeAddress = station
-    ? [
-        station.streetaddress,
-        station.barangayname,
-        station.cityname,
-        station.provincename,
-        station.regionname,
-        station.zipcode,
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : "";
+  const completeAddress = station?.provincename ?? "";
 
   const handleSave = async () => {
     const submitStationNo = scope.stationLocked
@@ -583,42 +572,66 @@ export default function TargetReferenceForm({
                   <span className="text-[11px] text-muted-foreground">—</span>
                 ) : rowEditable ? (
                   <div className="flex items-center justify-center gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1 px-2 text-[11px]"
-                      onClick={() => {
-                        if (activeReq ?? latestReq) setCancelRequestId((activeReq ?? latestReq)?.requestno ?? null);
-                        else toast.info("No active revision request to cancel.");
-                      }}
-                    >
-                      <X className="h-3.5 w-3.5" /> Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1 px-2 text-[11px] border-destructive/40 text-destructive hover:bg-destructive hover:text-white [&_svg]:text-current"
-                      onClick={() => {
-                        if (latestReq) setDeleteRequestId(latestReq.requestno);
-                        else toast.info("No revision request to delete.");
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Delete
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-md text-primary hover:bg-primary/10"
+                            onClick={() => {
+                              if (activeReq ?? latestReq) setCancelRequestId((activeReq ?? latestReq)?.requestno ?? null);
+                              else toast.info("No active revision request to cancel.");
+                            }}
+                            aria-label="Cancel revision request"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Cancel revision request</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-md text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (latestReq) setDeleteRequestId(latestReq.requestno);
+                              else toast.info("No revision request to delete.");
+                            }}
+                            aria-label="Delete revision request"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete revision request</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 ) : activeReq ? (
                   <div className="flex items-center justify-center gap-1.5">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
-                      onClick={() => setCancelRequestId(activeReq.requestno)}
-                    >
-                      Cancel
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-md text-primary hover:bg-primary/10"
+                            onClick={() => setCancelRequestId(activeReq.requestno)}
+                            aria-label="Cancel revision request"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Cancel revision request</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-1.5">
