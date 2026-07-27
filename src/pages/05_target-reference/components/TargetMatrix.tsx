@@ -14,7 +14,7 @@ import type {
   ProvinceStationSelectionClass,
   ProvinceExportModel,
 } from "@/types/targetreferenceType";
-import { sectorKey, resolveTargetScope } from "../helpers";
+import { resolveTargetScope } from "../helpers";
 import { useAuth } from "@/lib/auth";
 import { exportTargetMatrix } from "./matrixExport";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";

@@ -35,6 +35,8 @@ export interface TargetReferenceDetailClassModel {
   reportyear: number;
   reportmonth: number;
   iseditable: boolean;
+  editablestatus: number;
+  isrevisionrequest: boolean;
   bplototal: number;
   govtotal: number;
   piezatotal: number;

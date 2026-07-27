@@ -21,7 +21,7 @@ import type { SearchStationModel } from "@/types/stationTypes";
 
 import type {  TargetReferenceClass,  TargetReferenceDetailModel,} from "@/types/targetreferenceType";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
-import { resolveTargetScope, isReportMonthLocked } from "../helpers";
+import { resolveTargetScope } from "../helpers";
 import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
@@ -201,7 +201,9 @@ export default function TargetReferenceForm({
 
   const [existingLoading, setExistingLoading] = React.useState(false);
   const [existingTargetNos, setExistingTargetNos] = React.useState<Record<string, string>>({});
-  const [existingEditable, setExistingEditable] = React.useState<Record<string, boolean>>({});
+  
+  const [existingEditableStatus, setExistingEditableStatus] = React.useState<Record<string, number>>({});
+  const [existingIsRevisionRequest, setExistingIsRevisionRequest] = React.useState<Record<string, boolean>>({});
   const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
   const [revisionRequestsLoading, setRevisionRequestsLoading] = React.useState(false);
   const [reloadNonce, setReloadNonce] = React.useState(0);
@@ -296,7 +298,8 @@ export default function TargetReferenceForm({
       if (cancelled) return;
       const nextCells: CellMap = {};
       const nextIds: Record<string, string> = {};
-      const nextEditable: Record<string, boolean> = {};
+      const nextEditableStatus: Record<string, number> = {};
+      const nextIsRevReq: Record<string, boolean> = {};
       let hasAny = false;
       if (ok && data) {
         (data.targetreferencelist ?? []).forEach((it) => {
@@ -306,7 +309,8 @@ export default function TargetReferenceForm({
           nextCells[`${month}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
           nextCells[`${month}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
           nextCells[`${month}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-          nextEditable[String(month)] = Boolean(it.iseditable);
+          nextEditableStatus[String(month)] = Number(it.editablestatus ?? 0);
+          nextIsRevReq[String(month)] = Boolean(it.isrevisionrequest);
           if (it.targetno) {
             nextIds[String(month)] = it.targetno;
             hasAny = true;
@@ -327,7 +331,8 @@ export default function TargetReferenceForm({
       setCells(nextCells);
       setBaselineCells(nextCells);
       setExistingTargetNos(nextIds);
-      setExistingEditable(nextEditable);
+      setExistingEditableStatus(nextEditableStatus);
+      setExistingIsRevisionRequest(nextIsRevReq);
       setExistingLoading(false);
     })();
     return () => {
@@ -555,22 +560,18 @@ export default function TargetReferenceForm({
         </thead>
         <tbody>
           {MONTHS.map((m, i) => {
-            const monthLocked = isEdit && isReportMonthLocked(Number(year), Number(m.value));
             const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
             const activeReq = revisionRequests.find((req) => req.reportmonth === Number(m.value));
-            const latestReq = activeReq;
-            const isOwnPending = false;
-            // Row-level editable flag from server: if any sector cell in this
-            // month has iseditable=true, the row is unlocked for revision.
-            const rowEditable = Boolean(existingEditable[String(m.value)]);
+            // Server-driven flags (only source of truth for editability + action state)
+            const editablestatus = existingEditableStatus[String(m.value)];
+            const isRevisionRequest = Boolean(existingIsRevisionRequest[String(m.value)]);
+            const isEditable = editablestatus === 153;
             // Pick a referencekey (targetno) for the row.
             const rowReferenceKey = existingTargetNos[String(m.value)] || "";
             return (
             <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
               <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
-                {!monthLocked ? (
-                  <span className="text-[11px] text-muted-foreground">—</span>
-                ) : rowEditable ? (
+                {isRevisionRequest ? (
                   <div className="flex items-center justify-center gap-1.5">
                     <TooltipProvider>
                       <Tooltip>
@@ -581,7 +582,7 @@ export default function TargetReferenceForm({
                             size="icon"
                             className="h-8 w-8 rounded-md text-primary hover:bg-primary/10"
                             onClick={() => {
-                              if (activeReq ?? latestReq) setCancelRequestId((activeReq ?? latestReq)?.requestno ?? null);
+                              if (activeReq) setCancelRequestId(activeReq.requestno);
                               else toast.info("No active revision request to cancel.");
                             }}
                             aria-label="Cancel revision request"
@@ -601,7 +602,7 @@ export default function TargetReferenceForm({
                             size="icon"
                             className="h-8 w-8 rounded-md text-destructive hover:bg-destructive/10"
                             onClick={() => {
-                              if (latestReq) setDeleteRequestId(latestReq.requestno);
+                              if (activeReq) setDeleteRequestId(activeReq.requestno);
                               else toast.info("No revision request to delete.");
                             }}
                             aria-label="Delete revision request"
@@ -610,26 +611,6 @@ export default function TargetReferenceForm({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Delete revision request</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                ) : activeReq ? (
-                  <div className="flex items-center justify-center gap-1.5">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-md text-primary hover:bg-primary/10"
-                            onClick={() => setCancelRequestId(activeReq.requestno)}
-                            aria-label="Cancel revision request"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Cancel revision request</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
@@ -669,7 +650,7 @@ export default function TargetReferenceForm({
               </td>
               <td className="whitespace-nowrap px-3 py-1.5 font-medium">
                 <div className="flex items-center gap-2">
-                  {monthLocked && <Lock className="h-3 w-3 text-warning" aria-label="Locked month" />}
+                  {!isEditable && <Lock className="h-3 w-3 text-warning" aria-label="Locked month" />}
                   <span>{m.name}</span>
                   {activeReq ? (
                     <RevisionStatusBadge status={activeReq.statuscode?.toUpperCase() === "PENDING" ? "PENDING" : activeReq.statuscode?.toUpperCase() === "APPROVED" ? "APPROVED" : "CANCELLED"} />
@@ -680,32 +661,33 @@ export default function TargetReferenceForm({
                 const key = `${m.value}-${s.detno}`;
                 const hasErr = Boolean(errors[key]);
                 const val = cells[key] ?? "";
+                const locked = !isEditable;
                 return (
                   <td key={s.detno} className="px-2 py-1">
                     <input
                       inputMode="numeric"
                       value={val}
-                      readOnly={monthLocked}
-                      tabIndex={monthLocked ? -1 : 0}
+                      readOnly={locked}
+                      tabIndex={locked ? -1 : 0}
                       onFocus={(e) => {
-                        if (monthLocked) return;
+                        if (locked) return;
                         e.target.select();
                       }}
                       onBlur={(e) => {
-                        if (monthLocked) return;
+                        if (locked) return;
                         if (e.target.value === "") setCell(m.value, Number(s.detno), "0");
                       }}
                       onChange={(e) => {
-                        if (monthLocked) return;
+                        if (locked) return;
                         setCell(m.value, Number(s.detno), e.target.value);
                       }}
                       aria-invalid={hasErr}
-                      aria-readonly={monthLocked}
-                      title={monthLocked ? "This month is already completed and cannot be edited." : undefined}
+                      aria-readonly={locked}
+                      title={locked ? "This row is not editable." : undefined}
                       className={cn(
                         "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-right text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
                         hasErr && "border-destructive focus:border-destructive focus:ring-destructive",
-                        monthLocked && "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
+                        locked && "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
                       )}
                     />
                   </td>

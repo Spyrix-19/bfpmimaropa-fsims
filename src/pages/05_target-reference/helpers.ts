@@ -2,9 +2,6 @@
  * Local helpers for the Target Reference module — buckets the backend
  * `targetreferencelist` (TargetReferenceClassModel[]) into BPLO / Gov /
  * PEZA / TIEZA cells for the on-screen tables.
- *
- * These live in the module (not in a shared types file) so the module
- * has no dependency on the mock TargetReferenceModel used by Monitoring.
  */
 
 import type { TargetReferenceClassModel } from "@/types/targetreferenceType";
@@ -94,39 +91,16 @@ export const addBucket = (a: TargetBucket, b: TargetBucket): TargetBucket => ({
 
 export const sumBucket = (b: TargetBucket) => b.bplo + b.gov + b.peza + b.tieza;
 
-/** Map backend sectorcode -> UI bucket key. Unknown codes are ignored. */
-export function sectorKey(code: string | undefined | null): keyof TargetBucket | null {
-  const c = (code ?? "").toUpperCase().trim();
-  if (c === "BPLO") return "bplo";
-  if (c === "GOV" || c === "GOVERNMENT") return "gov";
-  if (c === "PEZA") return "peza";
-  if (c === "TIEZA") return "tieza";
-  return null;
-}
-
 /**
- * Bucket a station's targetreferencelist into monthly/quarterly/semi/annual.
+ * Bucket a station's targetreferencelist row into a BPLO/Gov/PEZA/TIEZA bucket.
  */
-function resolveBucket(it: TargetReferenceClassModel): TargetBucket | null {
-  const hasMonthTotals = [it.bplototal, it.govtotal, it.piezatotal, it.tiezatotal].some(
-    (value) => value !== undefined && value !== null,
-  );
-
-  if (hasMonthTotals) {
-    return {
-      bplo: Number(it.bplototal ?? 0),
-      gov: Number(it.govtotal ?? 0),
-      peza: Number(it.piezatotal ?? 0),
-      tieza: Number(it.tiezatotal ?? 0),
-    };
-  }
-
-  const k = sectorKey(it.sectorcode);
-  if (!k) return null;
-
-  const bucket = emptyBucket();
-  bucket[k] = Number(it.targettotal) || 0;
-  return bucket;
+function resolveBucket(it: TargetReferenceClassModel): TargetBucket {
+  return {
+    bplo: Number(it.bplototal ?? 0),
+    gov: Number(it.govtotal ?? 0),
+    peza: Number(it.piezatotal ?? 0),
+    tieza: Number(it.tiezatotal ?? 0),
+  };
 }
 
 export function computeDerivedFromList(list: TargetReferenceClassModel[] | null | undefined) {
@@ -136,9 +110,7 @@ export function computeDerivedFromList(list: TargetReferenceClassModel[] | null 
   (list ?? []).forEach((it) => {
     const m = Number(it.reportmonth);
     if (!m || m < 1 || m > 12) return;
-    const bucket = resolveBucket(it);
-    if (!bucket) return;
-    monthly[m] = addBucket(monthly[m], bucket);
+    monthly[m] = addBucket(monthly[m], resolveBucket(it));
   });
 
   const quarters = [
