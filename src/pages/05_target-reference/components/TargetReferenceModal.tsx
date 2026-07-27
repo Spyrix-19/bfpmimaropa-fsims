@@ -539,7 +539,7 @@ export default function TargetReferenceForm({
       <table className="min-w-full border-collapse text-xs">
         <thead className="sticky top-0 z-10 bg-card">
           <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
-            <th className="border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">ACTION</th>
+            <th className="min-w-[96px] border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">ACTION</th>
             <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Month</th>
             {sectors.map((s) => (
               <th
@@ -567,7 +567,7 @@ export default function TargetReferenceForm({
             const rowReferenceKey = existingTargetNos[String(m.value)] || "";
             return (
             <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-              <td className="border-r border-border/60 bg-card px-2 py-1.5 text-center">
+              <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
                 {!monthLocked ? (
                   <span className="text-[11px] text-muted-foreground">—</span>
                 ) : rowEditable ? (
