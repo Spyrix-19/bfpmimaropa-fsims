@@ -55,11 +55,11 @@ import {
 import ReadOnlyField from "./components/ReadOnlyField";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 
-function BucketCell({ b, k }: { b: TargetBucket; k: keyof TargetBucket }) {
+function BucketCell({ b, k, className }: { b: TargetBucket; k: keyof TargetBucket; className?: string }) {
   const v = b[k];
   return (
     <td
-      className={`px-2 py-1.5 text-right tabular-nums ${v === 0 ? "text-muted-foreground/60" : ""}`}
+      className={`px-2 py-1.5 text-right tabular-nums ${v === 0 ? "text-muted-foreground/60" : ""} ${className ?? ""}`}
     >
       {v.toLocaleString()}
     </td>
@@ -519,13 +519,13 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
 
 function TableHead({ firstLabel }: { firstLabel: string }) {
   return (
-    <thead>
-      <tr className="bg-primary/10 text-left text-[10px] uppercase tracking-[0.15em] text-primary">
-        <th className="px-2 py-1.5 font-semibold">{firstLabel}</th>
-        <th className="px-2 py-1.5 text-right font-semibold">BPLO</th>
-        <th className="px-2 py-1.5 text-right font-semibold">Gov</th>
-        <th className="px-2 py-1.5 text-right font-semibold">PEZA</th>
-        <th className="px-2 py-1.5 text-right font-semibold">TIEZA</th>
+    <thead className="sticky top-0 z-10">
+      <tr className="text-left text-[10px] uppercase tracking-[0.15em] text-primary">
+        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 font-semibold">{firstLabel}</th>
+        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 text-right font-semibold">BPLO</th>
+        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 text-right font-semibold">Gov</th>
+        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 text-right font-semibold">PEZA</th>
+        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 text-right font-semibold">TIEZA</th>
       </tr>
     </thead>
   );
@@ -611,13 +611,13 @@ function TargetCard({
                       );
                     })}
                   </tbody>
-                  <tfoot>
-                    <tr className="bg-primary/10 font-semibold">
-                      <td className="px-2 py-1.5">TOTAL</td>
-                      <BucketCell b={derived.annual} k="bplo" />
-                      <BucketCell b={derived.annual} k="gov" />
-                      <BucketCell b={derived.annual} k="peza" />
-                      <BucketCell b={derived.annual} k="tieza" />
+                  <tfoot className="sticky bottom-0 z-10">
+                    <tr className="font-semibold">
+                      <td className="sticky bottom-0 z-10 bg-primary/10 px-2 py-1.5">TOTAL</td>
+                      <BucketCell b={derived.annual} k="bplo" className="sticky bottom-0 z-10 bg-primary/10" />
+                      <BucketCell b={derived.annual} k="gov" className="sticky bottom-0 z-10 bg-primary/10" />
+                      <BucketCell b={derived.annual} k="peza" className="sticky bottom-0 z-10 bg-primary/10" />
+                      <BucketCell b={derived.annual} k="tieza" className="sticky bottom-0 z-10 bg-primary/10" />
                     </tr>
                   </tfoot>
                 </table>
