@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { Building2, Calendar, Loader2, Lock, RotateCcw, Save, X, AlertTriangle, Trash2 } from "lucide-react";
+import { Building2, Calendar, Loader2, Lock, RotateCcw, Save, X, AlertTriangle, Trash2, Ban } from "lucide-react";
+import EditButton from "@/components/edit-button";
+import DeleteButton from "@/components/delete-button";
 import { toast } from "sonner";
 import { cn, buildYears, toWhole } from "@/lib/utils";
 import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
@@ -37,6 +39,32 @@ interface Props {
 
 /** cellKey = `${month}-${sectorno}` -> raw string input value */
 type CellMap = Record<string, string>;
+
+/**
+ * Lock activation rule (Philippine Standard Time, Asia/Manila, UTC+08:00).
+ *
+ * A report (reportyear, reportmonth) only becomes officially locked once the
+ * current PST time reaches day 4 of the following calendar month at
+ * 00:00:00 PST. Before that instant the row must behave exactly like an
+ * unlocked / current month, regardless of any server-side lock hint.
+ *
+ * Implementation notes:
+ *  - We compare in a shared, tz-neutral millisecond space by shifting the
+ *    real UTC "now" forward by +8h and treating the lock activation as if
+ *    its wall-clock components (Y, next-month, day 4, 00:00) were UTC.
+ *  - `reportmonth` is 1..12. `Date.UTC(y, reportmonth, 4)` uses `reportmonth`
+ *    as a 0-indexed month, which conveniently yields the NEXT calendar month
+ *    (December => January of the following year automatically).
+ */
+function hasPstLockActivated(reportyear: number, reportmonth: number, now: Date = new Date()): boolean {
+  const y = Number(reportyear);
+  const m = Number(reportmonth);
+  if (!y || !m || m < 1 || m > 12) return false;
+  const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
+  const lockActivationMs = Date.UTC(y, m /* next month, 0-indexed */, 4, 0, 0, 0);
+  return manilaNowMs >= lockActivationMs;
+}
+
 
 export default function TargetReferenceForm({
   open,
@@ -441,15 +469,33 @@ export default function TargetReferenceForm({
       }
     }
 
-    const list: TargetReferenceClass[] = MONTHS.map((m) => ({
-      targetno: resolvedExistingTargetNos[String(m.value)] ?? EMPTY_GUID,
-      reportyear: Number(year),
-      reportmonth: Number(m.value),
-      bplototal: Number(cells[`${m.value}-${SECTOR_NO.BPLO}`] ?? 0),
-      govtotal: Number(cells[`${m.value}-${SECTOR_NO.GOV}`] ?? 0),
-      piezatotal: Number(cells[`${m.value}-${SECTOR_NO.PEZA}`] ?? 0),
-      tiezatotal: Number(cells[`${m.value}-${SECTOR_NO.TIEZA}`] ?? 0),
-    }));
+    const list: TargetReferenceClass[] = MONTHS.map((m) => {
+      const bploKey = `${m.value}-${SECTOR_NO.BPLO}`;
+      const govKey = `${m.value}-${SECTOR_NO.GOV}`;
+      const pezaKey = `${m.value}-${SECTOR_NO.PEZA}`;
+      const tiezaKey = `${m.value}-${SECTOR_NO.TIEZA}`;
+      const bplototal = Number(cells[bploKey] ?? 0);
+      const govtotal = Number(cells[govKey] ?? 0);
+      const piezatotal = Number(cells[pezaKey] ?? 0);
+      const tiezatotal = Number(cells[tiezaKey] ?? 0);
+      // isaccomplished = true when any of the four totals differ from the
+      // originally loaded baseline (from targetreferenceAPI.getDetail).
+      const isaccomplished =
+        bplototal !== Number(baselineCells[bploKey] ?? 0) ||
+        govtotal !== Number(baselineCells[govKey] ?? 0) ||
+        piezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
+        tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
+      return {
+        targetno: resolvedExistingTargetNos[String(m.value)] ?? EMPTY_GUID,
+        reportyear: Number(year),
+        reportmonth: Number(m.value),
+        bplototal,
+        govtotal,
+        piezatotal,
+        tiezatotal,
+        isaccomplished,
+      } as TargetReferenceClass & { isaccomplished: boolean };
+    });
 
     setSaving(true);
     try {
@@ -561,90 +607,68 @@ export default function TargetReferenceForm({
         <tbody>
           {MONTHS.map((m, i) => {
             const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
-            const activeReq = revisionRequests.find((req) => req.reportmonth === Number(m.value));
+            const activeReq = revisionRequests.find(
+              (req) => Number(req.reportmonth) === Number(m.value) && req.statuscode?.toUpperCase() === "PENDING",
+            );
             // Server-driven flags (only source of truth for editability + action state)
             const editablestatus = existingEditableStatus[String(m.value)];
-            const isRevisionRequest = Boolean(existingIsRevisionRequest[String(m.value)]);
-            const isEditable = editablestatus === 153;
+            const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(m.value)]);
+            const serverIsEditable = editablestatus === 153;
+            // PST lock-activation gate: until day 4 00:00 of the following
+            // month (Asia/Manila), the row must behave like an unlocked /
+            // current month regardless of any server-side lock hint.
+            const pstLockActive = hasPstLockActivated(year, Number(m.value));
+            const isEditable = serverIsEditable || !pstLockActive;
+            const row = {
+              isrevisionrequest: serverIsRevisionRequest || Boolean(activeReq),
+            };
+
             // Pick a referencekey (targetno) for the row.
-            const rowReferenceKey = existingTargetNos[String(m.value)] || "";
+            const rowReferenceKey = existingTargetNos?.[String(m.value)] || "";
             return (
             <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
               <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
-                {isRevisionRequest ? (
+                {row.isrevisionrequest ? (
                   <div className="flex items-center justify-center gap-1.5">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-md text-primary hover:bg-primary/10"
-                            onClick={() => {
-                              if (activeReq) setCancelRequestId(activeReq.requestno);
-                              else toast.info("No active revision request to cancel.");
-                            }}
-                            aria-label="Cancel revision request"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Cancel revision request</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-md text-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                              if (activeReq) setDeleteRequestId(activeReq.requestno);
-                              else toast.info("No revision request to delete.");
-                            }}
-                            aria-label="Delete revision request"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete revision request</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <EditButton
+                      variant="square"
+                      tooltip="Cancel Revision Request"
+                      ariaLabel="Cancel Revision Request"
+                      icon={<Ban className="h-4 w-4" />}
+                      onClick={() => {
+                        if (activeReq) setCancelRequestId(activeReq.requestno);
+                        else toast.info("No active revision request to cancel.");
+                      }}
+                    />
+                    <DeleteButton
+                      variant="square"
+                      tooltip="Delete Revision Request"
+                      ariaLabel="Delete Revision Request"
+                      icon={<Trash2 className="h-4 w-4" />}
+                      onClick={() => {
+                        if (activeReq) setDeleteRequestId(activeReq.requestno);
+                        else toast.info("No revision request to delete.");
+                      }}
+                    />
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-1.5">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 rounded-md border-primary/40 text-primary shadow-none [&_svg]:text-current"
-                              onClick={() => setRevisionMonth(Number(m.value))}
-                              disabled={!revStation}
-                              aria-label={
-                                !revStation
-                                  ? "Select a station to request a revision"
-                                  : "Request Revision"
-                              }
-                              data-referencekey={rowReferenceKey}
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {!revStation
-                            ? "Select a station to request a revision"
-                            : "Request Revision"}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <EditButton
+                      variant="square"
+                      tooltip={
+                        !revStation
+                          ? "Select a station to request a revision"
+                          : "Request Revision"
+                      }
+                      ariaLabel={
+                        !revStation
+                          ? "Select a station to request a revision"
+                          : "Request Revision"
+                      }
+                      disabled={!revStation}
+                      icon={<RotateCcw className="h-4 w-4" />}
+                      onClick={() => setRevisionMonth(Number(m.value))}
+                    />
                   </div>
                 )}
               </td>
@@ -893,9 +917,7 @@ export default function TargetReferenceForm({
         year={Number(year)}
         month={Number(revisionMonth)}
         referencekey={
-          sectors
-            .map((s) => existingTargetNos[`${revisionMonth}-${s.detno}`])
-            .find((v) => v && v !== EMPTY_GUID) || EMPTY_GUID
+          existingTargetNos[String(revisionMonth)] || EMPTY_GUID
         }
         onSubmitted={() => setReloadNonce((n) => n + 1)}
       />
