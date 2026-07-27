@@ -87,7 +87,7 @@ const OTHERS_FIELDS: NumericFieldSpec[] = [
   { key: "not_nod", label: "NOD", tooltip: "Notice Of Disapproval" },
   { key: "not_ntc", label: "NTC", tooltip: "Notice to Comply" },
   { key: "not_ntcv", label: "NTCV", tooltip: "Notice To Correct Violation" },
-  { key: "not_abatement", label: "AVATEMENT" },
+  { key: "not_abatement", label: "ABATEMENT" },
   { key: "not_closure", label: "Closure" },
 ];
 

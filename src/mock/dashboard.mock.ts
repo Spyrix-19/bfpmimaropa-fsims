@@ -54,6 +54,7 @@ export const summary = {
   ntc: 312,
   nod: 200,
   ntcv: 96,
+  abatement: 120,
   closure: 34,
   records: 6240,
 };

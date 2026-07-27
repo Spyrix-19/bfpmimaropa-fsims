@@ -47,7 +47,7 @@ export const CATEGORY_FIELDS: Record<
     { key: "not_nod", label: "NOD" },
     { key: "not_ntc", label: "NTC" },
     { key: "not_ntcv", label: "NTCV" },
-    { key: "not_abatement", label: "Avatement" },
+    { key: "not_abatement", label: "Abatement" },
     { key: "not_closure", label: "Closure" },
   ],
   OVERALL: [

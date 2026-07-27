@@ -232,7 +232,7 @@ export function DashboardBody() {
       </Card>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <KpiCard
           label="Target Inspections"
           value={summary.target.toLocaleString()}
@@ -273,6 +273,12 @@ export function DashboardBody() {
         <KpiCard
           label="NTCV"
           value={summary.ntcv}
+          icon={<ShieldAlert className="h-5 w-5" />}
+          accent="bg-destructive/10 text-destructive"
+        />
+        <KpiCard
+          label="Abatement"
+          value={summary.abatement}
           icon={<ShieldAlert className="h-5 w-5" />}
           accent="bg-destructive/10 text-destructive"
         />
