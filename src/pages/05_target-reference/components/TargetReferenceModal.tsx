@@ -285,7 +285,13 @@ export default function TargetReferenceForm({
       if (ok && Array.isArray(data)) {
         setRevisionRequests(data);
       } else {
-        toast.error(error || "Unable to load revision requests.");
+        // Backend returns isSuccess=false with "No data found." when the
+        // station has no revision requests for the year — treat as empty
+        // instead of surfacing a scary toast.
+        const isEmptyResult = /no\s*data|not\s*found|no\s*record/i.test(error || "");
+        if (!isEmptyResult) {
+          toast.error(error || "Unable to load revision requests.");
+        }
         setRevisionRequests([]);
       }
       setRevisionRequestsLoading(false);
@@ -420,7 +426,12 @@ export default function TargetReferenceForm({
     );
     const { ok, data, error } = unwrap<TargetReferenceDetailModel>(resp);
     if (!ok) {
-      toast.error(error || "Unable to verify existing target reference.");
+      // "No data found" from the backend just means nothing exists yet —
+      // it's not an error worth showing to the user during duplicate checks.
+      const isEmptyResult = /no\s*data|not\s*found|no\s*record/i.test(error || "");
+      if (!isEmptyResult) {
+        toast.error(error || "Unable to verify existing target reference.");
+      }
       return null;
     }
     if (!data) return null;
