@@ -395,14 +395,19 @@ export default function TargetReferenceForm({
     const nextCells: CellMap = {};
     const nextIds: Record<string, string> = {};
 
+    // API now returns a full 12-month scaffold per station+year, with
+    // unsaved months carrying targetno === EMPTY_GUID and zero totals.
+    // Treat only rows with a real targetno as actually saved data.
     (detail?.targetreferencelist ?? []).forEach((it) => {
       const month = Number(it.reportmonth);
       if (!month || month < 1 || month > 12) return;
+      const isSaved = Boolean(it.targetno) && it.targetno !== EMPTY_GUID;
+      if (!isSaved) return;
       nextCells[`${month}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
       nextCells[`${month}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
       nextCells[`${month}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
       nextCells[`${month}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-      if (it.targetno && it.targetno !== EMPTY_GUID) nextIds[String(month)] = it.targetno;
+      nextIds[String(month)] = it.targetno;
     });
 
     return { cells: nextCells, ids: nextIds };
@@ -418,8 +423,11 @@ export default function TargetReferenceForm({
       toast.error(error || "Unable to verify existing target reference.");
       return null;
     }
-    if (!data || !(data.targetreferencelist ?? []).length) return null;
-    return buildExistingTargetData(data);
+    if (!data) return null;
+    const built = buildExistingTargetData(data);
+    // No real saved month -> nothing to duplicate.
+    if (Object.keys(built.ids).length === 0) return null;
+    return built;
   };
 
   const stationCode = station?.stationcode ?? "";
