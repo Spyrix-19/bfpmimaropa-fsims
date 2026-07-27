@@ -14,6 +14,7 @@ import type {
 } from "@/types/stationTypes";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { cn } from "@/lib/utils";
+import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
 
 export interface SelectedStation {
   stationno: string;
@@ -22,42 +23,30 @@ export interface SelectedStation {
   provincename: string;
 }
 
-type Props = {
-  value: SelectedStation[];
-  /** Selected provinces used to scope the station search. Empty === ALL provinces. */
-  provinces: ProvinceStationSelection[];
-  /** Report year forwarded to the Station/Multiple/Search endpoint. */
-  reportyear?: number;
-  onChange: (selected: SelectedStation[]) => void;
+export type StationMultiSelectProps = {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  /**
-   * When true, the picker is usable even when `provinces` is empty (searches
-   * across ALL provinces) and does NOT auto-clear the selected stations when
-   * the provinces list becomes empty. The parent owns cross-filter sync.
-   */
+  mode: "station";
+  value: SelectedStation[];
+  provinces: ProvinceStationSelection[];
+  reportyear?: number;
+  onChange: (selected: SelectedStation[]) => void;
   alwaysEnabled?: boolean;
 };
 
-import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+export function StationMultiSelect(props: StationMultiSelectProps) {
+  const {
+    value,
+    provinces,
+    reportyear = 0,
+    onChange,
+    placeholder = "Select unit / station",
+    disabled,
+    className,
+    alwaysEnabled = false,
+  } = props;
 
-/**
- * Multi-select station picker backed by `stationAPI.searchMultiple`. Reloads
- * whenever the selected `provinces` change. Preserves the visual layout of
- * StationSearchSelect (search input, list, prev/next pager) but adds
- * per-row checkboxes.
- */
-export default function StationMultiSelect({
-  value,
-  provinces,
-  reportyear = 0,
-  onChange,
-  placeholder = "Select unit / station",
-  disabled,
-  className,
-  alwaysEnabled = false,
-}: Props) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const debounced = useDebouncedValue(search, 300);
@@ -69,7 +58,6 @@ export default function StationMultiSelect({
     setPage(1);
   }, [debounced]);
 
-  // Reload when popover open / search / page / provinces change.
   const provincesKey = React.useMemo(
     () => provinces.map((p) => p.provinceno).sort().join(","),
     [provinces],
@@ -81,8 +69,6 @@ export default function StationMultiSelect({
 
   const noProvince = provinces.length === 0;
 
-  // Drop selected stations that no longer belong to any selected province.
-  // Skipped when `alwaysEnabled` — the parent owns cross-filter sync there.
   React.useEffect(() => {
     if (alwaysEnabled) return;
     if (noProvince) {
@@ -164,7 +150,7 @@ export default function StationMultiSelect({
           type="button"
           disabled={disabled || (noProvince && !alwaysEnabled)}
           className={cn(
-            "h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm flex items-center justify-between gap-2 text-left disabled:opacity-50",
+            "flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border bg-background px-3 text-left text-sm disabled:opacity-50",
             className,
           )}
         >
@@ -212,9 +198,7 @@ export default function StationMultiSelect({
                 </button>
               ) : null}
               {rows.length === 0 && !loading && page === 1 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
-                  No units found
-                </div>
+                <div className="py-6 text-center text-sm text-muted-foreground">No units found</div>
               ) : null}
               {rows.map((r) => {
                 const sel = isSelected(r.stationno);
@@ -238,9 +222,7 @@ export default function StationMultiSelect({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{r.stationname}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {r.stationcode}
-                        </div>
+                        <div className="truncate text-xs text-muted-foreground">{r.stationcode}</div>
                       </div>
                     </div>
                     {sel ? <Check className="h-4 w-4 text-primary" /> : null}
@@ -276,3 +258,5 @@ export default function StationMultiSelect({
     </Popover>
   );
 }
+
+export default StationMultiSelect;

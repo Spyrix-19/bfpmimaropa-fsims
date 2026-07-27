@@ -1,11 +1,11 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 
-import { TargetReferenceDTO, TargetReferenceDetailParams, TargetReferenceDetailModel, 
+import { FSISTargetReferenceDTO, TargetReferenceDetailParams, TargetReferenceDetailModel, 
   TargetReferenceLedgerParams, TargetReferenceModel, TargetReferenceDeleteParams, 
-  ExportTargetReferenceRequest } from "@/types/targetreferenceType";
+  ExportTargetReferenceRequestDTO} from "@/types/targetreferenceType";
 
 export const targetreferenceAPI = {
-  async create(params: TargetReferenceDTO) {
+  async create(params: FSISTargetReferenceDTO) {
     return await apiPost("/api/v1/FSISTargetReference/Create", params, { ...NO_RETRY });
   },  
 
@@ -33,7 +33,7 @@ export const targetreferenceAPI = {
   },
 
   async export(
-    body: ExportTargetReferenceRequest,
+    body: ExportTargetReferenceRequestDTO,
     options?: import("@/lib/api").ApiOptions
   ) {
     return await apiPost("/api/v1/FSISTargetReference/Export", body, {

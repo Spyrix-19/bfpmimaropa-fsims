@@ -107,6 +107,28 @@ export function sectorKey(code: string | undefined | null): keyof TargetBucket |
 /**
  * Bucket a station's targetreferencelist into monthly/quarterly/semi/annual.
  */
+function resolveBucket(it: TargetReferenceClassModel): TargetBucket | null {
+  const hasMonthTotals = [it.bplototal, it.govtotal, it.piezatotal, it.tiezatotal].some(
+    (value) => value !== undefined && value !== null,
+  );
+
+  if (hasMonthTotals) {
+    return {
+      bplo: Number(it.bplototal ?? 0),
+      gov: Number(it.govtotal ?? 0),
+      peza: Number(it.piezatotal ?? 0),
+      tieza: Number(it.tiezatotal ?? 0),
+    };
+  }
+
+  const k = sectorKey(it.sectorcode);
+  if (!k) return null;
+
+  const bucket = emptyBucket();
+  bucket[k] = Number(it.targettotal) || 0;
+  return bucket;
+}
+
 export function computeDerivedFromList(list: TargetReferenceClassModel[] | null | undefined) {
   const monthly: Record<number, TargetBucket> = {};
   for (let i = 1; i <= 12; i++) monthly[i] = emptyBucket();
@@ -114,9 +136,9 @@ export function computeDerivedFromList(list: TargetReferenceClassModel[] | null 
   (list ?? []).forEach((it) => {
     const m = Number(it.reportmonth);
     if (!m || m < 1 || m > 12) return;
-    const k = sectorKey(it.sectorcode);
-    if (!k) return;
-    monthly[m] = { ...monthly[m], [k]: monthly[m][k] + (Number(it.targettotal) || 0) };
+    const bucket = resolveBucket(it);
+    if (!bucket) return;
+    monthly[m] = addBucket(monthly[m], bucket);
   });
 
   const quarters = [

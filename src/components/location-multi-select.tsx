@@ -9,6 +9,7 @@ import { locationAPI } from "@/services/locationAPI";
 import { unwrap } from "@/lib/api-envelope";
 import type { SearchLocationModel } from "@/types/locationType";
 import { cn } from "@/lib/utils";
+import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
 
 export type LocationType = "REGION" | "PROVINCE" | "CITY" | "BARANGAY";
 
@@ -17,34 +18,30 @@ export interface SelectedLocation {
   locationname: string;
 }
 
-type Props = {
+export type LocationMultiSelectProps = {
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  mode: "location";
   value: SelectedLocation[];
   locationtype: LocationType;
   parentcode?: string;
   onChange: (selected: SelectedLocation[]) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  className?: string;
   hideCode?: boolean;
 };
 
-import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+export function LocationMultiSelect(props: LocationMultiSelectProps) {
+  const {
+    value,
+    locationtype,
+    parentcode = "",
+    onChange,
+    placeholder = "Select…",
+    disabled,
+    className,
+    hideCode = false,
+  } = props;
 
-/**
- * Multi-select variant of LocationSearchSelect. Preserves the same popover
- * layout (search field, list, prev/next pager) but renders a checkbox per row
- * and an "ALL" toggle that clears the selection (empty === ALL).
- */
-export default function LocationMultiSelect({
-  value,
-  locationtype,
-  parentcode = "",
-  onChange,
-  placeholder = "Select…",
-  disabled,
-  className,
-  hideCode = false,
-}: Props) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const debounced = useDebouncedValue(search, 300);
@@ -116,7 +113,7 @@ export default function LocationMultiSelect({
           )}
         >
           <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis">
-            {label}
+            {label || placeholder}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
         </button>
@@ -176,9 +173,7 @@ export default function LocationMultiSelect({
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{r.locationname}</div>
                       {!hideCode && r.locationcode ? (
-                        <div className="truncate text-xs text-muted-foreground">
-                          {r.locationcode}
-                        </div>
+                        <div className="truncate text-xs text-muted-foreground">{r.locationcode}</div>
                       ) : null}
                     </div>
                     {sel ? <Check className="h-4 w-4 text-primary" /> : null}
@@ -214,3 +209,5 @@ export default function LocationMultiSelect({
     </Popover>
   );
 }
+
+export default LocationMultiSelect;

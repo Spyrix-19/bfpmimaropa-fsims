@@ -1,16 +1,18 @@
-export interface TargetReferenceDTO {
+export interface FSISTargetReferenceDTO {
   stationno: string;
-  updatedby: string;
+  provinceno: string;
   encodedby: string;
   targetreferencelist: TargetReferenceClass[];
 }
 
 export interface TargetReferenceClass {
   targetno: string;
-  sectorno: number;
   reportyear: number;
   reportmonth: number;
-  targettotal: number;
+  bplototal: number;
+  govtotal: number;
+  piezatotal: number;
+  tiezatotal: number;
 }
 
 export interface TargetReferenceDetailParams {
@@ -22,38 +24,42 @@ export interface TargetReferenceDetailModel {
   stationno: string;
   stationcode: string;
   stationname: string;
-
-  regionno: string;
-  regioncode: string;
-  regionname: string;
-
+  regionno?: string;
+  regioncode?: string;
+  regionname?: string;
   provinceno: string;
   provincename: string;
-
-  cityno: string;
-  zipcode: string;
-  cityname: string;
-
-  barangayno: string;
-  barangayname: string;
-
-  streetaddress: string;
+  cityno?: string;
+  cityname?: string;
+  zipcode?: string;
+  barangayno?: string;
+  barangayname?: string;
+  streetaddress?: string;
   logourl: string;
+  targetreferencelist: TargetReferenceDetailClassModel[];
+}
 
+export interface TargetReferenceDetailClassModel {
+  targetno: string;
+  reportyear: number;
+  reportmonth: number;
+  iseditable: boolean;
+  bplototal: number;
+  govtotal: number;
+  piezatotal: number;
+  tiezatotal: number;
+  isdeleted: boolean;
   deletedby: string;
-  datedeleted: Date;
+  datedeleted: string | Date;
   deletedbyname: string;
-
   updatedby: string;
-  dateupdated: Date;
+  dateupdated: string | Date;
   updatedbyname: string;
-
   encodedby: string;
   encodedbyname: string;
-  dateencoded: Date;
-
-  targetreferencelist: TargetReferenceClassModel[];
+  dateencoded: string | Date;
 }
+
 
 export interface TargetReferenceLedgerParams {
   searchkey: string;
@@ -65,43 +71,25 @@ export interface TargetReferenceLedgerParams {
 }
 
 
-export interface TargetReferenceExportParams {
-  searchkey?: string;
-  stationno: string;
-  provinceno: string;
-  reportyear: number;
-}
-
 export interface TargetReferenceModel {
   stationno: string;
   stationcode: string;
   stationname: string;
-
-  provinceno?: string;
+  provinceno: string;
   provincename: string;
-  cityname: string;
-
   logourl: string;
-
-  updatedby: string;
-  encodedby: string;
-
   targetreferencelist: TargetReferenceClassModel[];
 }
 
 export interface TargetReferenceClassModel {
   targetno: string;
-
-  sectorno: number;
-  sectorcode: string;
-  sectorname: string;
-
   reportyear: number;
   reportmonth: number;
-
-  targettotal: number;
-
   iseditable: boolean;
+  bplototal: number;
+  govtotal: number;
+  piezatotal: number;
+  tiezatotal: number;
 }
 
 export interface TargetReferenceDeleteParams {
@@ -111,21 +99,19 @@ export interface TargetReferenceDeleteParams {
   roleno: number;
 }
 
-export interface ProvinceExportModel {
-  provinceno: string; // Guid
-  provincename: string;
-  stations: TargetReferenceModel[];
-}
-
-export interface ProvinceStationSelection {
+export interface ProvinceStationSelectionClass {
   provinceno: string;
-
   stationnos: string[];
 }
 
-export interface ExportTargetReferenceRequest {
+export interface ExportTargetReferenceRequestDTO {
   searchkey: string;
   reportyear: number;
-  provinces: ProvinceStationSelection[];
+  provinces: ProvinceStationSelectionClass[];
 }
 
+export interface ProvinceExportModel {
+  provinceno: string;
+  provincename: string;
+  stations: TargetReferenceModel[];
+}

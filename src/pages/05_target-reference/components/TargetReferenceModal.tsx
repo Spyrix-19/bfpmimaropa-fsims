@@ -7,7 +7,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { Building2, Calendar, Loader2, Lock, RotateCcw, Save, X, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, buildYears, toWhole } from "@/lib/utils";
-import { MONTHS, SECTORS } from "@/lib/fsims-constants";
+import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
 
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 
@@ -302,11 +302,13 @@ export default function TargetReferenceForm({
         (data.targetreferencelist ?? []).forEach((it) => {
           const month = Number(it.reportmonth);
           if (!month || month < 1 || month > 12) return;
-          const key = `${month}-${it.sectorno}`;
-          nextCells[key] = String(it.targettotal ?? 0);
-          nextEditable[key] = Boolean(it.iseditable);
+          nextCells[`${month}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
+          nextCells[`${month}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
+          nextCells[`${month}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
+          nextCells[`${month}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
+          nextEditable[String(month)] = Boolean(it.iseditable);
           if (it.targetno) {
-            nextIds[key] = it.targetno;
+            nextIds[String(month)] = it.targetno;
             hasAny = true;
           }
         });
@@ -363,9 +365,11 @@ export default function TargetReferenceForm({
     (detail?.targetreferencelist ?? []).forEach((it) => {
       const month = Number(it.reportmonth);
       if (!month || month < 1 || month > 12) return;
-      const key = `${month}-${it.sectorno}`;
-      nextCells[key] = String(it.targettotal ?? 0);
-      if (it.targetno) nextIds[key] = it.targetno;
+      nextCells[`${month}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
+      nextCells[`${month}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
+      nextCells[`${month}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
+      nextCells[`${month}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
+      if (it.targetno) nextIds[String(month)] = it.targetno;
     });
 
     return { cells: nextCells, ids: nextIds };
@@ -443,28 +447,22 @@ export default function TargetReferenceForm({
       }
     }
 
-    const list: TargetReferenceClass[] = [];
-    sectors.forEach((s) => {
-      MONTHS.forEach((m) => {
-        const key = `${m.value}-${s.detno}`;
-        const raw = cells[key];
-        const total = raw === "" || raw === undefined ? 0 : Number(raw);
-        list.push({
-          targetno: resolvedExistingTargetNos[key] ?? EMPTY_GUID,
-          sectorno: Number(s.detno),
-          reportyear: Number(year),
-          reportmonth: Number(m.value),
-          targettotal: total,
-        });
-      });
-    });
+    const list: TargetReferenceClass[] = MONTHS.map((m) => ({
+      targetno: resolvedExistingTargetNos[String(m.value)] ?? EMPTY_GUID,
+      reportyear: Number(year),
+      reportmonth: Number(m.value),
+      bplototal: Number(cells[`${m.value}-${SECTOR_NO.BPLO}`] ?? 0),
+      govtotal: Number(cells[`${m.value}-${SECTOR_NO.GOV}`] ?? 0),
+      piezatotal: Number(cells[`${m.value}-${SECTOR_NO.PEZA}`] ?? 0),
+      tiezatotal: Number(cells[`${m.value}-${SECTOR_NO.TIEZA}`] ?? 0),
+    }));
 
     setSaving(true);
     try {
       const resp = await targetreferenceAPI.create({
         stationno: submitStationNo,
+        provinceno: provinceno || EMPTY_GUID,
         encodedby: user?.memberno ?? "",
-        updatedby: user?.memberno ?? "",
         targetreferencelist: list,
       });
       const { ok, error } = unwrap(resp);
@@ -575,14 +573,9 @@ export default function TargetReferenceForm({
             const isOwnPending = false;
             // Row-level editable flag from server: if any sector cell in this
             // month has iseditable=true, the row is unlocked for revision.
-            const rowEditable = sectors.some(
-              (s) => existingEditable[`${m.value}-${s.detno}`],
-            );
-            // Pick a referencekey (targetno) for the row — first cell with an id.
-            const rowReferenceKey =
-              sectors
-                .map((s) => existingTargetNos[`${m.value}-${s.detno}`])
-                .find((v) => v && v !== EMPTY_GUID) || "";
+            const rowEditable = Boolean(existingEditable[String(m.value)]);
+            // Pick a referencekey (targetno) for the row.
+            const rowReferenceKey = existingTargetNos[String(m.value)] || "";
             return (
             <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
               <td className="border-r border-border/60 bg-card px-2 py-1.5 text-center">

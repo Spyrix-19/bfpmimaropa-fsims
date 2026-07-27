@@ -3,12 +3,8 @@ import { ShieldCheck, Check, X as XIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
-import LocationMultiSelect, {
-  type SelectedLocation,
-} from "@/pages/05_target-reference/components/LocationMultiSelect";
-import StationMultiSelect, {
-  type SelectedStation,
-} from "@/pages/05_target-reference/components/StationMultiSelect";
+import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
+import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import { Button } from "@/components/ui/button";
 import FilterField from "@/components/filter-field";
 import {
@@ -254,6 +250,7 @@ export default function TargetRevisionRequests({
           </FilterField>
           <FilterField label="Provinces">
             <LocationMultiSelect
+              mode="location"
               value={provinces}
               locationtype="PROVINCE"
               parentcode={MIMAROPA_REGION_CODE}
@@ -271,6 +268,7 @@ export default function TargetRevisionRequests({
           </FilterField>
           <FilterField label="Stations">
             <StationMultiSelect
+              mode="station"
               value={stations}
               provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
               reportyear={year !== "all" ? Number(year) : 0}

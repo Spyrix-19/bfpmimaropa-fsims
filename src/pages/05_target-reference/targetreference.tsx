@@ -42,7 +42,7 @@ import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { TargetReferenceModel } from "@/types/targetreferenceType";
 
-import TargetReferenceForm from "./components/TargetReferenceForm";
+import TargetReferenceForm from "./components/TargetReferenceModal";
 import TargetReferenceDetails from "./components/TargetReferenceDetails";
 import TargetMatrixModal from "./components/TargetMatrix";
 import {

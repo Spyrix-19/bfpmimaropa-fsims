@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import LocationMultiSelect, { type SelectedLocation } from "@/pages/05_target-reference/components/LocationMultiSelect";
-import StationMultiSelect, { type SelectedStation } from "@/pages/05_target-reference/components/StationMultiSelect";
+import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
+import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
 import { MONTH_NAMES, sumMonths } from "@/lib/inventoryHelpers";
@@ -611,6 +611,7 @@ export default function InventoryMatrix({
                 />
               ) : (
                 <LocationMultiSelect
+                  mode="location"
                   value={provinceFilters}
                   locationtype="PROVINCE"
                   parentcode={MIMAROPA_REGION_CODE}
@@ -641,6 +642,7 @@ export default function InventoryMatrix({
                 />
               ) : (
                 <StationMultiSelect
+                  mode="station"
                   value={stationFilters}
                   provinces={
                     scope.provinceLocked

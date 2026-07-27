@@ -17,8 +17,8 @@ import type {
 import { sectorKey, resolveTargetScope } from "../helpers";
 import { useAuth } from "@/lib/auth";
 import { exportTargetMatrix } from "./matrixExport";
-import LocationMultiSelect, { type SelectedLocation } from "./LocationMultiSelect";
-import StationMultiSelect, { type SelectedStation } from "./StationMultiSelect";
+import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
+import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import {
   Select,
@@ -81,9 +81,12 @@ function buildStationRow(m: TargetReferenceModel): StationRow {
   (m.targetreferencelist ?? []).forEach((it) => {
     const mv = Number(it.reportmonth);
     if (!mv || mv < 1 || mv > 12) return;
-    const k = sectorKey(it.sectorcode);
-    if (!k) return;
-    months[mv] = { ...months[mv], [k]: months[mv][k] + (Number(it.targettotal) || 0) };
+    months[mv] = {
+      bplo: months[mv].bplo + (Number(it.bplototal) || 0),
+      gov: months[mv].gov + (Number(it.govtotal) || 0),
+      peza: months[mv].peza + (Number(it.piezatotal) || 0),
+      tieza: months[mv].tieza + (Number(it.tiezatotal) || 0),
+    };
   });
   return {
     stationno: m.stationno,
@@ -464,6 +467,7 @@ export default function TargetMatrixModal({
                 </div>
               ) : (
                 <LocationMultiSelect
+                  mode="location"
                   value={provinceFilters}
                   locationtype="PROVINCE"
                   parentcode={MIMAROPA_REGION_CODE}
@@ -485,6 +489,7 @@ export default function TargetMatrixModal({
                 </div>
               ) : (
                 <StationMultiSelect
+                  mode="station"
                   value={stationFilters}
                   provinces={
                     provinceFilters.length > 0
