@@ -518,14 +518,16 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
 }
 
 function TableHead({ firstLabel }: { firstLabel: string }) {
+  const cell =
+    "sticky top-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 font-semibold shadow-[0_1px_0_0_hsl(var(--border))]";
   return (
-    <thead className="sticky top-0 z-10">
+    <thead className="sticky top-0 z-20">
       <tr className="text-left text-[10px] uppercase tracking-[0.15em] text-primary">
-        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 font-semibold">{firstLabel}</th>
-        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 text-right font-semibold">BPLO</th>
-        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 text-right font-semibold">Gov</th>
-        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 text-right font-semibold">PEZA</th>
-        <th className="sticky top-0 z-10 bg-primary/10 px-2 py-1.5 text-right font-semibold">TIEZA</th>
+        <th className={cell}>{firstLabel}</th>
+        <th className={`${cell} text-right`}>BPLO</th>
+        <th className={`${cell} text-right`}>Gov</th>
+        <th className={`${cell} text-right`}>PEZA</th>
+        <th className={`${cell} text-right`}>TIEZA</th>
       </tr>
     </thead>
   );
@@ -611,13 +613,13 @@ function TargetCard({
                       );
                     })}
                   </tbody>
-                  <tfoot className="sticky bottom-0 z-10">
+                  <tfoot className="sticky bottom-0 z-20">
                     <tr className="font-semibold">
-                      <td className="sticky bottom-0 z-10 bg-primary/10 px-2 py-1.5">TOTAL</td>
-                      <BucketCell b={derived.annual} k="bplo" className="sticky bottom-0 z-10 bg-primary/10" />
-                      <BucketCell b={derived.annual} k="gov" className="sticky bottom-0 z-10 bg-primary/10" />
-                      <BucketCell b={derived.annual} k="peza" className="sticky bottom-0 z-10 bg-primary/10" />
-                      <BucketCell b={derived.annual} k="tieza" className="sticky bottom-0 z-10 bg-primary/10" />
+                      <td className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 shadow-[0_-1px_0_0_hsl(var(--border))]">TOTAL</td>
+                      <BucketCell b={derived.annual} k="bplo" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                      <BucketCell b={derived.annual} k="gov" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                      <BucketCell b={derived.annual} k="peza" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                      <BucketCell b={derived.annual} k="tieza" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
                     </tr>
                   </tfoot>
                 </table>
