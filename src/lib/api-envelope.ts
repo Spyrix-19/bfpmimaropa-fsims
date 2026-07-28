@@ -38,8 +38,9 @@ export interface Envelope<T> {
 import { ApiMessages, sanitizeEnvelopeMessage } from "@/lib/api-messages";
 const GENERIC_ERROR_MESSAGE = ApiMessages.UNKNOWN;
 
-export function unwrap<T>(resp: { data: unknown } | null | undefined): {
+export function unwrap<T>(resp: { data: unknown; canceled?: boolean } | null | undefined): {
   ok: boolean;
+  canceled: boolean;
   data: T | null;
   total: number;
   totalPages: number;
@@ -47,21 +48,24 @@ export function unwrap<T>(resp: { data: unknown } | null | undefined): {
   pageSize: number;
   error: string;
 } {
+  const canceled = !!resp?.canceled;
   const env = (resp?.data ?? null) as Envelope<T> | null;
   if (!env)
     return {
       ok: false,
+      canceled,
       data: null,
       total: 0,
       totalPages: 0,
       pageNumber: 1,
       pageSize: 0,
-      error: GENERIC_ERROR_MESSAGE,
+      error: canceled ? "" : GENERIC_ERROR_MESSAGE,
     };
   const rawError = typeof env.errorMessages === "string" ? env.errorMessages : "";
   const status = (env as unknown as { statusCode?: number })?.statusCode ?? 0;
   return {
     ok: !!env.isSuccess,
+    canceled,
     data: (env.data ?? null) as T | null,
     total: env.recordsTotal ?? 0,
     totalPages: env.totalPages ?? 0,

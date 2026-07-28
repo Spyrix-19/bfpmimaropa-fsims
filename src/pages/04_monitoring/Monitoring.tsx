@@ -348,8 +348,8 @@ export default function FireSafetyCompliancePage() {
         },
         { suppressGlobalLoading: true, signal: controller.signal },
       );
-      const { ok, data, total: apiTotal, error } = unwrap<FSISInventoryMonthlyItem[]>(resp);
-      if (cancelled) return;
+      const { ok, data, total: apiTotal, error, canceled } = unwrap<FSISInventoryMonthlyItem[]>(resp);
+      if (cancelled || canceled) return;
       if (!ok) {
         toast.error(error || "Unable to load monthly inventory ledger.");
         setRows([]);

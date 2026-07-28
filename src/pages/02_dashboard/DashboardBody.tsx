@@ -11,7 +11,6 @@ import {
   ShieldAlert,
   ClipboardList,
   Download,
-  Info,
 } from "lucide-react";
 import { useRef } from "react";
 import { toPng } from "html-to-image";
@@ -422,16 +421,6 @@ const axisProps = {
 export function DashboardBody() {
   return (
     <div className="space-y-6">
-      {/* Representation banner */}
-      <Card className="flex items-start gap-3 border-primary/30 bg-primary/5 p-3 text-sm shadow-none">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        <div className="text-foreground/80">
-          <span className="font-semibold text-primary">Sample data for representation.</span>{" "}
-          The values, charts and activity below are placeholders to preview the dashboard layout.
-          Filters do not affect these numbers.
-          <div className="mt-1 text-xs text-muted-foreground">Last updated: {summary.lastUpdated}</div>
-        </div>
-      </Card>
 
       {/* KPIs — sector progress full width */}
       <SectorProgressCard />

@@ -74,6 +74,8 @@ export interface ApiResponse<T = unknown> {
   isSuccess: boolean;
   errorMessages: string;
   data: T | null;
+  /** True when the request was aborted by the caller's AbortSignal. */
+  canceled?: boolean;
 }
 
 /* =========================
@@ -254,6 +256,14 @@ const dedupeKey = (method: string, url: string, params: unknown): string => {
   return `${method} ${url} ${paramStr}`;
 };
 
+const canceledResponse = <T>(): ApiResponse<T> => ({
+  statusCode: 0,
+  isSuccess: false,
+  errorMessages: "",
+  data: null,
+  canceled: true,
+});
+
 const request = async <T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   url: string,
@@ -263,13 +273,27 @@ const request = async <T>(
   // In-flight dedupe for GET only.
   if (method === "GET" && !options?.noDedupe) {
     const key = dedupeKey(method, url, options?.params);
-    const existing = inflight.get(key) as Promise<ApiResponse<T>> | undefined;
-    if (existing) return existing;
-    const p = doRequest<T>(method, url, body, options).finally(() => {
-      inflight.delete(key);
-    });
-    inflight.set(key, p as Promise<ApiResponse<unknown>>);
-    return p;
+    // The shared request must NOT be tied to a single caller's AbortSignal —
+    // otherwise one consumer unmounting (e.g. React StrictMode's first mount)
+    // cancels the request that every other consumer is awaiting.
+    const { signal, ...shared } = options ?? {};
+    let p = inflight.get(key) as Promise<ApiResponse<T>> | undefined;
+    if (!p) {
+      p = doRequest<T>(method, url, body, shared).finally(() => {
+        inflight.delete(key);
+      });
+      inflight.set(key, p as Promise<ApiResponse<unknown>>);
+    }
+    if (!signal) return p;
+    if (signal.aborted) return canceledResponse<T>();
+    // Per-caller cancellation: resolve early with a canceled envelope while
+    // the shared request keeps running for the remaining consumers.
+    return Promise.race([
+      p,
+      new Promise<ApiResponse<T>>((resolve) => {
+        signal.addEventListener("abort", () => resolve(canceledResponse<T>()), { once: true });
+      }),
+    ]);
   }
   return doRequest<T>(method, url, body, options);
 };
@@ -320,12 +344,7 @@ const doRequest = async <T>(
     // Silently return a canceled envelope on abort so callers don't toast.
     const ax = error as AxiosError;
     if (ax?.code === "ERR_CANCELED" || (ax as any)?.name === "CanceledError") {
-      return {
-        statusCode: 0,
-        isSuccess: false,
-        errorMessages: "",
-        data: null,
-      };
+      return canceledResponse<T>();
     }
     return normalizeError<T>(ax, options);
   } finally {
