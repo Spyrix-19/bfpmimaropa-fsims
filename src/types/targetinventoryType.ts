@@ -313,12 +313,6 @@ export interface FSISInventoryDeleteParams {
 // Export Inventory
 // =========================
 
-export interface ExportFSISInventoryDTO {
-  searchkey: string;
-  reportyear: number;
-  reportmonth: number;
-  provinces: ProvinceStationSelectionClass[];
-}
 
 export interface ExportInventoryModel {
   updatedby: string;

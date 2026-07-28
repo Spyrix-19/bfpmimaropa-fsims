@@ -9,6 +9,7 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MONTHS } from "@/lib/fsims-constants";
+import { MONTH_COLORS } from "./monthColors";
 
 export interface ComplianceField {
   key: string;
@@ -189,14 +190,15 @@ export async function exportComplianceMatrix(opts: {
     Object.assign(cell, centerBoldWhite());
   });
 
-  // Month names row — each month spans all its category+field cols.
+  // Month names row — each month spans all its category+field cols and uses
+  // its own color from the shared MONTH_COLORS palette.
   for (let m = 0; m < 12; m++) {
     const c1 = monthCatCol(m, 0);
     const c2 = monthCatCol(m, catSpan - 1);
     ws.mergeCells(HR2, c1, HR2, c2);
     const cell = ws.getCell(HR2, c1);
     cell.value = MONTHS[m].name.toUpperCase();
-    cell.fill = fill(FILL.month);
+    cell.fill = fill(MONTH_COLORS[m].argb);
     Object.assign(cell, centerBoldWhite());
   }
 

@@ -84,7 +84,7 @@ async export(
     options?: import("@/lib/api").ApiOptions
   ) {
     return await apiPost("/api/v1/FSISInventory/Export", body, {
-      ...GET_RETRY,
+      ...MUTATION_RETRY_LIGHT,
       ...options,
     });
   }

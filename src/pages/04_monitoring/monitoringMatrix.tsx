@@ -31,6 +31,7 @@ import type {
   ExportInventoryStationClassModel,
 } from "@/types/targetinventoryType";
 import { exportComplianceMatrix } from "./components/matrixExport";
+import { MONTH_COLORS } from "./components/monthColors";
 import { MATRIX_TONE } from "@/lib/theme";
 
 const STYLE = {
@@ -344,14 +345,17 @@ export default function InventoryMatrix({
     });
   };
 
-  // Fetch the annual ledger once per year — the on-screen matrix filters the
-  // loaded groups client-side against the multi-selects.
+  // Fetch full-year matrix data by calling the working Export API once per
+  // month (12 requests in parallel) and merging results by station. The
+  // Ledger endpoint returns station metadata but an empty inventory list,
+  // so we can't use it as the source of truth for the on-screen matrix.
   React.useEffect(() => {
     if (!open) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await targetinventoryAPI.getInventoryLedger({
+      // Step 1 — enumerate stations/provinces from the Ledger endpoint.
+      const ledgerResp = await targetinventoryAPI.getInventoryLedger({
         searchkey: "",
         stationno: EMPTY_GUID,
         provinceno: EMPTY_GUID,
@@ -359,10 +363,113 @@ export default function InventoryMatrix({
         pagenumber: 1,
         pagesize: 10000,
       });
-      const { ok, data, error } = unwrap<FSISInventoryLedgerModel[]>(resp);
+      const ledger = unwrap<FSISInventoryLedgerModel[]>(ledgerResp);
       if (cancelled) return;
-      if (!ok) toast.error(error || "Unable to load matrix.");
-      setGroups(buildGroupsFromLedger(Array.isArray(data) ? data : []));
+      if (!ledger.ok) {
+        toast.error(ledger.error || "Unable to load matrix.");
+        setGroups([]);
+        setLoading(false);
+        return;
+      }
+      const stations = Array.isArray(ledger.data) ? ledger.data : [];
+
+      // Step 2 — build the Export payload (all provinces + all their stations).
+      const provinceMap = new Map<string, { provinceno: string; stationnos: Set<string> }>();
+      for (const st of stations) {
+        const key = st.provinceno || st.provincename || "";
+        if (!key) continue;
+        const entry =
+          provinceMap.get(key) ?? { provinceno: st.provinceno, stationnos: new Set<string>() };
+        entry.stationnos.add(st.stationno);
+        provinceMap.set(key, entry);
+      }
+      const provincesPayload = Array.from(provinceMap.values())
+        .filter((p) => p.stationnos.size > 0)
+        .map((p) => ({ provinceno: p.provinceno, stationnos: Array.from(p.stationnos) }));
+
+      if (provincesPayload.length === 0) {
+        setGroups([]);
+        setLoading(false);
+        return;
+      }
+
+      // Step 3 — fire 12 Export calls in parallel (one per month).
+      const monthCalls = Array.from({ length: 12 }, (_, i) =>
+        targetinventoryAPI.export({
+          searchkey: "",
+          reportyear: Number(year),
+          reportmonth: i + 1,
+          provinces: provincesPayload,
+        }),
+      );
+      const monthResps = await Promise.all(monthCalls);
+      if (cancelled) return;
+
+      // Step 4 — merge into per-station monthly buckets, using ledger metadata
+      // (province name/no, station code/name, city, logo) as the display layer.
+      const stationMeta = new Map<string, FSISInventoryLedgerModel>();
+      for (const st of stations) stationMeta.set(st.stationno, st);
+
+      const keys = COMPLIANCE_FIELDS.map((f) => String(f.key));
+      const emptyBucket = () =>
+        Object.fromEntries(keys.map((k) => [k, 0])) as Record<string, number>;
+
+      // stationno -> monthly buckets
+      const stationMonths = new Map<string, Record<number, Record<string, number>>>();
+      monthResps.forEach((resp, idx) => {
+        const m = idx + 1;
+        const { ok, data } = unwrap<ExportInventoryStationClassModel[]>(resp);
+        if (!ok || !Array.isArray(data)) return;
+        for (const s of data) {
+          const buckets = stationMonths.get(s.stationno) ?? {};
+          const bucket = (buckets[m] = emptyBucket());
+          for (const row of s.inventorylist ?? []) {
+            for (const k of keys) {
+              bucket[k] += Number((row as unknown as Record<string, unknown>)[k] ?? 0) || 0;
+            }
+          }
+          stationMonths.set(s.stationno, buckets);
+        }
+      });
+
+      // Assemble province groups in ledger order.
+      const byProv = new Map<string, ProvinceGroup>();
+      const orderedGroups: ProvinceGroup[] = [];
+      for (const st of stations) {
+        const provkey = st.provinceno || st.provincename || "";
+        let g = byProv.get(provkey);
+        if (!g) {
+          g = {
+            province: st.provincename ?? "",
+            provinceno: st.provinceno ?? "",
+            stations: [],
+            provincialTotal: {},
+          };
+          byProv.set(provkey, g);
+          orderedGroups.push(g);
+        }
+        const months = stationMonths.get(st.stationno) ?? {};
+        g.stations.push({
+          stationno: st.stationno,
+          stationcode: st.stationcode,
+          stationname: st.stationname,
+          provinceno: st.provinceno,
+          province: st.provincename,
+          cityname: (stationMeta.get(st.stationno)?.cityname as string) ?? "",
+          logoUrl: st.logourl ?? "",
+          months,
+        });
+        for (const mn of Object.keys(months)) {
+          const m = Number(mn);
+          const dst = (g.provincialTotal[m] ??= emptyBucket());
+          for (const k of keys) dst[k] += months[m][k] ?? 0;
+        }
+      }
+      orderedGroups.forEach((g) =>
+        g.stations.sort((a, b) => (a.stationcode || "").localeCompare(b.stationcode || "")),
+      );
+      orderedGroups.sort((a, b) => (a.province || "").localeCompare(b.province || ""));
+      setGroups(orderedGroups);
       setLoading(false);
     })();
     return () => {
@@ -814,17 +921,21 @@ function MatrixHeader({
       </tr>
       <tr>
         {QUARTERS.flatMap((q) =>
-          q.months.map((mv, i) => (
-            <th
-              key={`m-${mv}`}
-              colSpan={catSpan}
-              className={`border-b px-2 py-1.5 text-center font-semibold uppercase ${
-                i === 2 ? "border-r-2 border-r-white/30" : "border-r"
-              } ${STYLE.month}`}
-            >
-              {MONTH_NAMES[mv - 1]}
-            </th>
-          )),
+          q.months.map((mv, i) => {
+            const color = MONTH_COLORS[mv - 1];
+            return (
+              <th
+                key={`m-${mv}`}
+                colSpan={catSpan}
+                style={{ backgroundColor: color.bg, color: color.text }}
+                className={`border-b px-2 py-1.5 text-center font-semibold uppercase ${
+                  i === 2 ? "border-r-2 border-r-white/30" : "border-r"
+                }`}
+              >
+                {MONTH_NAMES[mv - 1]}
+              </th>
+            );
+          }),
         )}
       </tr>
       <tr>
@@ -1086,3 +1197,4 @@ function ProvincialTotalRow({
 
 // keep imports referenced when strict TS is on
 void MIMAROPA_REGION_CODE;
+void buildGroupsFromLedger;
