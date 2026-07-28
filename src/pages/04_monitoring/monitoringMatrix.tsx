@@ -422,8 +422,16 @@ export default function InventoryMatrix({
           const buckets = stationMonths.get(s.stationno) ?? {};
           const bucket = (buckets[m] = emptyBucket());
           for (const row of s.inventorylist ?? []) {
+            // Guard against backend echoing rows from other periods/stations:
+            // only aggregate rows that match the requested station + year + month.
+            const r = row as unknown as Record<string, unknown>;
+            const ry = Number(r.reportyear ?? 0);
+            const rm = Number(r.reportmonth ?? 0);
+            const rSt = String(r.stationno ?? "");
+            if (ry !== Number(year) || rm !== m) continue;
+            if (rSt && s.stationno && rSt !== s.stationno) continue;
             for (const k of keys) {
-              bucket[k] += Number((row as unknown as Record<string, unknown>)[k] ?? 0) || 0;
+              bucket[k] += Number(r[k] ?? 0) || 0;
             }
           }
           stationMonths.set(s.stationno, buckets);
@@ -561,8 +569,16 @@ export default function InventoryMatrix({
           const bucket = (entry.months[month] ??= emptyBucket());
           const inv = Array.isArray(s.inventorylist) ? s.inventorylist : [];
           for (const row of inv) {
+            // Only aggregate rows that match requested station + year + month —
+            // the backend sometimes echoes rows from other periods/stations.
+            const r = row as unknown as Record<string, unknown>;
+            const ry = Number(r.reportyear ?? 0);
+            const rm = Number(r.reportmonth ?? 0);
+            const rSt = String(r.stationno ?? "");
+            if (ry !== Number(year) || rm !== month) continue;
+            if (rSt && s.stationno && rSt !== s.stationno) continue;
             for (const k of fieldKeyList) {
-              bucket[k] += Number((row as unknown as Record<string, unknown>)[k] ?? 0) || 0;
+              bucket[k] += Number(r[k] ?? 0) || 0;
             }
           }
 
@@ -570,7 +586,7 @@ export default function InventoryMatrix({
         }
       });
 
-      const merged = Array.from(stationMap.values())
+      const mergedMap = Array.from(stationMap.values())
         .sort((a, b) => (a.stationCode || "").localeCompare(b.stationCode || ""))
         .reduce<Map<string, Array<{ stationno: string; stationCode: string; stationName: string; cityName: string; months: Record<number, Record<string, number>> }>>>((groupsByProvince, station) => {
           const provinceName = station.province || "Unknown Province";
@@ -584,9 +600,8 @@ export default function InventoryMatrix({
           });
           groupsByProvince.set(provinceName, bucket);
           return groupsByProvince;
-        }, new Map())
-        .entries()
-        .map(([province, stations]) => ({ province, stations }));
+        }, new Map());
+      const merged = Array.from(mergedMap.entries()).map(([province, stations]) => ({ province, stations }));
 
       const flatFields = COMPLIANCE_FIELDS.map((f) => ({
         key: String(f.key),

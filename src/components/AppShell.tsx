@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { NotificationsPopover } from "@/components/NotificationsPopover";
 import bfpLogo from "@/assets/bfp-mimaropa.svg";
 
 const AppSidebar = lazy(() => import("./AppSidebar").then((module) => ({ default: module.AppSidebar })));
@@ -125,6 +126,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
               <span className="text-muted-foreground">·</span>
               <span className="tabular-nums text-muted-foreground">{timeLabel}</span>
             </div>
+            {user && <NotificationsPopover />}
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
@@ -132,6 +134,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
               <SettingsIcon className="h-4 w-4" />
             </Button>
           </div>
+          {user && <div className="sm:hidden"><NotificationsPopover /></div>}
           <Button className="sm:hidden" variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
