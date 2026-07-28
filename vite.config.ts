@@ -4,12 +4,14 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // Serverless-friendly Vite config. No proxy middleware, no Wrangler, no
 // hardcoded server assumptions — this project deploys as a static SPA on
 // Cloudflare Pages, Vercel, Netlify, or any static host. All API calls go
 // directly to VITE_BFP_MIMAROPA_API_BASE_URL from the browser.
 export default defineConfig({
-  plugins: [react(), tsconfigPaths(), tailwindcss()],
+  plugins: [react(), tsconfigPaths(), tailwindcss(), cloudflare()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
