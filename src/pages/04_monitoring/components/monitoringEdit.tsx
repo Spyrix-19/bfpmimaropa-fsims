@@ -6,7 +6,7 @@ import {
   ArrowLeft,
   Building2,
   Loader2,
-  RotateCcw,
+  FilePen,
   Save,
   Table2,
   Lock,
@@ -979,7 +979,7 @@ function InventoryEditBody({
                             : "Request Revision"
                         }
                       >
-                        <Lock className="h-4 w-4" />
+                        <FilePen className="h-4 w-4" />
                       </Button>
                     </span>
                   </TooltipTrigger>
@@ -1157,7 +1157,7 @@ function InventoryEditBody({
                                 tooltip={!stationno ? "Select a station to request a revision" : "Request Revision"}
                                 ariaLabel={!stationno ? "Select a station to request a revision" : "Request Revision"}
                                 disabled={!stationno}
-                                icon={<RotateCcw className="h-4 w-4" />}
+                                icon={<FilePen className="h-4 w-4" />}
                                 onClick={() => {
                                   setRevisionReferenceKey(
                                     dayEntry.inspection.fsisno && dayEntry.inspection.fsisno !== EMPTY_GUID

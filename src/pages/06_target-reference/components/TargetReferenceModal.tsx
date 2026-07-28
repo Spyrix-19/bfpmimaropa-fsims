@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { Building2, Calendar, Loader2, Lock, RotateCcw, Save, X, AlertTriangle, Trash2, Ban } from "lucide-react";
+import { Building2, Calendar, Loader2, Lock, FilePen, Save, X, AlertTriangle, Trash2, Ban } from "lucide-react";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "sonner";
@@ -686,7 +686,7 @@ export default function TargetReferenceForm({
                           : "Request Revision"
                       }
                       disabled={!revStation}
-                      icon={<RotateCcw className="h-4 w-4" />}
+                      icon={<FilePen className="h-4 w-4" />}
                       onClick={() => setRevisionMonth(Number(m.value))}
                     />
                   </div>
