@@ -17,7 +17,7 @@ import { LocationMultiSelect, type SelectedLocation } from "@/components/locatio
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
-import { MONTH_NAMES, sumMonths } from "@/lib/inventoryHelpers";
+import { sumMonths } from "@/lib/inventoryHelpers";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { EMPTY_GUID } from "@/lib/utils";
@@ -298,8 +298,6 @@ export default function InventoryMatrix({
   const [groups, setGroups] = React.useState<ProvinceGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
-  // Export-only "Report Month" filter — required by the new Export API.
-  const [exportMonth, setExportMonth] = React.useState<number>(new Date().getMonth() + 1);
 
   const fields = COMPLIANCE_FIELDS;
   const fieldKeys = React.useMemo(() => fields.map((f) => String(f.key)), [fields]);
@@ -492,20 +490,11 @@ export default function InventoryMatrix({
   }, [groups, provinceFilters, stationFilters]);
 
   const handleExport = async () => {
-    // Validation — mirrors the AI SCRIPT "VALIDATION" section.
     if (!year) {
       toast.error("Please select a year.");
       return;
     }
-    if (!exportMonth) {
-      toast.error("Please select a report month.");
-      return;
-    }
 
-    // Build the API request from the current selections. When the user leaves
-    // ALL for either filter, fall back to what the on-screen matrix is
-    // showing (the full loaded year). We only send explicit station lists —
-    // the endpoint never receives a hardcoded province or station.
     const sourceGroups = filteredGroups.length > 0 ? filteredGroups : groups;
     const provinceMap = new Map<string, { provinceno: string; stationnos: Set<string> }>();
     for (const g of sourceGroups) {
@@ -526,62 +515,78 @@ export default function InventoryMatrix({
 
     setExporting(true);
     try {
-      const resp = await targetinventoryAPI.export({
-        searchkey: "",
-        reportyear: Number(year),
-        reportmonth: Number(exportMonth),
-        provinces: provincesPayload,
-      });
-      const { ok, data, error } = unwrap<ExportInventoryStationClassModel[]>(resp);
-      if (!ok || !Array.isArray(data)) {
-        toast.error(error || "Failed to export Compliance Matrix.");
-        return;
-      }
-
-      // Group returned stations by province name (response provinceno is
-      // often EMPTY_GUID), preserving request order.
-      const provinceOrder: string[] = [];
-      const byProvince = new Map<string, ExportInventoryStationClassModel[]>();
-      for (const st of data) {
-        const key = st.provincename || st.provinceno || "";
-        if (!byProvince.has(key)) {
-          byProvince.set(key, []);
-          provinceOrder.push(key);
-        }
-        byProvince.get(key)!.push(st);
-      }
+      const monthCalls = Array.from({ length: 12 }, (_, i) =>
+        targetinventoryAPI.export({
+          searchkey: "",
+          reportyear: Number(year),
+          reportmonth: i + 1,
+          provinces: provincesPayload,
+        }),
+      );
+      const monthResps = await Promise.all(monthCalls);
 
       const fieldKeyList = COMPLIANCE_FIELDS.map((f) => String(f.key));
       const emptyBucket = () =>
         Object.fromEntries(fieldKeyList.map((k) => [k, 0])) as Record<string, number>;
 
-      const merged = provinceOrder.map((provName) => {
-        const stations = (byProvince.get(provName) ?? [])
-          .slice()
-          .sort((a, b) => (a.stationcode || "").localeCompare(b.stationcode || ""))
-          .map((s) => {
-            const months: Record<number, Record<string, number>> = {};
-            const inv = Array.isArray(s.inventorylist) ? s.inventorylist : [];
-            for (const row of inv) {
-              const m = Number(row.reportmonth) || Number(exportMonth);
-              if (m < 1 || m > 12) continue;
-              const bucket = (months[m] ??= emptyBucket());
-              for (const k of fieldKeyList) {
-                bucket[k] += Number((row as unknown as Record<string, unknown>)[k] ?? 0) || 0;
-              }
-            }
-            // Empty inventory still renders as a station row with zeros.
-            if (!months[exportMonth]) months[exportMonth] = emptyBucket();
-            return {
+      const stationMap = new Map<
+        string,
+        {
+          stationno: string;
+          stationCode: string;
+          stationName: string;
+          cityName: string;
+          province: string;
+          months: Record<number, Record<string, number>>;
+        }
+      >();
+
+      monthResps.forEach((resp, idx) => {
+        const month = idx + 1;
+        const { ok, data } = unwrap<ExportInventoryStationClassModel[]>(resp);
+        if (!ok || !Array.isArray(data)) return;
+
+        for (const s of data) {
+          const key = s.stationno || `${s.stationcode ?? ""}-${s.stationname ?? ""}`;
+          const entry =
+            stationMap.get(key) ?? {
               stationno: s.stationno,
               stationCode: s.stationcode ?? "",
               stationName: s.stationname ?? "",
               cityName: s.cityname ?? "",
-              months,
+              province: s.provincename || s.provinceno || "",
+              months: {},
             };
-          });
-        return { province: provName, stations };
+
+          const bucket = (entry.months[month] ??= emptyBucket());
+          const inv = Array.isArray(s.inventorylist) ? s.inventorylist : [];
+          for (const row of inv) {
+            for (const k of fieldKeyList) {
+              bucket[k] += Number((row as unknown as Record<string, unknown>)[k] ?? 0) || 0;
+            }
+          }
+
+          stationMap.set(key, entry);
+        }
       });
+
+      const merged = Array.from(stationMap.values())
+        .sort((a, b) => (a.stationCode || "").localeCompare(b.stationCode || ""))
+        .reduce<Map<string, Array<{ stationno: string; stationCode: string; stationName: string; cityName: string; months: Record<number, Record<string, number>> }>>>((groupsByProvince, station) => {
+          const provinceName = station.province || "Unknown Province";
+          const bucket = groupsByProvince.get(provinceName) ?? [];
+          bucket.push({
+            stationno: station.stationno,
+            stationCode: station.stationCode,
+            stationName: station.stationName,
+            cityName: station.cityName,
+            months: station.months,
+          });
+          groupsByProvince.set(provinceName, bucket);
+          return groupsByProvince;
+        }, new Map())
+        .entries()
+        .map(([province, stations]) => ({ province, stations }));
 
       const flatFields = COMPLIANCE_FIELDS.map((f) => ({
         key: String(f.key),
@@ -598,7 +603,7 @@ export default function InventoryMatrix({
           fullname: user?.fullname ?? user?.name ?? "",
           designation: (user as unknown as { designation?: string })?.designation ?? "",
         },
-        filename: `ComplianceMatrix_${year}_${MONTH_NAMES[exportMonth - 1]}.xlsx`,
+        filename: `ComplianceMatrix_${year}.xlsx`,
       });
       toast.success("Compliance Matrix exported.");
     } catch (err) {
@@ -672,27 +677,6 @@ export default function InventoryMatrix({
                   {YEARS.map((y) => (
                     <SelectItem key={y} value={String(y)}>
                       {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Month
-              </div>
-              <Select
-                value={String(exportMonth)}
-                onValueChange={(v) => setExportMonth(Number(v))}
-              >
-                <SelectTrigger aria-label="Report month for export">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-
-                  {MONTH_NAMES.map((n, i) => (
-                    <SelectItem key={n} value={String(i + 1)}>
-                      {n}
                     </SelectItem>
                   ))}
                 </SelectContent>

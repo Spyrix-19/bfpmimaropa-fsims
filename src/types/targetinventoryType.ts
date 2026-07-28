@@ -75,7 +75,6 @@ export interface FSISUpdateInventoryClass {
 export interface ExportFSISInventoryDTO {
   searchkey: string;
   reportyear: number;
-  reportmonth: number;
 
   provinces: ProvinceStationSelectionClass[];
 }
