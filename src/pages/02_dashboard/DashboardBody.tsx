@@ -49,7 +49,6 @@ const {
   bySector,
   byApplication,
   sectorByApp,
-  byStation,
   yoY,
   SECTORS,
   SECTOR_COLORS,
@@ -537,7 +536,7 @@ export function DashboardBody() {
         />
       </div>
 
-      {/* Row 1: Target Gap by Province | Top Fire Stations (50/50) */}
+      {/* Row 1: Target Gap by Province | Inspections by Sector (50/50) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard
           title="Target Gap by Province"
@@ -555,18 +554,14 @@ export function DashboardBody() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Top Fire Stations" subtitle="Top 10 performing stations" height="h-72">
+        <ChartCard title="Inspections by Sector" subtitle="BPLO · GOVT · PEZA · TIEZA" height="h-72">
           <ResponsiveContainer>
-            <BarChart
-              data={byStation}
-              layout="vertical"
-              margin={{ top: 8, right: 12, left: 8, bottom: 0 }}
-            >
+            <BarChart data={bySector} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis type="number" {...axisProps} />
-              <YAxis type="category" dataKey="name" {...axisProps} width={140} />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="actual" fill={C.teal} radius={[0, 4, 4, 0]} name="Actual" />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Actual" fill={C.primary} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
