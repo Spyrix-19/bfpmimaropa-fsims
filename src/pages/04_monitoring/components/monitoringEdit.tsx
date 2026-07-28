@@ -11,6 +11,7 @@ import {
   Table2,
   Lock,
   Trash2,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,6 +50,8 @@ import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRema
 import RevisionStatusBadge from "@/pages/06_target-reference/revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import EditButton from "@/components/edit-button";
+import DeleteButton from "@/components/delete-button";
 
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { stationAPI } from "@/services/stationAPI";
@@ -206,6 +209,8 @@ interface EditableDay {
   manual: EditableIssuance;
   fsis: EditableIssuance;
   isLocked: boolean;
+  editablestatus: number;
+  isrevisionrequest: boolean;
   totals: DayTotals;
 }
 
@@ -240,9 +245,22 @@ function num(v: unknown): number {
 }
 
 /**
- * Check if a given date has already passed (is before today at midnight)
+ * PST lock activation — mirrors Target Reference.
+ * A month locks on day 4 of the following calendar month at 00:00 PST.
  */
-function isDayLocked(dateStr: string): boolean {
+function hasPstLockActivated(reportyear: number, reportmonth: number, now: Date = new Date()): boolean {
+  const y = Number(reportyear);
+  const m = Number(reportmonth);
+  if (!y || !m || m < 1 || m > 12) return false;
+  const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
+  const lockActivationMs = Date.UTC(y, m /* next month, 0-indexed */, 4, 0, 0, 0);
+  return manilaNowMs >= lockActivationMs;
+}
+
+/**
+ * Check if a given date has already passed (is before today at midnight).
+ */
+function isDayPassed(dateStr: string): boolean {
   try {
     const d = new Date(dateStr);
     const today = new Date();
@@ -376,6 +394,13 @@ function buildEditableDays(
       }
     }
 
+    const editablestatus = num((apiData as any)?.editablestatus);
+    const isrevisionrequest = Boolean((apiData as any)?.isrevisionrequest);
+    const locked =
+      editablestatus === 153
+        ? false
+        : hasPstLockActivated(year, month) || isDayPassed(key);
+
     const entry: EditableDay = {
       day: d,
       label,
@@ -383,8 +408,10 @@ function buildEditableDays(
       inspection,
       manual,
       fsis,
-      isLocked: isDayLocked(key),
+      isLocked: locked,
       totals,
+      editablestatus,
+      isrevisionrequest,
     };
     map.set(key, entry);
   }
@@ -418,6 +445,7 @@ function InventoryEditBody({
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
   const [revisionOpen, setRevisionOpen] = React.useState(false);
+  const [revisionReferenceKey, setRevisionReferenceKey] = React.useState(EMPTY_GUID);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
   const [revisionRequestRefreshTick, setRevisionRequestRefreshTick] = React.useState(0);
@@ -554,15 +582,7 @@ function InventoryEditBody({
       cancelled = true;
     };
   }, [stationno, year, month, provinceno, revisionRequestRefreshTick]);
-  const activeReq = revisionRequestState;
   const latestReq = revisionRequestState;
-  const activeReqStatus = activeReq?.statuscode?.toUpperCase() === "PENDING"
-    ? "PENDING"
-    : activeReq?.statuscode?.toUpperCase() === "APPROVED"
-      ? "APPROVED"
-      : activeReq?.statuscode?.toUpperCase() === "CANCELLED"
-        ? "CANCELLED"
-        : null;
   const latestReqStatus = latestReq?.statuscode?.toUpperCase() === "PENDING"
     ? "PENDING"
     : latestReq?.statuscode?.toUpperCase() === "APPROVED"
@@ -570,6 +590,8 @@ function InventoryEditBody({
       : latestReq?.statuscode?.toUpperCase() === "CANCELLED"
         ? "CANCELLED"
         : null;
+  const activeReq = latestReqStatus === "PENDING" || latestReqStatus === "APPROVED" ? latestReq : null;
+  const activeReqStatus = activeReq ? latestReqStatus : null;
   const isApproved = activeReqStatus === "APPROVED";
   const isPending = activeReqStatus === "PENDING";
   const isOwnPending = isPending;
@@ -615,9 +637,11 @@ function InventoryEditBody({
       );
       if (cancelled) return;
 
-      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
+      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel | FSISInventoryMonthlyLedgerModel[]>(resp);
       if (!ok) toast.error(error || "Failed to load monthly data.");
-      const first = ok && Array.isArray(data) ? (data[0] ?? null) : null;
+      const first = ok
+        ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null))
+        : null;
 
       setStation(first);
 
@@ -808,6 +832,7 @@ function InventoryEditBody({
           updatedby: user?.memberno ?? "",
           encodedby: user?.memberno ?? "",
           issuancelist,
+          isaccomplished: true,
         };
         updates.push(item);
       }
@@ -1015,9 +1040,15 @@ function InventoryEditBody({
               <tr>
                 <th
                   rowSpan={2}
-                  className={`sticky left-0 top-0 z-40 min-w-[180px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+                  className={`sticky left-0 top-0 z-40 min-w-[96px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
                 >
-                  Date & Actions
+                  Action
+                </th>
+                <th
+                  rowSpan={2}
+                  className={`sticky left-[96px] top-0 z-40 min-w-[180px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+                >
+                  Date
                 </th>
                 <th
                   colSpan={6}
@@ -1084,13 +1115,65 @@ function InventoryEditBody({
                   (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
                   0,
                 );
+                const hasRevisionRequest = dayEntry.isrevisionrequest || Boolean(activeReq);
+                const showRevisionAction = dayEntry.isLocked || hasRevisionRequest;
+                const showRevisionStatus = showRevisionAction || Boolean(latestReqStatus);
                 return (
                   <React.Fragment key={dayEntry.key}>
                     {/* MANUAL row */}
                     <tr className={dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}>
                       <td
                         rowSpan={2}
-                        className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
+                        className={`sticky left-0 z-20 min-w-[96px] border-b border-r px-2 py-1.5 align-middle text-center ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
+                      >
+                        {showRevisionAction ? (
+                          hasRevisionRequest ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <EditButton
+                                variant="square"
+                                tooltip="Cancel Revision Request"
+                                ariaLabel="Cancel Revision Request"
+                                icon={<Ban className="h-4 w-4" />}
+                                onClick={() => {
+                                  if (activeReq) setCancelRequestId(activeReq.requestno);
+                                  else toast.info("No active revision request to cancel.");
+                                }}
+                              />
+                              <DeleteButton
+                                variant="square"
+                                tooltip="Delete Revision Request"
+                                ariaLabel="Delete Revision Request"
+                                icon={<Trash2 className="h-4 w-4" />}
+                                onClick={() => {
+                                  if (activeReq) setDeleteRequestId(activeReq.requestno);
+                                  else toast.info("No revision request to delete.");
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <EditButton
+                                variant="square"
+                                tooltip={!stationno ? "Select a station to request a revision" : "Request Revision"}
+                                ariaLabel={!stationno ? "Select a station to request a revision" : "Request Revision"}
+                                disabled={!stationno}
+                                icon={<RotateCcw className="h-4 w-4" />}
+                                onClick={() => {
+                                  setRevisionReferenceKey(
+                                    dayEntry.inspection.fsisno && dayEntry.inspection.fsisno !== EMPTY_GUID
+                                      ? dayEntry.inspection.fsisno
+                                      : EMPTY_GUID,
+                                  );
+                                  setRevisionOpen(true);
+                                }}
+                              />
+                            </div>
+                          )
+                        ) : null}
+                      </td>
+                      <td
+                        rowSpan={2}
+                        className={`sticky left-[96px] z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
                       >
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
@@ -1099,52 +1182,14 @@ function InventoryEditBody({
                               {dayEntry.label}
                             </span>
                           </div>
-                          {monthLocked && (
-                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          {showRevisionStatus && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               {activeReq ? (
-                                <>
-                                  <RevisionStatusBadge status={activeReqStatus ?? "PENDING"} />
-                                  {isOwnPending && (
-                                    <>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
-                                        onClick={() => setCancelRequestId(activeReq.requestno)}
-                                      >
-                                        Cancel
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 px-1.5 text-[11px] !text-destructive hover:!bg-destructive hover:!text-white [&_svg]:!text-destructive hover:[&_svg]:!text-white"
-                                        onClick={() => setDeleteRequestId(activeReq.requestno)}
-                                        title="Delete Revision Request"
-                                        aria-label="Delete Revision Request"
-                                      >
-                                        <Trash2 className="h-3 w-3" /> Delete
-                                      </Button>
-                                    </>
-                                  )}
-                                </>
+                                <RevisionStatusBadge status={activeReqStatus ?? "PENDING"} />
                               ) : (
-                                <>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:!text-white"
-                                    onClick={() => setRevisionOpen(true)}
-                                    title="Request Revision"
-                                  >
-                                    <RotateCcw className="h-3 w-3" /> Request Revision
-                                  </Button>
-                                  {latestReqStatus && latestReqStatus !== "PENDING" && (
-                                    <RevisionStatusBadge status={latestReqStatus} />
-                                  )}
-                                </>
+                                latestReqStatus && latestReqStatus !== "PENDING" ? (
+                                  <RevisionStatusBadge status={latestReqStatus} />
+                                ) : null
                               )}
                             </div>
                           )}
@@ -1440,6 +1485,9 @@ function InventoryEditBody({
             <tfoot className="sticky bottom-0 z-20">
               <tr className="total-row font-bold text-foreground">
                 <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
+                  
+                </td>
+                <td className="sticky left-[96px] z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
                   Total
                 </td>
                 {DETAIL_FIELDS.map((field, idx) => {
@@ -1581,6 +1629,8 @@ function InventoryEditBody({
           }}
           year={year}
           month={month}
+          referencekey={revisionReferenceKey}
+          onSubmitted={() => setRevisionRequestRefreshTick((n) => n + 1)}
         />
       )}
 

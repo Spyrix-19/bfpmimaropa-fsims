@@ -63,6 +63,7 @@ export interface FSISUpdateInventoryClass {
   inspectpezacount: number;
   inspecttiezacount: number;
 
+  isaccomplished: boolean;
   remarks: string;
 
   updatedby: string;
@@ -234,6 +235,9 @@ export interface FSISInventoryMonthlyClass {
   inspectgovcount: number;
   inspectpezacount: number;
   inspecttiezacount: number;
+
+  isrevisionrequest?: boolean;
+  editablestatus?: number;
 
   remarks: string;
   dateinspected: string | Date;
