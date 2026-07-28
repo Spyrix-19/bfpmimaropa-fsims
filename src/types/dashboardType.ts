@@ -64,3 +64,21 @@ export interface DashboardNoticeModel {
   totalpending: number;
   totalaccomplished: number;
 }
+
+export interface DashboardIssuanceGapDTO {
+  reportmonth: number;
+  reportyear: number;
+}
+
+export interface DashboardIssuanceGapModel {
+  provinceno: string;
+  provincename: string;
+  gapList: DashboardIssuanceGapClass[];
+}
+
+export interface DashboardIssuanceGapClass {
+  totalbplo: number;
+  totalgov: number;
+  totalpeza: number;
+  totaltieza: number;
+}

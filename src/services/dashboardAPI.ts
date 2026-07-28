@@ -1,5 +1,5 @@
-import { apiPost, MUTATION_RETRY_LIGHT } from "@/lib/api";
-import { DashboardComplianceDTO, DashboardComplianceModel } from "@/types/dashboardType";
+import { apiGet, apiPost, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
+import { DashboardComplianceDTO, DashboardComplianceModel, DashboardIssuanceGapDTO, DashboardIssuanceGapModel } from "@/types/dashboardType";
 
 export const dashboardAPI = {
   async getComplianceSummary(
@@ -15,4 +15,17 @@ export const dashboardAPI = {
       },
     );
   },
+
+
+  async search(params?: DashboardIssuanceGapDTO, options?: import("@/lib/api").ApiOptions) {
+      return await apiGet<DashboardIssuanceGapModel[]>("/api/v1/Dashboard/FSIMS/Gap/Summary", {
+        params,
+        ...GET_RETRY,
+        ...options,
+      });
+    },
+
+
+
+    
 };
