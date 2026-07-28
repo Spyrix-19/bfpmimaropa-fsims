@@ -3,14 +3,13 @@ import { Button } from "@/components/ui/button";
 
 import {
   Target,
-  CheckCircle2,
-  TrendingUp,
   FileText,
   ClipboardCheck,
   AlertCircle,
   FileWarning,
   Ban,
   ShieldAlert,
+  ClipboardList,
   Download,
   Info,
 } from "lucide-react";
@@ -47,6 +46,7 @@ const {
   targetGapByProvince,
   recentActivity,
   bySector,
+  sectorProgress,
   byApplication,
   sectorByApp,
   byStation,
@@ -56,9 +56,143 @@ const {
   CHART_COLORS: C,
 } = dashboardMockData;
 
-const completion = summary.target
-  ? Math.round((summary.actual / summary.target) * 100)
+const { noticeStatus } = dashboardMockData;
+const { inspectionBreakdown, fsecBreakdown, fsicBreakdown } = dashboardMockData;
+
+const sectorTotals = sectorProgress.reduce(
+  (acc, s) => ({
+    target: acc.target + s.target,
+    accomplished: acc.accomplished + s.accomplished,
+  }),
+  { target: 0, accomplished: 0 },
+);
+
+const completion = sectorTotals.target
+  ? Math.round((sectorTotals.accomplished / sectorTotals.target) * 100)
   : 0;
+
+function SectorProgressCard() {
+  return (
+    <Card className="border-border/60 bg-card p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Inspections by Sector
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold tracking-tight tabular-nums">
+              {sectorTotals.accomplished.toLocaleString()}
+            </span>
+            <span className="text-sm text-muted-foreground tabular-nums">
+              / {sectorTotals.target.toLocaleString()} target
+            </span>
+            <span className="text-sm font-semibold text-success tabular-nums">{completion}%</span>
+          </div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">
+            {summary.records.toLocaleString()} establishments
+          </div>
+        </div>
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Target className="h-5 w-5" />
+        </div>
+      </div>
+
+      <div className="mt-3 overflow-x-auto border-t border-border/60 pt-3">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <th className="py-1 text-left">Sector</th>
+              <th className="py-1 text-right">Target</th>
+              <th className="py-1 text-right">Accomplished</th>
+              <th className="py-1 text-right">Remaining</th>
+              <th className="py-1 text-right">Positive Listing</th>
+              <th className="py-1 text-right">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sectorProgress.map((s) => {
+              const remaining = Math.max(s.target - s.accomplished, 0);
+              const positive = Math.max(s.accomplished - s.target, 0);
+              const pct = s.target ? Math.round((s.accomplished / s.target) * 100) : 0;
+              return (
+                <tr key={s.name} className="border-t border-border/40">
+                  <td className="py-1.5 text-left font-semibold">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: SECTOR_COLORS[s.name] }}
+                      />
+                      {s.name}
+                    </span>
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums">{s.target.toLocaleString()}</td>
+                  <td className="py-1.5 text-right font-semibold tabular-nums text-success">
+                    {s.accomplished.toLocaleString()}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums text-warning">
+                    {remaining.toLocaleString()}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums text-success">
+                    {positive ? positive.toLocaleString() : "—"}
+                  </td>
+                  <td
+                    className={`py-1.5 text-right font-semibold tabular-nums ${pct >= 100 ? "text-success" : ""}`}
+                  >
+                    {pct}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function BreakdownCard({
+  label,
+  icon,
+  accent,
+  rows,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  accent?: string;
+  rows: { label: string; value: number }[];
+}) {
+  const total = rows.reduce((a, r) => a + r.value, 0);
+  return (
+    <Card className="border-border/60 bg-card p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {label}
+          </div>
+          <div className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums">
+            {total.toLocaleString()}
+          </div>
+        </div>
+        <div
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
+            accent ?? "bg-primary/10 text-primary"
+          }`}
+        >
+          {icon}
+        </div>
+      </div>
+
+      <div className="mt-3 divide-y divide-border/40 border-t border-border/60 pt-1">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center justify-between gap-2 py-1.5">
+            <span className="truncate text-xs text-muted-foreground">{r.label}</span>
+            <span className="text-sm font-semibold tabular-nums">{r.value.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 function KpiCard({
   label,
@@ -89,6 +223,74 @@ function KpiCard({
           }`}
         >
           {icon}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function NoticeCard({
+  label,
+  icon,
+  accent,
+  data,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  accent?: string;
+  data: { total: number; pending: number; accomplished: number };
+}) {
+  const remaining = Math.max(data.total - data.accomplished, 0);
+  const pct = data.total ? Math.round((data.accomplished / data.total) * 100) : 0;
+
+  return (
+    <Card className="border-border/60 bg-card p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {label}
+          </div>
+          <div className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums">
+            {data.total.toLocaleString()}
+          </div>
+        </div>
+        <div
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
+            accent ?? "bg-primary/10 text-primary"
+          }`}
+        >
+          {icon}
+        </div>
+      </div>
+
+      <div className="mt-3 space-y-1.5 border-t border-border/60 pt-3">
+        {[
+          { k: "Pending", v: data.pending, dot: "bg-warning", text: "text-warning" },
+          { k: "Accomplished", v: data.accomplished, dot: "bg-success", text: "text-success" },
+          { k: "Remaining", v: remaining, dot: "bg-destructive", text: "text-destructive" },
+        ].map((row) => (
+          <div key={row.k} className="flex items-center justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${row.dot}`} />
+              <span className="truncate">{row.k}</span>
+            </span>
+            <span className={`text-sm font-bold tabular-nums ${row.text}`}>
+              {row.v.toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3">
+        <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span>Accomplishment</span>
+          <span className="tabular-nums text-foreground">{pct}%</span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-success transition-all"
+            style={{ width: `${Math.min(pct, 100)}%` }}
+          />
         </div>
       </div>
     </Card>
@@ -231,66 +433,65 @@ export function DashboardBody() {
         </div>
       </Card>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <KpiCard
-          label="Target Inspections"
-          value={summary.target.toLocaleString()}
-          icon={<Target className="h-5 w-5" />}
+      {/* KPIs — sector progress full width */}
+      <SectorProgressCard />
+
+      {/* Breakdowns — Inspection / FSEC / FSIC */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <BreakdownCard
+          label="Inspection"
+          icon={<ClipboardList className="h-5 w-5" />}
+          rows={inspectionBreakdown}
         />
-        <KpiCard
-          label="Actual Inspections"
-          value={summary.actual.toLocaleString()}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          accent="bg-success/10 text-success"
+        <BreakdownCard
+          label="FSEC"
+          icon={<FileText className="h-5 w-5" />}
+          accent="bg-warning/10 text-warning"
+          rows={fsecBreakdown}
         />
-        <KpiCard
-          label="Completion Rate"
-          value={`${completion}%`}
-          icon={<TrendingUp className="h-5 w-5" />}
-          accent="bg-primary/10 text-primary"
-          hint={`${summary.records.toLocaleString()} establishments`}
-        />
-        <KpiCard label="FSEC" value={summary.fsec} icon={<FileText className="h-5 w-5" />} />
-        <KpiCard
+        <BreakdownCard
           label="FSIC"
-          value={summary.fsic}
           icon={<ClipboardCheck className="h-5 w-5" />}
           accent="bg-success/10 text-success"
-        />
-        <KpiCard
-          label="NTC"
-          value={summary.ntc}
-          icon={<AlertCircle className="h-5 w-5" />}
-          accent="bg-warning/10 text-warning"
-        />
-        <KpiCard
-          label="NOD"
-          value={summary.nod}
-          icon={<FileWarning className="h-5 w-5" />}
-          accent="bg-warning/10 text-warning"
-        />
-        <KpiCard
-          label="NTCV"
-          value={summary.ntcv}
-          icon={<ShieldAlert className="h-5 w-5" />}
-          accent="bg-destructive/10 text-destructive"
-        />
-        <KpiCard
-          label="Abatement"
-          value={summary.abatement}
-          icon={<ShieldAlert className="h-5 w-5" />}
-          accent="bg-destructive/10 text-destructive"
-        />
-        <KpiCard
-          label="Closure Cases"
-          value={summary.closure}
-          icon={<Ban className="h-5 w-5" />}
-          accent="bg-destructive/10 text-destructive"
+          rows={fsicBreakdown}
         />
       </div>
 
-      {/* Row 1: Target Gap by Province | Monthly Accomplishment Trend (50/50) */}
+      {/* Running notices — pending / accomplished / remaining */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <NoticeCard
+          label="NTC"
+          icon={<AlertCircle className="h-5 w-5" />}
+          accent="bg-warning/10 text-warning"
+          data={noticeStatus.ntc}
+        />
+        <NoticeCard
+          label="NOD"
+          icon={<FileWarning className="h-5 w-5" />}
+          accent="bg-warning/10 text-warning"
+          data={noticeStatus.nod}
+        />
+        <NoticeCard
+          label="NTCV"
+          icon={<ShieldAlert className="h-5 w-5" />}
+          accent="bg-destructive/10 text-destructive"
+          data={noticeStatus.ntcv}
+        />
+        <NoticeCard
+          label="Abatement"
+          icon={<ShieldAlert className="h-5 w-5" />}
+          accent="bg-destructive/10 text-destructive"
+          data={noticeStatus.abatement}
+        />
+        <NoticeCard
+          label="Closure Cases"
+          icon={<Ban className="h-5 w-5" />}
+          accent="bg-destructive/10 text-destructive"
+          data={noticeStatus.closure}
+        />
+      </div>
+
+      {/* Row 1: Target Gap by Province | Top Fire Stations (50/50) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard
           title="Target Gap by Province"
@@ -309,44 +510,31 @@ export function DashboardBody() {
         </ChartCard>
 
         <ChartCard
-          title="Monthly Accomplishment Trend"
-          subtitle="Target vs Actual per month"
+          title="Top Fire Stations"
+          subtitle="Top 10 performing stations"
           height="h-72"
         >
           <ResponsiveContainer>
-            <LineChart data={byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <BarChart
+              data={byStation}
+              layout="vertical"
+              margin={{ top: 8, right: 12, left: 8, bottom: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
+              <XAxis type="number" {...axisProps} />
+              <YAxis type="category" dataKey="name" {...axisProps} width={140} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line
-                type="monotone"
-                dataKey="target"
-                stroke={C.warning}
-                strokeWidth={2}
-                dot={{ r: 2 }}
-                name="Target"
-              />
-              <Line
-                type="monotone"
-                dataKey="actual"
-                stroke={C.primary}
-                strokeWidth={3}
-                dot={{ r: 3 }}
-                name="Actual"
-              />
-            </LineChart>
+              <Bar dataKey="actual" fill={C.teal} radius={[0, 4, 4, 0]} name="Actual" />
+            </BarChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
 
-      {/* Row 2: Inspections by Application Type (40) | Sector Composition (40) | Top Fire Stations (20) */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
+      {/* Row 2: Inspections by Application Type | Sector Composition (50/50) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard
           title="Inspections by Application Type"
           subtitle="FSEC · FSIC · NTC · NOD · NTCV · Closure"
-          className="xl:col-span-2"
           height="h-80"
         >
           <ResponsiveContainer>
@@ -363,7 +551,6 @@ export function DashboardBody() {
         <ChartCard
           title="Sector Composition per Application Type"
           subtitle="Stacked by sector"
-          className="xl:col-span-2"
           height="h-80"
         >
           <ResponsiveContainer>
@@ -382,27 +569,6 @@ export function DashboardBody() {
                   radius={i === SECTORS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                 />
               ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
-          title="Top Fire Stations"
-          subtitle="Top 10 performing stations"
-          className="md:col-span-2 xl:col-span-1"
-          height="h-80"
-        >
-          <ResponsiveContainer>
-            <BarChart
-              data={byStation}
-              layout="vertical"
-              margin={{ top: 8, right: 12, left: 8, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis type="number" {...axisProps} />
-              <YAxis type="category" dataKey="name" {...axisProps} width={100} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="actual" fill={C.teal} radius={[0, 4, 4, 0]} name="Actual" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -441,7 +607,40 @@ export function DashboardBody() {
         </ChartCard>
       </div>
 
-      {/* Row 3: Monthly Trend by Sector (100%) */}
+      {/* Row 3: Monthly Accomplishment Trend (100%) */}
+      <ChartCard
+        title="Monthly Accomplishment Trend"
+        subtitle="Target vs Actual per month"
+        height="h-[420px] xl:h-[500px]"
+      >
+        <ResponsiveContainer>
+          <LineChart data={byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Line
+              type="monotone"
+              dataKey="target"
+              stroke={C.warning}
+              strokeWidth={2}
+              dot={{ r: 2 }}
+              name="Target"
+            />
+            <Line
+              type="monotone"
+              dataKey="actual"
+              stroke={C.primary}
+              strokeWidth={3}
+              dot={{ r: 3 }}
+              name="Actual"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* Row 4: Monthly Trend by Sector (100%) */}
       <ChartCard
         title="Monthly Trend by Sector"
         subtitle="Actual inspections per sector"
@@ -468,7 +667,7 @@ export function DashboardBody() {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Row 4: Year-over-Year Comparison (100%) */}
+      {/* Row 5: Year-over-Year Comparison (100%) */}
       <ChartCard
         title="Year-over-Year Comparison"
         subtitle={`${yoY.prevYear} vs ${yoY.currentYear} monthly actuals`}
@@ -499,7 +698,7 @@ export function DashboardBody() {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Row 5: Recent Dashboard Activity (100%) */}
+      {/* Row 6: Recent Dashboard Activity (100%) */}
       <ActivityCard
         title="Recent Dashboard Activity"
         subtitle="Latest FSIS events from stations"

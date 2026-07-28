@@ -31,6 +31,26 @@ function pct(inspected: number, target: number): number {
   return target > 0 ? (inspected / target) * 100 : 0;
 }
 
+/**
+ * Uniform series colors — used for the chart bars, the legend swatches and
+ * the table header dots / value colors so every surface reads the same.
+ */
+const SERIES = {
+  target: "var(--color-warning)",
+  inspected: "var(--color-primary)",
+  variance: "var(--color-destructive)",
+  positive: "var(--color-success)",
+} as const;
+
+function Dot({ color }: { color: string }) {
+  return (
+    <span
+      className="mr-1.5 inline-block h-2 w-2 rounded-[2px] align-middle"
+      style={{ background: color }}
+    />
+  );
+}
+
 function pickTarget(m: TargetAccomplishmentModel, k: CategoryKey): number {
   switch (k) {
     case "bplo": return Number(m.totaltargetbplo ?? 0) || 0;
@@ -116,9 +136,11 @@ export default function TargetAccomplishmentPanel({
   const rows = CATEGORIES.map((c) => {
     const target = data ? pickTarget(data, c.key) : 0;
     const inspected = data ? pickInspected(data, c.key) : 0;
-    const variance = target - inspected;
+    // Variance never goes negative — any excess moves to Positive Listing.
+    const variance = Math.max(target - inspected, 0);
+    const positive = Math.max(inspected - target, 0);
     const percentage = pct(inspected, target);
-    return { ...c, target, inspected, variance, percentage };
+    return { ...c, target, inspected, variance, positive, percentage };
   });
 
   const chartData = rows.map((r) => ({
@@ -131,11 +153,14 @@ export default function TargetAccomplishmentPanel({
     (acc, r) => {
       acc.target += r.target;
       acc.inspected += r.inspected;
+      acc.variance += r.variance;
+      acc.positive += r.positive;
       return acc;
     },
-    { target: 0, inspected: 0 },
+    { target: 0, inspected: 0, variance: 0, positive: 0 },
   );
-  const totalVariance = totals.target - totals.inspected;
+  const totalVariance = totals.variance;
+  const totalPositive = totals.positive;
   const totalPct = pct(totals.inspected, totals.target);
 
   return (
@@ -177,12 +202,8 @@ export default function TargetAccomplishmentPanel({
                   <Tooltip contentStyle={tooltipStyle} />
 
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="Target" fill="var(--color-warning, hsl(38 92% 50%))" radius={[4, 4, 0, 0]} />
-                  <Bar
-                    dataKey="Accomplishment"
-                    fill="var(--color-primary, hsl(221 83% 53%))"
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Bar dataKey="Target" fill={SERIES.target} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Accomplishment" fill={SERIES.inspected} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -193,9 +214,10 @@ export default function TargetAccomplishmentPanel({
             <thead>
               <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-2 text-left">Category</th>
-                <th className="px-4 py-2 text-right">Monthly Target</th>
-                <th className="px-4 py-2 text-right">Monthly Inspected</th>
-                <th className="px-4 py-2 text-right">Variance</th>
+                <th className="px-4 py-2 text-right"><Dot color={SERIES.target} />Monthly Target</th>
+                <th className="px-4 py-2 text-right"><Dot color={SERIES.inspected} />Monthly Inspected</th>
+                <th className="px-4 py-2 text-right"><Dot color={SERIES.variance} />Variance</th>
+                <th className="px-4 py-2 text-right"><Dot color={SERIES.positive} />Positive Listing</th>
                 <th className="px-4 py-2 text-right">% Accomplishment</th>
               </tr>
             </thead>
@@ -211,46 +233,64 @@ export default function TargetAccomplishmentPanel({
                   <td className="px-4 py-2 font-semibold text-foreground">
                     {r.label}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
+                  <td className="px-4 py-2 text-right tabular-nums" style={stationno ? { color: SERIES.target } : undefined}>
                     {stationno ? r.target.toLocaleString() : "—"}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
+                  <td className="px-4 py-2 text-right tabular-nums" style={stationno ? { color: SERIES.inspected } : undefined}>
                     {stationno ? r.inspected.toLocaleString() : "—"}
                   </td>
                   <td
-                    className={cn(
-                      "px-4 py-2 text-right tabular-nums font-medium",
-                      stationno && r.variance > 0 && "text-warning",
-                      stationno && r.variance < 0 && "text-primary",
-                      stationno && r.variance === 0 && "text-success",
-                    )}
+                    className="px-4 py-2 text-right tabular-nums font-medium"
+                    style={stationno && r.variance > 0 ? { color: SERIES.variance } : undefined}
                   >
                     {stationno ? r.variance.toLocaleString() : "—"}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
+                  <td
+                    className="px-4 py-2 text-right tabular-nums font-medium"
+                    style={stationno && r.positive > 0 ? { color: SERIES.positive } : undefined}
+                  >
+                    {stationno ? r.positive.toLocaleString() : "—"}
+                  </td>
+                  <td
+                    className="px-4 py-2 text-right tabular-nums font-medium"
+                    style={
+                      stationno
+                        ? { color: r.percentage >= 100 ? SERIES.positive : SERIES.inspected }
+                        : undefined
+                    }
+                  >
                     {stationno ? `${r.percentage.toFixed(2)}%` : "—"}
                   </td>
                 </tr>
               ))}
               <tr className="border-t-2 border-border bg-primary/5 font-semibold">
                 <td className="px-4 py-2">Total</td>
-                <td className="px-4 py-2 text-right tabular-nums">
+                <td className="px-4 py-2 text-right tabular-nums" style={stationno ? { color: SERIES.target } : undefined}>
                   {stationno ? totals.target.toLocaleString() : "—"}
                 </td>
-                <td className="px-4 py-2 text-right tabular-nums">
+                <td className="px-4 py-2 text-right tabular-nums" style={stationno ? { color: SERIES.inspected } : undefined}>
                   {stationno ? totals.inspected.toLocaleString() : "—"}
                 </td>
                 <td
-                  className={cn(
-                    "px-4 py-2 text-right tabular-nums",
-                    stationno && totalVariance > 0 && "text-warning",
-                    stationno && totalVariance < 0 && "text-primary",
-                    stationno && totalVariance === 0 && "text-success",
-                  )}
+                  className="px-4 py-2 text-right tabular-nums"
+                  style={stationno && totalVariance > 0 ? { color: SERIES.variance } : undefined}
                 >
                   {stationno ? totalVariance.toLocaleString() : "—"}
                 </td>
-                <td className="px-4 py-2 text-right tabular-nums">
+                <td
+                  className="px-4 py-2 text-right tabular-nums"
+                  style={stationno && totalPositive > 0 ? { color: SERIES.positive } : undefined}
+                >
+                  {stationno ? totalPositive.toLocaleString() : "—"}
+                </td>
+                <td
+                  className="px-4 py-2 text-right tabular-nums"
+                  style={
+                    stationno
+                      ? { color: totalPct >= 100 ? SERIES.positive : SERIES.inspected }
+                      : undefined
+                  }
+                >
                   {stationno ? `${totalPct.toFixed(2)}%` : "—"}
                 </td>
               </tr>

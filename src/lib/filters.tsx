@@ -1,4 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import type { SelectedLocation } from "@/components/location-multi-select";
+import type { SelectedStation } from "@/components/station-multi-select";
 
 /**
  * Global dashboard/report filters. Reference-data fields store both the
@@ -13,11 +15,10 @@ export interface RefFilter {
 
 export interface DashFilters {
   year: string;
-  semester: "all" | "1" | "2";
-  month: string;
-  province: RefFilter;
+  month: string; // "all" or 1-12
+  provinces: SelectedLocation[];
+  stations: SelectedStation[];
   city: RefFilter;
-  station: RefFilter;
   category: RefFilter;
 }
 
@@ -25,11 +26,10 @@ const empty: RefFilter = { no: "all", name: "", code: "" };
 
 export const DEFAULT_FILTERS: DashFilters = {
   year: String(new Date().getFullYear()),
-  semester: "all",
   month: "all",
-  province: empty,
+  provinces: [],
+  stations: [],
   city: empty,
-  station: empty,
   category: empty,
 };
 

@@ -59,6 +59,49 @@ export const summary = {
   records: 6240,
 };
 
+// ---------- Inspection / FSEC / FSIC breakdown by category ----------
+export const inspectionBreakdown = [
+  { label: "During", value: 480 },
+  { label: "After", value: 520 },
+  { label: "1st BPLO", value: 1980 },
+  { label: "1st GOV", value: 1360 },
+  { label: "1st PEZA", value: 700 },
+  { label: "1st TIEZA", value: 672 },
+];
+
+export const fsecBreakdown = [
+  { label: "Building", value: 720 },
+  { label: "Gov", value: 310 },
+  { label: "PEZA", value: 230 },
+  { label: "TIEZA", value: 160 },
+];
+
+export const fsicBreakdown = [
+  { label: "Occupancy", value: 640 },
+  { label: "BPLO New", value: 980 },
+  { label: "BPLO Renew", value: 1420 },
+  { label: "Gov", value: 470 },
+  { label: "PEZA", value: 290 },
+  { label: "TIEZA", value: 186 },
+];
+
+// ---------- Notice running status (pending vs accomplished) ----------
+export interface NoticeStatus {
+  total: number;
+  pending: number;
+  accomplished: number;
+}
+export const noticeStatus: Record<
+  "ntc" | "nod" | "ntcv" | "abatement" | "closure",
+  NoticeStatus
+> = {
+  ntc: { total: 312, pending: 128, accomplished: 184 },
+  nod: { total: 200, pending: 74, accomplished: 126 },
+  ntcv: { total: 96, pending: 41, accomplished: 55 },
+  abatement: { total: 120, pending: 38, accomplished: 82 },
+  closure: { total: 34, pending: 12, accomplished: 22 },
+};
+
 // ---------- Monthly trend: target vs actual ----------
 export interface MonthlyPoint {
   name: string;
@@ -155,6 +198,14 @@ export const bySector = [
 ];
 
 // ---------- Application types ----------
+// ---------- Per-sector inspection progress ----------
+export const sectorProgress: Array<{ name: Sector; target: number; accomplished: number }> = [
+  { name: "BPLO", target: 2100, accomplished: 1980 },
+  { name: "GOVT", target: 1500, accomplished: 1360 },
+  { name: "PEZA", target: 800, accomplished: 700 },
+  { name: "TIEZA", target: 800, accomplished: 672 },
+];
+
 export const byApplication = [
   { name: "FSEC", value: 1420 },
   { name: "FSIC", value: 3986 },
@@ -203,12 +254,17 @@ export const yoY = {
 
 export const dashboardMockData = {
   summary,
+  noticeStatus,
+  inspectionBreakdown,
+  fsecBreakdown,
+  fsicBreakdown,
   byMonth,
   byMonthSector,
   byProvince,
   targetGapByProvince,
   recentActivity,
   bySector,
+  sectorProgress,
   byApplication,
   sectorByApp,
   byStation,

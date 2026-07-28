@@ -606,7 +606,10 @@ export default function TargetReferenceForm({
   ) : sectors.length === 0 ? (
     <div className="py-10 text-center text-sm text-muted-foreground">No government sectors available.</div>
   ) : (
-    <div className="min-h-0 flex-1 overflow-auto">
+    <div
+      className="w-full max-w-full overflow-auto"
+      style={{ maxHeight: "70vh" }}
+    >
       <table className="min-w-full border-collapse text-xs">
         <thead className="sticky top-0 z-10 bg-card">
           <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
@@ -767,7 +770,7 @@ export default function TargetReferenceForm({
         <DialogContent
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
-          className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+          className="max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] gap-0 overflow-y-auto overflow-x-hidden p-0 sm:rounded-xl"
         >
           <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
             <DialogTitle className="text-base font-bold">
@@ -782,7 +785,7 @@ export default function TargetReferenceForm({
             </p>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden px-5 py-4">
+          <div className="flex flex-col gap-4 px-5 py-4">
             {/* Year */}
             <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-1.5">
@@ -879,7 +882,7 @@ export default function TargetReferenceForm({
           </div>
 
           {/* Monthly Target Reference table */}
-          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border/60 overflow-hidden">
+          <div className="flex flex-col rounded-lg border border-border/60 overflow-hidden">
             <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
               <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
                 <Calendar className="h-3.5 w-3.5" />

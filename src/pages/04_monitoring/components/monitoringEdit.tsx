@@ -1792,6 +1792,10 @@ export function InventoryEditModal({
                 {stationName ? `${stationName} · ` : ""}
                 {monthName} {year}
               </DialogDescription>
+              <p className="mt-1 text-[11px] text-muted-foreground/90">
+                <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                Each month locks on the <span className="font-semibold">4th day of the following month at 12:00 AM (PST)</span>. The current and next month remain editable — past months require a revision request once locked.
+              </p>
             </div>
           </div>
         </DialogHeader>
