@@ -28,24 +28,25 @@ import {
   YAxis,
 } from "recharts";
 import { dashboardMockData } from "@/mock/dashboard.mock";
+import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
+import type { DashboardComplianceModel } from "@/types/dashboardType";
 
 /**
- * Dashboard body — sample/representation data only.
+ * Dashboard body.
  *
- * All visualizations below use the centralized `dashboardMockData` mock.
- * Filters on this page do NOT affect any of these values; they will be
- * wired up once the backend exposes a real aggregation endpoint.
+ * The Compliance section (Inspections by Sector, Inspection / FSEC / FSIC
+ * breakdowns and the notice cards) is backed by
+ * `dashboardAPI.getComplianceSummary` and reacts to the dashboard filters.
+ * The remaining charts still use the centralized `dashboardMockData` mock.
  */
 
 const {
-  summary,
   byMonth,
   byMonthSector,
   byProvince,
   targetGapByProvince,
   recentActivity,
   bySector,
-  sectorProgress,
   byApplication,
   sectorByApp,
   byStation,
@@ -55,22 +56,46 @@ const {
   CHART_COLORS: C,
 } = dashboardMockData;
 
-const { noticeStatus } = dashboardMockData;
-const { inspectionBreakdown, fsecBreakdown, fsicBreakdown } = dashboardMockData;
+function SectorProgressCard({ compliance }: { compliance: DashboardComplianceModel | null }) {
+  const sectorProgress: Array<{
+    name: (typeof SECTORS)[number];
+    target: number;
+    accomplished: number;
+  }> = [
+    {
+      name: "BPLO",
+      target: compliance?.totaltargetbplo ?? 0,
+      accomplished: compliance?.totalAccomplishmentbplo ?? 0,
+    },
+    {
+      name: "GOVT",
+      target: compliance?.totaltargetgov ?? 0,
+      accomplished: compliance?.totalAccomplishmentgov ?? 0,
+    },
+    {
+      name: "PEZA",
+      target: compliance?.totaltargetpeza ?? 0,
+      accomplished: compliance?.totalAccomplishmentpeza ?? 0,
+    },
+    {
+      name: "TIEZA",
+      target: compliance?.totaltargettieza ?? 0,
+      accomplished: compliance?.totalAccomplishmenttieza ?? 0,
+    },
+  ];
 
-const sectorTotals = sectorProgress.reduce(
-  (acc, s) => ({
-    target: acc.target + s.target,
-    accomplished: acc.accomplished + s.accomplished,
-  }),
-  { target: 0, accomplished: 0 },
-);
+  const sectorTotals = sectorProgress.reduce(
+    (acc, s) => ({
+      target: acc.target + s.target,
+      accomplished: acc.accomplished + s.accomplished,
+    }),
+    { target: 0, accomplished: 0 },
+  );
 
-const completion = sectorTotals.target
-  ? Math.round((sectorTotals.accomplished / sectorTotals.target) * 100)
-  : 0;
+  const completion = sectorTotals.target
+    ? Math.round((sectorTotals.accomplished / sectorTotals.target) * 100)
+    : 0;
 
-function SectorProgressCard() {
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
@@ -86,9 +111,6 @@ function SectorProgressCard() {
               / {sectorTotals.target.toLocaleString()} target
             </span>
             <span className="text-sm font-semibold text-success tabular-nums">{completion}%</span>
-          </div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
-            {summary.records.toLocaleString()} establishments
           </div>
         </div>
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -110,7 +132,7 @@ function SectorProgressCard() {
           </thead>
           <tbody>
             {sectorProgress.map((s) => {
-              const remaining = Math.max(s.target - s.accomplished, 0);
+              const remaining = s.target - s.accomplished;
               const positive = Math.max(s.accomplished - s.target, 0);
               const pct = s.target ? Math.round((s.accomplished / s.target) * 100) : 0;
               return (
@@ -128,7 +150,10 @@ function SectorProgressCard() {
                   <td className="py-1.5 text-right font-semibold tabular-nums text-success">
                     {s.accomplished.toLocaleString()}
                   </td>
-                  <td className="py-1.5 text-right tabular-nums text-warning">
+                  <td
+                    className={`py-1.5 text-right tabular-nums ${remaining < 0 ? "text-success" : "text-warning"}`}
+                    title={remaining < 0 ? "Accomplishment exceeded target" : undefined}
+                  >
                     {remaining.toLocaleString()}
                   </td>
                   <td className="py-1.5 text-right tabular-nums text-success">
@@ -237,10 +262,11 @@ function NoticeCard({
   label: string;
   icon: React.ReactNode;
   accent?: string;
-  data: { total: number; pending: number; accomplished: number };
+  data: { pending: number; accomplished: number };
 }) {
-  const remaining = Math.max(data.total - data.accomplished, 0);
-  const pct = data.total ? Math.round((data.accomplished / data.total) * 100) : 0;
+  const total = data.pending;
+  const remaining = data.pending - data.accomplished;
+  const pct = total ? Math.round((data.accomplished / total) * 100) : 0;
 
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
@@ -250,7 +276,7 @@ function NoticeCard({
             {label}
           </div>
           <div className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums">
-            {data.total.toLocaleString()}
+            {total.toLocaleString()}
           </div>
         </div>
         <div
@@ -266,7 +292,12 @@ function NoticeCard({
         {[
           { k: "Pending", v: data.pending, dot: "bg-warning", text: "text-warning" },
           { k: "Accomplished", v: data.accomplished, dot: "bg-success", text: "text-success" },
-          { k: "Remaining", v: remaining, dot: "bg-destructive", text: "text-destructive" },
+          {
+            k: remaining < 0 ? "Over Target" : "Remaining",
+            v: remaining,
+            dot: remaining < 0 ? "bg-success" : "bg-destructive",
+            text: remaining < 0 ? "text-success" : "text-destructive",
+          },
         ].map((row) => (
           <div key={row.k} className="flex items-center justify-between gap-2">
             <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
@@ -419,11 +450,37 @@ const axisProps = {
 };
 
 export function DashboardBody() {
+  const { compliance } = useComplianceSummary();
+
+  const inspectionBreakdown = [
+    { label: "During", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
+    { label: "After", value: sumBy(compliance?.inspectionList, (r) => r.totalafter) },
+    { label: "1st BPLO", value: sumBy(compliance?.inspectionList, (r) => r.totalbplo) },
+    { label: "1st GOV", value: sumBy(compliance?.inspectionList, (r) => r.totalgov) },
+    { label: "1st PEZA", value: sumBy(compliance?.inspectionList, (r) => r.totalpeza) },
+    { label: "1st TIEZA", value: sumBy(compliance?.inspectionList, (r) => r.totaltieza) },
+  ];
+
+  const fsecBreakdown = [
+    { label: "Building", value: sumBy(compliance?.fsecList, (r) => r.totalbuilding) },
+    { label: "Gov", value: sumBy(compliance?.fsecList, (r) => r.totalgov) },
+    { label: "PEZA", value: sumBy(compliance?.fsecList, (r) => r.totalpeza) },
+    { label: "TIEZA", value: sumBy(compliance?.fsecList, (r) => r.totaltieza) },
+  ];
+
+  const fsicBreakdown = [
+    { label: "Occupancy", value: sumBy(compliance?.fsicList, (r) => r.totaloccupancy) },
+    { label: "BPLO New", value: sumBy(compliance?.fsicList, (r) => r.totalbplonew) },
+    { label: "BPLO Renew", value: sumBy(compliance?.fsicList, (r) => r.totalbplorenew) },
+    { label: "Gov", value: sumBy(compliance?.fsicList, (r) => r.totalgov) },
+    { label: "PEZA", value: sumBy(compliance?.fsicList, (r) => r.totalpeza) },
+    { label: "TIEZA", value: sumBy(compliance?.fsicList, (r) => r.totaltieza) },
+  ];
+
   return (
     <div className="space-y-6">
-
       {/* KPIs — sector progress full width */}
-      <SectorProgressCard />
+      <SectorProgressCard compliance={compliance} />
 
       {/* Breakdowns — Inspection / FSEC / FSIC */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -452,31 +509,31 @@ export function DashboardBody() {
           label="NTC"
           icon={<AlertCircle className="h-5 w-5" />}
           accent="bg-warning/10 text-warning"
-          data={noticeStatus.ntc}
+          data={getNotice(compliance, "NTC")}
         />
         <NoticeCard
           label="NOD"
           icon={<FileWarning className="h-5 w-5" />}
           accent="bg-warning/10 text-warning"
-          data={noticeStatus.nod}
+          data={getNotice(compliance, "NOD")}
         />
         <NoticeCard
           label="NTCV"
           icon={<ShieldAlert className="h-5 w-5" />}
           accent="bg-destructive/10 text-destructive"
-          data={noticeStatus.ntcv}
+          data={getNotice(compliance, "NTCV")}
         />
         <NoticeCard
           label="Abatement"
           icon={<ShieldAlert className="h-5 w-5" />}
           accent="bg-destructive/10 text-destructive"
-          data={noticeStatus.abatement}
+          data={getNotice(compliance, "ABATEMENT")}
         />
         <NoticeCard
           label="Closure Cases"
           icon={<Ban className="h-5 w-5" />}
           accent="bg-destructive/10 text-destructive"
-          data={noticeStatus.closure}
+          data={getNotice(compliance, "CLOSURE")}
         />
       </div>
 
@@ -498,11 +555,7 @@ export function DashboardBody() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard
-          title="Top Fire Stations"
-          subtitle="Top 10 performing stations"
-          height="h-72"
-        >
+        <ChartCard title="Top Fire Stations" subtitle="Top 10 performing stations" height="h-72">
           <ResponsiveContainer>
             <BarChart
               data={byStation}
@@ -565,7 +618,11 @@ export function DashboardBody() {
 
       {/* Supplementary row: preserved charts (Inspections by Sector, Target vs Actual by Province) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartCard title="Inspections by Sector" subtitle="BPLO · GOVT · PEZA · TIEZA" height="h-72">
+        <ChartCard
+          title="Inspections by Sector"
+          subtitle="BPLO · GOVT · PEZA · TIEZA"
+          height="h-72"
+        >
           <ResponsiveContainer>
             <BarChart data={bySector} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
