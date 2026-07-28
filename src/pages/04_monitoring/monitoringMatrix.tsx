@@ -17,7 +17,7 @@ import { LocationMultiSelect, type SelectedLocation } from "@/components/locatio
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
-import { sumMonths } from "@/lib/inventoryHelpers";
+import { sumMonths, MONTH_NAMES } from "@/lib/inventoryHelpers";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { EMPTY_GUID } from "@/lib/utils";
