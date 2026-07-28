@@ -39,7 +39,7 @@ export interface FSISInventoryIssuanceClassDTO {
   ntccount: number;
   ntcvcount: number;
 
-  avatementcount: number;
+  abatementcount: number;
   closurecount: number;
 }
 
@@ -158,7 +158,7 @@ export interface FSISInventoryLedgerClass {
   ntccount: number;
   ntcvcount: number;
 
-  avatementcount: number;
+  abatementcount: number;
   closurecount: number;
 
   remarks: string;
@@ -263,7 +263,7 @@ export interface FSISIssuanceClassModel {
   ntccount: number;
   ntcvcount: number;
 
-  avatementcount: number;
+  abatementcount: number;
   closurecount: number;
 
   encodedby: string;
@@ -367,6 +367,6 @@ export interface ExportInventoryClassModel {
   ntccount: number;
   ntcvcount: number;
 
-  avatementcount: number;
+  abatementcount: number;
   closurecount: number;
 }

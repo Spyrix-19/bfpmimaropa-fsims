@@ -90,7 +90,7 @@ interface IssuanceCounts {
   nodcount: number;
   ntccount: number;
   ntcvcount: number;
-  avatementcount: number;
+  abatementcount: number;
   closurecount: number;
 }
 
@@ -115,7 +115,7 @@ const FIELD_TO_API: Record<string, string> = {
   not_nod: "nodcount",
   not_ntc: "ntccount",
   not_ntcv: "ntcvcount",
-  not_abatement: "avatementcount",
+  not_abatement: "abatementcount",
   not_closure: "closurecount",
 };
 
@@ -176,7 +176,7 @@ const emptyIssuance = (): IssuanceCounts => ({
   nodcount: 0,
   ntccount: 0,
   ntcvcount: 0,
-  avatementcount: 0,
+  abatementcount: 0,
   closurecount: 0,
 });
 
@@ -238,7 +238,7 @@ function buildSlices(
           nodcount: num(iss?.nodcount),
           ntccount: num(iss?.ntccount),
           ntcvcount: num(iss?.ntcvcount),
-          avatementcount: num(iss?.avatementcount),
+          abatementcount: num(iss?.abatementcount),
           closurecount: num(iss?.closurecount),
         };
         if (mode === 96) manual = parsed;

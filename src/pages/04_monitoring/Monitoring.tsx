@@ -109,7 +109,7 @@ const LEDGER_FIELD_MAP = {
     not_nod: "nodcount",
     not_ntc: "ntccount",
     not_ntcv: "ntcvcount",
-    not_abatement: "avatementcount",
+    not_abatement: "abatementcount",
     not_closure: "closurecount",
   },
 } as const;

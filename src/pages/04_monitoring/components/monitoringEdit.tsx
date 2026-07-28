@@ -128,7 +128,7 @@ interface FSISInventoryDetailItem {
   nodcount?: number | null;
   ntccount?: number | null;
   ntcvcount?: number | null;
-  avatementcount?: number | null;
+  abatementcount?: number | null;
   closurecount?: number | null;
 }
 
@@ -172,7 +172,7 @@ const FIELD_TO_API: Record<string, keyof FSISInventoryDetailItem> = {
   not_nod: "nodcount",
   not_ntc: "ntccount",
   not_ntcv: "ntcvcount",
-  not_abatement: "avatementcount",
+  not_abatement: "abatementcount",
   not_closure: "closurecount",
 };
 
@@ -194,7 +194,7 @@ interface EditableIssuance {
   nodcount: number;
   ntccount: number;
   ntcvcount: number;
-  avatementcount: number;
+  abatementcount: number;
   closurecount: number;
 }
 
@@ -293,7 +293,7 @@ function buildEditableDays(
     nodcount: 0,
     ntccount: 0,
     ntcvcount: 0,
-    avatementcount: 0,
+    abatementcount: 0,
     closurecount: 0,
   });
 
@@ -350,7 +350,7 @@ function buildEditableDays(
           nodcount: num(iss?.nodcount),
           ntccount: num(iss?.ntccount),
           ntcvcount: num(iss?.ntcvcount),
-          avatementcount: num(iss?.avatementcount),
+          abatementcount: num(iss?.abatementcount),
           closurecount: num(iss?.closurecount),
         };
 
@@ -483,7 +483,7 @@ function InventoryEditBody({
         "nodcount",
         "ntccount",
         "ntcvcount",
-        "avatementcount",
+        "abatementcount",
         "closurecount",
       ];
 
@@ -770,7 +770,7 @@ function InventoryEditBody({
             nodcount: day.manual.nodcount,
             ntccount: day.manual.ntccount,
             ntcvcount: day.manual.ntcvcount,
-            avatementcount: day.manual.avatementcount,
+            abatementcount: day.manual.abatementcount,
             closurecount: day.manual.closurecount,
           },
           {
@@ -789,7 +789,7 @@ function InventoryEditBody({
             nodcount: day.fsis.nodcount,
             ntccount: day.fsis.ntccount,
             ntcvcount: day.fsis.ntcvcount,
-            avatementcount: day.fsis.avatementcount,
+            abatementcount: day.fsis.abatementcount,
             closurecount: day.fsis.closurecount,
           },
         ];

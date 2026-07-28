@@ -365,7 +365,7 @@ function InspectionsNewBody({
           nodcount: vals.not_nod ?? 0,
           ntccount: vals.not_ntc ?? 0,
           ntcvcount: vals.not_ntcv ?? 0,
-          avatementcount: vals.not_abatement ?? 0,
+          abatementcount: vals.not_abatement ?? 0,
           closurecount: vals.not_closure ?? 0,
         };
       };
@@ -380,6 +380,7 @@ function InspectionsNewBody({
         inspectpezacount: numeric.insp_1st_peza ?? 0,
         inspecttiezacount: numeric.insp_1st_tieza ?? 0,
         remarks: remarks ?? "",
+        // Always the currently logged-in user — never EMPTY_GUID.
         updatedby: user?.memberno ?? "",
         encodedby: user?.memberno ?? "",
         issuancelist: [

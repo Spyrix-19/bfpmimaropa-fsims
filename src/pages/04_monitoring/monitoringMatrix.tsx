@@ -87,7 +87,7 @@ const COMPLIANCE_FIELDS: { key: keyof FSISInventoryLedgerClass; label: string; c
   { key: "nodcount",           label: "NOD",        category: "NOTICES" },
   { key: "ntccount",           label: "NTC",        category: "NOTICES" },
   { key: "ntcvcount",          label: "NTCV",      category: "NOTICES" },
-  { key: "avatementcount",     label: "Abatement",  category: "NOTICES" },
+  { key: "abatementcount",     label: "Abatement",  category: "NOTICES" },
   { key: "closurecount",       label: "Closure",    category: "NOTICES" },
 ];
 
