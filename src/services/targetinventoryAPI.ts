@@ -10,8 +10,16 @@ export const targetinventoryAPI = {
   },
 
   async getTargetAccomplishment(params?: TargetAccomplishmentParams, options?: import("@/lib/api").ApiOptions) {
+    // The backend expects capitalized query params for this endpoint.
+    // The working curl sample uses Stationno / Reportyear / Reportmonth.
+    const mapped = {
+      Stationno: params?.stationno,
+      Reportyear: params?.reportyear,
+      Reportmonth: params?.reportmonth,
+    };
+
     return await apiGet<TargetAccomplishmentModel>("/api/v1/FSISInventory/TargetAccomplishment", {
-      params,
+      params: mapped,
       ...GET_RETRY,
       ...options,
     });
@@ -26,7 +34,7 @@ export const targetinventoryAPI = {
       Provinceno: params.provinceno,
       Reportyear: params.reportyear,
       Reportmonth: params.reportmonth,
-      Pageumber: params.pagenumber,
+      Pagenumber: params.pagenumber,
       Pagesize: params.pagesize,
     };
     return await apiGet<FSISInventoryLedgerModel[]>("/api/v1/FSISInventory/Ledger", {
