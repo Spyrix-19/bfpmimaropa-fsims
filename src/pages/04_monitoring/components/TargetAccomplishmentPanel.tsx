@@ -16,6 +16,7 @@ import { unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { cn } from "@/lib/utils";
 import type { TargetAccomplishmentModel } from "@/types/targetinventoryType";
+import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 
 type CategoryKey = "bplo" | "gov" | "peza" | "tieza";
 
@@ -171,16 +172,10 @@ export default function TargetAccomplishmentPanel({
               <ResponsiveContainer>
                 <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
-                  <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--color-popover)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
+                  <XAxis dataKey="name" {...axisProps} allowDecimals={false} />
+                  <YAxis {...axisProps} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltipStyle} />
+
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="Target" fill="var(--color-warning, hsl(38 92% 50%))" radius={[4, 4, 0, 0]} />
                   <Bar

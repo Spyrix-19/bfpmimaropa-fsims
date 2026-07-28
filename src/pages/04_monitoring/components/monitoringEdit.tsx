@@ -10,6 +10,7 @@ import {
   Save,
   Table2,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -47,6 +48,7 @@ import RevisionRequestDialog from "@/pages/06_target-reference/revision/Revision
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "@/pages/06_target-reference/revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { stationAPI } from "@/services/stationAPI";
@@ -407,7 +409,7 @@ function InventoryEditBody({
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const { user } = useAuth();
+  const { user, systemAccess } = useAuth();
 
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? String(month);
 
@@ -417,6 +419,7 @@ function InventoryEditBody({
   const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
   const [revisionOpen, setRevisionOpen] = React.useState(false);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
+  const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
   const [revisionRequestRefreshTick, setRevisionRequestRefreshTick] = React.useState(0);
 
   // Station info from Monthly API
@@ -910,15 +913,28 @@ function InventoryEditBody({
           </div>
           <div className="flex items-center gap-2">
             {isOwnPending && activeReq && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:[color:white]"
-                onClick={() => setCancelRequestId(activeReq.requestno)}
-              >
-                Cancel Request
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:[color:white]"
+                  onClick={() => setCancelRequestId(activeReq.requestno)}
+                >
+                  Cancel Request
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 border-destructive/40 px-2 text-[11px] !text-destructive [&_svg]:!text-destructive hover:!bg-destructive hover:!text-white hover:[&_svg]:[color:white]"
+                  onClick={() => setDeleteRequestId(activeReq.requestno)}
+                  title="Delete Revision Request"
+                  aria-label="Delete Revision Request"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete Request
+                </Button>
+              </>
             )}
             {!activeReq && monthLocked && (
               <TooltipProvider>
@@ -1089,15 +1105,28 @@ function InventoryEditBody({
                                 <>
                                   <RevisionStatusBadge status={activeReqStatus ?? "PENDING"} />
                                   {isOwnPending && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
-                                      onClick={() => setCancelRequestId(activeReq.requestno)}
-                                    >
-                                      Cancel
-                                    </Button>
+                                    <>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-1.5 text-[11px] !text-primary hover:!bg-primary hover:!text-white [&_svg]:!text-primary hover:[&_svg]:!text-white"
+                                        onClick={() => setCancelRequestId(activeReq.requestno)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-1.5 text-[11px] !text-destructive hover:!bg-destructive hover:!text-white [&_svg]:!text-destructive hover:[&_svg]:!text-white"
+                                        onClick={() => setDeleteRequestId(activeReq.requestno)}
+                                        title="Delete Revision Request"
+                                        aria-label="Delete Revision Request"
+                                      >
+                                        <Trash2 className="h-3 w-3" /> Delete
+                                      </Button>
+                                    </>
                                   )}
                                 </>
                               ) : (
@@ -1579,6 +1608,31 @@ function InventoryEditBody({
           }
           toast.success("Revision request cancelled.");
           setCancelRequestId(null);
+          setRevisionRequestRefreshTick((n) => n + 1);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteRequestId}
+        onOpenChange={(v) => !v && setDeleteRequestId(null)}
+        title="Delete Revision Request?"
+        description="This will permanently delete the selected revision request."
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        onConfirm={async () => {
+          if (!deleteRequestId) return;
+          const resp = await revisionrequestAPI.delete({
+            requestno: deleteRequestId,
+            deletedby: user?.memberno ?? "",
+            roleno: Number(systemAccess?.roleno ?? 0),
+          });
+          const { ok, error } = unwrap(resp);
+          if (!ok) {
+            toast.error(error || "Unable to delete revision request.");
+            return;
+          }
+          toast.success("Revision request deleted.");
+          setDeleteRequestId(null);
           setRevisionRequestRefreshTick((n) => n + 1);
         }}
       />
