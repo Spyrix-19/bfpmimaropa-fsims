@@ -335,9 +335,15 @@ function InventoryViewBody({
       );
       if (cancelled) return;
 
-      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel[]>(resp);
+      const { ok, data, error } = unwrap<
+        FSISInventoryMonthlyLedgerModel | FSISInventoryMonthlyLedgerModel[]
+      >(resp);
       if (!ok) toast.error(error || "Failed to load daily details.");
-      const first = ok && Array.isArray(data) ? data[0] ?? null : null;
+      const first = ok
+        ? Array.isArray(data)
+          ? (data[0] ?? null)
+          : (data ?? null)
+        : null;
       setStation(first);
       setLoading(false);
     })();
