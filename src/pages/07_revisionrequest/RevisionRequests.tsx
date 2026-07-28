@@ -27,10 +27,10 @@ import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
-import ReasonRemarksDialog from "@/pages/05_target-reference/revision/ReasonRemarksDialog";
+import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import {
   type RevisionModule,
-} from "@/pages/05_target-reference/revision/types";
+} from "@/pages/06_target-reference/revision/types";
 
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";

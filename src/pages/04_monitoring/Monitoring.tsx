@@ -31,13 +31,13 @@ import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
-import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
+import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 
 // Monthly ledger queries are moved to the editor modal to avoid
 // calling the heavy Monthly endpoint on the main listing view.
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
-import { isReportMonthLocked } from "@/pages/05_target-reference/helpers";
+import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CATEGORY_FIELDS, calendarDaysInMonth } from "@/lib/inventoryHelpers";
 import type { MonthlyInventoryRow } from "@/types/inventoryType";

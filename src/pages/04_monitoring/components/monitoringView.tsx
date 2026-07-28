@@ -25,7 +25,7 @@ import { MONITORING_THEME } from "./monitoringTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
-import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
+import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
 import type {
   TargetAccomplishmentModel,

@@ -23,8 +23,8 @@ import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { EMPTY_GUID } from "@/lib/utils";
 import { buildYears } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
-import { resolveTargetScope } from "@/pages/05_target-reference/helpers";
-import ReadOnlyField from "@/pages/05_target-reference/components/ReadOnlyField";
+import { resolveTargetScope } from "@/pages/06_target-reference/helpers";
+import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import type {
   FSISInventoryLedgerModel,
   FSISInventoryLedgerClass,

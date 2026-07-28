@@ -10,7 +10,9 @@ import {
   UserPlus,
   History,
   ChevronRight,
+  ClipboardCheck,
 } from "lucide-react";
+
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, type ReactNode } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -79,11 +81,18 @@ const GROUPS: NavGroup[] = [
         module: "monitoring",
       },
       {
+        to: "/accomplished-notice",
+        label: "Accomplished Notice",
+        icon: <ClipboardCheck className="h-4 w-4" />,
+        module: "monitoring",
+      },
+      {
         to: "/target-reference",
         label: "Target Reference",
         icon: <Target className="h-4 w-4" />,
         module: "monitoring",
       },
+
       {
         to: "/revision-requests",
         label: "Revision Request",
