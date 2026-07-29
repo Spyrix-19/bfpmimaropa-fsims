@@ -578,6 +578,8 @@ export default function FireSafetyCompliancePage() {
       <InspectionsNewModal
         open={addOpen}
         onOpenChange={setAddOpen}
+        initialYear={Number(year) || undefined}
+        initialMonth={Number(month) || undefined}
         onSaved={refresh}
         onEditExisting={(stationno, year, month, stationName) => {
           setEditTarget({

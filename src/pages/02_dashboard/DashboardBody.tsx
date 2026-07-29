@@ -36,6 +36,7 @@ import {
   useMonthlyTargetVsActual,
   useMonthlySectorTrend,
 } from "@/pages/02_dashboard/useMonthlyTrend";
+import { useYearlyComparison } from "@/pages/02_dashboard/useYearlyComparison";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
 
 /**
@@ -49,7 +50,7 @@ import type { DashboardComplianceModel } from "@/types/dashboardType";
 
 const {
   recentActivity,
-  yoY,
+  
   SECTORS,
   SECTOR_COLORS,
   CHART_COLORS: C,
@@ -630,6 +631,8 @@ export function DashboardBody() {
   const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual();
   const { rows: monthlyTrendRows, loading: monthlyTrendLoading } = useMonthlyTargetVsActual();
   const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend();
+  const { rows: yoYRows, years: yoYYears, loading: yoYLoading } = useYearlyComparison();
+
 
 
   const inspectionBreakdown = [
@@ -834,33 +837,47 @@ export function DashboardBody() {
       {/* Row 5: Year-over-Year Comparison (100%) */}
       <ChartCard
         title="Year-over-Year Comparison"
-        subtitle={`${yoY.prevYear} vs ${yoY.currentYear} monthly actuals`}
+        subtitle={
+          yoYYears.length
+            ? `${yoYYears.join(" vs ")} monthly actuals`
+            : "Monthly actuals per report year"
+        }
         height="h-[420px] xl:h-[500px]"
       >
-        <ResponsiveContainer>
-          <LineChart data={yoY.data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-            <XAxis dataKey="name" {...axisProps} />
-            <YAxis {...axisProps} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line
-              type="monotone"
-              dataKey={String(yoY.prevYear)}
-              stroke={C.warning}
-              strokeWidth={2}
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey={String(yoY.currentYear)}
-              stroke={C.primary}
-              strokeWidth={3}
-              dot={{ r: 3 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        {yoYLoading ? (
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+        ) : yoYYears.length === 0 ? (
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            No data for the selected period.
+          </div>
+        ) : (
+          <ResponsiveContainer>
+            <LineChart data={yoYRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              {yoYYears.map((yr, i) => {
+                const isLatest = i === yoYYears.length - 1;
+                const palette = [C.teal, C.warning, C.primary];
+                return (
+                  <Line
+                    key={yr}
+                    type="monotone"
+                    dataKey={String(yr)}
+                    name={String(yr)}
+                    stroke={isLatest ? C.primary : palette[i % palette.length]}
+                    strokeWidth={isLatest ? 3 : 2}
+                    dot={isLatest ? { r: 3 } : false}
+                  />
+                );
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </ChartCard>
+
 
       {/* Row 6: Recent Dashboard Activity (100%) */}
       <ActivityCard

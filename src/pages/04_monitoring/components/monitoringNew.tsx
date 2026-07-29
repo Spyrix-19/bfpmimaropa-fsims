@@ -139,10 +139,14 @@ function InspectionsNewBody({
   onSaved,
   onCancel,
   onEditExisting,
+  initialYear,
+  initialMonth,
 }: {
   onSaved?: () => void;
   onCancel?: () => void;
   onEditExisting?: (stationno: string, year: number, month: number, stationName?: string) => void;
+  initialYear?: number;
+  initialMonth?: number;
 }) {
   const { user, systemAccess } = useAuth();
   const scope = React.useMemo(
@@ -150,7 +154,15 @@ function InspectionsNewBody({
     [user, systemAccess?.roleno],
   );
 
-  const [reportingDate, setReportingDate] = React.useState<Date>(() => new Date());
+  // Seed the reporting date from the ledger's selected year/month, keeping the
+  // current day-of-month (clamped to the last day of that month).
+  const [reportingDate, setReportingDate] = React.useState<Date>(() => {
+    const now = new Date();
+    const y = initialYear && initialYear > 1900 ? initialYear : now.getFullYear();
+    const m = initialMonth && initialMonth >= 1 && initialMonth <= 12 ? initialMonth : now.getMonth() + 1;
+    const lastDay = new Date(y, m, 0).getDate();
+    return new Date(y, m - 1, Math.min(now.getDate(), lastDay));
+  });
   const [dateOpen, setDateOpen] = React.useState(false);
 
   const [province, setProvince] = React.useState<{ no: string; name: string; code: string }>(
@@ -656,11 +668,15 @@ export function InspectionsNewModal({
   onOpenChange,
   onSaved,
   onEditExisting,
+  initialYear,
+  initialMonth,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onSaved?: () => void;
   onEditExisting?: (stationno: string, year: number, month: number, stationName?: string) => void;
+  initialYear?: number;
+  initialMonth?: number;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -689,6 +705,8 @@ export function InspectionsNewModal({
           <div className="min-h-full pr-2">
             {open ? (
               <InspectionsNewBody
+                initialYear={initialYear}
+                initialMonth={initialMonth}
                 onSaved={() => {
                   onSaved?.();
                   onOpenChange(false);
