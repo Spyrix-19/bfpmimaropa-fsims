@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ArrowLeft, Eye, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { stationAPI } from "@/services/stationAPI";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";

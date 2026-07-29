@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from "axios";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { loadingBus } from "@/lib/loading-bus";
 
 /* =========================
@@ -129,7 +129,19 @@ api.interceptors.request.use((config) => {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const isCanceled = (error: AxiosError) =>
+  error?.code === "ERR_CANCELED" || (error as unknown as { name?: string })?.name === "CanceledError";
+
+/** Timeout / cold-start style failures — always worth retrying with backoff. */
+const isTimeoutError = (error: AxiosError) =>
+  error?.code === "ECONNABORTED" ||
+  error?.code === "ETIMEDOUT" ||
+  error.response?.status === 408 ||
+  error.response?.status === 504;
+
 const shouldRetry = (error: AxiosError) => {
+  if (isCanceled(error)) return false;
+
   const status = error.response?.status;
 
   // No HTTP response received at all (network failure, DNS issue, CORS block, timeout)
@@ -146,13 +158,68 @@ const shouldRetry = (error: AxiosError) => {
 };
 
 /* =========================
-   RETRY WRAPPER
+   TRANSPORT ERROR INTERCEPTOR
+   -------------------------
+   ONE place decides whether the user sees a "can't reach the server" toast.
+   Several dashboard panels fire in parallel; without this, each failure
+   raised its own banner. The sonner id collapses duplicates and the time
+   window prevents a new banner for every retry / sibling request.
 ========================= */
 
-const withRetry = async <T>(fn: () => Promise<T>, retries = 2, delay = 400): Promise<T> => {
+const TRANSPORT_TOAST_WINDOW_MS = 10000;
+let lastTransportToastAt = 0;
+
+type TrackedConfig = AxiosRequestConfig & {
+  __suppressErrorToast?: boolean;
+  /** Correlates an axios error back to its live retry state. */
+  __rid?: string;
+};
+
+/** rid -> retry attempts still available. Axios clones config per attempt, so
+ *  the live counter lives here instead of on the config object. */
+const attemptsLeftByRid = new Map<string, number>();
+let ridSeq = 0;
+const nextRid = () => `r${++ridSeq}`;
+
+const notifyTransportError = (error: AxiosError) => {
+  const cfg = (error.config ?? {}) as TrackedConfig;
+  if (cfg.__suppressErrorToast) return;
+  // Don't warn while the request will still be retried (Render cold starts).
+  const attemptsLeft = cfg.__rid ? (attemptsLeftByRid.get(cfg.__rid) ?? 0) : 0;
+  if (attemptsLeft > 0) return;
+
+  const now = Date.now();
+  if (now - lastTransportToastAt < TRANSPORT_TOAST_WINDOW_MS) return;
+  lastTransportToastAt = now;
+
+  toast.error(fallbackMessageForStatus(0), { id: "api-network-error" });
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (!isCanceled(error) && !error.response) notifyTransportError(error);
+    return Promise.reject(error);
+  },
+);
+
+/* =========================
+   RETRY WRAPPER (exponential backoff + jitter)
+========================= */
+
+const MAX_RETRY_DELAY_MS = 8000;
+
+const withRetry = async <T>(
+  fn: () => Promise<T>,
+  retries = 2,
+  delay = 400,
+  rid?: string,
+): Promise<T> => {
   let lastError: unknown;
 
   for (let i = 0; i <= retries; i++) {
+    if (rid) attemptsLeftByRid.set(rid, retries - i);
+
     try {
       return await fn();
     } catch (err) {
@@ -161,7 +228,10 @@ const withRetry = async <T>(fn: () => Promise<T>, retries = 2, delay = 400): Pro
       const axiosError = err as AxiosError;
 
       if (i < retries && shouldRetry(axiosError)) {
-        await sleep(delay * Math.pow(2, i)); // exponential backoff
+        // Timeouts (Render cold start) get a longer ramp before retrying.
+        const base = isTimeoutError(axiosError) ? Math.max(delay, 1000) : delay;
+        const backoff = Math.min(base * Math.pow(2, i), MAX_RETRY_DELAY_MS);
+        await sleep(backoff + Math.random() * 250); // jitter avoids thundering herd
         continue;
       }
 
@@ -171,6 +241,7 @@ const withRetry = async <T>(fn: () => Promise<T>, retries = 2, delay = 400): Pro
 
   throw lastError;
 };
+
 
 /* =========================
    RESPONSE NORMALIZER
@@ -212,13 +283,10 @@ const normalizeError = <T>(error: AxiosError, options?: ApiOptions): ApiResponse
   // .NET exception name, DB error), swap it for a safe status-based fallback.
   const message = sanitizeEnvelopeMessage(envelopeMessage, status);
 
-  // Dedupe transport-level failures (no response, timeout, network) across the
-  // entire app. Sonner uses the `id` to collapse duplicates into one toast.
-  if (!options?.suppressErrorToast && (status === 0 || !error.response)) {
-    toast.error(fallbackMessageForStatus(0), {
-      id: "api-network-error",
-    });
-  }
+  // Transport-level failures (no response, timeout, network) are reported by
+  // the single axios response interceptor above — never here, so parallel
+  // requests can't stack duplicate banners.
+
 
   return {
     statusCode: status,
@@ -310,14 +378,20 @@ const doRequest = async <T>(
     headers["Content-Type"] = undefined;
   }
 
-  const config: AxiosRequestConfig = {
+  const rid = nextRid();
+  const config: TrackedConfig = {
+    __rid: rid,
     method,
+
     url,
     params: options?.params,
     data: body,
     headers: headers as AxiosRequestConfig["headers"],
     timeout: options?.timeout ?? (isFormData ? 120000 : 30000),
     signal: options?.signal,
+    // Read by the transport-error interceptor so exactly one place decides
+    // whether a toast is shown.
+    __suppressErrorToast: options?.suppressErrorToast,
     onUploadProgress: (ev: any) => {
       try {
         const cb = options?.progressCallback;
@@ -338,7 +412,8 @@ const doRequest = async <T>(
   const showLoading = !options?.suppressGlobalLoading;
   if (showLoading) loadingBus.start();
   try {
-    const response = await withRetry(() => api.request<T>(config), retries, retryDelay);
+    const response = await withRetry(() => api.request<T>(config), retries, retryDelay, rid);
+
     return normalizeResponse<T>(response);
   } catch (error) {
     // Silently return a canceled envelope on abort so callers don't toast.
@@ -348,8 +423,10 @@ const doRequest = async <T>(
     }
     return normalizeError<T>(ax, options);
   } finally {
+    attemptsLeftByRid.delete(rid);
     if (showLoading) loadingBus.stop();
   }
+
 };
 
 

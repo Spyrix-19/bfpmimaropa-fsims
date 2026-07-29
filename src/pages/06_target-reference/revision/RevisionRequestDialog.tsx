@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { MONTHS } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
 import type { RevisionModule } from "./types";

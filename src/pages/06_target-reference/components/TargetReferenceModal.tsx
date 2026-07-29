@@ -7,7 +7,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { Building2, Calendar, Loader2, Lock, FilePen, Save, X, AlertTriangle, Trash2, Ban } from "lucide-react";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cn, buildYears, toWhole } from "@/lib/utils";
 import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
 

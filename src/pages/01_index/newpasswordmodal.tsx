@@ -4,7 +4,7 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type { AuthMemberModel } from "@/types/authType";
 import { authAPI } from "@/services/authAPI";
 

@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Bell, Palette, Info, Settings as SettingsIcon } from "lucide-react";
 import { REGION_NAME } from "@/lib/fsims-constants";
 

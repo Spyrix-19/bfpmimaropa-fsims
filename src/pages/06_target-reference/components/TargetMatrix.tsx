@@ -2,7 +2,7 @@ import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, LayoutGrid, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { MONTHS, MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import AvatarWithFallback from "@/components/avatar-with-fallback";

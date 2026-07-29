@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ShieldCheck, Check, X as XIcon, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";

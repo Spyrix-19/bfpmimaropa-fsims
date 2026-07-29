@@ -2,7 +2,7 @@ import * as React from "react";
 import { usePagination } from "@/hooks/usePagination";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Loader2, Users, ShieldCheck, ShieldOff, Slash, AlertTriangle } from "lucide-react";
 import {
   Dialog,

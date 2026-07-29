@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FileBarChart2, Loader2, LayoutGrid } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import SearchKey from "@/components/search-key";

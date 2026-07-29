@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { z } from "zod";
 import { AlertTriangle, CalendarIcon, FilePlus2, Loader2, Save, Building2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";

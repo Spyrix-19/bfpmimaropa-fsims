@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   Bar,
   BarChart,
@@ -27,7 +27,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { dashboardMockData } from "@/mock/dashboard.mock";
+import {
+  SECTORS,
+  SECTOR_COLORS,
+  CHART_COLORS as C,
+} from "@/lib/chart-constants";
 import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
@@ -37,24 +41,20 @@ import {
   useMonthlySectorTrend,
 } from "@/pages/02_dashboard/useMonthlyTrend";
 import { useYearlyComparison } from "@/pages/02_dashboard/useYearlyComparison";
+import { useRecentActivity } from "@/pages/02_dashboard/useRecentActivity";
+import { Skeleton } from "@/components/ui/skeleton";
+import AvatarWithFallback from "@/components/avatar-with-fallback";
+import { formatDateTime } from "@/lib/date-format";
+import type { JournalModel } from "@/types/journalType";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
 
 /**
  * Dashboard body.
  *
- * The Compliance section (Inspections by Sector, Inspection / FSEC / FSIC
- * breakdowns and the notice cards) is backed by
- * `dashboardAPI.getComplianceSummary` and reacts to the dashboard filters.
- * The remaining charts still use the centralized `dashboardMockData` mock.
+ * Every number, chart series and activity row is served by the API — there is
+ * no mock/sample data left in this page.
  */
 
-const {
-  recentActivity,
-  
-  SECTORS,
-  SECTOR_COLORS,
-  CHART_COLORS: C,
-} = dashboardMockData;
 
 function SectorProgressCard({ compliance }: { compliance: DashboardComplianceModel | null }) {
   const sectorProgress: Array<{
@@ -391,55 +391,132 @@ function ChartCard({
   );
 }
 
+const ACTION_BADGE_COLORS: Record<string, string> = {
+  CREATE: "bg-success/10 text-success",
+  INSERT: "bg-success/10 text-success",
+  UPDATE: "bg-primary/10 text-primary",
+  EDIT: "bg-primary/10 text-primary",
+  DELETE: "bg-destructive/10 text-destructive",
+  LOGIN: "bg-secondary/10 text-secondary",
+  LOGOUT: "bg-muted text-muted-foreground",
+  EXPORT: "bg-warning/10 text-warning",
+};
+
+function ActivitySkeleton() {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-64 max-w-full" />
+          </div>
+        </div>
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </div>
+  );
+}
+
 function ActivityCard({
   title,
   subtitle,
   items,
+  loading,
+  error,
+  onRetry,
 }: {
   title: string;
   subtitle?: string;
-  items: Array<{ station: string; action: string; value: string; time: string; badge: string }>;
+  items: JournalModel[];
+  loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }) {
-  const badgeColors: Record<string, string> = {
-    FSEC: "bg-primary/10 text-primary",
-    FSIC: "bg-success/10 text-success",
-    NTC: "bg-warning/10 text-warning",
-    NOD: "bg-destructive/10 text-destructive",
-    Closure: "bg-secondary/10 text-secondary",
-  };
-
   return (
     <Card className="border-border/60 bg-card p-5 shadow-soft">
       <div className="mb-4">
         <h3 className="text-sm font-semibold">{title}</h3>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
-      <div className="space-y-3">
-        {items.map((item, index) => (
-          <div key={index} className="rounded-2xl border border-border/60 bg-background p-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">{item.station}</p>
-                <p className="text-xs text-muted-foreground">{item.action}</p>
-              </div>
-              <span
-                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                  badgeColors[item.badge] ?? "bg-muted/10 text-muted-foreground"
-                }`}
+
+      {loading ? (
+        <ActivitySkeleton />
+      ) : error ? (
+        <div className="flex flex-col items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>{error} It will retry automatically.</span>
+          {onRetry && (
+            <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={onRetry}>
+              Retry now
+            </Button>
+          )}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-2xl border border-border/60 bg-background p-4 text-xs text-muted-foreground">
+          No recent activity recorded.
+        </div>
+      ) : (
+
+        <div className="space-y-3">
+          {items.map((item) => {
+            const action = (item.actiontype ?? "").trim();
+            const badgeClass =
+              ACTION_BADGE_COLORS[action.toUpperCase()] ?? "bg-muted text-muted-foreground";
+            return (
+              <div
+                key={item.journalno}
+                className="rounded-2xl border border-border/60 bg-background p-3"
               >
-                {item.badge}
-              </span>
-            </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-              <span>{item.time}</span>
-              <span className="font-semibold text-foreground">{item.value}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <AvatarWithFallback
+                      entity="station"
+                      name={item.stationname || item.stationcode}
+                      src={item.logourl}
+                      alt={item.stationname || "Station"}
+                      className="h-9 w-9 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        {item.stationname || item.stationcode || "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.description || item.tablename || "—"}
+                      </p>
+                    </div>
+                  </div>
+                  {action && (
+                    <span
+                      className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase ${badgeClass}`}
+                    >
+                      {action}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>{formatDateTime(item.dateencoded, "—")}</span>
+                  {item.modulename && (
+                    <span className="font-semibold text-foreground">{item.modulename}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </Card>
   );
 }
+
+/* Announcements moved to the top-nav notifications popover
+   (see src/components/NotificationsPopover.tsx). */
+
+
 
 const tooltipStyle = {
   background: "var(--color-popover)",
@@ -632,6 +709,14 @@ export function DashboardBody() {
   const { rows: monthlyTrendRows, loading: monthlyTrendLoading } = useMonthlyTargetVsActual();
   const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend();
   const { rows: yoYRows, years: yoYYears, loading: yoYLoading } = useYearlyComparison();
+  const {
+    activity: recentActivity,
+    loading: recentActivityLoading,
+    error: recentActivityError,
+    refresh: refreshRecentActivity,
+  } = useRecentActivity();
+
+
 
 
 
@@ -882,9 +967,17 @@ export function DashboardBody() {
       {/* Row 6: Recent Dashboard Activity (100%) */}
       <ActivityCard
         title="Recent Dashboard Activity"
-        subtitle="Latest FSIS events from stations"
+        subtitle="Latest system journal entries · auto-refreshes every 60s"
         items={recentActivity}
+        loading={recentActivityLoading}
+        error={recentActivityError}
+        onRetry={refreshRecentActivity}
       />
+
+      {/* Announcements now live in the top-nav notifications popover. */}
+
+
+
     </div>
   );
 }

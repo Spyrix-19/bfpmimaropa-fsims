@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Copy, ShieldAlert, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   Dialog,
   DialogContent,

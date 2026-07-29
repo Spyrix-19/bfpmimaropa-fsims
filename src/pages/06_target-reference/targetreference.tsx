@@ -20,7 +20,7 @@ import {
   Target,
   Loader2,
   } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import AddButton from "@/components/add-button";
 import EditButton from "@/components/edit-button";
