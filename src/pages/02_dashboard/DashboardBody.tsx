@@ -720,50 +720,6 @@ export function DashboardBody() {
         <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
       </div>
 
-      {/* Row 2: Inspections by Application Type | Sector Composition (50/50) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Inspections by Application Type"
-          subtitle="FSEC · FSIC · NTC · NOD · NTCV · Closure"
-          height="h-80"
-        >
-          <ResponsiveContainer>
-            <BarChart data={byApplication} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Actual" fill={C.success} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
-          title="Sector Composition per Application Type"
-          subtitle="Stacked by sector"
-          height="h-80"
-        >
-          <ResponsiveContainer>
-            <BarChart data={sectorByApp} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {SECTORS.map((s, i) => (
-                <Bar
-                  key={s}
-                  dataKey={s}
-                  stackId="sec"
-                  fill={SECTOR_COLORS[s]}
-                  radius={i === SECTORS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
-
       {/* Supplementary row: Target vs Actual by Province */}
       <div className="grid grid-cols-1 gap-6">
 
