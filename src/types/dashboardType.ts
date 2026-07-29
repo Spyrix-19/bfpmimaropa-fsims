@@ -86,8 +86,11 @@ export interface DashboardIssuanceGapClass {
 export interface DashboardInspectionAccomplishModel {
   provinceno: string;
   provincename: string;
-  inspectionList: DashboardInspectionClass[];
+  /** Backend may return either field name; both are accepted. */
+  gapList?: DashboardInspectionClass[];
+  inspectionList?: DashboardInspectionClass[];
 }
+
 
 export interface DashboardInspectionClass {
   totalbplo: number;

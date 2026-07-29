@@ -2,6 +2,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { isGenericError } from "@/lib/api-messages";
 import { useFilters } from "@/lib/filters";
 import type {
   DashboardComplianceClass,
@@ -61,7 +62,7 @@ export function useComplianceSummary() {
       const { ok, data: payload, error, canceled } = unwrap<DashboardComplianceModel>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
-        toast.error(error || "Unable to load compliance summary.");
+        toast.error(isGenericError(error) ? "Unable to load compliance summary." : error);
         setData(null);
       } else {
         setData(payload ?? null);

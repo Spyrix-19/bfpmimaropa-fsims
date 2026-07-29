@@ -5,26 +5,26 @@ import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
 import { useFilters } from "@/lib/filters";
 import { ALL_MONTHS } from "@/pages/02_dashboard/useComplianceSummary";
-import type { DashboardIssuanceGapModel } from "@/types/dashboardType";
+import type { DashboardInspectionAccomplishModel } from "@/types/dashboardType";
 
-export interface IssuanceGapRow {
+export interface InspectionSummaryRow {
   name: string;
   provinceno: string;
   BPLO: number;
   GOVT: number;
   PEZA: number;
   TIEZA: number;
-  gap: number;
+  total: number;
 }
 
 /**
- * Fetches the Target Gap (Issuance Gap) summary per province.
+ * Fetches the Inspection Summary per province.
  * Month is always sent as ALL_MONTHS (13) for now — the month filter is a
  * future implementation; only the year filter is applied.
  */
-export function useIssuanceGap() {
+export function useInspectionSummary() {
   const { filters } = useFilters();
-  const [rows, setRows] = React.useState<IssuanceGapRow[]>([]);
+  const [rows, setRows] = React.useState<InspectionSummaryRow[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   const reportyear = Number(filters.year) || new Date().getFullYear();
@@ -34,7 +34,7 @@ export function useIssuanceGap() {
     const controller = new AbortController();
     (async () => {
       setLoading(true);
-      const resp = await dashboardAPI.getGapSummary(
+      const resp = await dashboardAPI.getInspectionSummary(
         { reportyear, reportmonth: ALL_MONTHS },
         {
           suppressGlobalLoading: true,
@@ -45,15 +45,16 @@ export function useIssuanceGap() {
           retryDelayMs: 800,
         },
       );
-      const { ok, data, error, canceled } = unwrap<DashboardIssuanceGapModel[]>(resp);
+      const { ok, data, error, canceled } = unwrap<DashboardInspectionAccomplishModel[]>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
-        toast.error(isGenericError(error) ? "Unable to load target gap by province." : error);
+        toast.error(isGenericError(error) ? "Unable to load inspections by sector." : error);
         setRows([]);
       } else {
         setRows(
           (data ?? []).map((p) => {
-            const totals = (p.gapList ?? []).reduce(
+            const list = p.gapList ?? p.inspectionList ?? [];
+            const totals = list.reduce(
               (acc, g) => ({
                 BPLO: acc.BPLO + (Number(g.totalbplo) || 0),
                 GOVT: acc.GOVT + (Number(g.totalgov) || 0),
@@ -66,7 +67,7 @@ export function useIssuanceGap() {
               name: p.provincename,
               provinceno: p.provinceno,
               ...totals,
-              gap: totals.BPLO + totals.GOVT + totals.PEZA + totals.TIEZA,
+              total: totals.BPLO + totals.GOVT + totals.PEZA + totals.TIEZA,
             };
           }),
         );
@@ -79,5 +80,5 @@ export function useIssuanceGap() {
     };
   }, [reportyear]);
 
-  return { gapRows: rows, loading };
+  return { rows, loading };
 }

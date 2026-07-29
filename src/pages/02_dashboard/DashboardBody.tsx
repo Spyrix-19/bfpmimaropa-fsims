@@ -30,6 +30,7 @@ import {
 import { dashboardMockData } from "@/mock/dashboard.mock";
 import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
+import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
 
 /**
@@ -46,7 +47,6 @@ const {
   byMonthSector,
   byProvince,
   recentActivity,
-  bySector,
   byApplication,
   sectorByApp,
   yoY,
@@ -543,9 +543,90 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
   );
 }
 
+function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
+  const [groupBy, setGroupBy] = useState<"province" | "sector">("province");
+
+  const { data, series } = useMemo(() => {
+    if (groupBy === "province") {
+      return {
+        data: rows.map((r) => ({ name: r.name, ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])) })),
+        series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
+      };
+    }
+    return {
+      data: SECTORS.map((s) => ({
+        name: s as string,
+        ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
+      })),
+      series: rows.map((r, i) => ({
+        key: r.name,
+        color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
+      })),
+    };
+  }, [rows, groupBy]);
+
+  return (
+    <ChartCard
+      title="Inspections by Sector"
+      subtitle={
+        groupBy === "province"
+          ? "Actual inspections per province · line per sector"
+          : "Actual inspections per sector · line per province"
+      }
+      height="h-72"
+      actions={
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          {(["province", "sector"] as const).map((g) => (
+            <Button
+              key={g}
+              variant={groupBy === g ? "secondary" : "ghost"}
+              size="sm"
+              className="h-6 px-2 text-[11px] capitalize"
+              onClick={() => setGroupBy(g)}
+            >
+              By {g}
+            </Button>
+          ))}
+        </div>
+      }
+    >
+      {loading ? (
+        <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+      ) : rows.length === 0 ? (
+        <div className="grid h-full place-items-center text-sm text-muted-foreground">
+          No data for the selected year.
+        </div>
+      ) : (
+        <ResponsiveContainer>
+          <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            {series.map((s) => (
+              <Line
+                key={s.key}
+                type="monotone"
+                dataKey={s.key}
+                name={s.key}
+                stroke={s.color}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
+  );
+}
+
 export function DashboardBody() {
   const { compliance } = useComplianceSummary();
   const { gapRows, loading: gapLoading } = useIssuanceGap();
+  const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
 
   const inspectionBreakdown = [
     { label: "During", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
@@ -636,18 +717,7 @@ export function DashboardBody() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <GapChartCard rows={gapRows} loading={gapLoading} />
 
-
-        <ChartCard title="Inspections by Sector" subtitle="BPLO · GOVT · PEZA · TIEZA" height="h-72">
-          <ResponsiveContainer>
-            <BarChart data={bySector} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Actual" fill={C.primary} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
       </div>
 
       {/* Row 2: Inspections by Application Type | Sector Composition (50/50) */}
@@ -694,23 +764,9 @@ export function DashboardBody() {
         </ChartCard>
       </div>
 
-      {/* Supplementary row: preserved charts (Inspections by Sector, Target vs Actual by Province) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Inspections by Sector"
-          subtitle="BPLO · GOVT · PEZA · TIEZA"
-          height="h-72"
-        >
-          <ResponsiveContainer>
-            <BarChart data={bySector} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Actual" fill={C.primary} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+      {/* Supplementary row: Target vs Actual by Province */}
+      <div className="grid grid-cols-1 gap-6">
+
 
         <ChartCard
           title="Target vs Actual by Province"

@@ -103,3 +103,12 @@ export function getSafeErrorMessage(
   if (!res) return ApiMessages.UNKNOWN;
   return sanitizeEnvelopeMessage(res.errorMessages ?? "", res.statusCode ?? 0);
 }
+
+/**
+ * True when the message is one of the blanket fallbacks (or empty), meaning the
+ * caller should substitute a contextual, feature-specific message instead.
+ */
+export function isGenericError(message?: string | null): boolean {
+  if (!message) return true;
+  return message === ApiMessages.UNKNOWN || message === ApiMessages.API_JSON || message === ApiMessages.API_ERR;
+}
