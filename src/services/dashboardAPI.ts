@@ -1,9 +1,11 @@
 import { apiGet, apiPost, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
-import { DashboardComplianceDTO, DashboardComplianceModel, DashboardInspectionAccomplishModel, DashboardIssuanceGapDTO, DashboardIssuanceGapModel } from "@/types/dashboardType";
+import { DashboardDTO, DashboardComplianceModel, DashboardInspectionAccomplishModel, 
+  DashboardIssuanceGapModel, DashboardTargetAccomplishModel, DashboardMonthlyTargetAccomplishModel,
+  DashboardMonthlySectorInspectionModel, DashboardYearlyInspectionInspectionModel } from "@/types/dashboardType";
 
 export const dashboardAPI = {
   async getComplianceSummary(
-    body: DashboardComplianceDTO,
+    body: DashboardDTO,
     options?: import("@/lib/api").ApiOptions,
   ) {
     return await apiPost<DashboardComplianceModel>(
@@ -16,23 +18,89 @@ export const dashboardAPI = {
     );
   },
 
-
-  async getGapSummary(params?: DashboardIssuanceGapDTO, options?: import("@/lib/api").ApiOptions) {
-    return await apiGet<DashboardIssuanceGapModel[]>("/api/v1/Dashboard/FSIMS/Gap/Summary", {
-      params,
-      ...GET_RETRY,
-      ...options,
-    });
+  async getGapSummary(
+    body: DashboardDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiPost<DashboardIssuanceGapModel>(
+      "/api/v1/Dashboard/FSIMS/Gap/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
   },
 
-  async getInspectionSummary(params?: DashboardIssuanceGapDTO, options?: import("@/lib/api").ApiOptions) {
-    return await apiGet<DashboardInspectionAccomplishModel[]>("/api/v1/Dashboard/FSIMS/Inspection/Summary", {
-      params,
-      ...GET_RETRY,
-      ...options,
-    });
+  async getInspectionSummary(
+    body: DashboardDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiPost<DashboardInspectionAccomplishModel>(
+      "/api/v1/Dashboard/FSIMS/Inspection/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
+  },
+
+  async getTargetVSInspection(
+    body: DashboardDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiPost<DashboardTargetAccomplishModel>(
+      "/api/v1/Dashboard/FSIMS/TargetVSInspection/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
+  },
+
+  async getMonthlyTargetVSInspection(
+    body: DashboardDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiPost<DashboardMonthlyTargetAccomplishModel>(
+      "/api/v1/Dashboard/FSIMS/MonthlyTargetVSInspection/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
+  },
+
+  async getMonthlySectorInspection(
+    body: DashboardDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiPost<DashboardMonthlySectorInspectionModel>(
+      "/api/v1/Dashboard/FSIMS/MonthlySectorInspection/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
+  },
+
+  async getYearlyInspection(
+    body: DashboardDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiPost<DashboardYearlyInspectionInspectionModel>(
+      "/api/v1/Dashboard/FSIMS/YearlyInspection/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
   },
 
 
-    
 };

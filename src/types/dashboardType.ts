@@ -1,12 +1,12 @@
-export interface DashboardComplianceClass {
+export interface DashboardClass {
   provinceno: string;
   stationnos: string[];
 }
 
-export interface DashboardComplianceDTO {
+export interface DashboardDTO {
   reportyear: number;
-  reportmonth: number;
-  provinces: DashboardComplianceClass[];
+  reportmonth: number[];
+  provinces: DashboardClass[];
 }
 
 export interface DashboardComplianceModel {
@@ -65,11 +65,6 @@ export interface DashboardNoticeModel {
   totalaccomplished: number;
 }
 
-export interface DashboardIssuanceGapDTO {
-  reportmonth: number;
-  reportyear: number;
-}
-
 export interface DashboardIssuanceGapModel {
   provinceno: string;
   provincename: string;
@@ -86,15 +81,56 @@ export interface DashboardIssuanceGapClass {
 export interface DashboardInspectionAccomplishModel {
   provinceno: string;
   provincename: string;
-  /** Backend may return either field name; both are accepted. */
-  gapList?: DashboardInspectionClass[];
-  inspectionList?: DashboardInspectionClass[];
+  inspectionList: DashboardInspectionClass[];
 }
-
 
 export interface DashboardInspectionClass {
   totalbplo: number;
   totalgov: number;
   totalpeza: number;
   totaltieza: number;
+}
+
+export interface DashboardTargetAccomplishModel {
+  provinceno: string;
+  provincename: string;
+  targetaccomList: DashboardTargetAccomplishClass[];
+}
+
+export interface DashboardTargetAccomplishClass {
+  totaltarget: number;
+  totalaccomplish: number;
+}
+
+export interface DashboardMonthlyTargetAccomplishModel {
+  reportmonth: number;
+  monthlytargetaccomList: DashboardMonthlyTargetAccomplishClass[];
+}
+
+export interface DashboardMonthlyTargetAccomplishClass {
+  totaltarget: number;
+  totalaccomplish: number;
+}
+
+export interface DashboardMonthlySectorInspectionModel {
+  reportmonth: number;
+  monthlysectorinspectionList: DashboardMonthlySectorInspectionClass[];
+}
+
+export interface DashboardMonthlySectorInspectionClass {
+  totalbplo: number;
+  totalgov: number;
+  totalpeza: number;
+  totaltieza: number;
+}
+
+export interface DashboardYearlyInspectionInspectionModel {
+  reportmonth: number;
+  monthlysectorinspectionList: DashboardYearlyInspectionInspectionClass[];
+}
+
+export interface DashboardYearlyInspectionInspectionClass {
+  totalyear1: number;
+  totalyear2: number;
+  totalyear3: number;
 }
