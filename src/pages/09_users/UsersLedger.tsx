@@ -358,9 +358,6 @@ export default function UsersLedger({ variant, title, description }: Props) {
                         ) : null}
                       </div>
                       <div className="mt-1 truncate text-sm font-bold">{displayName}</div>
-                      <div className="truncate text-[11px] text-muted-foreground">
-                        {r.stationname || "—"} · {r.provincename || "—"}
-                      </div>
                     </div>
                   </div>
 

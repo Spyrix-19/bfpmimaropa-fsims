@@ -8,6 +8,8 @@ export interface FSISEditRequestDTO {
   requestremarks: string;
   statusno: number;
   requestedby: string;
+  /** Inspected date (YYYY-MM-DD) for day-level (monitoring) requests. */
+  dateinspected?: string;
 }
 
 export interface FSISEditRequestStatusDTO {

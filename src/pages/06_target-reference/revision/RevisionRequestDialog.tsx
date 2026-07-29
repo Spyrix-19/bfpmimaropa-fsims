@@ -33,6 +33,8 @@ interface Props {
   module?: RevisionModule;
   /** Target row referencekey (targetno) sent to the API. */
   referencekey?: string;
+  /** Inspected date (YYYY-MM-DD) for day-level requests. */
+  dateinspected?: string;
   onSubmitted?: () => void;
 }
 
@@ -57,6 +59,7 @@ export default function RevisionRequestDialog({
   month,
   module,
   referencekey,
+  dateinspected,
   onSubmitted,
 }: Props) {
   const { user } = useAuth();
@@ -73,11 +76,24 @@ export default function RevisionRequestDialog({
   const requestedBy =
     user?.fullname || user?.name || user?.badgeno || "Current user";
   const monthName = MONTHS.find((m) => m.value === month)?.name ?? String(month);
+  const periodLabel = React.useMemo(() => {
+    if (dateinspected) {
+      const d = new Date(`${String(dateinspected).slice(0, 10)}T00:00:00`);
+      if (!Number.isNaN(d.getTime())) {
+        return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+      }
+    }
+    return `${monthName} ${year}`;
+  }, [dateinspected, monthName, year]);
 
   const canSubmit = !submitting && reason.trim().length > 0;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    if (module === "monitoring" && !dateinspected) {
+      toast.error("Inspection date is missing. Please reopen the request from a valid day row.");
+      return;
+    }
     setSubmitting(true);
 
     // Call the real API first.
@@ -91,6 +107,7 @@ export default function RevisionRequestDialog({
       requestremarks: reason,
       statusno: 0,
       requestedby: user?.memberno ?? EMPTY_GUID,
+      ...(dateinspected ? { dateinspected: String(dateinspected).slice(0, 10) } : {}),
     });
     const { ok, error } = unwrap(resp);
     if (!ok) {
@@ -114,7 +131,7 @@ export default function RevisionRequestDialog({
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <DialogTitle className="text-base font-bold">Request Revision</DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Requesting revision for <span className="font-semibold text-foreground">{monthName} {year}</span>. Submission does not unlock the record.
+            Requesting revision for <span className="font-semibold text-foreground">{periodLabel}</span>. Submission does not unlock the record.
           </p>
         </DialogHeader>
 

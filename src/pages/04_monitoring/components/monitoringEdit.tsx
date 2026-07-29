@@ -446,6 +446,7 @@ function InventoryEditBody({
   const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
   const [revisionOpen, setRevisionOpen] = React.useState(false);
   const [revisionReferenceKey, setRevisionReferenceKey] = React.useState(EMPTY_GUID);
+  const [revisionDate, setRevisionDate] = React.useState<string>("");
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
   const [revisionRequestRefreshTick, setRevisionRequestRefreshTick] = React.useState(0);
@@ -771,7 +772,9 @@ function InventoryEditBody({
         if (!revisionUnlocks && day.isLocked) continue; // Skip locked days unless approved
 
         const original = baselineMap.get(day.key);
-        if (original && !isDayModified(original, day)) {
+        // Per-row change flag: true only when this specific day's values changed.
+        const isRowModified = !original || isDayModified(original, day);
+        if (!isRowModified) {
           continue; // No meaningful changes for this day
         }
 
@@ -832,7 +835,7 @@ function InventoryEditBody({
           updatedby: user?.memberno ?? "",
           encodedby: user?.memberno ?? "",
           issuancelist,
-          isaccomplished: true,
+          isaccomplished: isRowModified,
         };
         updates.push(item);
       }
@@ -1164,6 +1167,7 @@ function InventoryEditBody({
                                       ? dayEntry.inspection.fsisno
                                       : EMPTY_GUID,
                                   );
+                                  setRevisionDate(normalizeDateKey(dayEntry.inspection.dateinspected) || dayEntry.key);
                                   setRevisionOpen(true);
                                 }}
                               />
@@ -1630,6 +1634,7 @@ function InventoryEditBody({
           year={year}
           month={month}
           referencekey={revisionReferenceKey}
+          dateinspected={revisionDate}
           onSubmitted={() => setRevisionRequestRefreshTick((n) => n + 1)}
         />
       )}
