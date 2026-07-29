@@ -12,22 +12,18 @@
  * toast no matter how many requests failed.
  */
 import { toast as sonnerToast } from "sonner";
-import { ApiMessages } from "@/lib/api-messages";
-
-const SHARED_IDS: Array<{ message: string; id: string }> = [
-  { message: ApiMessages.NETWORK, id: "api-network-error" },
-  { message: ApiMessages.DB_CONNECTION, id: "api-db-error" },
-  { message: ApiMessages.INVALID_SESSION, id: "api-session-error" },
-  { message: ApiMessages.API_ERR, id: "api-generic-error" },
-  { message: ApiMessages.UNKNOWN, id: "api-unknown-error" },
-];
 
 type ToastArgs = Parameters<typeof sonnerToast.error>;
 
+/**
+ * Any error toast with identical text collapses into a single sonner toast,
+ * regardless of how many callers raised it.
+ */
 function sharedIdFor(message: ToastArgs[0]): string | undefined {
   if (typeof message !== "string") return undefined;
-  const trimmed = message.trim();
-  return SHARED_IDS.find((entry) => entry.message === trimmed)?.id;
+  const trimmed = message.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  return `err:${trimmed}`;
 }
 
 function withSharedId(message: ToastArgs[0], data: ToastArgs[1]): ToastArgs[1] {
@@ -35,6 +31,7 @@ function withSharedId(message: ToastArgs[0], data: ToastArgs[1]): ToastArgs[1] {
   if (!id || data?.id) return data;
   return { ...(data ?? {}), id };
 }
+
 
 const errorToast = (message: ToastArgs[0], data?: ToastArgs[1]) =>
   sonnerToast.error(message, withSharedId(message, data));

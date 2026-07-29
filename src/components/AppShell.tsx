@@ -77,10 +77,10 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
 
   const header = (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background sm:bg-background/70 px-4 py-2 backdrop-blur-xl sm:px-6 sm:py-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2">
+      <div className="flex w-full min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2">
+        <div className="flex min-w-0 flex-1 basis-[14rem] items-start gap-2">
           {user && <SidebarTrigger className="shrink-0" />}
-          <div className="flex items-start gap-2">
+          <div className="flex min-w-0 items-start gap-2">
             <div
               className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white p-1 ring-1 ring-border ${user ? "md:hidden" : ""}`}
             >
@@ -95,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
                 className="h-full w-full object-contain"
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex min-w-0 flex-col gap-1">
               <div className="truncate text-sm font-semibold">
                 BFP - FSI Monitoring System
               </div>
@@ -106,7 +106,8 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
           {!user ? (
             <Button
               type="button"

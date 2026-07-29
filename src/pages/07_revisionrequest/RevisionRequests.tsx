@@ -160,6 +160,7 @@ export default function TargetRevisionRequests({
     try {
       const resp = await revisionrequestAPI.status({
         requestno: r.requestno,
+        stationno: (r as unknown as { stationno?: string }).stationno ?? EMPTY_GUID,
         requesttype: r.requesttype,
         remarks,
         statusno,

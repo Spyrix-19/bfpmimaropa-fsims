@@ -965,6 +965,7 @@ export default function TargetReferenceForm({
         if (!cancelRequestId) return;
         const resp = await revisionrequestAPI.status({
           requestno: cancelRequestId,
+          stationno: stationNo || EMPTY_GUID,
           requesttype: "TARGET",
           remarks: [reason, remarks].filter(Boolean).join(" — "),
           statusno: 155,

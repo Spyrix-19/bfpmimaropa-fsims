@@ -1646,6 +1646,7 @@ function InventoryEditBody({
           if (!cancelRequestId) return;
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
+            stationno: stationno || EMPTY_GUID,
             requesttype: "ISSUANCE",
             remarks: [reason, remarks].filter(Boolean).join(" — "),
             statusno: 155,
