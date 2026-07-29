@@ -38,7 +38,12 @@ export interface Envelope<T> {
 import { ApiMessages, sanitizeEnvelopeMessage } from "@/lib/api-messages";
 const GENERIC_ERROR_MESSAGE = ApiMessages.UNKNOWN;
 
-export function unwrap<T>(resp: { data: unknown; canceled?: boolean } | null | undefined): {
+export function unwrap<T>(
+  resp:
+    | { data: unknown; canceled?: boolean; isSuccess?: boolean; errorMessages?: string; statusCode?: number }
+    | null
+    | undefined,
+): {
   ok: boolean;
   canceled: boolean;
   data: T | null;
@@ -50,7 +55,14 @@ export function unwrap<T>(resp: { data: unknown; canceled?: boolean } | null | u
 } {
   const canceled = !!resp?.canceled;
   const env = (resp?.data ?? null) as Envelope<T> | null;
-  if (!env)
+  if (!env) {
+    // No envelope body: fall back to the transport-level ApiResponse fields so
+    // the user sees the real reason (timeout, network, 4xx/5xx) instead of a
+    // blanket "Something went wrong".
+    const transportError = sanitizeEnvelopeMessage(
+      typeof resp?.errorMessages === "string" ? resp.errorMessages : "",
+      resp?.statusCode ?? 0,
+    );
     return {
       ok: false,
       canceled,
@@ -59,8 +71,9 @@ export function unwrap<T>(resp: { data: unknown; canceled?: boolean } | null | u
       totalPages: 0,
       pageNumber: 1,
       pageSize: 0,
-      error: canceled ? "" : GENERIC_ERROR_MESSAGE,
+      error: canceled ? "" : transportError || GENERIC_ERROR_MESSAGE,
     };
+  }
   const rawError = typeof env.errorMessages === "string" ? env.errorMessages : "";
   const status = (env as unknown as { statusCode?: number })?.statusCode ?? 0;
   return {

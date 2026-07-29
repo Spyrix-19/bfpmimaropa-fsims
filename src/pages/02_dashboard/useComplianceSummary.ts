@@ -47,7 +47,16 @@ export function useComplianceSummary() {
           reportmonth,
           provinces: JSON.parse(provincesKey) as DashboardComplianceClass[],
         },
-        { suppressGlobalLoading: true, suppressErrorToast: true, signal: controller.signal },
+        {
+          suppressGlobalLoading: true,
+          suppressErrorToast: true,
+          signal: controller.signal,
+          // The dashboard summary is a heavy aggregate and the API host can be
+          // cold on first hit — allow more time and retries before failing.
+          timeout: 90000,
+          retries: 3,
+          retryDelayMs: 800,
+        },
       );
       const { ok, data: payload, error, canceled } = unwrap<DashboardComplianceModel>(resp);
       if (cancelled || canceled) return;

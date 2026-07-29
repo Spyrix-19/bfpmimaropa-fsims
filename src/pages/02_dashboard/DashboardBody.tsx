@@ -12,7 +12,7 @@ import {
   ClipboardList,
   Download,
 } from "lucide-react";
-import { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { toast } from "sonner";
 import {
@@ -29,6 +29,7 @@ import {
 } from "recharts";
 import { dashboardMockData } from "@/mock/dashboard.mock";
 import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
+import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
 
 /**
@@ -44,7 +45,6 @@ const {
   byMonth,
   byMonthSector,
   byProvince,
-  targetGapByProvince,
   recentActivity,
   bySector,
   byApplication,
@@ -333,6 +333,7 @@ function ChartCard({
   className,
   fileName,
   height = "h-72",
+  actions,
 }: {
   title: string;
   subtitle?: string;
@@ -340,6 +341,7 @@ function ChartCard({
   className?: string;
   fileName?: string;
   height?: string;
+  actions?: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -370,16 +372,18 @@ function ChartCard({
           <h3 className="truncate text-sm font-semibold">{title}</h3>
           {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={download}
-          aria-label={`Download ${title}`}
-          data-html2canvas-ignore="true"
-        >
-          <Download className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex shrink-0 items-center gap-2" data-html2canvas-ignore="true">
+          {actions}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={download}
+            aria-label={`Download ${title}`}
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
       <div className={`${height} w-full`}>{children}</div>
     </Card>
@@ -448,8 +452,100 @@ const axisProps = {
   stroke: "var(--color-muted-foreground)",
 };
 
+const PROVINCE_LINE_COLORS = [
+  C.primary,
+  C.success,
+  C.warning,
+  C.danger,
+  C.purple,
+  C.teal,
+];
+
+type GapRow = { name: string; BPLO: number; GOVT: number; PEZA: number; TIEZA: number };
+
+function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
+  const [groupBy, setGroupBy] = useState<"province" | "sector">("province");
+
+  const { data, series } = useMemo(() => {
+    if (groupBy === "province") {
+      return {
+        data: rows.map((r) => ({ name: r.name, ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])) })),
+        series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
+      };
+    }
+    return {
+      data: SECTORS.map((s) => ({
+        name: s as string,
+        ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
+      })),
+      series: rows.map((r, i) => ({
+        key: r.name,
+        color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
+      })),
+    };
+  }, [rows, groupBy]);
+
+  return (
+    <ChartCard
+      title="Target Gap by Province"
+      subtitle={
+        groupBy === "province"
+          ? "Remaining gap per province · line per sector"
+          : "Remaining gap per sector · line per province"
+      }
+      height="h-72"
+      actions={
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          {(["province", "sector"] as const).map((g) => (
+            <Button
+              key={g}
+              variant={groupBy === g ? "secondary" : "ghost"}
+              size="sm"
+              className="h-6 px-2 text-[11px] capitalize"
+              onClick={() => setGroupBy(g)}
+            >
+              By {g}
+            </Button>
+          ))}
+        </div>
+      }
+    >
+      {loading ? (
+        <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+      ) : rows.length === 0 ? (
+        <div className="grid h-full place-items-center text-sm text-muted-foreground">
+          No data for the selected year.
+        </div>
+      ) : (
+        <ResponsiveContainer>
+          <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            {series.map((s) => (
+              <Line
+                key={s.key}
+                type="monotone"
+                dataKey={s.key}
+                name={s.key}
+                stroke={s.color}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
+  );
+}
+
 export function DashboardBody() {
   const { compliance } = useComplianceSummary();
+  const { gapRows, loading: gapLoading } = useIssuanceGap();
 
   const inspectionBreakdown = [
     { label: "During", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
@@ -538,21 +634,8 @@ export function DashboardBody() {
 
       {/* Row 1: Target Gap by Province | Inspections by Sector (50/50) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Target Gap by Province"
-          subtitle="How far each province is from target"
-          height="h-72"
-        >
-          <ResponsiveContainer>
-            <BarChart data={targetGapByProvince} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="gap" fill={C.danger} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <GapChartCard rows={gapRows} loading={gapLoading} />
+
 
         <ChartCard title="Inspections by Sector" subtitle="BPLO · GOVT · PEZA · TIEZA" height="h-72">
           <ResponsiveContainer>
