@@ -765,17 +765,18 @@ function InventoryEditBody({
 
     setSaving(true);
     try {
-      // Prepare updates — only modified days
+      // Prepare updates for the full reporting month.
+      // Send every day from the 1st through the last day, with zero/empty
+      // values for unchanged rows and `isaccomplished: true` only for
+      // rows that were actually modified.
       const updates: FSISUpdateInventoryClass[] = [];
+      let hasAnyChange = false;
 
       for (const [, day] of editableDays) {
-        if (!revisionUnlocks && day.isLocked) continue; // Skip locked days unless approved
-
         const original = baselineMap.get(day.key);
-        // Per-row change flag: true only when this specific day's values changed.
         const isRowModified = !original || isDayModified(original, day);
-        if (!isRowModified) {
-          continue; // No meaningful changes for this day
+        if (isRowModified) {
+          hasAnyChange = true;
         }
 
         // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes.
@@ -840,7 +841,7 @@ function InventoryEditBody({
         updates.push(item);
       }
 
-      if (updates.length === 0) {
+      if (!hasAnyChange) {
         toast.info("No changes to save.");
         onSaved();
         return;

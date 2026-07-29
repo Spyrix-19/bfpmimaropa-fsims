@@ -26,19 +26,8 @@ export const targetinventoryAPI = {
   },
 
   async getInventoryLedger(params: FSISInventoryLedgerParams, options?: import("@/lib/api").ApiOptions) {
-    // The backend expects capitalized query params and — per the working
-    // reference curl — the (mis-spelled) `Pageumber` key for page number.
-    const mapped = {
-      Searchkey: params.searchkey ?? "",
-      Stationno: params.stationno,
-      Provinceno: params.provinceno,
-      Reportyear: params.reportyear,
-      Reportmonth: params.reportmonth,
-      Pagenumber: params.pagenumber,
-      Pagesize: params.pagesize,
-    };
     return await apiGet<FSISInventoryLedgerModel[]>("/api/v1/FSISInventory/Ledger", {
-      params: mapped,
+      params,
       ...GET_RETRY,
       ...options,
     });
