@@ -33,7 +33,7 @@ export function useIssuanceGap() {
     const controller = new AbortController();
     (async () => {
       setLoading(true);
-      const resp = await dashboardAPI.search(
+      const resp = await dashboardAPI.getGapSummary(
         { reportyear, reportmonth: ALL_MONTHS },
         {
           suppressGlobalLoading: true,

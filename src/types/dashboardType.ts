@@ -82,3 +82,16 @@ export interface DashboardIssuanceGapClass {
   totalpeza: number;
   totaltieza: number;
 }
+
+export interface DashboardInspectionAccomplishModel {
+  provinceno: string;
+  provincename: string;
+  inspectionList: DashboardInspectionClass[];
+}
+
+export interface DashboardInspectionClass {
+  totalbplo: number;
+  totalgov: number;
+  totalpeza: number;
+  totaltieza: number;
+}
