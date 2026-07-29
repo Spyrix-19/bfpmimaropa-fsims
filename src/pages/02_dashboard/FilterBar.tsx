@@ -25,20 +25,21 @@ export function FilterBar() {
   );
   const YEARS = React.useMemo(buildYears, []);
   const MONTHS = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const INTERVALS: { value: import("@/lib/filters").DashInterval; label: string }[] = [
+    { value: "MONTHLY", label: "Monthly" },
+    { value: "QUARTERLY", label: "Quarterly" },
+    { value: "SEMESTER", label: "Semester" },
+    { value: "ANNUAL", label: "Annual" },
   ];
   const set = (patch: Partial<typeof filters>) => setFilters({ ...filters, ...patch });
+
+  const handleIntervalChange = (v: string) => {
+    set({ interval: v as import("@/lib/filters").DashInterval, period: "all" });
+  };
+
 
   // Enforce role-based scope: seed locked province/station into the filter
   // state so all dashboard queries respect the user's assigned scope.
@@ -131,7 +132,7 @@ export function FilterBar() {
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <SlidersHorizontal className="h-4 w-4 text-primary" /> Dashboard Filters
       </div>
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
         <Select value={filters.year} onValueChange={(v) => set({ year: v })}>
           <SelectTrigger>
             <SelectValue placeholder="Year" />
@@ -145,19 +146,63 @@ export function FilterBar() {
           </SelectContent>
         </Select>
 
-        <Select value={filters.month} onValueChange={(v) => set({ month: v })}>
+        <Select value={filters.interval} onValueChange={handleIntervalChange}>
           <SelectTrigger>
-            <SelectValue placeholder="Month" />
+            <SelectValue placeholder="Interval" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All months</SelectItem>
-            {MONTHS.map((m, i) => (
-              <SelectItem key={m} value={String(i + 1)}>
-                {m}
+            {INTERVALS.map((it) => (
+              <SelectItem key={it.value} value={it.value}>
+                {it.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+
+        {filters.interval !== "ANNUAL" && (
+          <Select value={filters.period} onValueChange={(v) => set({ period: v })}>
+            <SelectTrigger>
+              <SelectValue
+                placeholder={
+                  filters.interval === "MONTHLY"
+                    ? "Month"
+                    : filters.interval === "QUARTERLY"
+                      ? "Quarter"
+                      : "Semester"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {filters.interval === "MONTHLY" && (
+                <>
+                  <SelectItem value="all">All months</SelectItem>
+                  {MONTHS.map((m, i) => (
+                    <SelectItem key={m} value={String(i + 1)}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+              {filters.interval === "QUARTERLY" && (
+                <>
+                  <SelectItem value="all">All quarters</SelectItem>
+                  <SelectItem value="q1">1st Quarter</SelectItem>
+                  <SelectItem value="q2">2nd Quarter</SelectItem>
+                  <SelectItem value="q3">3rd Quarter</SelectItem>
+                  <SelectItem value="q4">4th Quarter</SelectItem>
+                </>
+              )}
+              {filters.interval === "SEMESTER" && (
+                <>
+                  <SelectItem value="all">All semesters</SelectItem>
+                  <SelectItem value="s1">1st Semester</SelectItem>
+                  <SelectItem value="s2">2nd Semester</SelectItem>
+                </>
+              )}
+            </SelectContent>
+          </Select>
+        )}
+
 
         {scope.provinceLocked ? (
           <ReadOnlyField

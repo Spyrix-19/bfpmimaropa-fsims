@@ -3,8 +3,7 @@ import { toast } from "sonner";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
-import { useFilters } from "@/lib/filters";
-import { ALL_MONTHS } from "@/pages/02_dashboard/useComplianceSummary";
+import { useFilters, resolveReportMonths } from "@/lib/filters";
 import type { DashboardIssuanceGapModel } from "@/types/dashboardType";
 
 export interface IssuanceGapRow {
@@ -18,9 +17,8 @@ export interface IssuanceGapRow {
 }
 
 /**
- * Fetches the Target Gap (Issuance Gap) summary per province.
- * Month is always sent as ALL_MONTHS (13) for now — the month filter is a
- * future implementation; only the year filter is applied.
+ * Fetches the Target Gap (Issuance Gap) summary per province, honoring the
+ * current year + interval/period filter (expanded into a list of months).
  */
 export function useIssuanceGap() {
   const { filters } = useFilters();
@@ -28,6 +26,11 @@ export function useIssuanceGap() {
   const [loading, setLoading] = React.useState(true);
 
   const reportyear = Number(filters.year) || new Date().getFullYear();
+  const reportmonth = React.useMemo(
+    () => resolveReportMonths(filters.interval, filters.period),
+    [filters.interval, filters.period],
+  );
+  const reportmonthKey = reportmonth.join(",");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -35,7 +38,7 @@ export function useIssuanceGap() {
     (async () => {
       setLoading(true);
       const resp = await dashboardAPI.getGapSummary(
-        { reportyear, reportmonth: ALL_MONTHS },
+        { reportyear, reportmonth, provinces: [] },
         {
           suppressGlobalLoading: true,
           suppressErrorToast: true,
@@ -77,7 +80,9 @@ export function useIssuanceGap() {
       cancelled = true;
       controller.abort();
     };
-  }, [reportyear]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportyear, reportmonthKey]);
 
   return { gapRows: rows, loading };
 }
+

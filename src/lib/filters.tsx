@@ -13,9 +13,12 @@ export interface RefFilter {
   code?: string; // optional (e.g. locationcode for scoping children)
 }
 
+export type DashInterval = "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
+
 export interface DashFilters {
   year: string;
-  month: string; // "all" or 1-12
+  interval: DashInterval;
+  period: string; // meaning depends on interval; "all" or a specific bucket
   provinces: SelectedLocation[];
   stations: SelectedStation[];
   city: RefFilter;
@@ -26,12 +29,41 @@ const empty: RefFilter = { no: "all", name: "", code: "" };
 
 export const DEFAULT_FILTERS: DashFilters = {
   year: String(new Date().getFullYear()),
-  month: "all",
+  interval: "MONTHLY",
+  period: "all",
   provinces: [],
   stations: [],
   city: empty,
   category: empty,
 };
+
+/** Expands the interval/period selection into the concrete list of months. */
+export function resolveReportMonths(interval: DashInterval, period: string): number[] {
+  const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  if (interval === "ANNUAL") return ALL;
+  if (period === "all" || !period) return ALL;
+  if (interval === "MONTHLY") {
+    const m = Number(period);
+    return m >= 1 && m <= 12 ? [m] : ALL;
+  }
+  if (interval === "QUARTERLY") {
+    switch (period) {
+      case "q1": return [1, 2, 3];
+      case "q2": return [4, 5, 6];
+      case "q3": return [7, 8, 9];
+      case "q4": return [10, 11, 12];
+      default: return ALL;
+    }
+  }
+  if (interval === "SEMESTER") {
+    switch (period) {
+      case "s1": return [1, 2, 3, 4, 5, 6];
+      case "s2": return [7, 8, 9, 10, 11, 12];
+      default: return ALL;
+    }
+  }
+  return ALL;
+}
 
 const FiltersCtx = createContext<{
   filters: DashFilters;

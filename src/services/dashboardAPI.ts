@@ -1,7 +1,7 @@
 import { apiGet, apiPost, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 import { DashboardDTO, DashboardComplianceModel, DashboardInspectionAccomplishModel, 
   DashboardIssuanceGapModel, DashboardTargetAccomplishModel, DashboardMonthlyTargetAccomplishModel,
-  DashboardMonthlySectorInspectionModel, DashboardYearlyInspectionInspectionModel } from "@/types/dashboardType";
+  DashboardMonthlySectorInspectionModel, DashboardYearlyInspectionModel } from "@/types/dashboardType";
 
 export const dashboardAPI = {
   async getComplianceSummary(
@@ -92,7 +92,7 @@ export const dashboardAPI = {
     body: DashboardDTO,
     options?: import("@/lib/api").ApiOptions,
   ) {
-    return await apiPost<DashboardYearlyInspectionInspectionModel>(
+    return await apiPost<DashboardYearlyInspectionModel>(
       "/api/v1/Dashboard/FSIMS/YearlyInspection/Summary",
       body,
       {

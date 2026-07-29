@@ -10,7 +10,6 @@ export interface DashboardDTO {
 }
 
 export interface DashboardComplianceModel {
-  month: number;
   year: number;
   totaltargetbplo: number;
   totaltargetgov: number;
@@ -27,7 +26,6 @@ export interface DashboardComplianceModel {
 }
 
 export interface DashboardInspectionModel {
-  month: number;
   year: number;
   totalduring: number;
   totalafter: number;
@@ -38,7 +36,6 @@ export interface DashboardInspectionModel {
 }
 
 export interface DashboardFSECModel {
-  month: number;
   year: number;
   totalbuilding: number;
   totalgov: number;
@@ -47,7 +44,6 @@ export interface DashboardFSECModel {
 }
 
 export interface DashboardFSICModel {
-  month: number;
   year: number;
   totaloccupancy: number;
   totalbplonew: number;
@@ -58,7 +54,6 @@ export interface DashboardFSICModel {
 }
 
 export interface DashboardNoticeModel {
-  month: number;
   year: number;
   noticename: string;
   totalpending: number;
@@ -124,13 +119,12 @@ export interface DashboardMonthlySectorInspectionClass {
   totaltieza: number;
 }
 
-export interface DashboardYearlyInspectionInspectionModel {
-  reportmonth: number;
-  monthlysectorinspectionList: DashboardYearlyInspectionInspectionClass[];
+export interface DashboardYearlyInspectionModel {
+  reportyear: number;
+  yearlyinspectionList: DashboardYearlyInspectionClass[];
 }
 
-export interface DashboardYearlyInspectionInspectionClass {
-  totalyear1: number;
-  totalyear2: number;
-  totalyear3: number;
+export interface DashboardYearlyInspectionClass {
+  reportmonth: number;
+  totalaccomplish: number;
 }

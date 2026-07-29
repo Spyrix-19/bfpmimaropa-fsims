@@ -3,14 +3,14 @@ import { toast } from "sonner";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
-import { useFilters } from "@/lib/filters";
+import { useFilters, resolveReportMonths } from "@/lib/filters";
 import type {
-  DashboardComplianceClass,
+  DashboardClass,
   DashboardComplianceModel,
   DashboardNoticeModel,
 } from "@/types/dashboardType";
 
-/** Backend sentinel for "all months". */
+/** Backend sentinel meaning "all months" (kept for legacy consumers). */
 export const ALL_MONTHS = 13;
 
 /**
@@ -24,11 +24,15 @@ export function useComplianceSummary() {
   const [loading, setLoading] = React.useState(true);
 
   const reportyear = Number(filters.year) || new Date().getFullYear();
-  const reportmonth = filters.month === "all" ? ALL_MONTHS : Number(filters.month) || ALL_MONTHS;
+  const reportmonth = React.useMemo(
+    () => resolveReportMonths(filters.interval, filters.period),
+    [filters.interval, filters.period],
+  );
+  const reportmonthKey = reportmonth.join(",");
 
   // Stable primitive key so the effect only refires on real filter changes.
   const provincesKey = React.useMemo(() => {
-    const provinces: DashboardComplianceClass[] = filters.provinces.map((p) => ({
+    const provinces: DashboardClass[] = filters.provinces.map((p) => ({
       provinceno: p.locationno,
       stationnos: filters.stations
         .filter((s) => s.provinceno === p.locationno)
@@ -46,14 +50,12 @@ export function useComplianceSummary() {
         {
           reportyear,
           reportmonth,
-          provinces: JSON.parse(provincesKey) as DashboardComplianceClass[],
+          provinces: JSON.parse(provincesKey) as DashboardClass[],
         },
         {
           suppressGlobalLoading: true,
           suppressErrorToast: true,
           signal: controller.signal,
-          // The dashboard summary is a heavy aggregate and the API host can be
-          // cold on first hit — allow more time and retries before failing.
           timeout: 90000,
           retries: 3,
           retryDelayMs: 800,
@@ -73,10 +75,12 @@ export function useComplianceSummary() {
       cancelled = true;
       controller.abort();
     };
-  }, [reportyear, reportmonth, provincesKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportyear, reportmonthKey, provincesKey]);
 
   return { compliance: data, loading };
 }
+
 
 /** Case-insensitive notice lookup with a zeroed fallback. */
 export function getNotice(

@@ -31,6 +31,11 @@ import { dashboardMockData } from "@/mock/dashboard.mock";
 import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
+import { useTargetVsActual } from "@/pages/02_dashboard/useTargetVsActual";
+import {
+  useMonthlyTargetVsActual,
+  useMonthlySectorTrend,
+} from "@/pages/02_dashboard/useMonthlyTrend";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
 
 /**
@@ -43,12 +48,7 @@ import type { DashboardComplianceModel } from "@/types/dashboardType";
  */
 
 const {
-  byMonth,
-  byMonthSector,
-  byProvince,
   recentActivity,
-  byApplication,
-  sectorByApp,
   yoY,
   SECTORS,
   SECTOR_COLORS,
@@ -627,6 +627,10 @@ export function DashboardBody() {
   const { compliance } = useComplianceSummary();
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
+  const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual();
+  const { rows: monthlyTrendRows, loading: monthlyTrendLoading } = useMonthlyTargetVsActual();
+  const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend();
+
 
   const inspectionBreakdown = [
     { label: "During", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
@@ -729,17 +733,25 @@ export function DashboardBody() {
           subtitle="Provincial accomplishment"
           height="h-72"
         >
-          <ResponsiveContainer>
-            <BarChart data={byProvince} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="target" fill={C.warning} radius={[4, 4, 0, 0]} name="Target" />
-              <Bar dataKey="actual" fill={C.primary} radius={[4, 4, 0, 0]} name="Actual" />
-            </BarChart>
-          </ResponsiveContainer>
+          {targetVsActualLoading ? (
+            <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+          ) : targetVsActualRows.length === 0 ? (
+            <div className="grid h-full place-items-center text-sm text-muted-foreground">
+              No data for the selected year.
+            </div>
+          ) : (
+            <ResponsiveContainer>
+              <BarChart data={targetVsActualRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="name" {...axisProps} />
+                <YAxis {...axisProps} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="target" fill={C.warning} radius={[4, 4, 0, 0]} name="Target" />
+                <Bar dataKey="actual" fill={C.primary} radius={[4, 4, 0, 0]} name="Actual" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
       </div>
 
@@ -749,31 +761,39 @@ export function DashboardBody() {
         subtitle="Target vs Actual per month"
         height="h-[420px] xl:h-[500px]"
       >
-        <ResponsiveContainer>
-          <LineChart data={byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-            <XAxis dataKey="name" {...axisProps} />
-            <YAxis {...axisProps} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line
-              type="monotone"
-              dataKey="target"
-              stroke={C.warning}
-              strokeWidth={2}
-              dot={{ r: 2 }}
-              name="Target"
-            />
-            <Line
-              type="monotone"
-              dataKey="actual"
-              stroke={C.primary}
-              strokeWidth={3}
-              dot={{ r: 3 }}
-              name="Actual"
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        {monthlyTrendLoading ? (
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+        ) : monthlyTrendRows.length === 0 ? (
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            No data for the selected year.
+          </div>
+        ) : (
+          <ResponsiveContainer>
+            <LineChart data={monthlyTrendRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line
+                type="monotone"
+                dataKey="target"
+                stroke={C.warning}
+                strokeWidth={2}
+                dot={{ r: 2 }}
+                name="Target"
+              />
+              <Line
+                type="monotone"
+                dataKey="actual"
+                stroke={C.primary}
+                strokeWidth={3}
+                dot={{ r: 3 }}
+                name="Actual"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </ChartCard>
 
       {/* Row 4: Monthly Trend by Sector (100%) */}
@@ -782,25 +802,33 @@ export function DashboardBody() {
         subtitle="Actual inspections per sector"
         height="h-[420px] xl:h-[500px]"
       >
-        <ResponsiveContainer>
-          <LineChart data={byMonthSector} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-            <XAxis dataKey="name" {...axisProps} />
-            <YAxis {...axisProps} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            {SECTORS.map((s) => (
-              <Line
-                key={s}
-                type="monotone"
-                dataKey={s}
-                stroke={SECTOR_COLORS[s]}
-                strokeWidth={2}
-                dot={{ r: 2 }}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+        {monthlySectorLoading ? (
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+        ) : monthlySectorRows.length === 0 ? (
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            No data for the selected year.
+          </div>
+        ) : (
+          <ResponsiveContainer>
+            <LineChart data={monthlySectorRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              {SECTORS.map((s) => (
+                <Line
+                  key={s}
+                  type="monotone"
+                  dataKey={s}
+                  stroke={SECTOR_COLORS[s]}
+                  strokeWidth={2}
+                  dot={{ r: 2 }}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </ChartCard>
 
       {/* Row 5: Year-over-Year Comparison (100%) */}
