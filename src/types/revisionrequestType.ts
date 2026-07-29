@@ -12,6 +12,7 @@ export interface FSISEditRequestDTO {
 
 export interface FSISEditRequestStatusDTO {
   requestno: string;
+  stationno: string;
   requesttype: string;
   remarks: string;
   statusno: number;
