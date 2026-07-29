@@ -64,6 +64,7 @@ export interface FSISEditRequestLedgerParams {
 export interface FSISEditRequestModel {
   requestno: string;
   referencekey: string;
+  stationno: string;
   stationcode: string;
   stationname: string;
   provinceno: string;

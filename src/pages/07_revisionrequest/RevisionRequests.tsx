@@ -158,9 +158,10 @@ export default function TargetRevisionRequests({
   const doStatus = async (r: FSISEditRequestModel, statusno: number, remarks: string) => {
     setBusy(true);
     try {
+      const stationno = r.stationno ?? "";
       const resp = await revisionrequestAPI.status({
         requestno: r.requestno,
-        stationno: (r as unknown as { stationno?: string }).stationno ?? EMPTY_GUID,
+        stationno,
         requesttype: r.requesttype,
         remarks,
         statusno,
