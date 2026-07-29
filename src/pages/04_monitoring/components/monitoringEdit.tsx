@@ -659,7 +659,7 @@ function InventoryEditBody({
     return () => {
       cancelled = true;
     };
-  }, [stationno, provinceno, year, month]);
+  }, [stationno, provinceno, year, month, revisionRequestRefreshTick]);
 
   /* ---------------------- Warn on unsaved changes ----------------------- */
   React.useEffect(() => {

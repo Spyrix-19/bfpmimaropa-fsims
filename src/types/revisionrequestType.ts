@@ -78,6 +78,7 @@ export interface FSISEditRequestModel {
   statusname: string;
   fullname?: string;
   daterequested?: string;
+  dateinspected?: string;
 }
 
 

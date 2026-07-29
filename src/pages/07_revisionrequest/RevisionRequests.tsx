@@ -22,7 +22,7 @@ import AvatarWithFallback from "@/components/avatar-with-fallback";
 import PaginationControls from "@/components/pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { STATUS_PILL_BASE, statusTone } from "@/lib/theme";
-import { formatDateTime } from "@/lib/date-format";
+import { formatDate, formatDateTime } from "@/lib/date-format";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -360,7 +360,9 @@ export default function TargetRevisionRequests({
                   </td>
 
                   <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
-                    {monthYearLabel(r.reportyear, r.reportmonth)}
+                    {String(r.requesttype ?? "").toUpperCase() === "ISSUANCE"
+                      ? formatDate((r as { dateinspected?: string }).dateinspected, "—")
+                      : monthYearLabel(r.reportyear, r.reportmonth)}
                   </td>
 
                   <td className="px-3 py-2">
