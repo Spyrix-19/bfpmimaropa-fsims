@@ -18,20 +18,20 @@ export const dashboardAPI = {
 
 
   async getGapSummary(params?: DashboardIssuanceGapDTO, options?: import("@/lib/api").ApiOptions) {
-      return await apiGet<DashboardIssuanceGapModel[]>("/api/v1/Dashboard/FSIMS/Gap/Summary", {
-        params,
-        ...GET_RETRY,
-        ...options,
-      });
-    },
+    return await apiGet<DashboardIssuanceGapModel[]>("/api/v1/Dashboard/FSIMS/Gap/Summary", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
+  },
 
   async getInspectionSummary(params?: DashboardIssuanceGapDTO, options?: import("@/lib/api").ApiOptions) {
-      return await apiGet<DashboardInspectionAccomplishModel[]>("/api/v1/Dashboard/FSIMS/Inspection/Summary", {
-        params,
-        ...GET_RETRY,
-        ...options,
-      });
-    },
+    return await apiGet<DashboardInspectionAccomplishModel[]>("/api/v1/Dashboard/FSIMS/Inspection/Summary", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
+  },
 
 
     
