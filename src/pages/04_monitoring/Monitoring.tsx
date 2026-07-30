@@ -56,6 +56,7 @@ import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { targetinventoryAPI } from "@/services/targetinventoryAPI";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
+import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import { CATEGORY_FIELDS, calendarDaysInMonth } from "@/lib/inventoryHelpers";
 import type { MonthlyInventoryRow } from "@/types/inventoryType";
 import type {
@@ -562,6 +563,8 @@ export default function FireSafetyCompliancePage() {
           )}
         </div>
       </div>
+
+      <CurrentMonthNote canManage={canManage} />
 
       {/* Filters */}
       <ModuleFilterBar

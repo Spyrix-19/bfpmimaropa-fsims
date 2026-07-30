@@ -157,7 +157,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               <PeriodSelect value={filters.interval} onChange={set} />
             </div>
 
-            {filters.interval !== "ANNUAL" && (
+            {filters.interval !== "ANNUAL" && filters.interval !== "ALL" && (
               <div className="space-y-1">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   {filters.interval === "DAILY"

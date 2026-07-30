@@ -59,6 +59,10 @@ export function FilterBar() {
     const next = { ...filterState, ...patch };
     let period = filters.period;
     switch (next.interval) {
+      case "ALL":
+      case "ANNUAL":
+        period = "all";
+        break;
       case "DAILY":
         period = next.date;
         break;

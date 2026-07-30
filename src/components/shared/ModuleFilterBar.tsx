@@ -39,6 +39,7 @@ export interface ModuleFilterState {
 }
 
 export const MODULE_INTERVALS: { value: ModuleInterval; label: string }[] = [
+  { value: "ALL", label: "All" },
   { value: "DAILY", label: "Daily" },
   { value: "MONTHLY", label: "Monthly" },
   { value: "QUARTERLY", label: "Quarterly" },
@@ -51,7 +52,7 @@ export function defaultModuleFilterState(): ModuleFilterState {
   const month = now.getMonth() + 1;
   return {
     year: String(now.getFullYear()),
-    interval: "MONTHLY",
+    interval: "ALL",
     date: toISODate(now),
     months: [month],
     quarter: `q${Math.ceil(month / 3)}`,
@@ -63,6 +64,7 @@ export function defaultModuleFilterState(): ModuleFilterState {
 export function resolveModuleMonths(state: ModuleFilterState): number[] {
   const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   switch (state.interval) {
+    case "ALL":
     case "ANNUAL":
       return ALL;
     case "DAILY": {
@@ -202,6 +204,10 @@ export function PeriodSelect({
     const next = v as ModuleInterval;
     const today = new Date();
     const month = today.getMonth() + 1;
+    if (next === "ALL" || next === "ANNUAL") {
+      onChange({ interval: next });
+      return;
+    }
     if (next === "DAILY") {
       onChange({ interval: next, date: toISODate(today), year: String(today.getFullYear()) });
       return;
@@ -318,6 +324,7 @@ export function SubFilterControl({
       </Select>
     );
   }
+  // ALL / ANNUAL: no sub-filter control.
   return null;
 }
 

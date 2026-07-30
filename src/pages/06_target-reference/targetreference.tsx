@@ -64,6 +64,7 @@ import {
 } from "./helpers";
 import ReadOnlyField from "./components/ReadOnlyField";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
+import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 
 function BucketCell({
   b,
@@ -134,7 +135,11 @@ export default function TargetReferenceIndexPage() {
   const year = filterState.year;
   const month = String(resolvePrimaryMonth(filterState));
   const period: TargetPeriod =
-    filterState.interval === "SEMESTER" ? "SEMI-ANNUAL" : filterState.interval;
+    filterState.interval === "ALL"
+      ? "ANNUAL"
+      : filterState.interval === "SEMESTER"
+        ? "SEMI-ANNUAL"
+        : filterState.interval;
   // Unlocked fields default to EMPTY_GUID ("ALL"); locked fields carry the login scope GUID.
   const [provinceFilter, setProvinceFilter] = React.useState<string>(
     scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
@@ -476,6 +481,9 @@ export default function TargetReferenceIndexPage() {
           )}
         </div>
       </div>
+
+      <CurrentMonthNote canManage={canManage} />
+
 
       {/* Filters */}
       <ModuleFilterBar

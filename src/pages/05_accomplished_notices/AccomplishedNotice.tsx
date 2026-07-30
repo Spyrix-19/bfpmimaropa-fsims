@@ -32,6 +32,7 @@ import SecureDeleteDialog from "@/components/secure-delete-dialog";
 import { usePagination } from "@/hooks/usePagination";
 import { useAuth, resolveLocationScope } from "@/lib/auth";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
+import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import { MONTHS } from "@/lib/fsims-constants";
 import { calendarDaysInMonth } from "@/lib/inventoryHelpers";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
@@ -377,6 +378,8 @@ export default function AccomplishedNotice() {
           )}
         </div>
       </div>
+
+      <CurrentMonthNote canManage={canManage} />
 
       {/* Filters */}
       <ModuleFilterBar

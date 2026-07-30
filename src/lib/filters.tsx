@@ -13,7 +13,7 @@ export interface RefFilter {
   code?: string; // optional (e.g. locationcode for scoping children)
 }
 
-export type DashInterval = "DAILY" | "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
+export type DashInterval = "ALL" | "DAILY" | "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
 
 export interface DashFilters {
   year: string;
@@ -49,8 +49,8 @@ export function fromISODate(v: string): Date | null {
 
 export const DEFAULT_FILTERS: DashFilters = {
   year: String(new Date().getFullYear()),
-  interval: "MONTHLY",
-  period: String(new Date().getMonth() + 1),
+  interval: "ALL",
+  period: "all",
   provinces: [],
   stations: [],
   city: empty,
@@ -61,7 +61,7 @@ export const DEFAULT_FILTERS: DashFilters = {
 /** Expands the interval/period selection into the concrete list of months. */
 export function resolveReportMonths(interval: DashInterval, period: string): number[] {
   const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  if (interval === "ANNUAL") return ALL;
+  if (interval === "ALL" || interval === "ANNUAL") return ALL;
   if (interval === "DAILY") {
     // `period` carries the selected ISO date; narrow the query to its month.
     const d = fromISODate(period);
