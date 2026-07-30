@@ -6,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SlidersHorizontal } from "lucide-react";
 import { useFilters, toISODate } from "@/lib/filters";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
@@ -48,7 +47,7 @@ export function FilterBar() {
     return {
       year: filters.year,
       interval: filters.interval,
-      date: filters.interval === "DAILY" && p ? p : toISODate(today),
+      date: filters.interval === "DAILY" && p ? p : `all:${toISODate(today)}`,
       months: filters.interval === "MONTHLY" && months.length ? months : [currentMonth],
       quarter: /^q[1-4]$/.test(p) ? p : `q${Math.ceil(currentMonth / 3)}`,
       semester: /^s[12]$/.test(p) ? p : currentMonth <= 6 ? "s1" : "s2",
@@ -146,9 +145,6 @@ export function FilterBar() {
   if (!isAuthenticated) {
     return (
       <div className="glass-panel rounded-2xl p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-          <SlidersHorizontal className="h-4 w-4 text-primary" /> Dashboard Filters
-        </div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
           <Select value={filters.year} onValueChange={(v) => set({ year: v })}>
             <SelectTrigger>

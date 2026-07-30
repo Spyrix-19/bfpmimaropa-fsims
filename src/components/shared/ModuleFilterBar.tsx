@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CalendarIcon, RotateCcw, SlidersHorizontal, ChevronDown, Check } from "lucide-react";
+import { CalendarIcon, ChevronDown, Check } from "lucide-react";
 import ResetFiltersButton from "@/components/reset-filters-button";
 
 import {
@@ -28,7 +28,7 @@ export type ModuleInterval = DashInterval;
 export interface ModuleFilterState {
   year: string;
   interval: ModuleInterval;
-  /** DAILY: selected ISO `yyyy-mm-dd` date. */
+  /** DAILY: selected ISO `yyyy-mm-dd` date, or `all:yyyy-mm-dd` for all days of that month. */
   date: string;
   /** MONTHLY: one or more selected month numbers (1..12). */
   months: number[];
@@ -39,7 +39,6 @@ export interface ModuleFilterState {
 }
 
 export const MODULE_INTERVALS: { value: ModuleInterval; label: string }[] = [
-  { value: "ALL", label: "All" },
   { value: "DAILY", label: "Daily" },
   { value: "MONTHLY", label: "Monthly" },
   { value: "QUARTERLY", label: "Quarterly" },
@@ -47,13 +46,29 @@ export const MODULE_INTERVALS: { value: ModuleInterval; label: string }[] = [
   { value: "ANNUAL", label: "Annual" },
 ];
 
+/** `all:yyyy-mm-dd` marks "all days" of the referenced month. */
+const ALL_DAYS_PREFIX = "all:";
+
+export function isAllDays(date: string): boolean {
+  return typeof date === "string" && date.startsWith(ALL_DAYS_PREFIX);
+}
+
+export function toAllDays(date: string): string {
+  return isAllDays(date) ? date : `${ALL_DAYS_PREFIX}${date}`;
+}
+
+/** Strips the "all days" marker, returning a plain ISO date string. */
+export function baseDate(date: string): string {
+  return isAllDays(date) ? date.slice(ALL_DAYS_PREFIX.length) : date;
+}
+
 export function defaultModuleFilterState(): ModuleFilterState {
   const now = new Date();
   const month = now.getMonth() + 1;
   return {
     year: String(now.getFullYear()),
-    interval: "ALL",
-    date: toISODate(now),
+    interval: "DAILY",
+    date: toAllDays(toISODate(now)),
     months: [month],
     quarter: `q${Math.ceil(month / 3)}`,
     semester: month <= 6 ? "s1" : "s2",
@@ -68,7 +83,7 @@ export function resolveModuleMonths(state: ModuleFilterState): number[] {
     case "ANNUAL":
       return ALL;
     case "DAILY": {
-      const d = fromISODate(state.date);
+      const d = fromISODate(baseDate(state.date));
       return d ? [d.getMonth() + 1] : ALL;
     }
     case "MONTHLY":
@@ -101,6 +116,7 @@ export function resolvePrimaryMonth(state: ModuleFilterState): number {
 /** Selected day (1..31) when the DAILY interval is active, else null. */
 export function resolveSelectedDay(state: ModuleFilterState): number | null {
   if (state.interval !== "DAILY") return null;
+  if (isAllDays(state.date)) return null;
   const d = fromISODate(state.date);
   return d ? d.getDate() : null;
 }
@@ -204,12 +220,16 @@ export function PeriodSelect({
     const next = v as ModuleInterval;
     const today = new Date();
     const month = today.getMonth() + 1;
-    if (next === "ALL" || next === "ANNUAL") {
+    if (next === "ANNUAL") {
       onChange({ interval: next });
       return;
     }
     if (next === "DAILY") {
-      onChange({ interval: next, date: toISODate(today), year: String(today.getFullYear()) });
+      onChange({
+        interval: next,
+        date: toAllDays(toISODate(today)),
+        year: String(today.getFullYear()),
+      });
       return;
     }
     if (next === "MONTHLY") {
@@ -252,14 +272,22 @@ export function SubFilterControl({
   onChange: (patch: Partial<ModuleFilterState>) => void;
 }) {
   const [dateOpen, setDateOpen] = React.useState(false);
-  const selectedDate = React.useMemo(
-    () => (state.interval === "DAILY" ? fromISODate(state.date) : null),
+  const allDays = isAllDays(state.date);
+  const refDate = React.useMemo(
+    () => (state.interval === "DAILY" ? fromISODate(baseDate(state.date)) : null),
     [state.interval, state.date],
   );
+  const selectedDate = allDays ? null : refDate;
 
   const handleDateChange = (d?: Date) => {
     if (!d) return;
     onChange({ date: toISODate(d), year: String(d.getFullYear()) });
+    setDateOpen(false);
+  };
+
+  const handleAllDays = () => {
+    const ref = refDate ?? new Date();
+    onChange({ date: toAllDays(toISODate(ref)), year: String(ref.getFullYear()) });
     setDateOpen(false);
   };
 
@@ -276,16 +304,31 @@ export function SubFilterControl({
           >
             <CalendarIcon className="h-4 w-4 shrink-0 opacity-70" />
             <span className="truncate">
-              {selectedDate ? formatLongDate(selectedDate) : "Pick a date"}
+              {allDays
+                ? `All days${refDate ? ` — ${MONTHS.find((m) => m.value === refDate.getMonth() + 1)?.name} ${refDate.getFullYear()}` : ""}`
+                : selectedDate
+                  ? formatLongDate(selectedDate)
+                  : "Pick a date"}
             </span>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
+          <button
+            type="button"
+            onClick={handleAllDays}
+            className={cn(
+              "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted",
+              allDays && "bg-muted",
+            )}
+          >
+            <span className="font-medium">All (whole month)</span>
+            {allDays ? <Check className="h-4 w-4 text-primary" /> : null}
+          </button>
           <Calendar
             mode="single"
             selected={selectedDate ?? undefined}
             onSelect={handleDateChange}
-            defaultMonth={selectedDate ?? undefined}
+            defaultMonth={refDate ?? undefined}
             initialFocus
             className={cn("p-3 pointer-events-auto")}
           />
@@ -324,7 +367,7 @@ export function SubFilterControl({
       </Select>
     );
   }
-  // ALL / ANNUAL: no sub-filter control.
+  // ANNUAL: no sub-filter control.
   return null;
 }
 
@@ -353,35 +396,31 @@ export function ModuleFilterBar({
 
   return (
     <div className="glass-panel rounded-2xl p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <SlidersHorizontal className="h-4 w-4 text-primary" /> {title}
-      </div>
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
-        {leading}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="grid flex-1 grid-cols-2 gap-2 md:grid-cols-5">
+          {leading}
 
-        <Select value={state.year} onValueChange={(v) => onChange({ year: v })}>
-          <SelectTrigger>
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={state.year} onValueChange={(v) => onChange({ year: v })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={String(y)}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <PeriodSelect value={state.interval} onChange={onChange} />
+          <PeriodSelect value={state.interval} onChange={onChange} />
 
-        <SubFilterControl state={state} onChange={onChange} />
+          <SubFilterControl state={state} onChange={onChange} />
 
-        {children}
+          {children}
+        </div>
 
-        <ResetFiltersButton
-          onReset={onReset}
-          className="col-span-2 justify-self-end self-center md:col-span-1"
-        />
+        <ResetFiltersButton onReset={onReset} className="shrink-0" />
       </div>
     </div>
   );

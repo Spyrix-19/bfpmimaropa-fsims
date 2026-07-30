@@ -23,7 +23,13 @@ export const targetreferenceAPI = {
   ) {
     return await apiPost<TargetReferenceModel[]>(
       "/api/v1/FSISTargetReference/Ledger",
-      request.parameters,
+      request.parameters ?? {
+        searchkey: request.searchkey,
+        stationno: request.stationno,
+        provinceno: request.provinceno,
+        reportyear: request.reportyear,
+        reportmonth: request.reportmonth,
+      },
       {
         params: {
           Pagenumber: request.pagenumber ?? 1,

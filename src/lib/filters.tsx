@@ -49,8 +49,8 @@ export function fromISODate(v: string): Date | null {
 
 export const DEFAULT_FILTERS: DashFilters = {
   year: String(new Date().getFullYear()),
-  interval: "ALL",
-  period: "all",
+  interval: "DAILY",
+  period: `all:${toISODate(new Date())}`,
   provinces: [],
   stations: [],
   city: empty,
@@ -64,7 +64,7 @@ export function resolveReportMonths(interval: DashInterval, period: string): num
   if (interval === "ALL" || interval === "ANNUAL") return ALL;
   if (interval === "DAILY") {
     // `period` carries the selected ISO date; narrow the query to its month.
-    const d = fromISODate(period);
+    const d = fromISODate(period.startsWith("all:") ? period.slice(4) : period);
     return d ? [d.getMonth() + 1] : ALL;
   }
   if (period === "all" || !period) return ALL;

@@ -11,6 +11,8 @@ import {
   PeriodSelect,
   SubFilterControl,
   defaultModuleFilterState,
+  isAllDays,
+  baseDate,
   resolveModuleMonths,
   type ModuleFilterState,
 } from "@/components/shared/ModuleFilterBar";
@@ -62,12 +64,14 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
   }, [open, record]);
 
   const selectedMonths = React.useMemo(() => resolveModuleMonths(filters), [filters]);
-  const selectedDate = React.useMemo(() => fromISODate(filters.date), [filters.date]);
+  const allDays = isAllDays(filters.date);
+  const refDate = React.useMemo(() => fromISODate(baseDate(filters.date)), [filters.date]);
+  const selectedDate = allDays ? null : refDate;
 
   const recordYear = record?.reportYear ?? 0;
   const isDayView = filters.interval === "DAILY" || selectedMonths.length === 1;
   const dayViewMonth =
-    filters.interval === "DAILY" ? (selectedDate?.getMonth() ?? 0) + 1 : selectedMonths[0];
+    filters.interval === "DAILY" ? (refDate?.getMonth() ?? 0) + 1 : selectedMonths[0];
   const dayViewYear = Number(filters.year) || recordYear;
 
   // Column set: day columns for a single month/day, month columns otherwise.

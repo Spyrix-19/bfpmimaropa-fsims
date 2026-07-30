@@ -60,6 +60,11 @@ type CellMap = Record<string, string>;
  *    as a 0-indexed month, which conveniently yields the NEXT calendar month
  *    (December => January of the following year automatically).
  */
+/** Builds the ISO date-time the Create endpoint expects for a target day. */
+function toTargetDate(year: number, month: number, day: number): string {
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0)).toISOString();
+}
+
 function hasPstLockActivated(reportyear: number, reportmonth: number, now: Date = new Date()): boolean {
   const y = Number(reportyear);
   const m = Number(reportmonth);
@@ -407,9 +412,7 @@ export default function TargetReferenceForm({
           return {
             // Create-only modal: never send an existing target id.
             targetno: EMPTY_GUID,
-            reportyear: Number(year),
-            reportmonth: Number(month),
-            reportday: Number(d),
+            targetdate: toTargetDate(Number(year), Number(month), Number(d)),
             bplototal,
             govtotal,
             pezatotal,
@@ -420,9 +423,7 @@ export default function TargetReferenceForm({
       : [
           {
             targetno: EMPTY_GUID,
-            reportyear: selectedYear,
-            reportmonth: selectedMonth,
-            reportday: selectedDay,
+            targetdate: toTargetDate(selectedYear, selectedMonth, selectedDay),
             bplototal: Number(cells[`bplo`] ?? 0),
             govtotal: Number(cells[`gov`] ?? 0),
             pezatotal: Number(cells[`peza`] ?? 0),

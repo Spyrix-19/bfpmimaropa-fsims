@@ -7,13 +7,14 @@ export interface FSISTargetReferenceDTO {
 
 export interface TargetReferenceClass {
   targetno: string;
+  /** ISO date-time (e.g. `2026-07-30T00:00:00.000Z`) for the target day. */
   targetdate: string;
   bplototal: number;
   govtotal: number;
   pezatotal: number;
   tiezatotal: number;
   isaccomplished: boolean;
-  remarks: string;
+  remarks?: string;
 }
 
 export interface TargetReferenceParamClass {
@@ -44,7 +45,7 @@ export interface ExportTargetReferenceRequestDTO {
 export interface TargetReferenceDetailParams {
   stationno: string;
   reportyear: number;
-  reportmonth: number;
+  reportmonth?: number;
 }
 
 export interface TargetReferenceDetailModel {
@@ -59,7 +60,11 @@ export interface TargetReferenceDetailModel {
 
 export interface TargetReferenceDetailClassModel {
   targetno: string;
-  targetdate: string;
+  targetdate?: string;
+  reportyear?: number;
+  reportmonth?: number;
+  reportday?: number;
+  remarks?: string;
   isrevisionrequest: boolean;
   editablestatus: number;
   bplototal: number;
@@ -79,7 +84,13 @@ export interface TargetReferenceDetailClassModel {
 }
 
 export interface GetFSISTargetReferenceRequest {
-  parameters: TargetReferenceParams;
+  parameters?: TargetReferenceParams;
+  /** Legacy flat filter fields accepted by the ledger endpoint. */
+  searchkey?: string;
+  stationno?: string;
+  provinceno?: string;
+  reportyear?: number;
+  reportmonth?: number;
   pagenumber?: number;
   pagesize?: number;
 }
@@ -107,7 +118,7 @@ export interface TargetReferenceModel {
 export interface TargetReferenceDeleteParams {
   stationno: string;
   reportyear: number;
-  reportmonth: number;
+  reportmonth?: number;
   deletedby: string;
   roleno: number;
 }
@@ -117,12 +128,15 @@ export interface TargetReferenceDeleteParams {
 
 export interface TargetReferenceClassModel {
   targetno: string;
-  targetdate: string;
+  targetdate?: string;
+  reportyear?: number;
+  reportmonth?: number;
+  reportday?: number;
   bplototal: number;
   govtotal: number;
   pezatotal: number;
   tiezatotal: number;
-  remarks: string;
+  remarks?: string;
 }
 
 export interface ProvinceExportModel {
