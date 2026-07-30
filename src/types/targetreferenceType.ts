@@ -7,20 +7,44 @@ export interface FSISTargetReferenceDTO {
 
 export interface TargetReferenceClass {
   targetno: string;
-  reportyear: number;
-  reportmonth: number;
-  /** Day of month (1..31) — daily granularity. Optional for backward compatibility. */
-  reportday?: number;
+  targetdate: string;
   bplototal: number;
   govtotal: number;
   pezatotal: number;
   tiezatotal: number;
   isaccomplished: boolean;
+  remarks: string;
+}
+
+export interface TargetReferenceParamClass {
+  provinceno: string;
+  stationnos: string[];
+}
+
+export interface TargetReferenceParams {
+  searchkey: string;
+  reportyear: number;
+  interval: number; // 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual
+  targetdate: string;
+  reportmonth: number[];
+  provinces: TargetReferenceParamClass[];
+}
+
+export interface ProvinceStationSelectionClass {
+  provinceno: string;
+  stationnos: string[];
+}
+
+export interface ExportTargetReferenceRequestDTO {
+  searchkey: string;
+  reportyear: number;
+  provinces: ProvinceStationSelectionClass[];
 }
 
 export interface TargetReferenceDetailParams {
   stationno: string;
   reportyear: number;
+  reportmonth: number;
 }
 
 export interface TargetReferenceDetailModel {
@@ -35,39 +59,30 @@ export interface TargetReferenceDetailModel {
 
 export interface TargetReferenceDetailClassModel {
   targetno: string;
-  reportyear: number;
-  reportmonth: number;
-  /** Day of month (1..31) when the backend stores daily records. */
-  reportday?: number;
-  iseditable: boolean;
-  editablestatus: number;
+  targetdate: string;
   isrevisionrequest: boolean;
+  editablestatus: number;
   bplototal: number;
   govtotal: number;
   pezatotal: number;
   tiezatotal: number;
   isdeleted: boolean;
   deletedby: string;
-  datedeleted: string | Date;
+  datedeleted: string;
   deletedbyname: string;
   updatedby: string;
-  dateupdated: string | Date;
+  dateupdated: string;
   updatedbyname: string;
   encodedby: string;
   encodedbyname: string;
-  dateencoded: string | Date;
+  dateencoded: string;
 }
 
-
-export interface TargetReferenceLedgerParams {
-  searchkey: string;
-  stationno: string;
-  reportyear: number;
-  provinceno: string;
-  pagenumber: number;
-  pagesize: number;
+export interface GetFSISTargetReferenceRequest {
+  parameters: TargetReferenceParams;
+  pagenumber?: number;
+  pagesize?: number;
 }
-
 
 export interface TargetReferenceModel {
   stationno: string;
@@ -79,35 +94,35 @@ export interface TargetReferenceModel {
   targetreferencelist: TargetReferenceClassModel[];
 }
 
-export interface TargetReferenceClassModel {
-  targetno: string;
-  reportyear: number;
-  reportmonth: number;
-  /** Day of month (1..31) when the backend stores daily records. */
-  reportday?: number;
-  iseditable: boolean;
-  bplototal: number;
-  govtotal: number;
-  pezatotal: number;
-  tiezatotal: number;
+export interface TargetReferenceModel {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  logourl: string;
+  targetreferencelist: TargetReferenceClassModel[];
 }
 
 export interface TargetReferenceDeleteParams {
   stationno: string;
   reportyear: number;
+  reportmonth: number;
   deletedby: string;
   roleno: number;
 }
 
-export interface ProvinceStationSelectionClass {
-  provinceno: string;
-  stationnos: string[];
-}
 
-export interface ExportTargetReferenceRequestDTO {
-  searchkey: string;
-  reportyear: number;
-  provinces: ProvinceStationSelectionClass[];
+
+
+export interface TargetReferenceClassModel {
+  targetno: string;
+  targetdate: string;
+  bplototal: number;
+  govtotal: number;
+  pezatotal: number;
+  tiezatotal: number;
+  remarks: string;
 }
 
 export interface ProvinceExportModel {
@@ -115,3 +130,24 @@ export interface ProvinceExportModel {
   provincename: string;
   stations: TargetReferenceModel[];
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

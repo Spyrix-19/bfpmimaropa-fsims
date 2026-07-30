@@ -1,7 +1,7 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 
 import { FSISTargetReferenceDTO, TargetReferenceDetailParams, TargetReferenceDetailModel, 
-  TargetReferenceLedgerParams, TargetReferenceModel, TargetReferenceDeleteParams, 
+  GetFSISTargetReferenceRequest, TargetReferenceModel, TargetReferenceDeleteParams, 
   ExportTargetReferenceRequestDTO} from "@/types/targetreferenceType";
 
 export const targetreferenceAPI = {
@@ -17,12 +17,21 @@ export const targetreferenceAPI = {
     });
   },
 
-  async getLedger(params?: TargetReferenceLedgerParams, options?: import("@/lib/api").ApiOptions) {
-    return await apiGet<TargetReferenceModel[]>("/api/v1/FSISTargetReference/Ledger", {
-      params,
-      ...GET_RETRY,
-      ...options,
-    });
+  async getLedger(
+    request: GetFSISTargetReferenceRequest,
+    options?: import("@/lib/api").ApiOptions
+  ) {
+    return await apiPost<TargetReferenceModel[]>(
+      "/api/v1/FSISTargetReference/Ledger",
+      request.parameters,
+      {
+        params: {
+          Pagenumber: request.pagenumber ?? 1,
+          Pagesize: request.pagesize ?? 10,
+        },
+        ...options,
+      }
+    );
   },
 
   async delete(params?: TargetReferenceDeleteParams) {
