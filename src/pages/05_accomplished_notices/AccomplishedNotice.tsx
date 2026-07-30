@@ -1,5 +1,5 @@
 import * as React from "react";
-import { BellRing, ListChecks } from "lucide-react";
+import { BellRing, Eye, Grid3x3, LayoutGrid, ListChecks, Plus } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,17 +11,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import FilterField from "@/components/filter-field";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
+import EditButton from "@/components/edit-button";
+import DeleteButton from "@/components/delete-button";
+import { useAuth } from "@/lib/auth";
+import { canManageTargetAndCompliance } from "@/lib/permissions";
+import { NoticeAddModal } from "./components/noticeNew";
+import { NoticeEditModal } from "./components/noticeEdit";
+import { NoticeViewModal } from "./components/noticeView";
+import { NoticeMatrixModal } from "./components/noticeMatrix";
 
 import {
   accomplishedNoticesData,
   computeCategoryRows,
   computeTotals,
   NOTICE_CATEGORIES,
+  REPORT_MONTHS,
   REPORT_YEARS,
   type AccomplishedNoticeRecord,
   type NoticeCategory,
@@ -65,14 +75,27 @@ function completionTone(pct: number): {
   };
 }
 
-function StationCard({ record }: { record: AccomplishedNoticeRecord }) {
+function StationCard({
+  record,
+  canManage,
+  onEdit,
+  onView,
+  onDelete,
+  onMatrix,
+}: {
+  record: AccomplishedNoticeRecord;
+  canManage: boolean;
+  onEdit: (record: AccomplishedNoticeRecord) => void;
+  onView: (record: AccomplishedNoticeRecord) => void;
+  onDelete: (record: AccomplishedNoticeRecord) => void;
+  onMatrix: (record: AccomplishedNoticeRecord) => void;
+}) {
   const totals = computeTotals(record.breakdown);
   const rows = computeCategoryRows(record.breakdown);
   const tone = completionTone(totals.completionPct);
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-elegant transition-shadow hover:shadow-lg">
-      {/* Header */}
       <div className="flex items-start gap-3 border-b border-border/60 bg-gradient-to-br from-primary/5 via-transparent to-transparent p-4">
         <AvatarWithFallback
           entity={{ stationcode: record.stationCode }}
@@ -95,49 +118,41 @@ function StationCard({ record }: { record: AccomplishedNoticeRecord }) {
           <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
             {record.municipality} · {record.province}
           </div>
+          <div className="mt-1 text-[11px] font-medium text-primary">
+            {record.reportMonth}/{record.reportYear}
+          </div>
         </div>
       </div>
 
       <div className="p-4">
-        {/* Totals summary */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="mt-4 grid grid-cols-3 gap-2">
           <div className="rounded-lg border border-border/60 bg-card/50 p-2.5 text-center">
             <div className="text-lg font-bold text-orange-600 dark:text-orange-400">
               {totals.pending}
             </div>
-            <div className="text-[10px] font-medium text-muted-foreground">
-              Pending
-            </div>
+            <div className="text-[10px] font-medium text-muted-foreground">Pending</div>
           </div>
           <div className="rounded-lg border border-border/60 bg-card/50 p-2.5 text-center">
             <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
               {totals.accomplished}
             </div>
-            <div className="text-[10px] font-medium text-muted-foreground">
-              Accomplished
-            </div>
+            <div className="text-[10px] font-medium text-muted-foreground">Accomplished</div>
           </div>
           <div className="rounded-lg border border-border/60 bg-card/50 p-2.5 text-center">
             <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
               {totals.completionPct.toFixed(0)}%
             </div>
-            <div className="text-[10px] font-medium text-muted-foreground">
-              Completion
-            </div>
+            <div className="text-[10px] font-medium text-muted-foreground">Completion</div>
           </div>
         </div>
 
         <div className="mt-3">
           <Progress
             value={Math.min(100, totals.completionPct)}
-            className={cn(
-              "h-2 [&>div]:transition-all [&>div]:duration-700",
-              tone.bar,
-            )}
+            className={cn("h-2 [&>div]:transition-all [&>div]:duration-700", tone.bar)}
           />
         </div>
 
-        {/* Notice breakdown comparison */}
         <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Notice Breakdown
         </div>
@@ -154,16 +169,9 @@ function StationCard({ record }: { record: AccomplishedNoticeRecord }) {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr
-                  key={r.category}
-                  className="border-t border-border/60 odd:bg-card/40"
-                >
-                  <td className="px-2 py-1.5 font-medium">
-                    {CATEGORY_LABEL[r.category]}
-                  </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">
-                    {r.pending}
-                  </td>
+                <tr key={r.category} className="border-t border-border/60 odd:bg-card/40">
+                  <td className="px-2 py-1.5 font-medium">{CATEGORY_LABEL[r.category]}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{r.pending}</td>
                   <td className="px-2 py-1.5 text-right">
                     <Badge
                       variant="outline"
@@ -192,9 +200,7 @@ function StationCard({ record }: { record: AccomplishedNoticeRecord }) {
               ))}
               <tr className="border-t border-border bg-muted/40 font-semibold">
                 <td className="px-2 py-1.5">TOTAL</td>
-                <td className="px-2 py-1.5 text-right tabular-nums">
-                  {totals.pending}
-                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{totals.pending}</td>
                 <td className="px-2 py-1.5 text-right text-emerald-600 dark:text-emerald-400 tabular-nums">
                   {totals.accomplished}
                 </td>
@@ -209,70 +215,130 @@ function StationCard({ record }: { record: AccomplishedNoticeRecord }) {
           </table>
         </div>
       </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border/60 bg-muted/30 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => onView(record)}
+          aria-label="View details"
+          title="View"
+          className="rounded-md border border-primary/20 bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+        {canManage ? (
+          <>
+            <EditButton
+              ariaLabel="Edit notice ledger"
+              tooltip="Edit"
+              onClick={() => onEdit(record)}
+            />
+            <DeleteButton
+              ariaLabel="Delete notice ledger"
+              tooltip="Delete"
+              onClick={() => onDelete(record)}
+            />
+          </>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => onMatrix(record)}
+          aria-label="View Matrix"
+          title="View Matrix"
+          className="rounded-md border border-primary/20 bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
+        >
+          <Grid3x3 className="h-4 w-4" />
+        </button>
+      </div>
     </Card>
   );
 }
 
 export default function AccomplishedNotice() {
   const [reportYear, setReportYear] = React.useState<string>("all");
+  const [reportMonth, setReportMonth] = React.useState<string>("all");
   const [province, setProvince] = React.useState<string>("all");
   const [station, setStation] = React.useState<string>("all");
+  const { user, systemAccess } = useAuth();
+  const canManage = React.useMemo(
+    () => canManageTargetAndCompliance(user, systemAccess),
+    [user, systemAccess],
+  );
+  const [records, setRecords] = React.useState<AccomplishedNoticeRecord[]>(accomplishedNoticesData);
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [viewOpen, setViewOpen] = React.useState(false);
+  const [matrixOpen, setMatrixOpen] = React.useState(false);
+  const [activeRecord, setActiveRecord] = React.useState<AccomplishedNoticeRecord | null>(null);
 
   const provinces = React.useMemo(
-    () =>
-      Array.from(new Set(accomplishedNoticesData.map((r) => r.province))).sort(),
-    [],
+    () => Array.from(new Set(records.map((r) => r.province))).sort(),
+    [records],
   );
   const stations = React.useMemo(() => {
-    const scoped = accomplishedNoticesData.filter(
-      (r) => province === "all" || r.province === province,
-    );
+    const scoped = records.filter((r) => province === "all" || r.province === province);
     const map = new Map<string, string>();
     scoped.forEach((r) => map.set(r.stationCode, r.stationName));
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [province]);
+  }, [province, records]);
 
   const filtered = React.useMemo(() => {
-    let list = accomplishedNoticesData.filter((r) => {
-      if (reportYear !== "all" && String(r.reportYear) !== reportYear)
-        return false;
+    const list = records.filter((r) => {
+      if (reportYear !== "all" && String(r.reportYear) !== reportYear) return false;
+      if (reportMonth !== "all" && String(r.reportMonth) !== reportMonth) return false;
       if (province !== "all" && r.province !== province) return false;
       if (station !== "all" && r.stationCode !== station) return false;
       return true;
     });
 
-    // Deduplicate by station when "all years" is selected — aggregate totals.
-    if (reportYear === "all") {
-      const byStation = new Map<string, AccomplishedNoticeRecord>();
-      list.forEach((r) => {
-        const existing = byStation.get(r.stationCode);
-        if (!existing) {
-          byStation.set(r.stationCode, {
-            ...r,
-            breakdown: { ...r.breakdown },
-          });
-          return;
-        }
-        NOTICE_CATEGORIES.forEach((c) => {
-          existing.breakdown[c] = {
-            pending: existing.breakdown[c].pending + r.breakdown[c].pending,
-            accomplished:
-              existing.breakdown[c].accomplished +
-              r.breakdown[c].accomplished,
-          };
-        });
-      });
-      list = Array.from(byStation.values());
-    }
-
     list.sort((a, b) => a.stationName.localeCompare(b.stationName));
     return list;
-  }, [reportYear, province, station]);
+  }, [records, reportYear, reportMonth, province, station]);
 
   const resetFilters = () => {
     setReportYear("all");
+    setReportMonth("all");
     setProvince("all");
     setStation("all");
+  };
+
+  const openAdd = () => {
+    const target = filtered[0] ?? null;
+    if (!target) return;
+    setActiveRecord(target);
+    setAddOpen(true);
+  };
+
+  const openGlobalMatrix = () => {
+    const target = filtered[0] ?? null;
+    if (!target) return;
+    setActiveRecord(target);
+    setMatrixOpen(true);
+  };
+
+  const openEdit = (record: AccomplishedNoticeRecord) => {
+    setActiveRecord(record);
+    setEditOpen(true);
+  };
+
+  const openView = (record: AccomplishedNoticeRecord) => {
+    setActiveRecord(record);
+    setViewOpen(true);
+  };
+
+  const openMatrix = (record: AccomplishedNoticeRecord) => {
+    setActiveRecord(record);
+    setMatrixOpen(true);
+  };
+
+  const handleDelete = (record: AccomplishedNoticeRecord) => {
+    setRecords((prev) => prev.filter((item) => item.stationNo !== record.stationNo));
+  };
+
+  const handleSaved = (nextRecord: AccomplishedNoticeRecord) => {
+    setRecords((prev) =>
+      prev.map((item) => (item.stationNo === nextRecord.stationNo ? nextRecord : item)),
+    );
   };
 
   return (
@@ -283,12 +349,38 @@ export default function AccomplishedNotice() {
           Accomplished Notice
         </h1>
         <p className="text-xs text-muted-foreground">
-          Station-level summary of accomplished notices across all categories.
+          Month-based notice ledger with add, edit, view, delete, and matrix actions per station.
         </p>
       </div>
 
-      {/* Filters */}
-      <Card className="grid gap-3 border-border/60 p-4 md:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Notice ledger actions
+          </h2>
+        </div>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-center gap-2 sm:w-auto"
+            onClick={openGlobalMatrix}
+          >
+            <LayoutGrid className="h-4 w-4" /> Notice Matrix
+          </Button>
+          {canManage ? (
+            <Button
+              type="button"
+              className="w-full justify-center gap-2 sm:w-auto"
+              onClick={openAdd}
+            >
+              <Plus className="h-4 w-4" /> Add Notice
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <Card className="grid gap-3 border-border/60 p-4 md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
         <FilterField label="Report Year">
           <Select value={reportYear} onValueChange={setReportYear}>
             <SelectTrigger>
@@ -299,6 +391,22 @@ export default function AccomplishedNotice() {
               {REPORT_YEARS.map((y) => (
                 <SelectItem key={y} value={String(y)}>
                   {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+
+        <FilterField label="Month">
+          <Select value={reportMonth} onValueChange={setReportMonth}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Months" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              {REPORT_MONTHS.map((m) => (
+                <SelectItem key={m} value={String(m)}>
+                  {m}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -343,31 +451,49 @@ export default function AccomplishedNotice() {
           </Select>
         </FilterField>
 
-        <div className="flex items-end justify-end md:col-span-2 lg:col-span-1">
+        <div className="flex items-end justify-end xl:col-span-1">
           <ResetFiltersButton onReset={resetFilters} />
         </div>
       </Card>
 
-      {/* Cards grid */}
       {filtered.length === 0 ? (
         <Card className="flex flex-col items-center justify-center gap-2 p-10 text-center shadow-elegant">
           <div className="grid h-12 w-12 place-items-center rounded-full bg-muted text-muted-foreground">
             <ListChecks className="h-6 w-6" />
           </div>
-          <div className="text-sm font-medium">
-            No Accomplished Notice records found.
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Try adjusting your filters.
-          </div>
+          <div className="text-sm font-medium">No Accomplished Notice records found.</div>
+          <div className="text-xs text-muted-foreground">Try adjusting your filters.</div>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((r) => (
-            <StationCard key={`${r.stationCode}-${r.reportYear}`} record={r} />
+            <StationCard
+              key={`${r.stationCode}-${r.reportYear}-${r.reportMonth}`}
+              record={r}
+              canManage={canManage}
+              onEdit={openEdit}
+              onView={openView}
+              onDelete={handleDelete}
+              onMatrix={openMatrix}
+            />
           ))}
         </div>
       )}
+
+      <NoticeAddModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        record={activeRecord}
+        onSaved={handleSaved}
+      />
+      <NoticeEditModal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        record={activeRecord}
+        onSaved={handleSaved}
+      />
+      <NoticeViewModal open={viewOpen} onOpenChange={setViewOpen} record={activeRecord} />
+      <NoticeMatrixModal open={matrixOpen} onOpenChange={setMatrixOpen} record={activeRecord} />
     </div>
   );
 }

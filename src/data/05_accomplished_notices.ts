@@ -7,13 +7,19 @@
 
 import { cityMunicipalityData } from "@/data/cityMunicipalityData";
 import { getStationInfo } from "@/data/stationInfo";
-import { REGION_NAME } from "@/lib/fsims-constants";
+import { MONTHS, REGION_NAME } from "@/lib/fsims-constants";
 
 export type NoticeCategory = "NOD" | "NTC" | "NTCV" | "Abatement" | "Closure";
 
 export interface CategoryCounts {
   pending: number;
   accomplished: number;
+}
+
+export interface DailyNoticeEntry {
+  day: number;
+  remarks: string;
+  breakdown: Record<NoticeCategory, CategoryCounts>;
 }
 
 export interface AccomplishedNoticeRecord {
@@ -25,18 +31,15 @@ export interface AccomplishedNoticeRecord {
   municipality: string;
   region: string;
   reportYear: number;
+  reportMonth: number;
   breakdown: Record<NoticeCategory, CategoryCounts>;
+  dailyEntries: DailyNoticeEntry[];
 }
 
-export const NOTICE_CATEGORIES: NoticeCategory[] = [
-  "NOD",
-  "NTC",
-  "NTCV",
-  "Abatement",
-  "Closure",
-];
+export const NOTICE_CATEGORIES: NoticeCategory[] = ["NOD", "NTC", "NTCV", "Abatement", "Closure"];
 
 export const REPORT_YEARS: number[] = [2024, 2025, 2026];
+export const REPORT_MONTHS: number[] = MONTHS.map((m) => m.value);
 
 /** Deterministic pseudo-random helper so re-renders show the same numbers. */
 function seeded(seed: number): () => number {
@@ -57,9 +60,7 @@ function hashCode(str: string): number {
   return Math.abs(h) || 1;
 }
 
-function buildBreakdown(
-  seedKey: string,
-): Record<NoticeCategory, CategoryCounts> {
+function buildBreakdown(seedKey: string): Record<NoticeCategory, CategoryCounts> {
   const rand = seeded(hashCode(seedKey));
   const build = (maxPending: number) => {
     const pending = Math.max(0, Math.round(rand() * maxPending));
@@ -75,21 +76,80 @@ function buildBreakdown(
   };
 }
 
-export const accomplishedNoticesData: AccomplishedNoticeRecord[] =
-  cityMunicipalityData.flatMap((city, idx) => {
-    const info = getStationInfo(city);
-    return REPORT_YEARS.map((year) => ({
-      stationNo: `${city.cityMunicipalityNo}-${year}`,
-      stationCode: info.stationCode,
-      stationName: info.stationName,
-      logoUrl: info.logoUrl,
-      province: city.province,
-      municipality: city.cityMunicipalityName,
-      region: info.region || REGION_NAME,
-      reportYear: year,
-      breakdown: buildBreakdown(`${city.cityMunicipalityCode}-${year}-${idx}`),
-    }));
+export function aggregateDailyEntries(
+  entries: DailyNoticeEntry[],
+  fallback?: Record<NoticeCategory, CategoryCounts>,
+): Record<NoticeCategory, CategoryCounts> {
+  const base = fallback ?? {
+    NOD: { pending: 0, accomplished: 0 },
+    NTC: { pending: 0, accomplished: 0 },
+    NTCV: { pending: 0, accomplished: 0 },
+    Abatement: { pending: 0, accomplished: 0 },
+    Closure: { pending: 0, accomplished: 0 },
+  };
+
+  const totals = NOTICE_CATEGORIES.reduce(
+    (acc, category) => ({
+      ...acc,
+      [category]: { pending: 0, accomplished: 0 },
+    }),
+    {} as Record<NoticeCategory, CategoryCounts>,
+  );
+
+  entries.forEach((entry) => {
+    NOTICE_CATEGORIES.forEach((category) => {
+      const source = entry.breakdown[category];
+      totals[category].pending += source.pending;
+      totals[category].accomplished += source.accomplished;
+    });
   });
+
+  return NOTICE_CATEGORIES.reduce(
+    (acc, category) => ({
+      ...acc,
+      [category]: {
+        pending: totals[category].pending || base[category].pending,
+        accomplished: totals[category].accomplished || base[category].accomplished,
+      },
+    }),
+    {} as Record<NoticeCategory, CategoryCounts>,
+  );
+}
+
+export const accomplishedNoticesData: AccomplishedNoticeRecord[] = cityMunicipalityData.flatMap(
+  (city, idx) => {
+    const info = getStationInfo(city);
+    return REPORT_YEARS.flatMap((year) =>
+      REPORT_MONTHS.map((month) => {
+        const seedKey = `${city.cityMunicipalityCode}-${year}-${month}-${idx}`;
+        const breakdown = buildBreakdown(seedKey);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const dailyEntries = Array.from({ length: daysInMonth }, (_, dayIndex) => {
+          const day = dayIndex + 1;
+          return {
+            day,
+            remarks: `${month}/${day}/${year}`,
+            breakdown: buildBreakdown(`${seedKey}-day-${day}`),
+          };
+        });
+
+        return {
+          stationNo: `${city.cityMunicipalityNo}-${year}-${month}`,
+          stationCode: info.stationCode,
+          stationName: info.stationName,
+          logoUrl: info.logoUrl,
+          province: city.province,
+          municipality: city.cityMunicipalityName,
+          region: info.region || REGION_NAME,
+          reportYear: year,
+          reportMonth: month,
+          breakdown: aggregateDailyEntries(dailyEntries, breakdown),
+          dailyEntries,
+        } satisfies AccomplishedNoticeRecord;
+      }),
+    );
+  },
+);
 
 export interface CategoryComputed extends CategoryCounts {
   category: NoticeCategory;
@@ -115,9 +175,7 @@ export function computeCategoryRows(
   });
 }
 
-export function computeTotals(
-  breakdown: Record<NoticeCategory, CategoryCounts>,
-): NoticeTotals {
+export function computeTotals(breakdown: Record<NoticeCategory, CategoryCounts>): NoticeTotals {
   const rows = computeCategoryRows(breakdown);
   const pending = rows.reduce((s, r) => s + r.pending, 0);
   const accomplished = rows.reduce((s, r) => s + r.accomplished, 0);
