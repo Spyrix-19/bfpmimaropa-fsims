@@ -6,11 +6,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, SlidersHorizontal } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, RotateCcw, SlidersHorizontal } from "lucide-react";
 import React from "react";
-import { useFilters } from "@/lib/filters";
+import { useFilters, toISODate, fromISODate } from "@/lib/filters";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
-import { buildYears } from "@/lib/utils";
+import { buildYears, cn } from "@/lib/utils";
+import { formatLongDate } from "@/lib/date-format";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
@@ -29,6 +32,7 @@ export function FilterBar() {
     "July", "August", "September", "October", "November", "December",
   ];
   const INTERVALS: { value: import("@/lib/filters").DashInterval; label: string }[] = [
+    { value: "DAILY", label: "Daily" },
     { value: "MONTHLY", label: "Monthly" },
     { value: "QUARTERLY", label: "Quarterly" },
     { value: "SEMESTER", label: "Semester" },
@@ -36,9 +40,30 @@ export function FilterBar() {
   ];
   const set = (patch: Partial<typeof filters>) => setFilters({ ...filters, ...patch });
 
+  // When Daily is active, `period` carries the selected ISO date.
+  const selectedDate = React.useMemo(
+    () => (filters.interval === "DAILY" ? fromISODate(filters.period) : null),
+    [filters.interval, filters.period],
+  );
+  const [dateOpen, setDateOpen] = React.useState(false);
+
   const handleIntervalChange = (v: string) => {
-    set({ interval: v as import("@/lib/filters").DashInterval, period: "all" });
+    const next = v as import("@/lib/filters").DashInterval;
+    if (next === "DAILY") {
+      // Default the calendar to today and keep the Year filter in sync.
+      const today = new Date();
+      set({ interval: next, period: toISODate(today), year: String(today.getFullYear()) });
+      return;
+    }
+    set({ interval: next, period: "all" });
   };
+
+  const handleDateChange = (d?: Date) => {
+    if (!d) return;
+    set({ period: toISODate(d), year: String(d.getFullYear()) });
+    setDateOpen(false);
+  };
+
 
 
   // Enforce role-based scope: seed locked province/station into the filter
@@ -159,9 +184,37 @@ export function FilterBar() {
           </SelectContent>
         </Select>
 
-        {filters.interval !== "ANNUAL" && (
+        {filters.interval === "DAILY" ? (
+          <Popover open={dateOpen} onOpenChange={setDateOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-10 w-full justify-start gap-2 px-3 text-left text-sm font-normal",
+                  !selectedDate && "text-muted-foreground",
+                )}
+              >
+                <CalendarIcon className="h-4 w-4 shrink-0 opacity-70" />
+                <span className="truncate">
+                  {selectedDate ? formatLongDate(selectedDate) : "Pick a date"}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate ?? undefined}
+                onSelect={handleDateChange}
+                defaultMonth={selectedDate ?? undefined}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        ) : filters.interval !== "ANNUAL" ? (
           <Select value={filters.period} onValueChange={(v) => set({ period: v })}>
             <SelectTrigger>
+
               <SelectValue
                 placeholder={
                   filters.interval === "MONTHLY"
@@ -201,7 +254,8 @@ export function FilterBar() {
               )}
             </SelectContent>
           </Select>
-        )}
+        ) : null}
+
 
 
         {scope.provinceLocked ? (

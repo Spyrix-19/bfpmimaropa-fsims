@@ -63,15 +63,41 @@ export function isReportMonthLocked(reportYear: number, reportMonth: number, now
   return m < cm;
 }
 
+/* ------------------------------------------------------------------ *
+ * Daily helpers.
+ * `daysInMonth` is leap-year aware (28 / 29 / 30 / 31) — never hardcoded.
+ * ------------------------------------------------------------------ */
+export function daysInMonth(reportYear: number, reportMonth: number): number {
+  const y = Number(reportYear) || new Date().getFullYear();
+  const m = Number(reportMonth) || 1;
+  if (m < 1 || m > 12) return 0;
+  return new Date(y, m, 0).getDate();
+}
 
-export type TargetPeriod = "MONTHLY" | "QUARTERLY" | "SEMI-ANNUAL" | "ANNUAL";
+/** Ordered day numbers (1..N) for the given year + month. */
+export function buildDays(reportYear: number, reportMonth: number): number[] {
+  return Array.from({ length: daysInMonth(reportYear, reportMonth) }, (_, i) => i + 1);
+}
+
+/** Long label for a daily row, e.g. "July 1, 2026". */
+export function formatDayLabel(reportYear: number, reportMonth: number, day: number): string {
+  return new Date(reportYear, reportMonth - 1, day).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+export type TargetPeriod = "DAILY" | "MONTHLY" | "QUARTERLY" | "SEMI-ANNUAL" | "ANNUAL";
 
 export const PERIOD_OPTIONS: { value: TargetPeriod; label: string }[] = [
+  { value: "DAILY", label: "Daily" },
   { value: "MONTHLY", label: "Monthly" },
   { value: "QUARTERLY", label: "Quarterly" },
   { value: "SEMI-ANNUAL", label: "Semi-Annual" },
   { value: "ANNUAL", label: "Annual" },
 ];
+
 
 export interface TargetBucket {
   bplo: number;
@@ -125,4 +151,33 @@ export function computeDerivedFromList(list: TargetReferenceClassModel[] | null 
   ].map((mm) => mm.reduce((acc, m) => addBucket(acc, monthly[m]), emptyBucket()));
   const annual = quarters.reduce((acc, q) => addBucket(acc, q), emptyBucket());
   return { monthly, quarters, halves, annual };
+}
+
+/**
+ * Bucket the station's daily target records for a single month.
+ *
+ * Every calendar day of the month is generated (28/29/30/31), so days without
+ * a matching record still appear with empty (zero) values. Records are matched
+ * on reportyear + reportmonth + reportday; legacy rows without a `reportday`
+ * are folded into day 1 so historical data is never dropped.
+ */
+export function computeDailyFromList(
+  list: TargetReferenceClassModel[] | null | undefined,
+  reportYear: number,
+  reportMonth: number,
+) {
+  const daily: Record<number, TargetBucket> = {};
+  const days = buildDays(reportYear, reportMonth);
+  days.forEach((d) => (daily[d] = emptyBucket()));
+
+  (list ?? []).forEach((it) => {
+    if (Number(it.reportyear) !== Number(reportYear)) return;
+    if (Number(it.reportmonth) !== Number(reportMonth)) return;
+    const d = Number(it.reportday ?? 1);
+    if (!daily[d]) return;
+    daily[d] = addBucket(daily[d], resolveBucket(it));
+  });
+
+  const total = days.reduce((acc, d) => addBucket(acc, daily[d]), emptyBucket());
+  return { days, daily, total };
 }

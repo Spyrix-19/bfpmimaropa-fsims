@@ -8,8 +8,10 @@ import { Building2, Calendar, Loader2, Lock, FilePen, Save, X, AlertTriangle, Tr
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
-import { cn, buildYears, toWhole } from "@/lib/utils";
+import { cn, toWhole } from "@/lib/utils";
 import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
+import { formatLongDate } from "@/lib/date-format";
+import ReadOnlyField from "./ReadOnlyField";
 
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 
@@ -23,7 +25,7 @@ import type { SearchStationModel } from "@/types/stationTypes";
 
 import type {  TargetReferenceClass,  TargetReferenceDetailModel,} from "@/types/targetreferenceType";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
-import { resolveTargetScope } from "../helpers";
+import { resolveTargetScope, buildDays, formatDayLabel } from "../helpers";
 import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
@@ -32,12 +34,12 @@ import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When present, opens in Edit mode for that station+year. */
-  editing?: { year: number; stationno?: string } | null;
+  /** When present, opens in Edit mode for that station+year+month. */
+  editing?: { year: number; month?: number; stationno?: string } | null;
   onSaved: () => void;
 }
 
-/** cellKey = `${month}-${sectorno}` -> raw string input value */
+/** cellKey = `${day}-${sectorno}` -> raw string input value */
 type CellMap = Record<string, string>;
 
 /**
@@ -73,7 +75,7 @@ export default function TargetReferenceForm({
   onSaved,
 }: Props) {
   const { user, systemAccess } = useAuth();
-  const [revisionMonth, setRevisionMonth] = React.useState<number | null>(null);
+  const [revisionDay, setRevisionDay] = React.useState<number | null>(null);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
   const scope = React.useMemo(
@@ -85,10 +87,13 @@ export default function TargetReferenceForm({
   const [autoEdit, setAutoEdit] = React.useState(false);
   const isEdit = isEditProp || autoEdit;
   const canShowAllStationOption = !isEditProp && !scope.stationLocked;
-  const YEARS = React.useMemo(buildYears, []);
-  const currentYear = new Date().getFullYear();
+  const today = React.useMemo(() => new Date(), []);
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
 
   const [year, setYear] = React.useState<number>(currentYear);
+  const [month, setMonth] = React.useState<number>(currentMonth);
+  const days = React.useMemo(() => buildDays(year, month), [year, month]);
   const [cells, setCells] = React.useState<CellMap>({});
   const [baselineCells, setBaselineCells] = React.useState<CellMap>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -313,9 +318,10 @@ export default function TargetReferenceForm({
     setAutoEdit(false);
     setDuplicatePrompted(false);
     setYear(editing?.year ?? currentYear);
+    setMonth(editing?.month ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
-  }, [open, editing, currentYear, scope.provinceLocked, scope.provinceno, user?.provinceno]);
+  }, [open, editing, currentYear, currentMonth, scope.provinceLocked, scope.provinceno, user?.provinceno]);
 
   // Load existing values for edit — Detail endpoint returns the station's
   // full year in a single call, including database TargetNo for each cell.
@@ -337,16 +343,18 @@ export default function TargetReferenceForm({
       let hasAny = false;
       if (ok && data) {
         (data.targetreferencelist ?? []).forEach((it) => {
-          const month = Number(it.reportmonth);
-          if (!month || month < 1 || month > 12) return;
-          nextCells[`${month}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
-          nextCells[`${month}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
-          nextCells[`${month}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
-          nextCells[`${month}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-          nextEditableStatus[String(month)] = Number(it.editablestatus ?? 0);
-          nextIsRevReq[String(month)] = Boolean(it.isrevisionrequest);
+          // Daily mapping — match on reportyear + reportmonth + reportday.
+          if (Number(it.reportmonth) !== Number(month)) return;
+          const day = Number(it.reportday ?? 1);
+          if (!day || day < 1 || day > days.length) return;
+          nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
+          nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
+          nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
+          nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
+          nextEditableStatus[String(day)] = Number(it.editablestatus ?? 0);
+          nextIsRevReq[String(day)] = Boolean(it.isrevisionrequest);
           if (it.targetno && it.targetno !== EMPTY_GUID) {
-            nextIds[String(month)] = it.targetno;
+            nextIds[String(day)] = it.targetno;
             hasAny = true;
           }
         });
@@ -372,10 +380,10 @@ export default function TargetReferenceForm({
     return () => {
       cancelled = true;
     };
-  }, [open, stationNo, year, isEditProp, duplicatePrompted, onOpenChange, reloadNonce]);
+  }, [open, stationNo, year, month, days.length, isEditProp, duplicatePrompted, onOpenChange, reloadNonce]);
 
-  const setCell = (month: number, sectorNo: number, raw: string) => {
-    const key = `${month}-${sectorNo}`;
+  const setCell = (day: number, sectorNo: number, raw: string) => {
+    const key = `${day}-${sectorNo}`;
     setCells((prev) => ({ ...prev, [key]: toWhole(raw) }));
     if (errors[key]) {
       setErrors((e) => {
@@ -405,15 +413,16 @@ export default function TargetReferenceForm({
     // unsaved months carrying targetno === EMPTY_GUID and zero totals.
     // Treat only rows with a real targetno as actually saved data.
     (detail?.targetreferencelist ?? []).forEach((it) => {
-      const month = Number(it.reportmonth);
-      if (!month || month < 1 || month > 12) return;
+      if (Number(it.reportmonth) !== Number(month)) return;
+      const day = Number(it.reportday ?? 1);
+      if (!day || day < 1 || day > days.length) return;
       const isSaved = Boolean(it.targetno) && it.targetno !== EMPTY_GUID;
       if (!isSaved) return;
-      nextCells[`${month}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
-      nextCells[`${month}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
-      nextCells[`${month}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
-      nextCells[`${month}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-      nextIds[String(month)] = it.targetno;
+      nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
+      nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
+      nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
+      nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
+      nextIds[String(day)] = it.targetno;
     });
 
     return { cells: nextCells, ids: nextIds };
@@ -488,11 +497,11 @@ export default function TargetReferenceForm({
       }
     }
 
-    const list: TargetReferenceClass[] = MONTHS.map((m) => {
-      const bploKey = `${m.value}-${SECTOR_NO.BPLO}`;
-      const govKey = `${m.value}-${SECTOR_NO.GOV}`;
-      const pezaKey = `${m.value}-${SECTOR_NO.PEZA}`;
-      const tiezaKey = `${m.value}-${SECTOR_NO.TIEZA}`;
+    const list: TargetReferenceClass[] = days.map((d) => {
+      const bploKey = `${d}-${SECTOR_NO.BPLO}`;
+      const govKey = `${d}-${SECTOR_NO.GOV}`;
+      const pezaKey = `${d}-${SECTOR_NO.PEZA}`;
+      const tiezaKey = `${d}-${SECTOR_NO.TIEZA}`;
       const bplototal = Number(cells[bploKey] ?? 0);
       const govtotal = Number(cells[govKey] ?? 0);
       const piezatotal = Number(cells[pezaKey] ?? 0);
@@ -504,11 +513,12 @@ export default function TargetReferenceForm({
         govtotal !== Number(baselineCells[govKey] ?? 0) ||
         piezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
         tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
-      const existingTargetNo = resolvedExistingTargetNos[String(m.value)];
+      const existingTargetNo = resolvedExistingTargetNos[String(d)];
       return {
         targetno: existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
         reportyear: Number(year),
-        reportmonth: Number(m.value),
+        reportmonth: Number(month),
+        reportday: Number(d),
         bplototal,
         govtotal,
         piezatotal,
@@ -539,19 +549,18 @@ export default function TargetReferenceForm({
   };
 
   // Totals (whole-number sums)
-  const monthTotal = React.useCallback(
-    (m: number) =>
-      sectors.reduce((sum, s) => sum + (Number(cells[`${m}-${s.detno}`]) || 0), 0),
+  const dayTotal = React.useCallback(
+    (d: number) =>
+      sectors.reduce((sum, s) => sum + (Number(cells[`${d}-${s.detno}`]) || 0), 0),
     [sectors, cells],
   );
   const sectorTotal = React.useCallback(
-    (sn: number) =>
-      MONTHS.reduce((sum, m) => sum + (Number(cells[`${m.value}-${sn}`]) || 0), 0),
-    [cells],
+    (sn: number) => days.reduce((sum, d) => sum + (Number(cells[`${d}-${sn}`]) || 0), 0),
+    [cells, days],
   );
   const grandTotal = React.useMemo(
-    () => MONTHS.reduce((sum, m) => sum + monthTotal(m.value), 0),
-    [monthTotal],
+    () => days.reduce((sum, d) => sum + dayTotal(d), 0),
+    [dayTotal, days],
   );
 
   const loadingGrid = sectorsLoading || existingLoading;
@@ -614,7 +623,7 @@ export default function TargetReferenceForm({
         <thead className="sticky top-0 z-10 bg-card">
           <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
             <th className="min-w-[96px] border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">ACTION</th>
-            <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Month</th>
+            <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Date</th>
             {sectors.map((s) => (
               <th
                 key={s.detno}
@@ -628,28 +637,31 @@ export default function TargetReferenceForm({
           </tr>
         </thead>
         <tbody>
-          {MONTHS.map((m, i) => {
+          {days.map((d, i) => {
             const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
             const activeReq = revisionRequests.find(
-              (req) => Number(req.reportmonth) === Number(m.value) && req.statuscode?.toUpperCase() === "PENDING",
+              (req) =>
+                Number(req.reportmonth) === Number(month) &&
+                Number((req as { reportday?: number }).reportday ?? d) === Number(d) &&
+                req.statuscode?.toUpperCase() === "PENDING",
             );
             // Server-driven flags (only source of truth for editability + action state)
-            const editablestatus = existingEditableStatus[String(m.value)];
-            const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(m.value)]);
+            const editablestatus = existingEditableStatus[String(d)];
+            const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
             const serverIsEditable = editablestatus === 153;
             // PST lock-activation gate: until day 4 00:00 of the following
             // month (Asia/Manila), the row must behave like an unlocked /
             // current month regardless of any server-side lock hint.
-            const pstLockActive = hasPstLockActivated(year, Number(m.value));
+            const pstLockActive = hasPstLockActivated(year, Number(month));
             const isEditable = serverIsEditable || !pstLockActive;
             const row = {
               isrevisionrequest: serverIsRevisionRequest || Boolean(activeReq),
             };
 
             // Pick a referencekey (targetno) for the row.
-            const rowReferenceKey = existingTargetNos?.[String(m.value)] || "";
+            const rowReferenceKey = existingTargetNos?.[String(d)] || "";
             return (
-            <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+            <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
               <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
                 {row.isrevisionrequest ? (
                   <div className="flex items-center justify-center gap-1.5">
@@ -690,22 +702,22 @@ export default function TargetReferenceForm({
                       }
                       disabled={!revStation}
                       icon={<FilePen className="h-4 w-4" />}
-                      onClick={() => setRevisionMonth(Number(m.value))}
+                      onClick={() => setRevisionDay(Number(d))}
                     />
                   </div>
                 )}
               </td>
               <td className="whitespace-nowrap px-3 py-1.5 font-medium">
                 <div className="flex items-center gap-2">
-                  {!isEditable && <Lock className="h-3 w-3 text-warning" aria-label="Locked month" />}
-                  <span>{m.name}</span>
+                  {!isEditable && <Lock className="h-3 w-3 text-warning" aria-label="Locked day" />}
+                  <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
                   {activeReq ? (
                     <RevisionStatusBadge status={activeReq.statuscode?.toUpperCase() === "PENDING" ? "PENDING" : activeReq.statuscode?.toUpperCase() === "APPROVED" ? "APPROVED" : "CANCELLED"} />
                   ) : null}
                 </div>
               </td>
               {sectors.map((s) => {
-                const key = `${m.value}-${s.detno}`;
+                const key = `${d}-${s.detno}`;
                 const hasErr = Boolean(errors[key]);
                 const val = cells[key] ?? "";
                 const locked = !isEditable;
@@ -722,11 +734,11 @@ export default function TargetReferenceForm({
                       }}
                       onBlur={(e) => {
                         if (locked) return;
-                        if (e.target.value === "") setCell(m.value, Number(s.detno), "0");
+                        if (e.target.value === "") setCell(d, Number(s.detno), "0");
                       }}
                       onChange={(e) => {
                         if (locked) return;
-                        setCell(m.value, Number(s.detno), e.target.value);
+                        setCell(d, Number(s.detno), e.target.value);
                       }}
                       aria-invalid={hasErr}
                       aria-readonly={locked}
@@ -741,7 +753,7 @@ export default function TargetReferenceForm({
                 );
               })}
               <td className="border-l border-border/60 bg-card px-3 py-1.5 text-right font-semibold tabular-nums text-primary">
-                {monthTotal(m.value).toLocaleString()}
+                {dayTotal(d).toLocaleString()}
               </td>
             </tr>
             );
@@ -777,7 +789,7 @@ export default function TargetReferenceForm({
               {isEdit ? "Edit Target Reference" : "Add Target Reference"}
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
-              Encode monthly targets — quarterly, semi-annual, and annual totals are auto-computed.
+              Encode daily targets — monthly, quarterly, semi-annual, and annual totals are auto-computed.
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground/90">
               <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
@@ -790,24 +802,16 @@ export default function TargetReferenceForm({
             <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">
-                Year <span className="text-destructive">*</span>
+                {isEdit ? "Period" : "Date"} <span className="text-destructive">*</span>
               </Label>
-              <Select
-                value={String(year)}
-                onValueChange={(v) => setYear(Number(v))}
-                disabled={isEdit}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {YEARS.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ReadOnlyField
+                value={
+                  isEdit
+                    ? `${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}`
+                    : formatLongDate(today)
+                }
+                title={isEdit ? "Editing every day of this month" : "Targets are encoded for today"}
+              />
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
@@ -888,7 +892,7 @@ export default function TargetReferenceForm({
                 <Calendar className="h-3.5 w-3.5" />
               </span>
               <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
-                Monthly Target Reference
+                Daily Target Reference
               </span>
             </div>
 
@@ -923,16 +927,16 @@ export default function TargetReferenceForm({
       contentIconBgClass="tone-warning-soft"
       contentIconColorClass="text-warning"
       title="Target Reference Already Exists"
-      description={`A Target Reference already exists for this station and year (${year}).\n\nOpening the existing record for editing.`}
+      description={`A Target Reference already exists for this station and period (${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}).\n\nOpening the existing record for editing.`}
       confirmLabel="Edit Existing"
       showCancel={false}
       onConfirm={handleDuplicateConfirm}
     />
 
-    {revisionMonth !== null && (
+    {revisionDay !== null && (
       <RevisionRequestDialog
-        open={revisionMonth !== null}
-        onOpenChange={(v) => !v && setRevisionMonth(null)}
+        open={revisionDay !== null}
+        onOpenChange={(v) => !v && setRevisionDay(null)}
         station={{
           stationno: stationNo,
           stationcode: stationCode || "",
@@ -942,11 +946,11 @@ export default function TargetReferenceForm({
           cityname: station?.cityname ?? user?.cityname ?? "",
         }}
         year={Number(year)}
-        month={Number(revisionMonth)}
+        month={Number(month)}
         referencekey={
-          existingTargetNos[String(revisionMonth)] &&
-          existingTargetNos[String(revisionMonth)] !== EMPTY_GUID
-            ? existingTargetNos[String(revisionMonth)]
+          existingTargetNos[String(revisionDay)] &&
+          existingTargetNos[String(revisionDay)] !== EMPTY_GUID
+            ? existingTargetNos[String(revisionDay)]
             : EMPTY_GUID
         }
         onSubmitted={() => setReloadNonce((n) => n + 1)}

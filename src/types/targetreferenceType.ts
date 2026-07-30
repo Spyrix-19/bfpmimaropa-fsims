@@ -9,6 +9,8 @@ export interface TargetReferenceClass {
   targetno: string;
   reportyear: number;
   reportmonth: number;
+  /** Day of month (1..31) — daily granularity. Optional for backward compatibility. */
+  reportday?: number;
   bplototal: number;
   govtotal: number;
   piezatotal: number;
@@ -34,6 +36,8 @@ export interface TargetReferenceDetailClassModel {
   targetno: string;
   reportyear: number;
   reportmonth: number;
+  /** Day of month (1..31) when the backend stores daily records. */
+  reportday?: number;
   iseditable: boolean;
   editablestatus: number;
   isrevisionrequest: boolean;
@@ -78,6 +82,8 @@ export interface TargetReferenceClassModel {
   targetno: string;
   reportyear: number;
   reportmonth: number;
+  /** Day of month (1..31) when the backend stores daily records. */
+  reportday?: number;
   iseditable: boolean;
   bplototal: number;
   govtotal: number;

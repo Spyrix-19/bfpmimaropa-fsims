@@ -1,9 +1,8 @@
 import * as React from "react";
-import { BellRing, Eye, Grid3x3, LayoutGrid, ListChecks, Plus } from "lucide-react";
+import { BellRing, Eye, Grid3x3, LayoutGrid, Loader2, CalendarDays, Plus } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,16 +10,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 import FilterField from "@/components/filter-field";
 import ResetFiltersButton from "@/components/reset-filters-button";
+import SearchKey from "@/components/search-key";
+import PaginationControls from "@/components/pagination";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
+import SecureDeleteDialog from "@/components/secure-delete-dialog";
+
+import { usePagination } from "@/hooks/usePagination";
 import { useAuth } from "@/lib/auth";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
+import { MONTHS } from "@/lib/fsims-constants";
+import { calendarDaysInMonth } from "@/lib/inventoryHelpers";
+
 import { NoticeAddModal } from "./components/noticeNew";
 import { NoticeEditModal } from "./components/noticeEdit";
 import { NoticeViewModal } from "./components/noticeView";
@@ -31,7 +36,6 @@ import {
   computeCategoryRows,
   computeTotals,
   NOTICE_CATEGORIES,
-  REPORT_MONTHS,
   REPORT_YEARS,
   type AccomplishedNoticeRecord,
   type NoticeCategory,
@@ -45,294 +49,118 @@ const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   Closure: "Closure",
 };
 
-function completionTone(pct: number): {
-  bar: string;
-  badge: string;
-  label: string;
-} {
-  if (pct >= 100)
-    return {
-      bar: "[&>div]:bg-emerald-500",
-      badge: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
-      label: "Complete",
-    };
-  if (pct >= 75)
-    return {
-      bar: "[&>div]:bg-blue-500",
-      badge: "bg-blue-500/15 text-blue-600 border-blue-500/30",
-      label: "On Track",
-    };
-  if (pct >= 50)
-    return {
-      bar: "[&>div]:bg-orange-500",
-      badge: "bg-orange-500/15 text-orange-600 border-orange-500/30",
-      label: "Behind",
-    };
-  return {
-    bar: "[&>div]:bg-red-500",
-    badge: "bg-red-500/15 text-red-600 border-red-500/30",
-    label: "Critical",
-  };
-}
-
-function StationCard({
-  record,
-  canManage,
-  onEdit,
-  onView,
-  onDelete,
-  onMatrix,
-}: {
-  record: AccomplishedNoticeRecord;
-  canManage: boolean;
-  onEdit: (record: AccomplishedNoticeRecord) => void;
-  onView: (record: AccomplishedNoticeRecord) => void;
-  onDelete: (record: AccomplishedNoticeRecord) => void;
-  onMatrix: (record: AccomplishedNoticeRecord) => void;
-}) {
-  const totals = computeTotals(record.breakdown);
-  const rows = computeCategoryRows(record.breakdown);
-  const tone = completionTone(totals.completionPct);
-
+/** Notice equivalent of the compliance "days encoded" indicator. */
+function DaysRecordedBadge({ encoded, total }: { encoded: number; total: number }) {
+  const ratio = total ? encoded / total : 0;
+  const tone =
+    ratio >= 1 ? "tone-success-soft" : ratio >= 0.25 ? "tone-warning-soft" : "tone-danger-soft";
   return (
-    <Card className="flex flex-col overflow-hidden shadow-elegant transition-shadow hover:shadow-lg">
-      <div className="flex items-start gap-3 border-b border-border/60 bg-gradient-to-br from-primary/5 via-transparent to-transparent p-4">
-        <AvatarWithFallback
-          entity={{ stationcode: record.stationCode }}
-          src={record.logoUrl || undefined}
-          name={record.stationName}
-          className="h-12 w-12 shrink-0 rounded-xl"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-              {record.stationCode}
-            </span>
-            <Badge variant="outline" className={cn("text-[10px]", tone.badge)}>
-              {tone.label}
-            </Badge>
-          </div>
-          <div className="mt-1 truncate text-sm font-semibold leading-tight">
-            {record.stationName}
-          </div>
-          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            {record.municipality} · {record.province}
-          </div>
-          <div className="mt-1 text-[11px] font-medium text-primary">
-            {record.reportMonth}/{record.reportYear}
-          </div>
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-lg border border-border/60 bg-card/50 p-2.5 text-center">
-            <div className="text-lg font-bold text-orange-600 dark:text-orange-400">
-              {totals.pending}
-            </div>
-            <div className="text-[10px] font-medium text-muted-foreground">Pending</div>
-          </div>
-          <div className="rounded-lg border border-border/60 bg-card/50 p-2.5 text-center">
-            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-              {totals.accomplished}
-            </div>
-            <div className="text-[10px] font-medium text-muted-foreground">Accomplished</div>
-          </div>
-          <div className="rounded-lg border border-border/60 bg-card/50 p-2.5 text-center">
-            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-              {totals.completionPct.toFixed(0)}%
-            </div>
-            <div className="text-[10px] font-medium text-muted-foreground">Completion</div>
-          </div>
-        </div>
-
-        <div className="mt-3">
-          <Progress
-            value={Math.min(100, totals.completionPct)}
-            className={cn("h-2 [&>div]:transition-all [&>div]:duration-700", tone.bar)}
-          />
-        </div>
-
-        <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Notice Breakdown
-        </div>
-        <div className="overflow-hidden rounded-lg border border-border/60">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/50">
-              <tr className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                <th className="px-2 py-1.5 text-left font-semibold">Type</th>
-                <th className="px-2 py-1.5 text-right font-semibold">Pending</th>
-                <th className="px-2 py-1.5 text-right font-semibold">Accom.</th>
-                <th className="px-2 py-1.5 text-right font-semibold">Rem.</th>
-                <th className="px-2 py-1.5 text-right font-semibold">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.category} className="border-t border-border/60 odd:bg-card/40">
-                  <td className="px-2 py-1.5 font-medium">{CATEGORY_LABEL[r.category]}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{r.pending}</td>
-                  <td className="px-2 py-1.5 text-right">
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    >
-                      {r.accomplished}
-                    </Badge>
-                  </td>
-                  <td className="px-2 py-1.5 text-right">
-                    <Badge
-                      variant="outline"
-                      className="border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400"
-                    >
-                      {r.remaining}
-                    </Badge>
-                  </td>
-                  <td className="px-2 py-1.5 text-right">
-                    <Badge
-                      variant="outline"
-                      className="border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                    >
-                      {r.completionPct.toFixed(0)}%
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-              <tr className="border-t border-border bg-muted/40 font-semibold">
-                <td className="px-2 py-1.5">TOTAL</td>
-                <td className="px-2 py-1.5 text-right tabular-nums">{totals.pending}</td>
-                <td className="px-2 py-1.5 text-right text-emerald-600 dark:text-emerald-400 tabular-nums">
-                  {totals.accomplished}
-                </td>
-                <td className="px-2 py-1.5 text-right text-orange-600 dark:text-orange-400 tabular-nums">
-                  {totals.remaining}
-                </td>
-                <td className="px-2 py-1.5 text-right text-blue-600 dark:text-blue-400 tabular-nums">
-                  {totals.completionPct.toFixed(2)}%
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border/60 bg-muted/30 px-3 py-2">
-        <button
-          type="button"
-          onClick={() => onView(record)}
-          aria-label="View details"
-          title="View"
-          className="rounded-md border border-primary/20 bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
-        >
-          <Eye className="h-4 w-4" />
-        </button>
-        {canManage ? (
-          <>
-            <EditButton
-              ariaLabel="Edit notice ledger"
-              tooltip="Edit"
-              onClick={() => onEdit(record)}
-            />
-            <DeleteButton
-              ariaLabel="Delete notice ledger"
-              tooltip="Delete"
-              onClick={() => onDelete(record)}
-            />
-          </>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => onMatrix(record)}
-          aria-label="View Matrix"
-          title="View Matrix"
-          className="rounded-md border border-primary/20 bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
-        >
-          <Grid3x3 className="h-4 w-4" />
-        </button>
-      </div>
-    </Card>
+    <span
+      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${tone}`}
+      title="Days with notice entries / calendar days"
+    >
+      <CalendarDays className="h-3 w-3" />
+      {encoded} / {total}
+    </span>
   );
 }
 
+/* ------------------------------- Page ------------------------------- */
+
 export default function AccomplishedNotice() {
-  const [reportYear, setReportYear] = React.useState<string>("all");
-  const [reportMonth, setReportMonth] = React.useState<string>("all");
-  const [province, setProvince] = React.useState<string>("all");
-  const [station, setStation] = React.useState<string>("all");
   const { user, systemAccess } = useAuth();
   const canManage = React.useMemo(
     () => canManageTargetAndCompliance(user, systemAccess),
     [user, systemAccess],
   );
+
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
   const [records, setRecords] = React.useState<AccomplishedNoticeRecord[]>(accomplishedNoticesData);
+  const [searchkey, setSearchkey] = React.useState("");
+  const [year, setYear] = React.useState<string>(String(currentYear));
+  const [month, setMonth] = React.useState<string>(String(currentMonth));
+  const [province, setProvince] = React.useState<string>("ALL");
+  const [station, setStation] = React.useState<string>("ALL");
+  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
+
+  const [loading, setLoading] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<AccomplishedNoticeRecord | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
   const [addOpen, setAddOpen] = React.useState(false);
-  const [editOpen, setEditOpen] = React.useState(false);
-  const [viewOpen, setViewOpen] = React.useState(false);
   const [matrixOpen, setMatrixOpen] = React.useState(false);
-  const [activeRecord, setActiveRecord] = React.useState<AccomplishedNoticeRecord | null>(null);
+  const [viewTarget, setViewTarget] = React.useState<AccomplishedNoticeRecord | null>(null);
+  const [editTarget, setEditTarget] = React.useState<AccomplishedNoticeRecord | null>(null);
+  const [matrixTarget, setMatrixTarget] = React.useState<AccomplishedNoticeRecord | null>(null);
 
   const provinces = React.useMemo(
     () => Array.from(new Set(records.map((r) => r.province))).sort(),
     [records],
   );
+
   const stations = React.useMemo(() => {
-    const scoped = records.filter((r) => province === "all" || r.province === province);
+    const scoped = records.filter((r) => province === "ALL" || r.province === province);
     const map = new Map<string, string>();
     scoped.forEach((r) => map.set(r.stationCode, r.stationName));
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [province, records]);
 
   const filtered = React.useMemo(() => {
+    const needle = searchkey.trim().toLowerCase();
     const list = records.filter((r) => {
-      if (reportYear !== "all" && String(r.reportYear) !== reportYear) return false;
-      if (reportMonth !== "all" && String(r.reportMonth) !== reportMonth) return false;
-      if (province !== "all" && r.province !== province) return false;
-      if (station !== "all" && r.stationCode !== station) return false;
+      if (String(r.reportYear) !== year) return false;
+      if (String(r.reportMonth) !== month) return false;
+      if (province !== "ALL" && r.province !== province) return false;
+      if (station !== "ALL" && r.stationCode !== station) return false;
+      if (
+        needle &&
+        !`${r.stationName} ${r.stationCode} ${r.municipality} ${r.province}`
+          .toLowerCase()
+          .includes(needle)
+      )
+        return false;
       return true;
     });
-
     list.sort((a, b) => a.stationName.localeCompare(b.stationName));
     return list;
-  }, [records, reportYear, reportMonth, province, station]);
+  }, [records, searchkey, year, month, province, station]);
 
-  const resetFilters = () => {
-    setReportYear("all");
-    setReportMonth("all");
-    setProvince("all");
-    setStation("all");
+  const total = filtered.length;
+  const paged = React.useMemo(
+    () => filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page, pageSize],
+  );
+
+  // Mirror the ledger fetch feedback used by the compliance module.
+  React.useEffect(() => {
+    setLoading(true);
+    const t = window.setTimeout(() => setLoading(false), 120);
+    return () => window.clearTimeout(t);
+  }, [year, month, province, station, searchkey, page, pageSize]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [year, month, province, station, searchkey, pageSize, setPage]);
+
+  const handleResetFilters = () => {
+    setSearchkey("");
+    setYear(String(currentYear));
+    setMonth(String(currentMonth));
+    setProvince("ALL");
+    setStation("ALL");
+    setPage(1);
   };
 
-  const openAdd = () => {
-    const target = filtered[0] ?? null;
-    if (!target) return;
-    setActiveRecord(target);
-    setAddOpen(true);
-  };
-
-  const openGlobalMatrix = () => {
-    const target = filtered[0] ?? null;
-    if (!target) return;
-    setActiveRecord(target);
-    setMatrixOpen(true);
-  };
-
-  const openEdit = (record: AccomplishedNoticeRecord) => {
-    setActiveRecord(record);
-    setEditOpen(true);
-  };
-
-  const openView = (record: AccomplishedNoticeRecord) => {
-    setActiveRecord(record);
-    setViewOpen(true);
-  };
-
-  const openMatrix = (record: AccomplishedNoticeRecord) => {
-    setActiveRecord(record);
-    setMatrixOpen(true);
-  };
-
-  const handleDelete = (record: AccomplishedNoticeRecord) => {
-    setRecords((prev) => prev.filter((item) => item.stationNo !== record.stationNo));
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      setRecords((prev) => prev.filter((item) => item.stationNo !== deleteTarget.stationNo));
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSaved = (nextRecord: AccomplishedNoticeRecord) => {
@@ -341,53 +169,66 @@ export default function AccomplishedNotice() {
     );
   };
 
+  const openMatrixGlobal = () => {
+    setMatrixTarget(paged[0] ?? filtered[0] ?? null);
+    setMatrixOpen(true);
+  };
+
+  const openMatrixForCard = (r: AccomplishedNoticeRecord) => {
+    setMatrixTarget(r);
+    setMatrixOpen(true);
+  };
+
+  const openAdd = () => {
+    setAddOpen(true);
+  };
+
+  const addTarget = paged[0] ?? filtered[0] ?? null;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-bold flex items-center gap-2">
-          <BellRing className="h-5 w-5 text-primary" />
-          Accomplished Notice
-        </h1>
-        <p className="text-xs text-muted-foreground">
-          Month-based notice ledger with add, edit, view, delete, and matrix actions per station.
-        </p>
-      </div>
-
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Notice ledger actions
-          </h2>
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <BellRing className="h-5 w-5 text-primary" />
+            Accomplished Notice
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Notice accomplishments grouped by station, month, and year.
+          </p>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
           <Button
-            type="button"
             variant="outline"
+            onClick={openMatrixGlobal}
             className="w-full justify-center gap-2 sm:w-auto"
-            onClick={openGlobalMatrix}
           >
             <LayoutGrid className="h-4 w-4" /> Notice Matrix
           </Button>
-          {canManage ? (
-            <Button
-              type="button"
-              className="w-full justify-center gap-2 sm:w-auto"
-              onClick={openAdd}
-            >
+          {canManage && (
+            <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
               <Plus className="h-4 w-4" /> Add Notice
             </Button>
-          ) : null}
+          )}
         </div>
       </div>
 
-      <Card className="grid gap-3 border-border/60 p-4 md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
-        <FilterField label="Report Year">
-          <Select value={reportYear} onValueChange={setReportYear}>
+      {/* Filters */}
+      <Card className="grid gap-3 border-border/60 p-4 md:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
+        <FilterField label="Search">
+          <SearchKey
+            value={searchkey}
+            onChange={setSearchkey}
+            placeholder="Search station or municipality"
+            widthClass="w-full"
+          />
+        </FilterField>
+        <FilterField label="Year">
+          <Select value={year} onValueChange={setYear}>
             <SelectTrigger>
-              <SelectValue placeholder="All Years" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Years</SelectItem>
               {REPORT_YEARS.map((y) => (
                 <SelectItem key={y} value={String(y)}>
                   {y}
@@ -396,36 +237,33 @@ export default function AccomplishedNotice() {
             </SelectContent>
           </Select>
         </FilterField>
-
         <FilterField label="Month">
-          <Select value={reportMonth} onValueChange={setReportMonth}>
+          <Select value={month} onValueChange={setMonth}>
             <SelectTrigger>
-              <SelectValue placeholder="All Months" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Months</SelectItem>
-              {REPORT_MONTHS.map((m) => (
-                <SelectItem key={m} value={String(m)}>
-                  {m}
+              {MONTHS.map((m) => (
+                <SelectItem key={m.value} value={String(m.value)}>
+                  {m.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </FilterField>
-
         <FilterField label="Province">
           <Select
             value={province}
             onValueChange={(v) => {
               setProvince(v);
-              setStation("all");
+              setStation("ALL");
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="All Provinces" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Provinces</SelectItem>
+              <SelectItem value="ALL">ALL</SelectItem>
               {provinces.map((p) => (
                 <SelectItem key={p} value={p}>
                   {p}
@@ -434,14 +272,13 @@ export default function AccomplishedNotice() {
             </SelectContent>
           </Select>
         </FilterField>
-
         <FilterField label="Station">
           <Select value={station} onValueChange={setStation}>
             <SelectTrigger>
-              <SelectValue placeholder="All Stations" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Stations</SelectItem>
+              <SelectItem value="ALL">ALL</SelectItem>
               {stations.map(([code, name]) => (
                 <SelectItem key={code} value={code}>
                   {name}
@@ -450,50 +287,286 @@ export default function AccomplishedNotice() {
             </SelectContent>
           </Select>
         </FilterField>
-
-        <div className="flex items-end justify-end xl:col-span-1">
-          <ResetFiltersButton onReset={resetFilters} />
+        <div className="flex items-end justify-end md:col-span-2 lg:col-span-1">
+          <ResetFiltersButton onReset={handleResetFilters} />
         </div>
       </Card>
 
-      {filtered.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center gap-2 p-10 text-center shadow-elegant">
-          <div className="grid h-12 w-12 place-items-center rounded-full bg-muted text-muted-foreground">
-            <ListChecks className="h-6 w-6" />
-          </div>
-          <div className="text-sm font-medium">No Accomplished Notice records found.</div>
-          <div className="text-xs text-muted-foreground">Try adjusting your filters.</div>
+      {loading ? (
+        <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading notice ledger…
+        </Card>
+      ) : paged.length === 0 ? (
+        <Card className="border-border/60 p-10 text-center text-sm text-muted-foreground">
+          No notice records match the current filters.
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((r) => (
-            <StationCard
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
+          {paged.map((r) => (
+            <NoticeCard
               key={`${r.stationCode}-${r.reportYear}-${r.reportMonth}`}
               record={r}
-              canManage={canManage}
-              onEdit={openEdit}
-              onView={openView}
-              onDelete={handleDelete}
-              onMatrix={openMatrix}
+              locked={!canManage}
+              onView={() => setViewTarget(r)}
+              onEdit={() => setEditTarget(r)}
+              onDelete={() => setDeleteTarget(r)}
+              onMatrix={() => openMatrixForCard(r)}
             />
           ))}
         </div>
       )}
 
-      <NoticeAddModal
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        record={activeRecord}
-        onSaved={handleSaved}
+      <div className="border-t border-border/60 pt-3">
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      </div>
+
+      <SecureDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && !deleting && setDeleteTarget(null)}
+        title="Delete Notice Ledger?"
+        subject={
+          deleteTarget ? (
+            <>
+              {deleteTarget.stationName} —{" "}
+              {MONTHS.find((m) => m.value === deleteTarget.reportMonth)?.name}{" "}
+              {deleteTarget.reportYear}
+            </>
+          ) : null
+        }
+        description="This removes every daily notice entry for the month. Records can be restored by the administrator."
+        confirmLabel="Delete"
+        deleting={deleting}
+        onConfirm={confirmDelete}
       />
-      <NoticeEditModal
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        record={activeRecord}
-        onSaved={handleSaved}
-      />
-      <NoticeViewModal open={viewOpen} onOpenChange={setViewOpen} record={activeRecord} />
-      <NoticeMatrixModal open={matrixOpen} onOpenChange={setMatrixOpen} record={activeRecord} />
+
+      {addTarget && (
+        <NoticeAddModal
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          record={addTarget}
+          onSaved={handleSaved}
+        />
+      )}
+
+      {matrixTarget && (
+        <NoticeMatrixModal
+          open={matrixOpen}
+          onOpenChange={(o) => {
+            setMatrixOpen(o);
+            if (!o) setMatrixTarget(null);
+          }}
+          record={matrixTarget}
+        />
+      )}
+
+      {viewTarget && (
+        <NoticeViewModal
+          open={!!viewTarget}
+          onOpenChange={(o) => !o && setViewTarget(null)}
+          record={viewTarget}
+        />
+      )}
+
+      {editTarget && (
+        <NoticeEditModal
+          open={!!editTarget}
+          onOpenChange={(o) => !o && setEditTarget(null)}
+          record={editTarget}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
+  );
+}
+
+/* ------------------------------- Card ------------------------------- */
+
+type NoticeMetric = "pending" | "accomplished" | "remaining" | "completionPct";
+
+const DETAIL_SECTIONS: { title: string; metric: NoticeMetric }[] = [
+  { title: "Pending", metric: "pending" },
+  { title: "Accomplished", metric: "accomplished" },
+  { title: "Remaining", metric: "remaining" },
+  { title: "Completion", metric: "completionPct" },
+];
+
+function NoticeCard({
+  record,
+  locked,
+  onView,
+  onEdit,
+  onDelete,
+  onMatrix,
+}: {
+  record: AccomplishedNoticeRecord;
+  locked: boolean;
+  onView: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onMatrix: () => void;
+}) {
+  const monthName =
+    MONTHS.find((m) => m.value === record.reportMonth)?.name ?? String(record.reportMonth);
+  const rows = computeCategoryRows(record.breakdown);
+  const totals = computeTotals(record.breakdown);
+  const byCategory = React.useMemo(
+    () => new Map(rows.map((r) => [r.category, r])),
+    [rows],
+  );
+
+  const daysInMonth = calendarDaysInMonth(record.reportYear, record.reportMonth);
+  const daysRecorded = record.dailyEntries.filter((entry) =>
+    NOTICE_CATEGORIES.some(
+      (c) => entry.breakdown[c].pending > 0 || entry.breakdown[c].accomplished > 0,
+    ),
+  ).length;
+
+  const formatValue = (metric: NoticeMetric, value: number) =>
+    metric === "completionPct" ? `${value.toFixed(0)}%` : value.toLocaleString();
+
+  const sectionTotal = (metric: NoticeMetric) =>
+    metric === "completionPct"
+      ? `${totals.completionPct.toFixed(0)}%`
+      : totals[metric].toLocaleString();
+
+  return (
+    <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
+      {/* Header */}
+      <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-blue-50 dark:from-slate-700/40 via-blue-50/50 dark:via-slate-700/20 to-transparent dark:to-transparent p-4">
+        <AvatarWithFallback
+          entity={{ name: record.stationName }}
+          src={record.logoUrl || undefined}
+          name={record.stationName}
+          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-blue-200 dark:ring-slate-600"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+              {record.stationCode}
+            </span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
+              {monthName} {record.reportYear}
+            </span>
+          </div>
+          <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
+            {record.stationName}
+          </div>
+          <div className="text-[11px] text-muted-foreground dark:text-slate-400">
+            {record.municipality} · {record.province}
+          </div>
+        </div>
+        <div
+          className="grid h-10 w-14 place-items-center rounded-lg bg-blue-100 dark:bg-slate-600 text-center text-blue-700 dark:text-blue-300"
+          title="Total Notices Issued"
+        >
+          <div className="text-[8px] font-bold uppercase leading-none">Total</div>
+          <div className="text-xs font-bold leading-none">{totals.pending.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 space-y-3 p-3">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/40 dark:border-border/50 bg-card dark:bg-slate-800/60 p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground dark:text-slate-100">
+              <BellRing className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              Notice Totals
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <DaysRecordedBadge encoded={daysRecorded} total={daysInMonth} />
+              <span className="rounded-full bg-blue-100 dark:bg-slate-600 px-3 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                {totals.accomplished.toLocaleString()} accomplished
+              </span>
+            </div>
+          </div>
+          <div className="border-b border-border/40 dark:border-border/50" />
+          <div className="grid gap-3 md:grid-cols-2">
+            {[DETAIL_SECTIONS.slice(0, 2), DETAIL_SECTIONS.slice(2, 4)].map((group, groupIndex) => (
+              <div key={groupIndex} className="space-y-3">
+                {group.map((section) => (
+                  <div
+                    key={section.metric}
+                    className="rounded-xl border border-border/40 dark:border-border/50 bg-card dark:bg-slate-800/50 overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between gap-2 border-b border-border/40 dark:border-border/50 bg-blue-50 dark:bg-slate-700/60 px-3 py-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.15em] text-blue-600 dark:text-blue-400">
+                        {section.title}
+                      </span>
+                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+                        {sectionTotal(section.metric)}
+                      </span>
+                    </div>
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {NOTICE_CATEGORIES.map((category, index) => {
+                          const value = byCategory.get(category)?.[section.metric] ?? 0;
+                          return (
+                            <tr
+                              key={category}
+                              className={
+                                index % 2 === 0
+                                  ? "bg-card dark:bg-slate-800/30"
+                                  : "bg-blue-50/40 dark:bg-slate-700/30"
+                              }
+                            >
+                              <td className="px-3 py-2 text-sm font-medium text-foreground dark:text-slate-200">
+                                {CATEGORY_LABEL[category]}
+                              </td>
+                              <td
+                                className={`px-3 py-2 text-right tabular-nums ${
+                                  value === 0
+                                    ? "text-muted-foreground dark:text-slate-500"
+                                    : "text-foreground dark:text-slate-100 font-semibold"
+                                }`}
+                              >
+                                {formatValue(section.metric, value)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-[10px] text-muted-foreground dark:text-slate-400">
+          Days with entries: {daysRecorded} of {daysInMonth}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border/40 dark:border-border/50 bg-muted/10 dark:bg-slate-800/30 p-2">
+        <button
+          type="button"
+          onClick={onView}
+          aria-label="View details"
+          title="View"
+          className="rounded-md p-2 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-slate-600 transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+        {!locked && <EditButton onClick={onEdit} tooltip="Edit" />}
+        {!locked && <DeleteButton onClick={onDelete} tooltip="Delete" />}
+        <button
+          type="button"
+          onClick={onMatrix}
+          aria-label="View Matrix"
+          title="View Matrix"
+          className="rounded-md p-2 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-slate-600 transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300"
+        >
+          <Grid3x3 className="h-4 w-4" />
+        </button>
+      </div>
+    </Card>
   );
 }

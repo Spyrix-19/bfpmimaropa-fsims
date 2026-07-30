@@ -7,7 +7,13 @@ import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { unwrap } from "@/lib/api-envelope";
 import type { TargetReferenceDetailModel } from "@/types/targetreferenceType";
-import { computeDerivedFromList, type TargetPeriod, type TargetBucket } from "../helpers";
+import {
+  computeDerivedFromList,
+  computeDailyFromList,
+  formatDayLabel,
+  type TargetPeriod,
+  type TargetBucket,
+} from "../helpers";
 
 interface Props {
   open: boolean;
@@ -15,6 +21,8 @@ interface Props {
   /** Station + year to fetch details for; null when the dialog is closed. */
   target: { stationno: string; reportyear: number } | null;
   period: TargetPeriod;
+  /** Report month (1..12) driving the Daily breakdown. */
+  month: number;
 }
 
 function Row({
@@ -48,7 +56,7 @@ function Row({
   );
 }
 
-export default function TargetReferenceDetails({ open, onOpenChange, target, period }: Props) {
+export default function TargetReferenceDetails({ open, onOpenChange, target, period, month }: Props) {
   const [loading, setLoading] = React.useState(false);
   const [detail, setDetail] = React.useState<TargetReferenceDetailModel | null>(null);
 
@@ -73,6 +81,14 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
       cancelled = true;
     };
   }, [open, target]);
+
+  const dailyDerived = React.useMemo(
+    () =>
+      detail
+        ? computeDailyFromList(detail.targetreferencelist, target?.reportyear ?? 0, month)
+        : null,
+    [detail, target?.reportyear, month],
+  );
 
   const derived = React.useMemo(
     () => (detail ? computeDerivedFromList(detail.targetreferencelist) : null),
@@ -148,6 +164,7 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
 
             <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
               <div className="border-b bg-card px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-primary">
+                {period === "DAILY" && "Daily Targets"}
                 {period === "MONTHLY" && "Monthly Targets"}
                 {period === "QUARTERLY" && "Quarterly Targets"}
                 {period === "SEMI-ANNUAL" && "Semi-Annual Targets"}
@@ -158,7 +175,9 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                   <thead className="sticky top-0 z-10 bg-card">
                     <tr className="bg-card text-left text-xs uppercase tracking-[0.15em] text-primary">
                       <th className="px-3 py-2 font-semibold bg-card">
-                        {period === "MONTHLY"
+                        {period === "DAILY"
+                          ? "Date"
+                          : period === "MONTHLY"
                           ? "Month"
                           : period === "QUARTERLY"
                           ? "Quarter"
@@ -174,6 +193,15 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                     </tr>
                   </thead>
                   <tbody>
+                    {period === "DAILY" &&
+                      dailyDerived &&
+                      dailyDerived.days.map((d) => (
+                        <Row
+                          key={d}
+                          label={formatDayLabel(target?.reportyear ?? 0, month, d)}
+                          b={dailyDerived.daily[d]}
+                        />
+                      ))}
                     {period === "MONTHLY" &&
                       MONTHS.map((m) => (
                         <Row key={m.value} label={m.name} b={derived.monthly[m.value]} />
@@ -186,6 +214,26 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                       <Row label="Annual Total" b={derived.annual} emphasize />
                     )}
                   </tbody>
+                  {period === "DAILY" && dailyDerived ? (
+                    <tfoot className="sticky bottom-0 bg-card">
+                      <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+                        <td className="border-t px-3 py-2 bg-card">TOTAL</td>
+                        {(["bplo", "gov", "peza", "tieza"] as const).map((k) => (
+                          <td key={k} className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                            {dailyDerived.total[k].toLocaleString()}
+                          </td>
+                        ))}
+                        <td className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                          {(
+                            dailyDerived.total.bplo +
+                            dailyDerived.total.gov +
+                            dailyDerived.total.peza +
+                            dailyDerived.total.tieza
+                          ).toLocaleString()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  ) : null}
                   {period === "MONTHLY" && overallTotals ? (
                     <tfoot className="sticky bottom-0 bg-card">
                       <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">

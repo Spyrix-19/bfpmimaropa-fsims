@@ -13,12 +13,17 @@ export interface RefFilter {
   code?: string; // optional (e.g. locationcode for scoping children)
 }
 
-export type DashInterval = "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
+export type DashInterval = "DAILY" | "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
 
 export interface DashFilters {
   year: string;
   interval: DashInterval;
-  period: string; // meaning depends on interval; "all" or a specific bucket
+  /**
+   * Meaning depends on interval: "all" or a specific bucket
+   * (month number / `q1..q4` / `s1..s2`). When the interval is `DAILY`
+   * this holds the selected calendar date as an ISO `yyyy-mm-dd` string.
+   */
+  period: string;
   provinces: SelectedLocation[];
   stations: SelectedStation[];
   city: RefFilter;
@@ -26,6 +31,21 @@ export interface DashFilters {
 }
 
 const empty: RefFilter = { no: "all", name: "", code: "" };
+
+/** Local (not UTC) ISO `yyyy-mm-dd` for the given date. */
+export function toISODate(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/** Parses an ISO `yyyy-mm-dd` string into a local Date (null when invalid). */
+export function fromISODate(v: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v ?? "");
+  if (!match) return null;
+  const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 export const DEFAULT_FILTERS: DashFilters = {
   year: String(new Date().getFullYear()),
@@ -37,11 +57,18 @@ export const DEFAULT_FILTERS: DashFilters = {
   category: empty,
 };
 
+
 /** Expands the interval/period selection into the concrete list of months. */
 export function resolveReportMonths(interval: DashInterval, period: string): number[] {
   const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   if (interval === "ANNUAL") return ALL;
+  if (interval === "DAILY") {
+    // `period` carries the selected ISO date; narrow the query to its month.
+    const d = fromISODate(period);
+    return d ? [d.getMonth() + 1] : ALL;
+  }
   if (period === "all" || !period) return ALL;
+
   if (interval === "MONTHLY") {
     const m = Number(period);
     return m >= 1 && m <= 12 ? [m] : ALL;

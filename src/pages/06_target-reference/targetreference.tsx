@@ -48,6 +48,8 @@ import TargetMatrixModal from "./components/TargetMatrix";
 import {
   PERIOD_OPTIONS,
   computeDerivedFromList,
+  computeDailyFromList,
+  formatDayLabel,
   resolveTargetScope,
   type TargetPeriod,
   type TargetBucket,
@@ -107,7 +109,9 @@ export default function TargetReferenceIndexPage() {
   const refresh = () => setRefreshTick((t) => t + 1);
 
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
   const [year, setYear] = React.useState<string>(String(currentYear));
+  const [month, setMonth] = React.useState<string>(String(currentMonth));
   // Unlocked fields default to EMPTY_GUID ("ALL"); locked fields carry the login scope GUID.
   const [provinceFilter, setProvinceFilter] = React.useState<string>(
     scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
@@ -122,7 +126,7 @@ export default function TargetReferenceIndexPage() {
     scope.stationLocked ? scope.stationname : "ALL",
   );
   const YEARS = React.useMemo(buildYears, []);
-  const [period, setPeriod] = React.useState<TargetPeriod>("MONTHLY");
+  const [period, setPeriod] = React.useState<TargetPeriod>("DAILY");
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
 
   // Re-apply scope defaults whenever the authenticated scope resolves/changes.
@@ -260,7 +264,7 @@ export default function TargetReferenceIndexPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [year, provinceFilter, stationFilter, pageSize]);
+  }, [year, month, provinceFilter, stationFilter, pageSize]);
 
   const handleProvinceSelect = (locationno: string, locationname: string) => {
     setProvinceFilter(locationno);
@@ -297,7 +301,8 @@ export default function TargetReferenceIndexPage() {
     setProvinceFilterName(scope.provinceLocked ? scope.provincename : "ALL");
     setStationFilter(scope.stationLocked ? scope.stationno : EMPTY_GUID);
     setStationFilterName(scope.stationLocked ? scope.stationname : "ALL");
-    setPeriod("MONTHLY");
+    setMonth(String(new Date().getMonth() + 1));
+    setPeriod("DAILY");
     setPage(1);
   };
 
@@ -369,7 +374,7 @@ export default function TargetReferenceIndexPage() {
 
       {/* Filters */}
       <Card className="border-border/60 p-4">
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-6">
               <FilterField label="Year">
             <Select value={year} onValueChange={setYear}>
               <SelectTrigger>
@@ -379,6 +384,21 @@ export default function TargetReferenceIndexPage() {
                 {YEARS.map((y) => (
                   <SelectItem key={y} value={String(y)}>
                     {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
+
+          <FilterField label="Month">
+            <Select value={month} onValueChange={setMonth}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={String(m.value)}>
+                    {m.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -432,6 +452,7 @@ export default function TargetReferenceIndexPage() {
               key={g.key}
               group={g}
               period={period}
+              month={Number(month)}
               canManage={canManage}
               onView={() => handleView(g)}
               onEdit={() => handleEdit(g)}
@@ -456,7 +477,9 @@ export default function TargetReferenceIndexPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         editing={
-          editingGroup ? { year: editingGroup.year, stationno: editingGroup.stationno } : null
+          editingGroup
+            ? { year: editingGroup.year, month: Number(month), stationno: editingGroup.stationno }
+            : null
         }
         onSaved={refresh}
       />
@@ -466,6 +489,7 @@ export default function TargetReferenceIndexPage() {
         onOpenChange={setDetailsOpen}
         target={detailsTarget}
         period={period}
+        month={Number(month)}
       />
 
       <TargetMatrixModal
@@ -493,7 +517,7 @@ export default function TargetReferenceIndexPage() {
             </>
           ) : null
         }
-        description="This deletes every monthly target record for the selected station and year. This action cannot be undone."
+        description="This deletes every daily target record for the selected station and year. This action cannot be undone."
         confirmLabel="Delete"
         deleting={deleting}
         onConfirm={confirmDelete}
@@ -536,6 +560,7 @@ function TableHead({ firstLabel }: { firstLabel: string }) {
 function TargetCard({
   group,
   period,
+  month,
   canManage,
   onView,
   onEdit,
@@ -544,6 +569,7 @@ function TargetCard({
 }: {
   group: GroupItem;
   period: TargetPeriod;
+  month: number;
   canManage: boolean;
   onView: () => void;
   onEdit: () => void;
@@ -553,6 +579,10 @@ function TargetCard({
   const derived = React.useMemo(
     () => computeDerivedFromList(group.row.targetreferencelist),
     [group.row.targetreferencelist],
+  );
+  const dailyDerived = React.useMemo(
+    () => computeDailyFromList(group.row.targetreferencelist, group.year, month),
+    [group.row.targetreferencelist, group.year, month],
   );
   const annualSum =
     derived.annual.bplo + derived.annual.gov + derived.annual.peza + derived.annual.tieza;
@@ -593,6 +623,42 @@ function TargetCard({
       {/* Body */}
       <div className="flex-1 space-y-3 p-3">
         <div className="rounded-lg border border-border/60">
+          {period === "DAILY" && (
+            <>
+              <SectionHeader icon={<Calendar className="h-3.5 w-3.5" />} title="Daily Targets" />
+              <div className="max-h-56 overflow-auto">
+                <table className="w-full text-xs">
+                  <TableHead firstLabel="Date" />
+                  <tbody>
+                    {dailyDerived.days.map((d, i) => {
+                      const b = dailyDerived.daily[d];
+                      return (
+                        <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                          <td className="whitespace-nowrap px-2 py-1.5 font-medium">
+                            {formatDayLabel(group.year, month, d)}
+                          </td>
+                          <BucketCell b={b} k="bplo" />
+                          <BucketCell b={b} k="gov" />
+                          <BucketCell b={b} k="peza" />
+                          <BucketCell b={b} k="tieza" />
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="sticky bottom-0 z-20">
+                    <tr className="font-semibold">
+                      <td className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 shadow-[0_-1px_0_0_hsl(var(--border))]">TOTAL</td>
+                      <BucketCell b={dailyDerived.total} k="bplo" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                      <BucketCell b={dailyDerived.total} k="gov" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                      <BucketCell b={dailyDerived.total} k="peza" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                      <BucketCell b={dailyDerived.total} k="tieza" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </>
+          )}
+
           {period === "MONTHLY" && (
             <>
               <SectionHeader icon={<Calendar className="h-3.5 w-3.5" />} title="Monthly Targets" />
