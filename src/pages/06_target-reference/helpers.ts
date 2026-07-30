@@ -124,7 +124,7 @@ function resolveBucket(it: TargetReferenceClassModel): TargetBucket {
   return {
     bplo: Number(it.bplototal ?? 0),
     gov: Number(it.govtotal ?? 0),
-    peza: Number(it.piezatotal ?? 0),
+    peza: Number(it.pezatotal ?? 0),
     tieza: Number(it.tiezatotal ?? 0),
   };
 }

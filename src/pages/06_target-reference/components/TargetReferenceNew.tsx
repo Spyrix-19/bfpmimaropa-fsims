@@ -36,6 +36,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** When present, opens in Edit mode for that station+year+month. */
   editing?: { year: number; month?: number; stationno?: string } | null;
+  initialYear?: number;
+  initialMonth?: number;
   onSaved: () => void;
 }
 
@@ -67,11 +69,24 @@ function hasPstLockActivated(reportyear: number, reportmonth: number, now: Date 
   return manilaNowMs >= lockActivationMs;
 }
 
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateInputValue(value: string): Date {
+  const [year, month, day] = value.split("-");
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}
 
 export default function TargetReferenceForm({
   open,
   onOpenChange,
   editing,
+  initialYear,
+  initialMonth,
   onSaved,
 }: Props) {
   const { user, systemAccess } = useAuth();
@@ -104,6 +119,19 @@ export default function TargetReferenceForm({
     cells: CellMap;
     ids: Record<string, string>;
   } | null>(null);
+  const [selectedDate, setSelectedDate] = React.useState<string>(formatDateInputValue(new Date()));
+  const [remarks, setRemarks] = React.useState<string>("");
+
+  const setField = (field: string, raw: string) => {
+    setCells((prev) => ({ ...prev, [field]: toWhole(raw) }));
+    if (errors[field]) {
+      setErrors((e) => {
+        const n = { ...e };
+        delete n[field];
+        return n;
+      });
+    }
+  };
 
   const [stationNo, setStationNo] = React.useState<string>(
     scope.stationLocked ? scope.stationno || user?.stationno || "" : EMPTY_GUID,
@@ -317,16 +345,18 @@ export default function TargetReferenceForm({
     setExistingTargetNos({});
     setAutoEdit(false);
     setDuplicatePrompted(false);
-    setYear(editing?.year ?? currentYear);
-    setMonth(editing?.month ?? currentMonth);
+    setSelectedDate(formatDateInputValue(new Date()));
+    setRemarks("");
+    setYear(editing?.year ?? initialYear ?? currentYear);
+    setMonth(editing?.month ?? initialMonth ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
-  }, [open, editing, currentYear, currentMonth, scope.provinceLocked, scope.provinceno, user?.provinceno]);
+  }, [open, editing, currentYear, currentMonth, initialYear, initialMonth, scope.provinceLocked, scope.provinceno, user?.provinceno]);
 
   // Load existing values for edit — Detail endpoint returns the station's
   // full year in a single call, including database TargetNo for each cell.
   React.useEffect(() => {
-    if (!open || !stationNo || stationNo === EMPTY_GUID) return;
+    if (!open || !stationNo || stationNo === EMPTY_GUID || !isEdit) return;
     let cancelled = false;
     (async () => {
       setExistingLoading(true);
@@ -340,7 +370,6 @@ export default function TargetReferenceForm({
       const nextIds: Record<string, string> = {};
       const nextEditableStatus: Record<string, number> = {};
       const nextIsRevReq: Record<string, boolean> = {};
-      let hasAny = false;
       if (ok && data) {
         (data.targetreferencelist ?? []).forEach((it) => {
           // Daily mapping — match on reportyear + reportmonth + reportday.
@@ -349,25 +378,14 @@ export default function TargetReferenceForm({
           if (!day || day < 1 || day > days.length) return;
           nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
           nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
-          nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
+          nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.pezatotal ?? 0);
           nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
           nextEditableStatus[String(day)] = Number(it.editablestatus ?? 0);
           nextIsRevReq[String(day)] = Boolean(it.isrevisionrequest);
           if (it.targetno && it.targetno !== EMPTY_GUID) {
             nextIds[String(day)] = it.targetno;
-            hasAny = true;
           }
         });
-      }
-
-      // Duplicate detection during Add: if any target already exists for the
-      // selected station + year, prompt the user to switch into Edit mode.
-      if (!isEditProp && hasAny && !duplicatePrompted) {
-        setDuplicatePrompted(true);
-        setPendingDuplicateData({ cells: nextCells, ids: nextIds });
-        setDuplicateDialogOpen(true);
-        setExistingLoading(false);
-        return;
       }
 
       setCells(nextCells);
@@ -380,7 +398,7 @@ export default function TargetReferenceForm({
     return () => {
       cancelled = true;
     };
-  }, [open, stationNo, year, month, days.length, isEditProp, duplicatePrompted, onOpenChange, reloadNonce]);
+  }, [open, stationNo, year, month, days.length, isEdit, reloadNonce]);
 
   const setCell = (day: number, sectorNo: number, raw: string) => {
     const key = `${day}-${sectorNo}`;
@@ -396,11 +414,28 @@ export default function TargetReferenceForm({
 
   const validate = (): boolean => {
     const next: Record<string, string> = {};
+
+    if (!selectedDate) {
+      next.date = "Required";
+    }
+
+    ["bplo", "gov", "peza", "tieza"].forEach((key) => {
+      const value = cells[key] ?? "";
+      if (value === "") {
+        next[key] = "Required";
+        return;
+      }
+      const n = Number(value);
+      if (!Number.isInteger(n) || n < 0) next[key] = "Invalid";
+    });
+
     Object.entries(cells).forEach(([k, v]) => {
+      if (["bplo", "gov", "peza", "tieza"].includes(k)) return;
       if (v === "") return;
       const n = Number(v);
       if (!Number.isInteger(n) || n < 0) next[k] = "Invalid";
     });
+
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -420,7 +455,7 @@ export default function TargetReferenceForm({
       if (!isSaved) return;
       nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
       nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
-      nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.piezatotal ?? 0);
+      nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.pezatotal ?? 0);
       nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
       nextIds[String(day)] = it.targetno;
     });
@@ -455,6 +490,10 @@ export default function TargetReferenceForm({
   const logoUrl = station?.logourl ?? "";
   const completeAddress = station?.provincename ?? "";
 
+  const selectedYear = Number(selectedDate.slice(0, 4));
+  const selectedMonth = Number(selectedDate.slice(5, 7));
+  const selectedDay = Number(selectedDate.slice(8, 10));
+
   const handleSave = async () => {
     const submitStationNo = scope.stationLocked
       ? scope.stationno || stationNo || user?.stationno || ""
@@ -466,7 +505,7 @@ export default function TargetReferenceForm({
     }
 
     if (!isEdit && !duplicatePrompted) {
-      const existing = await checkExistingTargetReference(submitStationNo, Number(year));
+      const existing = await checkExistingTargetReference(submitStationNo, selectedYear);
       if (existing && Object.keys(existing.cells).length > 0) {
         setPendingDuplicateData(existing);
         setDuplicatePrompted(true);
@@ -497,35 +536,49 @@ export default function TargetReferenceForm({
       }
     }
 
-    const list: TargetReferenceClass[] = days.map((d) => {
-      const bploKey = `${d}-${SECTOR_NO.BPLO}`;
-      const govKey = `${d}-${SECTOR_NO.GOV}`;
-      const pezaKey = `${d}-${SECTOR_NO.PEZA}`;
-      const tiezaKey = `${d}-${SECTOR_NO.TIEZA}`;
-      const bplototal = Number(cells[bploKey] ?? 0);
-      const govtotal = Number(cells[govKey] ?? 0);
-      const piezatotal = Number(cells[pezaKey] ?? 0);
-      const tiezatotal = Number(cells[tiezaKey] ?? 0);
-      // isaccomplished = true when any of the four totals differ from the
-      // originally loaded baseline (from targetreferenceAPI.getDetail).
-      const isaccomplished =
-        bplototal !== Number(baselineCells[bploKey] ?? 0) ||
-        govtotal !== Number(baselineCells[govKey] ?? 0) ||
-        piezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
-        tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
-      const existingTargetNo = resolvedExistingTargetNos[String(d)];
-      return {
-        targetno: existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
-        reportyear: Number(year),
-        reportmonth: Number(month),
-        reportday: Number(d),
-        bplototal,
-        govtotal,
-        piezatotal,
-        tiezatotal,
-        isaccomplished,
-      } as TargetReferenceClass & { isaccomplished: boolean };
-    });
+    const list: TargetReferenceClass[] = isEdit
+      ? days.map((d) => {
+          const bploKey = `${d}-${SECTOR_NO.BPLO}`;
+          const govKey = `${d}-${SECTOR_NO.GOV}`;
+          const pezaKey = `${d}-${SECTOR_NO.PEZA}`;
+          const tiezaKey = `${d}-${SECTOR_NO.TIEZA}`;
+          const bplototal = Number(cells[bploKey] ?? 0);
+          const govtotal = Number(cells[govKey] ?? 0);
+          const pezatotal = Number(cells[pezaKey] ?? 0);
+          const tiezatotal = Number(cells[tiezaKey] ?? 0);
+          // isaccomplished = true when any of the four totals differ from the
+          // originally loaded baseline (from targetreferenceAPI.getDetail).
+          const isaccomplished =
+            bplototal !== Number(baselineCells[bploKey] ?? 0) ||
+            govtotal !== Number(baselineCells[govKey] ?? 0) ||
+            pezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
+            tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
+          const existingTargetNo = resolvedExistingTargetNos[String(d)];
+          return {
+            targetno: existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
+            reportyear: Number(year),
+            reportmonth: Number(month),
+            reportday: Number(d),
+            bplototal,
+            govtotal,
+            pezatotal,
+            tiezatotal,
+            isaccomplished,
+          } as TargetReferenceClass & { isaccomplished: boolean };
+        })
+      : [
+          {
+            targetno: EMPTY_GUID,
+            reportyear: selectedYear,
+            reportmonth: selectedMonth,
+            reportday: selectedDay,
+            bplototal: Number(cells[`bplo`] ?? 0),
+            govtotal: Number(cells[`gov`] ?? 0),
+            pezatotal: Number(cells[`peza`] ?? 0),
+            tiezatotal: Number(cells[`tieza`] ?? 0),
+            ...(remarks ? { remarks } : {}),
+          } as TargetReferenceClass,
+        ];
 
     setSaving(true);
     try {
@@ -608,7 +661,100 @@ export default function TargetReferenceForm({
     setDuplicateDialogOpen(newOpen);
   };
 
-  const tableBody = loadingGrid ? (
+  const addBody = (
+    <div className="grid gap-6 px-4 py-4 sm:px-6">
+      <div className="grid gap-6 rounded-3xl border border-border/80 bg-surface p-4 sm:grid-cols-2">
+        <div className="grid gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="target-reference-bplo">
+              BPLO <span className="text-destructive">*</span>
+            </Label>
+            <input
+              id="target-reference-bplo"
+              inputMode="numeric"
+              type="text"
+              value={cells[`bplo`] ?? ""}
+              onChange={(event) => setField("bplo", event.target.value.replace(/[^0-9]/g, ""))}
+              className={cn(
+                "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
+                errors.bplo && "border-destructive focus:border-destructive focus:ring-destructive",
+              )}
+              aria-invalid={Boolean(errors.bplo)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="target-reference-gov">
+              GOV <span className="text-destructive">*</span>
+            </Label>
+            <input
+              id="target-reference-gov"
+              inputMode="numeric"
+              type="text"
+              value={cells[`gov`] ?? ""}
+              onChange={(event) => setField("gov", event.target.value.replace(/[^0-9]/g, ""))}
+              className={cn(
+                "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
+                errors.gov && "border-destructive focus:border-destructive focus:ring-destructive",
+              )}
+              aria-invalid={Boolean(errors.gov)}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="target-reference-tieza">
+              TIEZA <span className="text-destructive">*</span>
+            </Label>
+            <input
+              id="target-reference-tieza"
+              inputMode="numeric"
+              type="text"
+              value={cells[`tieza`] ?? ""}
+              onChange={(event) => setField("tieza", event.target.value.replace(/[^0-9]/g, ""))}
+              className={cn(
+                "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
+                errors.tieza && "border-destructive focus:border-destructive focus:ring-destructive",
+              )}
+              aria-invalid={Boolean(errors.tieza)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="target-reference-peza">
+              PEZA <span className="text-destructive">*</span>
+            </Label>
+            <input
+              id="target-reference-peza"
+              inputMode="numeric"
+              type="text"
+              value={cells[`peza`] ?? ""}
+              onChange={(event) => setField("peza", event.target.value.replace(/[^0-9]/g, ""))}
+              className={cn(
+                "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
+                errors.peza && "border-destructive focus:border-destructive focus:ring-destructive",
+              )}
+              aria-invalid={Boolean(errors.peza)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="target-reference-remarks">Remarks</Label>
+        <textarea
+          id="target-reference-remarks"
+          value={remarks}
+          onChange={(event) => setRemarks(event.target.value)}
+          className="min-h-[120px] w-full resize-none rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+          placeholder="Add remarks here..."
+        />
+      </div>
+    </div>
+  );
+
+  const editBody = loadingGrid ? (
     <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin" /> Loading…
     </div>
@@ -645,120 +791,121 @@ export default function TargetReferenceForm({
                 Number((req as { reportday?: number }).reportday ?? d) === Number(d) &&
                 req.statuscode?.toUpperCase() === "PENDING",
             );
-            // Server-driven flags (only source of truth for editability + action state)
             const editablestatus = existingEditableStatus[String(d)];
             const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
             const serverIsEditable = editablestatus === 153;
-            // PST lock-activation gate: until day 4 00:00 of the following
-            // month (Asia/Manila), the row must behave like an unlocked /
-            // current month regardless of any server-side lock hint.
             const pstLockActive = hasPstLockActivated(year, Number(month));
             const isEditable = serverIsEditable || !pstLockActive;
             const row = {
               isrevisionrequest: serverIsRevisionRequest || Boolean(activeReq),
             };
 
-            // Pick a referencekey (targetno) for the row.
-            const rowReferenceKey = existingTargetNos?.[String(d)] || "";
             return (
-            <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-              <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
-                {row.isrevisionrequest ? (
-                  <div className="flex items-center justify-center gap-1.5">
-                    <EditButton
-                      variant="square"
-                      tooltip="Cancel Revision Request"
-                      ariaLabel="Cancel Revision Request"
-                      icon={<Ban className="h-4 w-4" />}
-                      onClick={() => {
-                        if (activeReq) setCancelRequestId(activeReq.requestno);
-                        else toast.info("No active revision request to cancel.");
-                      }}
-                    />
-                    <DeleteButton
-                      variant="square"
-                      tooltip="Delete Revision Request"
-                      ariaLabel="Delete Revision Request"
-                      icon={<Trash2 className="h-4 w-4" />}
-                      onClick={() => {
-                        if (activeReq) setDeleteRequestId(activeReq.requestno);
-                        else toast.info("No revision request to delete.");
-                      }}
-                    />
+              <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
+                  {row.isrevisionrequest ? (
+                    <div className="flex items-center justify-center gap-1.5">
+                      <EditButton
+                        variant="square"
+                        tooltip="Cancel Revision Request"
+                        ariaLabel="Cancel Revision Request"
+                        icon={<Ban className="h-4 w-4" />}
+                        onClick={() => {
+                          if (activeReq) setCancelRequestId(activeReq.requestno);
+                          else toast.info("No active revision request to cancel.");
+                        }}
+                      />
+                      <DeleteButton
+                        variant="square"
+                        tooltip="Delete Revision Request"
+                        ariaLabel="Delete Revision Request"
+                        icon={<Trash2 className="h-4 w-4" />}
+                        onClick={() => {
+                          if (activeReq) setDeleteRequestId(activeReq.requestno);
+                          else toast.info("No revision request to delete.");
+                        }}
+                      />
+                    </div>
+                  ) : isEditable ? null : (
+                    <div className="flex items-center justify-center gap-1.5">
+                      <EditButton
+                        variant="square"
+                        tooltip={
+                          !revStation
+                            ? "Select a station to request a revision"
+                            : "Request Revision"
+                        }
+                        ariaLabel={
+                          !revStation
+                            ? "Select a station to request a revision"
+                            : "Request Revision"
+                        }
+                        disabled={!revStation}
+                        icon={<FilePen className="h-4 w-4" />}
+                        onClick={() => setRevisionDay(Number(d))}
+                      />
+                    </div>
+                  )}
+                </td>
+                <td className="whitespace-nowrap px-3 py-1.5 font-medium">
+                  <div className="flex items-center gap-2">
+                    {!isEditable && <Lock className="h-3 w-3 text-warning" aria-label="Locked day" />}
+                    <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
+                    {activeReq ? (
+                      <RevisionStatusBadge
+                        status={
+                          activeReq.statuscode?.toUpperCase() === "PENDING"
+                            ? "PENDING"
+                            : activeReq.statuscode?.toUpperCase() === "APPROVED"
+                            ? "APPROVED"
+                            : "CANCELLED"
+                        }
+                      />
+                    ) : null}
                   </div>
-                ) : isEditable ? null : (
-                  <div className="flex items-center justify-center gap-1.5">
-                    <EditButton
-                      variant="square"
-                      tooltip={
-                        !revStation
-                          ? "Select a station to request a revision"
-                          : "Request Revision"
-                      }
-                      ariaLabel={
-                        !revStation
-                          ? "Select a station to request a revision"
-                          : "Request Revision"
-                      }
-                      disabled={!revStation}
-                      icon={<FilePen className="h-4 w-4" />}
-                      onClick={() => setRevisionDay(Number(d))}
-                    />
-                  </div>
-                )}
-              </td>
-              <td className="whitespace-nowrap px-3 py-1.5 font-medium">
-                <div className="flex items-center gap-2">
-                  {!isEditable && <Lock className="h-3 w-3 text-warning" aria-label="Locked day" />}
-                  <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
-                  {activeReq ? (
-                    <RevisionStatusBadge status={activeReq.statuscode?.toUpperCase() === "PENDING" ? "PENDING" : activeReq.statuscode?.toUpperCase() === "APPROVED" ? "APPROVED" : "CANCELLED"} />
-                  ) : null}
-                </div>
-              </td>
-              {sectors.map((s) => {
-                const key = `${d}-${s.detno}`;
-                const hasErr = Boolean(errors[key]);
-                const val = cells[key] ?? "";
-                const locked = !isEditable;
-                return (
-                  <td key={s.detno} className="px-2 py-1">
-                    <input
-                      inputMode="numeric"
-                      value={val}
-                      readOnly={locked}
-                      tabIndex={locked ? -1 : 0}
-                      onFocus={(e) => {
-                        if (locked) return;
-                        e.target.select();
-                      }}
-                      onBlur={(e) => {
-                        if (locked) return;
-                        if (e.target.value === "") setCell(d, Number(s.detno), "0");
-                      }}
-                      onChange={(e) => {
-                        if (locked) return;
-                        setCell(d, Number(s.detno), e.target.value);
-                      }}
-                      aria-invalid={hasErr}
-                      aria-readonly={locked}
-                      title={locked ? "This row is not editable." : undefined}
-                      className={cn(
-                        "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-right text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                        hasErr && "border-destructive focus:border-destructive focus:ring-destructive",
-                        locked && "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
-                      )}
-                    />
-                  </td>
-                );
-              })}
-              <td className="border-l border-border/60 bg-card px-3 py-1.5 text-right font-semibold tabular-nums text-primary">
-                {dayTotal(d).toLocaleString()}
-              </td>
-            </tr>
+                </td>
+                {sectors.map((s) => {
+                  const key = `${d}-${s.detno}`;
+                  const hasErr = Boolean(errors[key]);
+                  const val = cells[key] ?? "";
+                  const locked = !isEditable;
+                  return (
+                    <td key={s.detno} className="px-2 py-1">
+                      <input
+                        inputMode="numeric"
+                        value={val}
+                        readOnly={locked}
+                        tabIndex={locked ? -1 : 0}
+                        onFocus={(e) => {
+                          if (locked) return;
+                          e.target.select();
+                        }}
+                        onBlur={(e) => {
+                          if (locked) return;
+                          if (e.target.value === "") setCell(d, Number(s.detno), "0");
+                        }}
+                        onChange={(e) => {
+                          if (locked) return;
+                          setCell(d, Number(s.detno), e.target.value);
+                        }}
+                        aria-invalid={hasErr}
+                        aria-readonly={locked}
+                        title={locked ? "This row is not editable." : undefined}
+                        className={cn(
+                          "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-right text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                          hasErr && "border-destructive focus:border-destructive focus:ring-destructive",
+                          locked && "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
+                        )}
+                      />
+                    </td>
+                  );
+                })}
+                <td className="border-l border-border/60 bg-card px-3 py-1.5 text-right font-semibold tabular-nums text-primary">
+                  {dayTotal(d).toLocaleString()}
+                </td>
+              </tr>
             );
           })}
-
         </tbody>
         <tfoot className="sticky bottom-0 bg-card">
           <tr className="text-primary bg-card">
@@ -775,6 +922,8 @@ export default function TargetReferenceForm({
       </table>
     </div>
   );
+
+  const formBody = isEdit ? editBody : addBody;
 
   return (
     <>
@@ -804,14 +953,34 @@ export default function TargetReferenceForm({
               <Label className="text-xs font-semibold">
                 {isEdit ? "Period" : "Date"} <span className="text-destructive">*</span>
               </Label>
-              <ReadOnlyField
-                value={
-                  isEdit
-                    ? `${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}`
-                    : formatLongDate(today)
-                }
-                title={isEdit ? "Editing every day of this month" : "Targets are encoded for today"}
-              />
+              {isEdit ? (
+                <ReadOnlyField
+                  value={`${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}`}
+                  title="Editing every day of this month"
+                />
+              ) : (
+                <input
+                  id="target-reference-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(event) => {
+                    setSelectedDate(event.target.value);
+                    if (errors.date) {
+                      setErrors((e) => {
+                        const n = { ...e };
+                        delete n.date;
+                        return n;
+                      });
+                    }
+                  }}
+                  className={cn(
+                    "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                    errors.date && "border-destructive focus:border-destructive focus:ring-destructive",
+                  )}
+                  title="Select target reference date"
+                  aria-invalid={Boolean(errors.date)}
+                />
+              )}
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
@@ -885,7 +1054,6 @@ export default function TargetReferenceForm({
             </div>
           </div>
 
-          {/* Monthly Target Reference table */}
           <div className="flex flex-col rounded-lg border border-border/60 overflow-hidden">
             <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
               <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
@@ -896,7 +1064,7 @@ export default function TargetReferenceForm({
               </span>
             </div>
 
-            {tableBody}
+            {formBody}
           </div>
         </div>
 

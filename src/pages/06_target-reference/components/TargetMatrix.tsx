@@ -84,7 +84,7 @@ function buildStationRow(m: TargetReferenceModel): StationRow {
     months[mv] = {
       bplo: months[mv].bplo + (Number(it.bplototal) || 0),
       gov: months[mv].gov + (Number(it.govtotal) || 0),
-      peza: months[mv].peza + (Number(it.piezatotal) || 0),
+      peza: months[mv].peza + (Number(it.pezatotal) || 0),
       tieza: months[mv].tieza + (Number(it.tiezatotal) || 0),
     };
   });

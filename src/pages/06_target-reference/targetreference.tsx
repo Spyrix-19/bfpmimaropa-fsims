@@ -42,7 +42,7 @@ import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { TargetReferenceModel } from "@/types/targetreferenceType";
 
-import TargetReferenceForm from "./components/TargetReferenceModal";
+import TargetReferenceForm from "./components/TargetReferenceNew";
 import TargetReferenceDetails from "./components/TargetReferenceDetails";
 import TargetMatrixModal from "./components/TargetMatrix";
 import {
@@ -481,6 +481,8 @@ export default function TargetReferenceIndexPage() {
             ? { year: editingGroup.year, month: Number(month), stationno: editingGroup.stationno }
             : null
         }
+        initialYear={Number(year)}
+        initialMonth={Number(month)}
         onSaved={refresh}
       />
 

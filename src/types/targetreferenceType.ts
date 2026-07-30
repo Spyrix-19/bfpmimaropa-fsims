@@ -13,7 +13,7 @@ export interface TargetReferenceClass {
   reportday?: number;
   bplototal: number;
   govtotal: number;
-  piezatotal: number;
+  pezatotal: number;
   tiezatotal: number;
 }
 
@@ -43,7 +43,7 @@ export interface TargetReferenceDetailClassModel {
   isrevisionrequest: boolean;
   bplototal: number;
   govtotal: number;
-  piezatotal: number;
+  pezatotal: number;
   tiezatotal: number;
   isdeleted: boolean;
   deletedby: string;
@@ -87,7 +87,7 @@ export interface TargetReferenceClassModel {
   iseditable: boolean;
   bplototal: number;
   govtotal: number;
-  piezatotal: number;
+  pezatotal: number;
   tiezatotal: number;
 }
 
