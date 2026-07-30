@@ -20,8 +20,8 @@ export function CurrentMonthNote({ canManage, className = "" }: CurrentMonthNote
       <AlertTriangle className="mt-[1px] h-4 w-4 shrink-0" />
       <span>
         {canManage
-          ? "Note: View, edit, and delete are allowed for the current month only."
-          : "Note: View only — current month only."}
+          ? "Note: View, Edit, and Delete open to the current month by default. You may select another month after opening."
+          : "Note: View open to the current month by default. You may select another month after opening."}
       </span>
     </div>
   );
