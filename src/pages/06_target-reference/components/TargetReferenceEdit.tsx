@@ -63,6 +63,33 @@ function toTargetDate(year: number, month: number, day: number): string {
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0)).toISOString();
 }
 
+/**
+ * Resolves the day-of-month for a Detail row.
+ * The API returns `targetdate` (e.g. "2026-07-29T00:00:00"); older payloads may
+ * carry reportyear/reportmonth/reportday instead. Returns null when the row
+ * does not belong to the requested year+month.
+ */
+function resolveDetailDay(
+  it: { targetdate?: string; reportyear?: number; reportmonth?: number; reportday?: number },
+  year: number,
+  month: number,
+): number | null {
+  if (it.targetdate) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(it.targetdate));
+    if (m) {
+      if (Number(m[1]) !== Number(year) || Number(m[2]) !== Number(month)) return null;
+      return Number(m[3]);
+    }
+  }
+  if (it.reportmonth != null) {
+    if (Number(it.reportmonth) !== Number(month)) return null;
+    if (it.reportyear != null && Number(it.reportyear) !== Number(year)) return null;
+    return Number(it.reportday ?? 0) || null;
+  }
+  return null;
+}
+
+
 function hasPstLockActivated(reportyear: number, reportmonth: number, now: Date = new Date()): boolean {
   const y = Number(reportyear);
   const m = Number(reportmonth);
@@ -108,7 +135,10 @@ export default function TargetReferenceForm({
   const [pendingDuplicateData, setPendingDuplicateData] = React.useState<{
     cells: CellMap;
     ids: Record<string, string>;
+    editableStatus?: Record<string, number>;
+    isRevisionRequest?: Record<string, boolean>;
   } | null>(null);
+
 
   const [stationNo, setStationNo] = React.useState<string>(
     scope.stationLocked ? scope.stationno || user?.stationno || "" : EMPTY_GUID,
@@ -336,7 +366,7 @@ export default function TargetReferenceForm({
     (async () => {
       setExistingLoading(true);
       const resp = await targetreferenceAPI.getDetail(
-        { stationno: stationNo, reportyear: Number(year) },
+        { stationno: stationNo, reportyear: Number(year), reportmonth: Number(month) },
         { suppressGlobalLoading: true },
       );
       const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);
@@ -348,9 +378,8 @@ export default function TargetReferenceForm({
       let hasAny = false;
       if (ok && data) {
         (data.targetreferencelist ?? []).forEach((it) => {
-          // Daily mapping — match on reportyear + reportmonth + reportday.
-          if (Number(it.reportmonth) !== Number(month)) return;
-          const day = Number(it.reportday ?? 1);
+          // Daily mapping — API returns `targetdate` per day of the month.
+          const day = resolveDetailDay(it, Number(year), Number(month));
           if (!day || day < 1 || day > days.length) return;
           nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
           nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
@@ -369,11 +398,17 @@ export default function TargetReferenceForm({
       // selected station + year, prompt the user to switch into Edit mode.
       if (!isEditProp && hasAny && !duplicatePrompted) {
         setDuplicatePrompted(true);
-        setPendingDuplicateData({ cells: nextCells, ids: nextIds });
+        setPendingDuplicateData({
+          cells: nextCells,
+          ids: nextIds,
+          editableStatus: nextEditableStatus,
+          isRevisionRequest: nextIsRevReq,
+        });
         setDuplicateDialogOpen(true);
         setExistingLoading(false);
         return;
       }
+
 
       setCells(nextCells);
       setBaselineCells(nextCells);
@@ -413,14 +448,17 @@ export default function TargetReferenceForm({
   const buildExistingTargetData = (detail: TargetReferenceDetailModel | null) => {
     const nextCells: CellMap = {};
     const nextIds: Record<string, string> = {};
+    const nextEditableStatus: Record<string, number> = {};
+    const nextIsRevReq: Record<string, boolean> = {};
 
-    // API now returns a full 12-month scaffold per station+year, with
-    // unsaved months carrying targetno === EMPTY_GUID and zero totals.
+    // API returns a full day-by-day scaffold for the station+year+month, with
+    // unsaved days carrying targetno === EMPTY_GUID and zero totals.
     // Treat only rows with a real targetno as actually saved data.
     (detail?.targetreferencelist ?? []).forEach((it) => {
-      if (Number(it.reportmonth) !== Number(month)) return;
-      const day = Number(it.reportday ?? 1);
+      const day = resolveDetailDay(it, Number(year), Number(month));
       if (!day || day < 1 || day > days.length) return;
+      nextEditableStatus[String(day)] = Number(it.editablestatus ?? 0);
+      nextIsRevReq[String(day)] = Boolean(it.isrevisionrequest);
       const isSaved = Boolean(it.targetno) && it.targetno !== EMPTY_GUID;
       if (!isSaved) return;
       nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
@@ -430,14 +468,20 @@ export default function TargetReferenceForm({
       nextIds[String(day)] = it.targetno;
     });
 
-    return { cells: nextCells, ids: nextIds };
+    return {
+      cells: nextCells,
+      ids: nextIds,
+      editableStatus: nextEditableStatus,
+      isRevisionRequest: nextIsRevReq,
+    };
   };
 
   const checkExistingTargetReference = async (stationNumber: string, reportYear: number) => {
     const resp = await targetreferenceAPI.getDetail(
-      { stationno: stationNumber, reportyear: reportYear },
+      { stationno: stationNumber, reportyear: reportYear, reportmonth: Number(month) },
       { suppressGlobalLoading: true },
     );
+
     const { ok, data, error } = unwrap<TargetReferenceDetailModel>(resp);
     if (!ok) {
       // "No data found" from the backend just means nothing exists yet —
@@ -588,6 +632,8 @@ export default function TargetReferenceForm({
       setCells(pendingDuplicateData.cells);
       setBaselineCells(pendingDuplicateData.cells);
       setExistingTargetNos(pendingDuplicateData.ids);
+      setExistingEditableStatus(pendingDuplicateData.editableStatus ?? {});
+      setExistingIsRevisionRequest(pendingDuplicateData.isRevisionRequest ?? {});
       setPendingDuplicateData(null);
     }
     setDuplicateDialogOpen(false);
@@ -597,10 +643,13 @@ export default function TargetReferenceForm({
     setCells({});
     setBaselineCells({});
     setExistingTargetNos({});
+    setExistingEditableStatus({});
+    setExistingIsRevisionRequest({});
     setPendingDuplicateData(null);
     setDuplicateDialogOpen(false);
     setDuplicatePrompted(false); // Reset flag so user can try again with different station/year
   };
+
 
   // Handle dialog close via onOpenChange (when user clicks outside or closes)
   const handleDuplicateDialogOpenChange = (newOpen: boolean) => {

@@ -41,14 +41,19 @@ import {
   useModuleFilterState,
   resolvePrimaryMonth,
 } from "@/components/shared/ModuleFilterBar";
+import { resolveModuleMonths, resolveSelectedDay } from "@/components/shared/ModuleFilterBar";
 
 import { useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE, MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
+import { stationAPI } from "@/services/stationAPI";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
-import type { TargetReferenceModel } from "@/types/targetreferenceType";
+import type {
+  TargetReferenceModel,
+  TargetReferenceParamClass,
+} from "@/types/targetreferenceType";
 
 import TargetReferenceForm from "./components/TargetReferenceNew";
 import TargetReferenceDetails from "./components/TargetReferenceDetails";
@@ -59,6 +64,9 @@ import {
   computeDailyFromList,
   formatDayLabel,
   resolveTargetScope,
+  buildLedgerRequest,
+  addBucket,
+  emptyBucket,
   type TargetPeriod,
   type TargetBucket,
 } from "./helpers";
@@ -140,6 +148,10 @@ export default function TargetReferenceIndexPage() {
       : filterState.interval === "SEMESTER"
         ? "SEMI-ANNUAL"
         : filterState.interval;
+  /** Months the display should render, driven by the active interval. */
+  const selectedMonths = React.useMemo(() => resolveModuleMonths(filterState), [filterState]);
+  /** DAILY only: a specific day, or null when "All" is selected. */
+  const selectedDay = React.useMemo(() => resolveSelectedDay(filterState), [filterState]);
   // Unlocked fields default to EMPTY_GUID ("ALL"); locked fields carry the login scope GUID.
   const [provinceFilter, setProvinceFilter] = React.useState<string>(
     scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
@@ -185,6 +197,62 @@ export default function TargetReferenceIndexPage() {
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
+  // Province → station selection used to build the Ledger POST body. When a
+  // province has no explicitly selected station, every station available under
+  // it is included.
+  const [provincePayload, setProvincePayload] = React.useState<TargetReferenceParamClass[] | null>(
+    null,
+  );
+  const effectiveProvinceNo = scope.provinceLocked ? scope.provinceno : provinceFilter;
+  const effectiveStationNo = scope.stationLocked ? scope.stationno : stationFilter;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Explicit station pick → single province/station pair.
+      if (effectiveStationNo && effectiveStationNo !== EMPTY_GUID) {
+        if (!cancelled)
+          setProvincePayload([
+            { provinceno: effectiveProvinceNo || EMPTY_GUID, stationnos: [effectiveStationNo] },
+          ]);
+        return;
+      }
+      setProvincePayload(null);
+      const resp = await stationAPI.search(
+        {
+          provinceno:
+            effectiveProvinceNo && effectiveProvinceNo !== EMPTY_GUID
+              ? effectiveProvinceNo
+              : undefined,
+          pageNumber: 1,
+          pageSize: 1000,
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      const { ok, data } = unwrap<SearchStationModel[]>(resp);
+      if (cancelled) return;
+      const byProvince = new Map<string, string[]>();
+      if (ok && Array.isArray(data)) {
+        data.forEach((s) => {
+          const p = s.provinceno || effectiveProvinceNo || EMPTY_GUID;
+          if (!byProvince.has(p)) byProvince.set(p, []);
+          if (s.stationno) byProvince.get(p)!.push(s.stationno);
+        });
+      }
+      const payload = Array.from(byProvince.entries()).map(([provinceno, stationnos]) => ({
+        provinceno,
+        stationnos,
+      }));
+      setProvincePayload(
+        payload.length
+          ? payload
+          : [{ provinceno: effectiveProvinceNo || EMPTY_GUID, stationnos: [] }],
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveProvinceNo, effectiveStationNo]);
 
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingGroup, setEditingGroup] = React.useState<{
@@ -228,20 +296,13 @@ export default function TargetReferenceIndexPage() {
 
   // Fetch ledger for the selected year using server-side pagination.
   React.useEffect(() => {
+    if (!provincePayload) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      // Always send GUIDs. EMPTY_GUID = "ALL" for editable fields. Role 2
-      // type 27 (province locked, station editable + ALL) keeps the login
-      // province so the server never returns cross-province stations.
-      const effectiveProvinceNo = scope.provinceLocked ? scope.provinceno : provinceFilter;
-      const effectiveStationNo = scope.stationLocked ? scope.stationno : stationFilter;
       const resp = await targetreferenceAPI.getLedger(
         {
-          searchkey: "",
-          stationno: effectiveStationNo || EMPTY_GUID,
-          provinceno: effectiveProvinceNo || EMPTY_GUID,
-          reportyear: Number(year),
+          parameters: buildLedgerRequest(filterState, "", provincePayload),
           pagenumber: page,
           pagesize: pageSize,
         },
@@ -263,14 +324,9 @@ export default function TargetReferenceIndexPage() {
       cancelled = true;
     };
   }, [
-    year,
+    filterState,
+    provincePayload,
     refreshTick,
-    scope.provinceLocked,
-    scope.stationLocked,
-    scope.provinceno,
-    scope.stationno,
-    provinceFilter,
-    stationFilter,
     page,
     pageSize,
   ]);
@@ -292,7 +348,7 @@ export default function TargetReferenceIndexPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [year, month, provinceFilter, stationFilter, pageSize]);
+  }, [filterState, provinceFilter, stationFilter, pageSize]);
 
   const handleProvinceSelect = (locationno: string, locationname: string) => {
     setProvinceFilter(locationno);
@@ -521,6 +577,8 @@ export default function TargetReferenceIndexPage() {
               group={g}
               period={period}
               month={Number(month)}
+              months={selectedMonths}
+              selectedDay={selectedDay}
               canManage={canManage}
               onView={() => handleView(g)}
               onEdit={() => handleEdit(g)}
@@ -641,6 +699,8 @@ function TargetCard({
   group,
   period,
   month,
+  months,
+  selectedDay,
   canManage,
   onView,
   onEdit,
@@ -650,6 +710,10 @@ function TargetCard({
   group: GroupItem;
   period: TargetPeriod;
   month: number;
+  /** Months to render (already resolved from the active interval). */
+  months: number[];
+  /** DAILY: specific day to render, or null for the whole month. */
+  selectedDay: number | null;
   canManage: boolean;
   onView: () => void;
   onEdit: () => void;
@@ -661,8 +725,23 @@ function TargetCard({
     [group.row.targetreferencelist],
   );
   const dailyDerived = React.useMemo(
-    () => computeDailyFromList(group.row.targetreferencelist, group.year, month),
-    [group.row.targetreferencelist, group.year, month],
+    () =>
+      computeDailyFromList(
+        group.row.targetreferencelist,
+        group.year,
+        month,
+        selectedDay ? [selectedDay] : null,
+      ),
+    [group.row.targetreferencelist, group.year, month, selectedDay],
+  );
+  const monthSet = React.useMemo(() => new Set(months), [months]);
+  const monthlyTotal = React.useMemo(
+    () =>
+      months.reduce(
+        (acc, m) => addBucket(acc, derived.monthly[m] ?? emptyBucket()),
+        emptyBucket(),
+      ),
+    [months, derived],
   );
   const annualSum =
     derived.annual.bplo + derived.annual.gov + derived.annual.peza + derived.annual.tieza;
@@ -762,7 +841,7 @@ function TargetCard({
                 <table className="w-full text-xs">
                   <TableHead firstLabel="Month" />
                   <tbody>
-                    {MONTHS.map((m, i) => {
+                    {MONTHS.filter((m) => monthSet.has(m.value)).map((m, i) => {
                       const b = derived.monthly[m.value];
                       return (
                         <tr key={m.value} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
@@ -781,22 +860,22 @@ function TargetCard({
                         TOTAL
                       </td>
                       <BucketCell
-                        b={derived.annual}
+                        b={monthlyTotal}
                         k="bplo"
                         className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
                       />
                       <BucketCell
-                        b={derived.annual}
+                        b={monthlyTotal}
                         k="gov"
                         className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
                       />
                       <BucketCell
-                        b={derived.annual}
+                        b={monthlyTotal}
                         k="peza"
                         className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
                       />
                       <BucketCell
-                        b={derived.annual}
+                        b={monthlyTotal}
                         k="tieza"
                         className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
                       />
@@ -816,8 +895,10 @@ function TargetCard({
               <table className="w-full text-xs">
                 <TableHead firstLabel="Period" />
                 <tbody>
-                  {QUARTERS.map((q, i) => {
-                    const b = derived.quarters[i];
+                  {QUARTERS.map((q, idx) => ({ q, idx }))
+                    .filter(({ idx }) => monthSet.has(idx * 3 + 1))
+                    .map(({ q, idx }, i) => {
+                    const b = derived.quarters[idx];
                     return (
                       <tr key={q} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
                         <td className="px-2 py-1.5 font-medium">{q}</td>
@@ -842,8 +923,10 @@ function TargetCard({
               <table className="w-full text-xs">
                 <TableHead firstLabel="Period" />
                 <tbody>
-                  {HALVES.map((h, i) => {
-                    const b = derived.halves[i];
+                  {HALVES.map((h, idx) => ({ h, idx }))
+                    .filter(({ idx }) => monthSet.has(idx * 6 + 1))
+                    .map(({ h, idx }, i) => {
+                    const b = derived.halves[idx];
                     return (
                       <tr key={h} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
                         <td className="px-2 py-1.5 font-medium">{h}</td>

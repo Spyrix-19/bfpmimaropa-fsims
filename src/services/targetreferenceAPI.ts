@@ -10,8 +10,15 @@ export const targetreferenceAPI = {
   },  
 
   async getDetail(params?: TargetReferenceDetailParams, options?: import("@/lib/api").ApiOptions) {
+    const mappedParams = params
+      ? {
+          Stationno: params.stationno,
+          Reportyear: params.reportyear,
+          Reportmonth: params.reportmonth,
+        }
+      : undefined;
     return await apiGet<TargetReferenceDetailModel>("/api/v1/FSISTargetReference/Detail", {
-      params,
+      params: mappedParams,
       ...GET_RETRY,
       ...options,
     });

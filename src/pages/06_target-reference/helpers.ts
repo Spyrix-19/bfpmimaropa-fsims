@@ -7,6 +7,78 @@
 import type { TargetReferenceClassModel } from "@/types/targetreferenceType";
 import type { AuthUser } from "@/types/authType";
 import { resolveLocationScope } from "@/lib/auth";
+import type { TargetReferenceParams, TargetReferenceParamClass } from "@/types/targetreferenceType";
+import {
+  isAllDays,
+  baseDate,
+  resolveModuleMonths,
+  type ModuleFilterState,
+} from "@/components/shared/ModuleFilterBar";
+import { fromISODate } from "@/lib/filters";
+
+/* ------------------------------------------------------------------ *
+ * Ledger request builder (POST /FSISTargetReference/Ledger)
+ * ------------------------------------------------------------------ */
+
+export const ALL_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+/** 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual */
+export function resolveIntervalCode(state: ModuleFilterState): number {
+  switch (state.interval) {
+    case "DAILY":
+      return 1;
+    case "MONTHLY":
+      return 2;
+    case "QUARTERLY":
+      return 3;
+    case "SEMESTER":
+      return 4;
+    default:
+      return 5;
+  }
+}
+
+/** Sentinel date sent whenever a specific day is NOT selected. */
+function epochDate(): string {
+  return "1900-01-01T00:00:00";
+}
+
+function toApiDate(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T00:00:00`;
+}
+
+/**
+ * Builds the paginated Ledger POST body from the active filter state.
+ * `targetdate` + `reportmonth` follow the interval rules; `provinces`
+ * carries the current province/station selection.
+ */
+export function buildLedgerRequest(
+  state: ModuleFilterState,
+  searchkey: string,
+  provinces: TargetReferenceParamClass[],
+): TargetReferenceParams {
+  const interval = resolveIntervalCode(state);
+  const reportyear = Number(state.year) || new Date().getFullYear();
+
+  let targetdate = epochDate();
+  let reportmonth: number[] = ALL_MONTHS;
+
+  if (state.interval === "DAILY") {
+    const ref = fromISODate(baseDate(state.date));
+    if (isAllDays(state.date) || !ref) {
+      // "All" days → send the active calendar month, no specific date.
+      reportmonth = [ref ? ref.getMonth() + 1 : new Date().getMonth() + 1];
+    } else {
+      targetdate = toApiDate(ref);
+      reportmonth = [0];
+    }
+  } else {
+    reportmonth = resolveModuleMonths(state);
+  }
+
+  return { searchkey, reportyear, interval, targetdate, reportmonth, provinces };
+}
 
 /* ------------------------------------------------------------------ *
  * Role-based scope resolver
@@ -118,6 +190,20 @@ export const addBucket = (a: TargetBucket, b: TargetBucket): TargetBucket => ({
 export const sumBucket = (b: TargetBucket) => b.bplo + b.gov + b.peza + b.tieza;
 
 /**
+ * Normalize a target reference row so it always has `reportyear`, `reportmonth`,
+ * and `reportday` available. The API's /Detail response returns `targetdate`
+ * (ISO 8601) but may omit the individual date parts, so we parse them from
+ * `targetdate` as a fallback.
+ */
+export function normalizeTargetDate(it: TargetReferenceClassModel): TargetReferenceClassModel {
+  const fallback = it.targetdate ? new Date(it.targetdate) : null;
+  const reportyear = it.reportyear ?? (fallback ? fallback.getFullYear() : 0);
+  const reportmonth = it.reportmonth ?? (fallback ? fallback.getMonth() + 1 : 0);
+  const reportday = it.reportday ?? (fallback ? fallback.getDate() : 0);
+  return { ...it, reportyear, reportmonth, reportday };
+}
+
+/**
  * Bucket a station's targetreferencelist row into a BPLO/Gov/PEZA/TIEZA bucket.
  */
 function resolveBucket(it: TargetReferenceClassModel): TargetBucket {
@@ -133,7 +219,8 @@ export function computeDerivedFromList(list: TargetReferenceClassModel[] | null 
   const monthly: Record<number, TargetBucket> = {};
   for (let i = 1; i <= 12; i++) monthly[i] = emptyBucket();
 
-  (list ?? []).forEach((it) => {
+  (list ?? []).forEach((raw) => {
+    const it = normalizeTargetDate(raw);
     const m = Number(it.reportmonth);
     if (!m || m < 1 || m > 12) return;
     monthly[m] = addBucket(monthly[m], resolveBucket(it));
@@ -165,12 +252,15 @@ export function computeDailyFromList(
   list: TargetReferenceClassModel[] | null | undefined,
   reportYear: number,
   reportMonth: number,
+  onlyDays?: number[] | null,
 ) {
   const daily: Record<number, TargetBucket> = {};
-  const days = buildDays(reportYear, reportMonth);
+  const allDays = buildDays(reportYear, reportMonth);
+  const days = onlyDays && onlyDays.length ? allDays.filter((d) => onlyDays.includes(d)) : allDays;
   days.forEach((d) => (daily[d] = emptyBucket()));
 
-  (list ?? []).forEach((it) => {
+  (list ?? []).forEach((raw) => {
+    const it = normalizeTargetDate(raw);
     if (Number(it.reportyear) !== Number(reportYear)) return;
     if (Number(it.reportmonth) !== Number(reportMonth)) return;
     const d = Number(it.reportday ?? 1);

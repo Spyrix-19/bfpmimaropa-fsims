@@ -69,7 +69,11 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
     (async () => {
       setLoading(true);
       const resp = await targetreferenceAPI.getDetail(
-        { stationno: target.stationno, reportyear: target.reportyear },
+        {
+          stationno: target.stationno,
+          reportyear: target.reportyear,
+          reportmonth: month,
+        },
         { suppressGlobalLoading: true },
       );
       const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);

@@ -140,6 +140,10 @@ export default function TargetReferenceForm({
   const [pendingExistingRecord, setPendingExistingRecord] =
     React.useState<TargetReferenceByDateModel | null>(null);
   const [dateDuplicateOpen, setDateDuplicateOpen] = React.useState(false);
+  /** True when the existing record for the selected date is locked (past + not unlocked). */
+  const [existingLocked, setExistingLocked] = React.useState(false);
+  /** Tracks the station|date already confirmed, so the prompt shows once per date. */
+  const promptedDateKeyRef = React.useRef<string | null>(null);
   /** Server flags for the selected date's record. */
   const [existingMeta, setExistingMeta] = React.useState<{
     isrevisionrequest: boolean;
@@ -340,6 +344,8 @@ export default function TargetReferenceForm({
     setExistingTargetno(null);
     setPendingExistingRecord(null);
     setDateDuplicateOpen(false);
+    setExistingLocked(false);
+    promptedDateKeyRef.current = null;
     setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
 
     setYear(editing?.year ?? initialYear ?? currentYear);
@@ -390,18 +396,25 @@ export default function TargetReferenceForm({
 
         const isPast = parseDateInputValue(selectedDate).getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
-        if (isPast && !unlocked) {
-          // Locked (or awaiting approval) — plot read-only, no duplicate prompt.
-          plotExistingRecord(record);
-          setDateDuplicateOpen(false);
-        } else {
+        setExistingLocked(isPast && !unlocked);
+        // Always confirm first — whether the record will be opened for editing
+        // or will require a revision request, the user must acknowledge that a
+        // Target Reference already exists for the selected date.
+        const key = `${activeStationNo}|${selectedDate}`;
+        if (promptedDateKeyRef.current !== key) {
+          promptedDateKeyRef.current = key;
           setDateDuplicateOpen(true);
+        } else if (isPast && !unlocked) {
+          plotExistingRecord(record);
         }
       } else {
+
         // No record for this date → back to a clean CREATE.
         setExistingTargetno(null);
         setPendingExistingRecord(null);
         setDateDuplicateOpen(false);
+        setExistingLocked(false);
+        promptedDateKeyRef.current = null;
         setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
         setCells((prev) => {
           const next = { ...prev };
@@ -445,6 +458,12 @@ export default function TargetReferenceForm({
   /** Keeps the form blank; user chose not to load the existing record. */
   const handleExistingCancel = () => {
     setDateDuplicateOpen(false);
+    // Locked records stay plotted read-only so the revision-request action
+    // still has a reference record to point at.
+    if (existingLocked && pendingExistingRecord) {
+      plotExistingRecord(pendingExistingRecord);
+      return;
+    }
     setPendingExistingRecord(null);
     setExistingTargetno(null);
   };
@@ -1214,8 +1233,12 @@ export default function TargetReferenceForm({
       title="Target Reference Already Exists"
       description={`A Target Reference already exists for ${
         pendingExistingRecord?.stationname || stationName || "this station"
-      } on ${formatLongDate(selectedDate)}.\n\nDo you want to load and edit the existing record?`}
-      confirmLabel="Edit Existing"
+      } on ${formatLongDate(selectedDate)}.\n\n${
+        existingLocked
+          ? "This record is already locked — it will be opened as read-only and any change will require a revision request."
+          : "Do you want to load and edit the existing record?"
+      }`}
+      confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
       showCancel={false}
       onConfirm={handleExistingConfirm}
     />
