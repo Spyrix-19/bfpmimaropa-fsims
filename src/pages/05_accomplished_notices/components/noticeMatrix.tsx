@@ -3,23 +3,13 @@ import { LayoutGrid } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import { MATRIX_TONE, TABLE } from "@/lib/theme";
 import { MONTHS } from "@/lib/fsims-constants";
-import { formatLongDate } from "@/lib/date-format";
 import { fromISODate, toISODate } from "@/lib/filters";
+import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import {
-  MODULE_INTERVALS,
+  PeriodSelect,
+  SubFilterControl,
   defaultModuleFilterState,
   resolveModuleMonths,
   type ModuleFilterState,
@@ -52,63 +42,8 @@ interface NoticeMatrixModalProps {
   record: AccomplishedNoticeRecord | null;
 }
 
-/** Read-only field matching the other matrices' locked filter styling. */
-function LockedField({ value }: { value: string }) {
-  return (
-    <div className="flex h-10 w-full min-w-0 items-center rounded-md border bg-background px-3 text-sm text-muted-foreground">
-      {value || "—"}
-    </div>
-  );
-}
 
-function MonthMultiSelect({
-  value,
-  onChange,
-}: {
-  value: number[];
-  onChange: (next: number[]) => void;
-}) {
-  const label =
-    value.length === 0
-      ? "All months"
-      : value.length === 1
-        ? MONTHS.find((m) => m.value === value[0])?.name
-        : `${value.length} months selected`;
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className="h-10 w-full justify-start px-3 text-left text-sm font-normal"
-        >
-          <span className="truncate">{label}</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56 p-2 pointer-events-auto" align="start">
-        <div className="max-h-72 space-y-1 overflow-y-auto">
-          {MONTHS.map((m) => (
-            <label
-              key={m.value}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
-            >
-              <Checkbox
-                checked={value.includes(m.value)}
-                onCheckedChange={() =>
-                  onChange(
-                    value.includes(m.value)
-                      ? value.filter((v) => v !== m.value)
-                      : [...value, m.value].sort((a, b) => a - b),
-                  )
-                }
-              />
-              {m.name}
-            </label>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
+
 
 export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixModalProps) {
   const [filters, setFilters] = React.useState<ModuleFilterState>(defaultModuleFilterState);
@@ -212,28 +147,14 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Year
               </div>
-              <LockedField value={filters.year} />
+              <ReadOnlyField value={filters.year} placeholder="Year" />
             </div>
 
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Period
               </div>
-              <Select
-                value={filters.interval}
-                onValueChange={(v) => set({ interval: v as ModuleFilterState["interval"] })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODULE_INTERVALS.map((it) => (
-                    <SelectItem key={it.value} value={it.value}>
-                      {it.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PeriodSelect value={filters.interval} onChange={set} />
             </div>
 
             {filters.interval !== "ANNUAL" && (
@@ -247,59 +168,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
                         ? "Quarter"
                         : "Semester"}
                 </div>
-                {filters.interval === "DAILY" ? (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "h-10 w-full justify-start px-3 text-left text-sm font-normal",
-                          !selectedDate && "text-muted-foreground",
-                        )}
-                      >
-                        <span className="truncate">
-                          {selectedDate ? formatLongDate(selectedDate) : "Pick a date"}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarPicker
-                        mode="single"
-                        selected={selectedDate ?? undefined}
-                        onSelect={(d) =>
-                          d && set({ date: toISODate(d), year: String(d.getFullYear()) })
-                        }
-                        defaultMonth={selectedDate ?? undefined}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                ) : filters.interval === "MONTHLY" ? (
-                  <MonthMultiSelect value={filters.months} onChange={(months) => set({ months })} />
-                ) : filters.interval === "QUARTERLY" ? (
-                  <Select value={filters.quarter} onValueChange={(v) => set({ quarter: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="q1">1st Quarter</SelectItem>
-                      <SelectItem value="q2">2nd Quarter</SelectItem>
-                      <SelectItem value="q3">3rd Quarter</SelectItem>
-                      <SelectItem value="q4">4th Quarter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Select value={filters.semester} onValueChange={(v) => set({ semester: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="s1">1st Semester</SelectItem>
-                      <SelectItem value="s2">2nd Semester</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+                <SubFilterControl state={filters} onChange={set} />
               </div>
             )}
 
@@ -307,14 +176,14 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Province
               </div>
-              <LockedField value={record.province} />
+              <ReadOnlyField value={record.province} placeholder="All provinces" />
             </div>
 
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Station
               </div>
-              <LockedField value={record.stationName} />
+              <ReadOnlyField value={record.stationName} placeholder="All stations" />
             </div>
           </div>
         </div>

@@ -122,7 +122,7 @@ export function useModuleFilterState(initial?: Partial<ModuleFilterState>) {
 /* ------------------------------------------------------------------ *
  * Multi-select month control (MONTHLY sub filter)
  * ------------------------------------------------------------------ */
-function MonthMultiSelect({
+export function MonthMultiSelect({
   value,
   onChange,
 }: {
@@ -174,6 +174,127 @@ function MonthMultiSelect({
 }
 
 /* ------------------------------------------------------------------ *
+ * PERIOD select + SUB FILTER control (shared by the filter bar and the
+ * matrix dialogs so there is a single implementation).
+ * ------------------------------------------------------------------ */
+export function PeriodSelect({
+  value,
+  onChange,
+}: {
+  value: ModuleInterval;
+  onChange: (patch: Partial<ModuleFilterState>) => void;
+}) {
+  const handleIntervalChange = (v: string) => {
+    const next = v as ModuleInterval;
+    if (next === "DAILY") {
+      const today = new Date();
+      onChange({ interval: next, date: toISODate(today), year: String(today.getFullYear()) });
+      return;
+    }
+    onChange({ interval: next });
+  };
+
+  return (
+    <Select value={value} onValueChange={handleIntervalChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Period" />
+      </SelectTrigger>
+      <SelectContent>
+        {MODULE_INTERVALS.map((it) => (
+          <SelectItem key={it.value} value={it.value}>
+            {it.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/** Sub filter for the active period. Renders nothing for ANNUAL. */
+export function SubFilterControl({
+  state,
+  onChange,
+}: {
+  state: ModuleFilterState;
+  onChange: (patch: Partial<ModuleFilterState>) => void;
+}) {
+  const [dateOpen, setDateOpen] = React.useState(false);
+  const selectedDate = React.useMemo(
+    () => (state.interval === "DAILY" ? fromISODate(state.date) : null),
+    [state.interval, state.date],
+  );
+
+  const handleDateChange = (d?: Date) => {
+    if (!d) return;
+    onChange({ date: toISODate(d), year: String(d.getFullYear()) });
+    setDateOpen(false);
+  };
+
+  if (state.interval === "DAILY") {
+    return (
+      <Popover open={dateOpen} onOpenChange={setDateOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              "h-10 w-full justify-start gap-2 px-3 text-left text-sm font-normal",
+              !selectedDate && "text-muted-foreground",
+            )}
+          >
+            <CalendarIcon className="h-4 w-4 shrink-0 opacity-70" />
+            <span className="truncate">
+              {selectedDate ? formatLongDate(selectedDate) : "Pick a date"}
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate ?? undefined}
+            onSelect={handleDateChange}
+            defaultMonth={selectedDate ?? undefined}
+            initialFocus
+            className={cn("p-3 pointer-events-auto")}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  }
+  if (state.interval === "MONTHLY") {
+    return <MonthMultiSelect value={state.months} onChange={(months) => onChange({ months })} />;
+  }
+  if (state.interval === "QUARTERLY") {
+    return (
+      <Select value={state.quarter} onValueChange={(v) => onChange({ quarter: v })}>
+        <SelectTrigger>
+          <SelectValue placeholder="Quarter" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="q1">1st Quarter</SelectItem>
+          <SelectItem value="q2">2nd Quarter</SelectItem>
+          <SelectItem value="q3">3rd Quarter</SelectItem>
+          <SelectItem value="q4">4th Quarter</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  }
+  if (state.interval === "SEMESTER") {
+    return (
+      <Select value={state.semester} onValueChange={(v) => onChange({ semester: v })}>
+        <SelectTrigger>
+          <SelectValue placeholder="Semester" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="s1">1st Semester</SelectItem>
+          <SelectItem value="s2">2nd Semester</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ *
  * Filter bar
  * ------------------------------------------------------------------ */
 export function ModuleFilterBar({
@@ -195,27 +316,6 @@ export function ModuleFilterBar({
   /** Province + Station controls. */
   children?: React.ReactNode;
 }) {
-  const [dateOpen, setDateOpen] = React.useState(false);
-  const selectedDate = React.useMemo(
-    () => (state.interval === "DAILY" ? fromISODate(state.date) : null),
-    [state.interval, state.date],
-  );
-
-  const handleIntervalChange = (v: string) => {
-    const next = v as ModuleInterval;
-    if (next === "DAILY") {
-      const today = new Date();
-      onChange({ interval: next, date: toISODate(today), year: String(today.getFullYear()) });
-      return;
-    }
-    onChange({ interval: next });
-  };
-
-  const handleDateChange = (d?: Date) => {
-    if (!d) return;
-    onChange({ date: toISODate(d), year: String(d.getFullYear()) });
-    setDateOpen(false);
-  };
 
   return (
     <div className="glass-panel rounded-2xl p-4">
@@ -238,71 +338,9 @@ export function ModuleFilterBar({
           </SelectContent>
         </Select>
 
-        <Select value={state.interval} onValueChange={handleIntervalChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Period" />
-          </SelectTrigger>
-          <SelectContent>
-            {MODULE_INTERVALS.map((it) => (
-              <SelectItem key={it.value} value={it.value}>
-                {it.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <PeriodSelect value={state.interval} onChange={onChange} />
 
-        {state.interval === "DAILY" ? (
-          <Popover open={dateOpen} onOpenChange={setDateOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "h-10 w-full justify-start gap-2 px-3 text-left text-sm font-normal",
-                  !selectedDate && "text-muted-foreground",
-                )}
-              >
-                <CalendarIcon className="h-4 w-4 shrink-0 opacity-70" />
-                <span className="truncate">
-                  {selectedDate ? formatLongDate(selectedDate) : "Pick a date"}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate ?? undefined}
-                onSelect={handleDateChange}
-                defaultMonth={selectedDate ?? undefined}
-                initialFocus
-                className={cn("p-3 pointer-events-auto")}
-              />
-            </PopoverContent>
-          </Popover>
-        ) : state.interval === "MONTHLY" ? (
-          <MonthMultiSelect value={state.months} onChange={(months) => onChange({ months })} />
-        ) : state.interval === "QUARTERLY" ? (
-          <Select value={state.quarter} onValueChange={(v) => onChange({ quarter: v })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Quarter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="q1">1st Quarter</SelectItem>
-              <SelectItem value="q2">2nd Quarter</SelectItem>
-              <SelectItem value="q3">3rd Quarter</SelectItem>
-              <SelectItem value="q4">4th Quarter</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : state.interval === "SEMESTER" ? (
-          <Select value={state.semester} onValueChange={(v) => onChange({ semester: v })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Semester" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="s1">1st Semester</SelectItem>
-              <SelectItem value="s2">2nd Semester</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : null}
+        <SubFilterControl state={state} onChange={onChange} />
 
         {children}
 
