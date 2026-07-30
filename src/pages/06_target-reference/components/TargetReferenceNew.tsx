@@ -23,7 +23,7 @@ import { stationAPI } from "@/services/stationAPI";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
 
-import type {  TargetReferenceClass,  TargetReferenceDetailModel,} from "@/types/targetreferenceType";
+import type {  TargetReferenceClass,  TargetReferenceDetailModel,  TargetReferenceByDateModel,} from "@/types/targetreferenceType";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import { resolveTargetScope, buildDays, formatDayLabel } from "../helpers";
 import RevisionRequestDialog from "../revision/RevisionRequestDialog";
@@ -86,6 +86,13 @@ function parseDateInputValue(value: string): Date {
   return new Date(Number(year), Number(month) - 1, Number(day));
 }
 
+/** Midnight of the current local day, in ms. */
+function startOfToday(): number {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+}
+
+
 export default function TargetReferenceForm({
   open,
   onOpenChange,
@@ -126,6 +133,21 @@ export default function TargetReferenceForm({
   } | null>(null);
   const [selectedDate, setSelectedDate] = React.useState<string>(formatDateInputValue(new Date()));
   const [remarks, setRemarks] = React.useState<string>("");
+
+  // ── Existing-record (per target date) detection ────────────────────────────
+  const [existingTargetno, setExistingTargetno] = React.useState<string | null>(null);
+  const [checkingExisting, setCheckingExisting] = React.useState(false);
+  const [pendingExistingRecord, setPendingExistingRecord] =
+    React.useState<TargetReferenceByDateModel | null>(null);
+  const [dateDuplicateOpen, setDateDuplicateOpen] = React.useState(false);
+  /** Server flags for the selected date's record. */
+  const [existingMeta, setExistingMeta] = React.useState<{
+    isrevisionrequest: boolean;
+    editablestatus: number;
+  }>({ isrevisionrequest: false, editablestatus: 0 });
+  const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
+
+
 
   const setField = (field: string, raw: string) => {
     setCells((prev) => ({ ...prev, [field]: toWhole(raw) }));
@@ -271,7 +293,7 @@ export default function TargetReferenceForm({
       const resp = await revisionrequestAPI.getLedger(
         {
           stationno: stationNo,
-          reportyear: Number(year),
+          reportyear: Number(isEditProp ? year : Number(selectedDate.slice(0, 4)) || year),
           reportmonth: 0,
           provinceno: provinceno || EMPTY_GUID,
           requesttype: "TARGET",
@@ -300,7 +322,8 @@ export default function TargetReferenceForm({
     return () => {
       cancelled = true;
     };
-  }, [open, stationNo, year, provinceno, reloadNonce]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, stationNo, year, selectedDate.slice(0, 4), provinceno, reloadNonce, isEditProp]);
 
   // Reset baseline state when opening
   React.useEffect(() => {
@@ -314,11 +337,119 @@ export default function TargetReferenceForm({
     setDuplicatePrompted(false);
     setSelectedDate(formatDateInputValue(new Date()));
     setRemarks("");
+    setExistingTargetno(null);
+    setPendingExistingRecord(null);
+    setDateDuplicateOpen(false);
+    setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+
     setYear(editing?.year ?? initialYear ?? currentYear);
     setMonth(editing?.month ?? initialMonth ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
   }, [open, editing, currentYear, currentMonth, initialYear, initialMonth, scope.provinceLocked, scope.provinceno, user?.provinceno]);
+
+  /**
+   * Existence check for the selected station + date.
+   * Runs when the modal opens and whenever the date (or station) changes, so
+   * the form knows whether Save should CREATE a new row or UPDATE an existing
+   * one (identified by `targetno`).
+   */
+  React.useEffect(() => {
+    if (!open || isEditProp) return;
+    const activeStationNo = scope.stationLocked
+      ? scope.stationno || stationNo || user?.stationno || ""
+      : stationNo;
+    if (!activeStationNo || activeStationNo === EMPTY_GUID || !selectedDate) {
+      setExistingTargetno(null);
+      setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+      return;
+    }
+
+    const [yy, mm, dd] = selectedDate.split("-");
+    const targetdate = `${mm}/${dd}/${yy}`;
+
+    let cancelled = false;
+    (async () => {
+      setCheckingExisting(true);
+      const resp = await targetreferenceAPI.getDetailByTargetdate(
+        { Stationno: activeStationNo, Targetdate: targetdate },
+        { suppressGlobalLoading: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<TargetReferenceByDateModel[]>(resp);
+      const record =
+        ok && Array.isArray(data) ? data.find((r) => !r.isdeleted) ?? null : null;
+      setCheckingExisting(false);
+
+      if (record && record.targetno && record.targetno !== EMPTY_GUID) {
+        setPendingExistingRecord(record);
+        setExistingMeta({
+          isrevisionrequest: Boolean(record.isrevisionrequest),
+          editablestatus: Number(record.editablestatus ?? 0),
+        });
+
+        const isPast = parseDateInputValue(selectedDate).getTime() < startOfToday();
+        const unlocked = Number(record.editablestatus ?? 0) === 153;
+        if (isPast && !unlocked) {
+          // Locked (or awaiting approval) — plot read-only, no duplicate prompt.
+          plotExistingRecord(record);
+          setDateDuplicateOpen(false);
+        } else {
+          setDateDuplicateOpen(true);
+        }
+      } else {
+        // No record for this date → back to a clean CREATE.
+        setExistingTargetno(null);
+        setPendingExistingRecord(null);
+        setDateDuplicateOpen(false);
+        setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+        setCells((prev) => {
+          const next = { ...prev };
+          delete next.bplo;
+          delete next.gov;
+          delete next.peza;
+          delete next.tieza;
+          return next;
+        });
+        setBaselineCells({});
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEditProp, selectedDate, stationNo, scope.stationLocked, scope.stationno, user?.stationno, reloadNonce]);
+
+  /** Plots a record's totals/remarks into the form and enables update mode. */
+  function plotExistingRecord(rec: TargetReferenceByDateModel) {
+    const loaded: CellMap = {
+      bplo: String(rec.bplototal ?? 0),
+      gov: String(rec.govtotal ?? 0),
+      peza: String(rec.pezatotal ?? 0),
+      tieza: String(rec.tiezatotal ?? 0),
+    };
+    setCells((prev) => ({ ...prev, ...loaded }));
+    setBaselineCells(loaded);
+    setRemarks(rec.remarks ?? "");
+    setExistingTargetno(rec.targetno);
+    setErrors({});
+  }
+
+  /** Plots the existing record into the form and switches Save into update mode. */
+  const handleExistingConfirm = () => {
+    if (pendingExistingRecord) plotExistingRecord(pendingExistingRecord);
+    setDateDuplicateOpen(false);
+  };
+
+  /** Keeps the form blank; user chose not to load the existing record. */
+  const handleExistingCancel = () => {
+    setDateDuplicateOpen(false);
+    setPendingExistingRecord(null);
+    setExistingTargetno(null);
+  };
+
+
 
   const setCell = (day: number, sectorNo: number, raw: string) => {
     const key = `${day}-${sectorNo}`;
@@ -368,6 +499,29 @@ export default function TargetReferenceForm({
   const selectedYear = Number(selectedDate.slice(0, 4));
   const selectedMonth = Number(selectedDate.slice(5, 7));
   const selectedDay = Number(selectedDate.slice(8, 10));
+
+  /* ── Past-date lock rules (Add mode, single date) ───────────────────────── */
+  const isPastSelectedDate =
+    !!selectedDate && parseDateInputValue(selectedDate).getTime() < startOfToday();
+  const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
+  /** Pending revision request for the selected date (used for cancel/delete). */
+  const activeAddRequest = React.useMemo(() => {
+    const wanted = String(selectedDate).slice(0, 10);
+    return (
+      revisionRequests.find((r) => {
+        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
+        if (existingTargetno && String(r.referencekey) === String(existingTargetno)) return true;
+        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === wanted : false;
+      }) ?? null
+    );
+  }, [revisionRequests, selectedDate, existingTargetno]);
+  const hasPendingRevision =
+    !isEdit && isPastSelectedDate && (existingMeta.isrevisionrequest || !!activeAddRequest) && !unlockedByApproval;
+  /** Locked past date with no approval and no pending request → request revision. */
+  const needsRevisionRequest =
+    !isEdit && isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
+  const addFieldsLocked = !isEdit && isPastSelectedDate && !unlockedByApproval;
+
 
   const handleSave = async () => {
     const submitStationNo = scope.stationLocked
@@ -422,13 +576,15 @@ export default function TargetReferenceForm({
         })
       : [
           {
-            targetno: EMPTY_GUID,
+            // When an existing record was loaded for this date, send its
+            // targetno so the backend performs an UPDATE instead of a CREATE.
+            targetno: existingTargetno || EMPTY_GUID,
             targetdate: toTargetDate(selectedYear, selectedMonth, selectedDay),
             bplototal: Number(cells[`bplo`] ?? 0),
             govtotal: Number(cells[`gov`] ?? 0),
             pezatotal: Number(cells[`peza`] ?? 0),
             tiezatotal: Number(cells[`tieza`] ?? 0),
-            isaccomplished: false,
+            isaccomplished: Boolean(existingTargetno),
             ...(remarks ? { remarks } : {}),
           } as TargetReferenceClass,
         ];
@@ -446,7 +602,7 @@ export default function TargetReferenceForm({
         toast.error(error || "Unable to save target reference.");
         return;
       }
-      toast.success(isEdit ? "Target reference updated." : "Target reference added.");
+      toast.success(isEdit || existingTargetno ? "Target reference updated." : "Target reference added.");
       onSaved();
       onOpenChange(false);
     } finally {
@@ -514,8 +670,21 @@ export default function TargetReferenceForm({
     setDuplicateDialogOpen(newOpen);
   };
 
+  const lockedFieldClass =
+    "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0";
+
   const addBody = (
     <div className="grid gap-6 px-4 py-4 sm:px-6">
+      {addFieldsLocked && (
+        <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+          <span>
+            {hasPendingRevision
+              ? "A revision request for this date is pending approval. Fields stay locked until it is approved."
+              : "This date has already passed and is locked. Submit a revision request to enable editing."}
+          </span>
+        </div>
+      )}
       <div className="grid gap-6 rounded-3xl border border-border/80 bg-surface p-4 sm:grid-cols-2">
         <div className="grid gap-4">
           <div className="space-y-1.5">
@@ -527,10 +696,15 @@ export default function TargetReferenceForm({
               inputMode="numeric"
               type="text"
               value={cells[`bplo`] ?? ""}
-              onChange={(event) => setField("bplo", event.target.value.replace(/[^0-9]/g, ""))}
+              readOnly={addFieldsLocked}
+              onChange={(event) => {
+                if (addFieldsLocked) return;
+                setField("bplo", event.target.value.replace(/[^0-9]/g, ""));
+              }}
               className={cn(
                 "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
                 errors.bplo && "border-destructive focus:border-destructive focus:ring-destructive",
+                addFieldsLocked && lockedFieldClass,
               )}
               aria-invalid={Boolean(errors.bplo)}
             />
@@ -545,10 +719,15 @@ export default function TargetReferenceForm({
               inputMode="numeric"
               type="text"
               value={cells[`gov`] ?? ""}
-              onChange={(event) => setField("gov", event.target.value.replace(/[^0-9]/g, ""))}
+              readOnly={addFieldsLocked}
+              onChange={(event) => {
+                if (addFieldsLocked) return;
+                setField("gov", event.target.value.replace(/[^0-9]/g, ""));
+              }}
               className={cn(
                 "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
                 errors.gov && "border-destructive focus:border-destructive focus:ring-destructive",
+                addFieldsLocked && lockedFieldClass,
               )}
               aria-invalid={Boolean(errors.gov)}
             />
@@ -556,24 +735,6 @@ export default function TargetReferenceForm({
         </div>
 
         <div className="grid gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="target-reference-tieza">
-              TIEZA <span className="text-destructive">*</span>
-            </Label>
-            <input
-              id="target-reference-tieza"
-              inputMode="numeric"
-              type="text"
-              value={cells[`tieza`] ?? ""}
-              onChange={(event) => setField("tieza", event.target.value.replace(/[^0-9]/g, ""))}
-              className={cn(
-                "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
-                errors.tieza && "border-destructive focus:border-destructive focus:ring-destructive",
-              )}
-              aria-invalid={Boolean(errors.tieza)}
-            />
-          </div>
-
           <div className="space-y-1.5">
             <Label htmlFor="target-reference-peza">
               PEZA <span className="text-destructive">*</span>
@@ -583,15 +744,44 @@ export default function TargetReferenceForm({
               inputMode="numeric"
               type="text"
               value={cells[`peza`] ?? ""}
-              onChange={(event) => setField("peza", event.target.value.replace(/[^0-9]/g, ""))}
+              readOnly={addFieldsLocked}
+              onChange={(event) => {
+                if (addFieldsLocked) return;
+                setField("peza", event.target.value.replace(/[^0-9]/g, ""));
+              }}
               className={cn(
                 "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
                 errors.peza && "border-destructive focus:border-destructive focus:ring-destructive",
+                addFieldsLocked && lockedFieldClass,
               )}
               aria-invalid={Boolean(errors.peza)}
             />
           </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="target-reference-tieza">
+              TIEZA <span className="text-destructive">*</span>
+            </Label>
+            <input
+              id="target-reference-tieza"
+              inputMode="numeric"
+              type="text"
+              value={cells[`tieza`] ?? ""}
+              readOnly={addFieldsLocked}
+              onChange={(event) => {
+                if (addFieldsLocked) return;
+                setField("tieza", event.target.value.replace(/[^0-9]/g, ""));
+              }}
+              className={cn(
+                "h-12 w-full rounded-xl border bg-background px-3 text-right text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
+                errors.tieza && "border-destructive focus:border-destructive focus:ring-destructive",
+                addFieldsLocked && lockedFieldClass,
+              )}
+              aria-invalid={Boolean(errors.tieza)}
+            />
+          </div>
         </div>
+
       </div>
 
       <div className="space-y-1.5">
@@ -599,11 +789,19 @@ export default function TargetReferenceForm({
         <textarea
           id="target-reference-remarks"
           value={remarks}
-          onChange={(event) => setRemarks(event.target.value)}
-          className="min-h-[120px] w-full resize-none rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+          readOnly={addFieldsLocked}
+          onChange={(event) => {
+            if (addFieldsLocked) return;
+            setRemarks(event.target.value);
+          }}
+          className={cn(
+            "min-h-[120px] w-full resize-none rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
+            addFieldsLocked && lockedFieldClass,
+          )}
           placeholder="Add remarks here..."
         />
       </div>
+
     </div>
   );
 
@@ -922,22 +1120,72 @@ export default function TargetReferenceForm({
         </div>
 
         <DialogFooter className="border-t bg-muted/30 px-5 py-3">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="gap-2"
-            disabled={saving}
-          >
-            <X className="h-4 w-4" /> Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving || loadingGrid || sectors.length === 0 || !isDirty}
-            className="gap-2 bg-primary text-white hover:bg-primary/90"
-          >
-            <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save"}
-          </Button>
+          {needsRevisionRequest ? (
+            <Button
+              onClick={() => {
+                if (!stationNo || stationNo === EMPTY_GUID) {
+                  toast.error("Please select a station first.");
+                  return;
+                }
+                setAddRevisionOpen(true);
+              }}
+              className="gap-2 bg-primary text-white hover:bg-primary/90"
+            >
+              <FilePen className="h-4 w-4" /> Request Revision
+            </Button>
+          ) : hasPendingRevision ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (activeAddRequest) setCancelRequestId(activeAddRequest.requestno);
+                  else toast.info("No active revision request to cancel.");
+                }}
+                className="gap-2"
+              >
+                <Ban className="h-4 w-4" /> Cancel Request
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (activeAddRequest) setDeleteRequestId(activeAddRequest.requestno);
+                  else toast.info("No revision request to delete.");
+                }}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" /> Delete Request
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="gap-2"
+                disabled={saving}
+              >
+                <X className="h-4 w-4" /> Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={
+                  saving ||
+                  loadingGrid ||
+                  checkingExisting ||
+                  sectors.length === 0 ||
+                  // In add mode with an existing record loaded, Save always updates
+                  // — even when nothing changed.
+                  (isEdit ? !isDirty : !existingTargetno && !isDirty)
+                }
+                className="gap-2 bg-primary text-white hover:bg-primary/90"
+              >
+                <Save className="h-4 w-4" />{" "}
+                {saving ? "Saving…" : existingTargetno && !isEdit ? "Update" : "Save"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
 
@@ -953,6 +1201,44 @@ export default function TargetReferenceForm({
       showCancel={false}
       onConfirm={handleDuplicateConfirm}
     />
+
+    <ConfirmDialog
+      open={dateDuplicateOpen}
+      onOpenChange={(v) => {
+        if (!v) handleExistingCancel();
+        else setDateDuplicateOpen(true);
+      }}
+      ContentIcon={AlertTriangle}
+      contentIconBgClass="tone-warning-soft"
+      contentIconColorClass="text-warning"
+      title="Target Reference Already Exists"
+      description={`A Target Reference already exists for ${
+        pendingExistingRecord?.stationname || stationName || "this station"
+      } on ${formatLongDate(selectedDate)}.\n\nDo you want to load and edit the existing record?`}
+      confirmLabel="Edit Existing"
+      showCancel={false}
+      onConfirm={handleExistingConfirm}
+    />
+
+    {addRevisionOpen && (
+      <RevisionRequestDialog
+        open={addRevisionOpen}
+        onOpenChange={(v) => setAddRevisionOpen(v)}
+        station={{
+          stationno: stationNo,
+          stationcode: stationCode || "",
+          stationname: stationName || "",
+          provinceno: provinceno,
+          provincename: provincename,
+          cityname: station?.cityname ?? user?.cityname ?? "",
+        }}
+        year={selectedYear}
+        month={selectedMonth}
+        referencekey={existingTargetno || EMPTY_GUID}
+        dateinspected={selectedDate}
+        onSubmitted={() => setReloadNonce((n) => n + 1)}
+      />
+    )}
 
     {revisionDay !== null && (
       <RevisionRequestDialog

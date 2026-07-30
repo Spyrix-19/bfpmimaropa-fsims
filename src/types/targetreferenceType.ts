@@ -165,3 +165,29 @@ export interface ProvinceExportModel {
 
 
 
+
+/** Row returned by /FSISTargetReference/Detail/Targetdate (existence check). */
+export interface TargetReferenceByDateModel {
+  targetno: string;
+  targetdate: string;
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  logourl: string;
+  isrevisionrequest: boolean;
+  editablestatus: number;
+  bplototal: number;
+  govtotal: number;
+  pezatotal: number;
+  tiezatotal: number;
+  remarks?: string;
+  isdeleted: boolean;
+  encodedby?: string;
+  encodedbyname?: string;
+  dateencoded?: string;
+  updatedby?: string;
+  updatedbyname?: string;
+  dateupdated?: string;
+}

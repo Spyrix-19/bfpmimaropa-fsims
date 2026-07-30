@@ -2,7 +2,7 @@ import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT }
 
 import { FSISTargetReferenceDTO, TargetReferenceDetailParams, TargetReferenceDetailModel, 
   GetFSISTargetReferenceRequest, TargetReferenceModel, TargetReferenceDeleteParams, 
-  ExportTargetReferenceRequestDTO} from "@/types/targetreferenceType";
+  ExportTargetReferenceRequestDTO, TargetReferenceByDateModel} from "@/types/targetreferenceType";
 
 export const targetreferenceAPI = {
   async create(params: FSISTargetReferenceDTO) {
@@ -15,6 +15,17 @@ export const targetreferenceAPI = {
       ...GET_RETRY,
       ...options,
     });
+  },
+
+  /** Existence check for a station + specific target date (MM/DD/YYYY). */
+  async getDetailByTargetdate(
+    params: { Stationno: string; Targetdate: string },
+    options?: import("@/lib/api").ApiOptions
+  ) {
+    return await apiGet<TargetReferenceByDateModel[]>(
+      "/api/v1/FSISTargetReference/Detail/Targetdate",
+      { params, ...GET_RETRY, ...options }
+    );
   },
 
   async getLedger(
