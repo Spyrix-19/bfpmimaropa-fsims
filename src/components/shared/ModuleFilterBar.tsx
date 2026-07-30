@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CalendarIcon, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { CalendarIcon, RotateCcw, SlidersHorizontal, ChevronDown, Check } from "lucide-react";
+import ResetFiltersButton from "@/components/reset-filters-button";
 
 import {
   Select,
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { formatLongDate } from "@/lib/date-format";
@@ -47,13 +48,14 @@ export const MODULE_INTERVALS: { value: ModuleInterval; label: string }[] = [
 
 export function defaultModuleFilterState(): ModuleFilterState {
   const now = new Date();
+  const month = now.getMonth() + 1;
   return {
     year: String(now.getFullYear()),
     interval: "MONTHLY",
     date: toISODate(now),
-    months: [now.getMonth() + 1],
-    quarter: "q1",
-    semester: "s1",
+    months: [month],
+    quarter: `q${Math.ceil(month / 3)}`,
+    semester: month <= 6 ? "s1" : "s2",
   };
 }
 
@@ -132,7 +134,7 @@ export function MonthMultiSelect({
   const [open, setOpen] = React.useState(false);
   const label =
     value.length === 0
-      ? "All months"
+      ? "Select month"
       : value.length === 1
         ? MONTHS.find((m) => m.value === value[0])?.name
         : `${value.length} months selected`;
@@ -146,31 +148,43 @@ export function MonthMultiSelect({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
+        <button
+          type="button"
           className={cn(
-            "h-10 w-full justify-start px-3 text-left text-sm font-normal",
+            "flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border bg-background px-3 text-left text-sm",
             value.length === 0 && "text-muted-foreground",
           )}
         >
-          <span className="truncate">{label}</span>
-        </Button>
+          <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis">
+            {label}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
+        </button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-2 pointer-events-auto" align="start">
-        <div className="max-h-72 space-y-1 overflow-y-auto">
-          {MONTHS.map((m) => (
-            <label
-              key={m.value}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
-            >
-              <Checkbox checked={value.includes(m.value)} onCheckedChange={() => toggle(m.value)} />
-              {m.name}
-            </label>
-          ))}
+      <PopoverContent className="w-max min-w-[220px] p-0 pointer-events-auto" align="start">
+        <div className="max-h-64 overflow-auto">
+          {MONTHS.map((m) => {
+            const sel = value.includes(m.value);
+            return (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => toggle(m.value)}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                  sel && "bg-muted",
+                )}
+              >
+                <div className="min-w-0 flex-1 truncate font-medium">{m.name}</div>
+                {sel ? <Check className="h-4 w-4 text-primary" /> : null}
+              </button>
+            );
+          })}
         </div>
       </PopoverContent>
     </Popover>
   );
+
 }
 
 /* ------------------------------------------------------------------ *
@@ -186,9 +200,22 @@ export function PeriodSelect({
 }) {
   const handleIntervalChange = (v: string) => {
     const next = v as ModuleInterval;
+    const today = new Date();
+    const month = today.getMonth() + 1;
     if (next === "DAILY") {
-      const today = new Date();
       onChange({ interval: next, date: toISODate(today), year: String(today.getFullYear()) });
+      return;
+    }
+    if (next === "MONTHLY") {
+      onChange({ interval: next, months: [month] });
+      return;
+    }
+    if (next === "QUARTERLY") {
+      onChange({ interval: next, quarter: `q${Math.ceil(month / 3)}` });
+      return;
+    }
+    if (next === "SEMESTER") {
+      onChange({ interval: next, semester: month <= 6 ? "s1" : "s2" });
       return;
     }
     onChange({ interval: next });
@@ -344,14 +371,10 @@ export function ModuleFilterBar({
 
         {children}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onReset}
+        <ResetFiltersButton
+          onReset={onReset}
           className="col-span-2 justify-self-end self-center md:col-span-1"
-        >
-          <RotateCcw className="mr-2 h-3.5 w-3.5" /> Reset
-        </Button>
+        />
       </div>
     </div>
   );

@@ -1,5 +1,9 @@
 import * as React from "react";
-import { BellRing, Eye, Grid3x3, LayoutGrid, Loader2, CalendarDays, Plus } from "lucide-react";
+import { BellRing, Eye, Grid3x3, LayoutGrid, Loader2, CalendarDays, Plus, Download } from "lucide-react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+
+import { toast } from "@/lib/toast";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -106,6 +110,7 @@ export default function AccomplishedNotice() {
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
 
   const [loading, setLoading] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<AccomplishedNoticeRecord | null>(null);
   const [deleting, setDeleting] = React.useState(false);
   const [addOpen, setAddOpen] = React.useState(false);
@@ -224,6 +229,94 @@ export default function AccomplishedNotice() {
     }
   };
 
+  const handleExport = async () => {
+    if (paged.length === 0) {
+      toast.info("No accomplished notices to export.");
+      return;
+    }
+    setExporting(true);
+    try {
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "FSIMS";
+      wb.created = new Date();
+      const ws = wb.addWorksheet(`Accomplished Notice ${year}`);
+
+      const categories = ["NOD", "NTC", "NTCV", "Abatement", "Closure"] as const;
+      ws.columns = [
+        { header: "Station Code", key: "stationCode", width: 16 },
+        { header: "Station Name", key: "stationName", width: 32 },
+        { header: "Province", key: "province", width: 22 },
+        { header: "Municipality", key: "municipality", width: 22 },
+        { header: "Year", key: "year", width: 10 },
+        { header: "Month", key: "month", width: 12 },
+        ...categories.flatMap((cat) => [
+          { header: `${cat} Pending`, key: `${cat}Pending`, width: 14 },
+          { header: `${cat} Accomplished`, key: `${cat}Accomplished`, width: 16 },
+        ]),
+        { header: "Total Pending", key: "totalPending", width: 14 },
+        { header: "Total Accomplished", key: "totalAccomplished", width: 18 },
+      ];
+
+      ws.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF2563EB" },
+        };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      });
+
+      for (const r of paged) {
+        let totalPending = 0;
+        let totalAccomplished = 0;
+        const catRow: Record<string, number> = {};
+        for (const cat of categories) {
+          const counts = r.breakdown[cat];
+          catRow[`${cat}Pending`] = counts.pending;
+          catRow[`${cat}Accomplished`] = counts.accomplished;
+          totalPending += counts.pending;
+          totalAccomplished += counts.accomplished;
+        }
+        ws.addRow({
+          stationCode: r.stationCode,
+          stationName: r.stationName,
+          province: r.province,
+          municipality: r.municipality,
+          year: r.reportYear,
+          month: MONTHS.find((m) => m.value === r.reportMonth)?.name ?? r.reportMonth,
+          ...catRow,
+          totalPending,
+          totalAccomplished,
+        });
+      }
+
+      ws.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        row.eachCell((cell, colNumber) => {
+          if (colNumber >= 7) {
+            cell.numFmt = "#,##0;(#,##0);-";
+            cell.alignment = { horizontal: "right" };
+          }
+        });
+      });
+
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(
+        new Blob([buf], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `AccomplishedNotice_${year}.xlsx`,
+      );
+      toast.success("Accomplished Notice exported.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Accomplished Notice.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleSaved = (nextRecord: AccomplishedNoticeRecord) => {
     setRecords((prev) =>
       prev.map((item) => (item.stationNo === nextRecord.stationNo ? nextRecord : item)),
@@ -258,11 +351,22 @@ export default function AccomplishedNotice() {
             Notice accomplishments grouped by station, month, and year.
           </p>
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
+        <div
+          className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
+        >
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting || paged.length === 0}
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Export
+          </Button>
           <Button
             variant="outline"
             onClick={openMatrixGlobal}
-            className="w-full justify-center gap-2 sm:w-auto"
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
             <LayoutGrid className="h-4 w-4" /> Notice Matrix
           </Button>
@@ -302,7 +406,7 @@ export default function AccomplishedNotice() {
               setStation("ALL");
             }}
           >
-            <SelectTrigger className="w-auto">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -323,7 +427,7 @@ export default function AccomplishedNotice() {
           />
         ) : (
           <Select value={station} onValueChange={setStation}>
-            <SelectTrigger className="w-auto">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -594,7 +698,7 @@ function NoticeCard({
           onClick={onView}
           aria-label="View details"
           title="View"
-          className="rounded-md p-2 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-slate-600 transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300"
+          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
         >
           <Eye className="h-4 w-4" />
         </button>
@@ -603,11 +707,11 @@ function NoticeCard({
         <button
           type="button"
           onClick={onMatrix}
-          aria-label="View Matrix"
-          title="View Matrix"
-          className="rounded-md p-2 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-slate-600 transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300"
+          aria-label="Notice Matrix"
+          title="Notice Matrix"
+          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
         >
-          <Grid3x3 className="h-4 w-4" />
+          <LayoutGrid className="h-4 w-4" />
         </button>
       </div>
     </Card>

@@ -12,7 +12,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
-import { ClipboardList, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Grid3x3 } from "lucide-react";
+import {
+  ClipboardList,
+  Eye,
+  LayoutGrid,
+  Loader2,
+  CalendarDays,
+  Plus,
+  Grid3x3,
+  Download,
+} from "lucide-react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import InventoryMatrix from "./monitoringMatrix.tsx";
 import { InventoryViewModal } from "./components/monitoringView.tsx";
 import { InventoryEditModal } from "./components/monitoringEdit.tsx";
@@ -236,6 +247,7 @@ export default function FireSafetyCompliancePage() {
   const [rows, setRows] = React.useState<MonthlyInventoryRow[]>([]);
   const [total, setTotal] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
   const [refreshTick, setRefreshTick] = React.useState(0);
   const refresh = () => setRefreshTick((t) => t + 1);
 
@@ -433,6 +445,80 @@ export default function FireSafetyCompliancePage() {
     }
   };
 
+  const handleExport = async () => {
+    if (paged.length === 0) {
+      toast.info("No compliance records to export.");
+      return;
+    }
+    setExporting(true);
+    try {
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "FSIMS";
+      wb.created = new Date();
+      const ws = wb.addWorksheet(`Fire Safety Compliance ${year}`);
+
+      ws.columns = [
+        { header: "Station Code", key: "stationCode", width: 16 },
+        { header: "Station Name", key: "stationName", width: 32 },
+        { header: "Province", key: "province", width: 22 },
+        { header: "Year", key: "year", width: 10 },
+        { header: "Month", key: "month", width: 12 },
+        { header: "Inspection", key: "inspection", width: 14 },
+        { header: "FSEC", key: "fsec", width: 12 },
+        { header: "FSIC", key: "fsic", width: 12 },
+        { header: "Notices", key: "notices", width: 12 },
+      ];
+
+      ws.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF2563EB" },
+        };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      });
+
+      for (const r of paged) {
+        ws.addRow({
+          stationCode: r.stationcode,
+          stationName: r.stationname,
+          province: r.provincename,
+          year: r.year,
+          month: MONTHS.find((m) => m.value === r.month)?.name ?? r.month,
+          inspection: r.totals.inspection,
+          fsec: r.totals.fsec,
+          fsic: r.totals.fsic,
+          notices: r.totals.notices,
+        });
+      }
+
+      ws.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        row.eachCell((cell, colNumber) => {
+          if (colNumber >= 6) {
+            cell.numFmt = "#,##0;(#,##0);-";
+            cell.alignment = { horizontal: "right" };
+          }
+        });
+      });
+
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(
+        new Blob([buf], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `FireSafetyCompliance_${year}_${month}.xlsx`,
+      );
+      toast.success("Fire Safety Compliance exported.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Fire Safety Compliance.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -447,11 +533,22 @@ export default function FireSafetyCompliancePage() {
             Fire safety compliance accomplishments grouped by station, month, and year.
           </p>
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
+        <div
+          className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
+        >
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting || paged.length === 0}
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Export
+          </Button>
           <Button
             variant="outline"
             onClick={openMatrixGlobal}
-            className="w-full justify-center gap-2 sm:w-auto"
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
             <LayoutGrid className="h-4 w-4" /> Compliance Matrix
           </Button>
@@ -794,7 +891,7 @@ function ComplianceCard({
           onClick={onView}
           aria-label="View details"
           title="View"
-          className="rounded-md p-2 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-slate-600 transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300"
+          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
         >
           <Eye className="h-4 w-4" />
         </button>
@@ -803,11 +900,11 @@ function ComplianceCard({
         <button
           type="button"
           onClick={onMatrix}
-          aria-label="View Matrix"
-          title="View Matrix"
-          className="rounded-md p-2 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-slate-600 transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300"
+          aria-label="Compliance Matrix"
+          title="Compliance Matrix"
+          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
         >
-          <Grid3x3 className="h-4 w-4" />
+          <LayoutGrid className="h-4 w-4" />
         </button>
       </div>
     </Card>

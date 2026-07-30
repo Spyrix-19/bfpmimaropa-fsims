@@ -19,8 +19,11 @@ import {
   LayoutGrid,
   Target,
   Loader2,
+  Download,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 import AddButton from "@/components/add-button";
 import EditButton from "@/components/edit-button";
@@ -127,7 +130,7 @@ export default function TargetReferenceIndexPage() {
     state: filterState,
     set: setFilterState,
     resetState: resetFilterState,
-  } = useModuleFilterState({ interval: "DAILY" });
+  } = useModuleFilterState();
   const year = filterState.year;
   const month = String(resolvePrimaryMonth(filterState));
   const period: TargetPeriod =
@@ -176,6 +179,7 @@ export default function TargetReferenceIndexPage() {
   const [rows, setRows] = React.useState<TargetReferenceModel[]>([]);
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
 
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingGroup, setEditingGroup] = React.useState<{
@@ -359,6 +363,80 @@ export default function TargetReferenceIndexPage() {
     }
   };
 
+  const handleExport = async () => {
+    if (pageGroups.length === 0) {
+      toast.info("No target references to export.");
+      return;
+    }
+    setExporting(true);
+    try {
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "FSIMS";
+      wb.created = new Date();
+      const ws = wb.addWorksheet(`Target Reference ${year}`);
+
+      ws.columns = [
+        { header: "Station Code", key: "stationCode", width: 16 },
+        { header: "Station Name", key: "stationName", width: 32 },
+        { header: "Province", key: "province", width: 22 },
+        { header: "Year", key: "year", width: 10 },
+        { header: "BPLO", key: "bplo", width: 12 },
+        { header: "Gov", key: "gov", width: 12 },
+        { header: "PEZA", key: "peza", width: 12 },
+        { header: "TIEZA", key: "tieza", width: 12 },
+      ];
+
+      ws.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF2563EB" },
+        };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      });
+
+      for (const g of pageGroups) {
+        const derived = computeDerivedFromList(g.row.targetreferencelist);
+        const totals = derived.annual;
+        ws.addRow({
+          stationCode: g.stationCode,
+          stationName: g.stationName,
+          province: g.province,
+          year: g.year,
+          bplo: totals.bplo,
+          gov: totals.gov,
+          peza: totals.peza,
+          tieza: totals.tieza,
+        });
+      }
+
+      ws.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        row.eachCell((cell, colNumber) => {
+          if (colNumber >= 5) {
+            cell.numFmt = "#,##0;(#,##0);-";
+            cell.alignment = { horizontal: "right" };
+          }
+        });
+      });
+
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(
+        new Blob([buf], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `TargetReference_${year}.xlsx`,
+      );
+      toast.success("Target Reference exported.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Target Reference.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -372,12 +450,18 @@ export default function TargetReferenceIndexPage() {
             automatic totals and summary metrics.
           </p>
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
-          {canManage && (
-            <AddButton onClick={handleAdd} className="w-full justify-center sm:w-auto">
-              <Target className="h-4 w-4" /> Add Target
-            </AddButton>
-          )}
+        <div
+          className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
+        >
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting || pageGroups.length === 0}
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Export
+          </Button>
           <Button
             variant="outline"
             onClick={openMatrixGlobal}
@@ -385,6 +469,11 @@ export default function TargetReferenceIndexPage() {
           >
             <LayoutGrid className="h-4 w-4" /> Target Matrix
           </Button>
+          {canManage && (
+            <AddButton onClick={handleAdd} className="w-full justify-center sm:w-auto">
+              <Target className="h-4 w-4" /> Add Target
+            </AddButton>
+          )}
         </div>
       </div>
 
@@ -788,7 +877,8 @@ function TargetCard({
           type="button"
           onClick={onView}
           aria-label="View details"
-          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white"
+          title="View"
+          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
         >
           <Eye className="h-4 w-4" />
         </button>
@@ -799,7 +889,7 @@ function TargetCard({
           onClick={onMatrix}
           aria-label="Target Matrix"
           title="Target Matrix"
-          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white"
+          className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
         >
           <LayoutGrid className="h-4 w-4" />
         </button>

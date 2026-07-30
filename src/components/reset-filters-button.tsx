@@ -35,7 +35,7 @@ export default function ResetFiltersButton({
             {...rest}
             onClick={handleClick}
             className={cn(
-              "group h-10 w-10 inline-flex items-center justify-center rounded-md border bg-background text-primary transition-colors hover:bg-primary hover:text-white",
+              "group h-10 w-10 inline-flex items-center justify-center rounded-md border bg-background text-primary transition-colors hover:bg-primary hover:text-white cursor-pointer disabled:pointer-events-none disabled:opacity-50",
               className,
             )}
             aria-label={tooltip}

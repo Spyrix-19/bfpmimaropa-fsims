@@ -50,7 +50,7 @@ export function fromISODate(v: string): Date | null {
 export const DEFAULT_FILTERS: DashFilters = {
   year: String(new Date().getFullYear()),
   interval: "MONTHLY",
-  period: "all",
+  period: String(new Date().getMonth() + 1),
   provinces: [],
   stations: [],
   city: empty,
@@ -70,8 +70,12 @@ export function resolveReportMonths(interval: DashInterval, period: string): num
   if (period === "all" || !period) return ALL;
 
   if (interval === "MONTHLY") {
-    const m = Number(period);
-    return m >= 1 && m <= 12 ? [m] : ALL;
+    // `period` may hold a single month ("3") or a comma-separated multi-select ("3,4,5").
+    const months = period
+      .split(",")
+      .map((p) => Number(p.trim()))
+      .filter((m) => m >= 1 && m <= 12);
+    return months.length ? [...new Set(months)].sort((a, b) => a - b) : ALL;
   }
   if (interval === "QUARTERLY") {
     switch (period) {

@@ -151,6 +151,19 @@
     color: var(--color-foreground);
     min-height: 100vh;
   }
+  /* Pointer cursor for all interactive controls */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  label[for],
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 @utility glass-panel {

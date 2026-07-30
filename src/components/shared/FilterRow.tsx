@@ -1,6 +1,6 @@
 import * as React from "react";
-import { RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ResetFiltersButton from "@/components/reset-filters-button";
 
 /**
  * Inline pill-style filter bar shared by Fire Safety Compliance,
@@ -16,8 +16,6 @@ export function FilterRow({
   onReset?: () => void;
   className?: string;
 }) {
-  const [spinKey, setSpinKey] = React.useState(0);
-
   return (
     <div
       className={cn(
@@ -30,20 +28,7 @@ export function FilterRow({
     >
       {children}
       {onReset && (
-        <button
-          type="button"
-          onClick={() => {
-            setSpinKey((k) => k + 1);
-            onReset();
-          }}
-          className="ml-auto inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          <RotateCw
-            key={spinKey}
-            className={cn("h-4 w-4", spinKey > 0 && "[animation:spin_400ms_ease-out_1]")}
-          />
-          Reset
-        </button>
+        <ResetFiltersButton onReset={onReset} className="ml-auto" />
       )}
     </div>
   );
