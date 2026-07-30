@@ -19,7 +19,7 @@ import {
   LayoutGrid,
   Target,
   Loader2,
-  } from "lucide-react";
+} from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import AddButton from "@/components/add-button";
@@ -33,6 +33,11 @@ import FilterField from "@/components/filter-field";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import ResetFiltersButton from "@/components/reset-filters-button";
+import {
+  ModuleFilterBar,
+  useModuleFilterState,
+  resolvePrimaryMonth,
+} from "@/components/shared/ModuleFilterBar";
 
 import { useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE, MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
@@ -57,7 +62,15 @@ import {
 import ReadOnlyField from "./components/ReadOnlyField";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 
-function BucketCell({ b, k, className }: { b: TargetBucket; k: keyof TargetBucket; className?: string }) {
+function BucketCell({
+  b,
+  k,
+  className,
+}: {
+  b: TargetBucket;
+  k: keyof TargetBucket;
+  className?: string;
+}) {
   const v = b[k];
   return (
     <td
@@ -110,8 +123,15 @@ export default function TargetReferenceIndexPage() {
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const [year, setYear] = React.useState<string>(String(currentYear));
-  const [month, setMonth] = React.useState<string>(String(currentMonth));
+  const {
+    state: filterState,
+    set: setFilterState,
+    resetState: resetFilterState,
+  } = useModuleFilterState({ interval: "DAILY" });
+  const year = filterState.year;
+  const month = String(resolvePrimaryMonth(filterState));
+  const period: TargetPeriod =
+    filterState.interval === "SEMESTER" ? "SEMI-ANNUAL" : filterState.interval;
   // Unlocked fields default to EMPTY_GUID ("ALL"); locked fields carry the login scope GUID.
   const [provinceFilter, setProvinceFilter] = React.useState<string>(
     scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
@@ -126,7 +146,6 @@ export default function TargetReferenceIndexPage() {
     scope.stationLocked ? scope.stationname : "ALL",
   );
   const YEARS = React.useMemo(buildYears, []);
-  const [period, setPeriod] = React.useState<TargetPeriod>("DAILY");
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
 
   // Re-apply scope defaults whenever the authenticated scope resolves/changes.
@@ -296,13 +315,11 @@ export default function TargetReferenceIndexPage() {
   };
 
   const handleResetFilters = () => {
-    setYear(String(new Date().getFullYear()));
+    resetFilterState();
     setProvinceFilter(scope.provinceLocked ? scope.provinceno : EMPTY_GUID);
     setProvinceFilterName(scope.provinceLocked ? scope.provincename : "ALL");
     setStationFilter(scope.stationLocked ? scope.stationno : EMPTY_GUID);
     setStationFilterName(scope.stationLocked ? scope.stationname : "ALL");
-    setMonth(String(new Date().getMonth() + 1));
-    setPeriod("DAILY");
     setPage(1);
   };
 
@@ -369,72 +386,26 @@ export default function TargetReferenceIndexPage() {
             <LayoutGrid className="h-4 w-4" /> Target Matrix
           </Button>
         </div>
-
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60 p-4">
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-6">
-              <FilterField label="Year">
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {YEARS.map((y) => (
-                  <SelectItem key={y} value={String(y)}>
-                    {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FilterField>
-
-          <FilterField label="Month">
-            <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MONTHS.map((m) => (
-                  <SelectItem key={m.value} value={String(m.value)}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FilterField>
-
-          <ScopedLocationFilterPair
-            scope={scope}
-            provinceValue={provinceFilter}
-            provinceLabel={provinceFilterName}
-            stationValue={stationFilter}
-            stationLabel={stationFilterName}
-            onProvinceChange={handleProvinceSelect}
-            onStationChange={handleStationSelect}
-          />
-
-          <FilterField label="Target Interval">
-            <Select value={period} onValueChange={(v) => setPeriod(v as TargetPeriod)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PERIOD_OPTIONS.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FilterField>
-
-          <div className="flex items-end justify-end md:justify-start lg:justify-end">
-            <ResetFiltersButton onReset={handleResetFilters} />
-          </div>
-        </div>
-      </Card>
+      <ModuleFilterBar
+        years={YEARS}
+        state={filterState}
+        onChange={setFilterState}
+        onReset={handleResetFilters}
+      >
+        <ScopedLocationFilterPair
+          hideLabels
+          scope={scope}
+          provinceValue={provinceFilter}
+          provinceLabel={provinceFilterName}
+          stationValue={stationFilter}
+          stationLabel={stationFilterName}
+          onProvinceChange={handleProvinceSelect}
+          onStationChange={handleStationSelect}
+        />
+      </ModuleFilterBar>
 
       {/* Card grid */}
       {loading ? (
@@ -501,10 +472,19 @@ export default function TargetReferenceIndexPage() {
           if (!o) setMatrixTarget(null);
         }}
         year={matrixTarget?.year ?? Number(year)}
-        provinceno={matrixTarget?.provinceno ?? (scope.provinceLocked ? scope.provinceno : provinceFilter)}
-        provinceName={matrixTarget?.provinceName ?? (scope.provinceLocked ? scope.provincename : provinceFilterName)}
-        stationno={matrixTarget?.stationno ?? (scope.stationLocked ? scope.stationno : stationFilter)}
-        stationName={matrixTarget?.stationName ?? (scope.stationLocked ? scope.stationname : stationFilterName)}
+        provinceno={
+          matrixTarget?.provinceno ?? (scope.provinceLocked ? scope.provinceno : provinceFilter)
+        }
+        provinceName={
+          matrixTarget?.provinceName ??
+          (scope.provinceLocked ? scope.provincename : provinceFilterName)
+        }
+        stationno={
+          matrixTarget?.stationno ?? (scope.stationLocked ? scope.stationno : stationFilter)
+        }
+        stationName={
+          matrixTarget?.stationName ?? (scope.stationLocked ? scope.stationname : stationFilterName)
+        }
         lockFilters={matrixTarget != null}
       />
 
@@ -515,7 +495,8 @@ export default function TargetReferenceIndexPage() {
         subject={
           deleteTarget ? (
             <>
-              {deleteTarget.stationName ?? deleteTarget.stationCode ?? "Station"} — {deleteTarget.year}
+              {deleteTarget.stationName ?? deleteTarget.stationCode ?? "Station"} —{" "}
+              {deleteTarget.year}
             </>
           ) : null
         }
@@ -609,9 +590,7 @@ function TargetCard({
             </span>
           </div>
           <div className="mt-1 text-sm font-bold">{group.stationName}</div>
-          <div className="text-[11px] text-muted-foreground">
-            {group.province}
-          </div>
+          <div className="text-[11px] text-muted-foreground">{group.province}</div>
         </div>
         <div
           className="grid h-10 w-14 place-items-center rounded-lg bg-primary/10 text-center text-primary"
@@ -649,11 +628,29 @@ function TargetCard({
                   </tbody>
                   <tfoot className="sticky bottom-0 z-20">
                     <tr className="font-semibold">
-                      <td className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 shadow-[0_-1px_0_0_hsl(var(--border))]">TOTAL</td>
-                      <BucketCell b={dailyDerived.total} k="bplo" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
-                      <BucketCell b={dailyDerived.total} k="gov" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
-                      <BucketCell b={dailyDerived.total} k="peza" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
-                      <BucketCell b={dailyDerived.total} k="tieza" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                      <td className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 shadow-[0_-1px_0_0_hsl(var(--border))]">
+                        TOTAL
+                      </td>
+                      <BucketCell
+                        b={dailyDerived.total}
+                        k="bplo"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={dailyDerived.total}
+                        k="gov"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={dailyDerived.total}
+                        k="peza"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={dailyDerived.total}
+                        k="tieza"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
                     </tr>
                   </tfoot>
                 </table>
@@ -683,11 +680,29 @@ function TargetCard({
                   </tbody>
                   <tfoot className="sticky bottom-0 z-20">
                     <tr className="font-semibold">
-                      <td className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 shadow-[0_-1px_0_0_hsl(var(--border))]">TOTAL</td>
-                      <BucketCell b={derived.annual} k="bplo" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
-                      <BucketCell b={derived.annual} k="gov" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
-                      <BucketCell b={derived.annual} k="peza" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
-                      <BucketCell b={derived.annual} k="tieza" className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]" />
+                      <td className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 shadow-[0_-1px_0_0_hsl(var(--border))]">
+                        TOTAL
+                      </td>
+                      <BucketCell
+                        b={derived.annual}
+                        k="bplo"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={derived.annual}
+                        k="gov"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={derived.annual}
+                        k="peza"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={derived.annual}
+                        k="tieza"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
                     </tr>
                   </tfoot>
                 </table>

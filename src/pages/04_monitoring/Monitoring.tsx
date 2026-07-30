@@ -23,6 +23,12 @@ import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import PaginationControls from "@/components/pagination";
 import ResetFiltersButton from "@/components/reset-filters-button";
+import {
+  ModuleFilterBar,
+  useModuleFilterState,
+  resolvePrimaryMonth,
+} from "@/components/shared/ModuleFilterBar";
+
 import FilterField from "@/components/filter-field";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
@@ -57,11 +63,7 @@ import type { SearchStationModel } from "@/types/stationTypes";
 function DaysEncodedBadge({ encoded, total }: { encoded: number; total: number }) {
   const ratio = total ? encoded / total : 0;
   const tone =
-    ratio >= 1
-      ? "tone-success-soft"
-      : ratio >= 0.25
-        ? "tone-warning-soft"
-        : "tone-danger-soft";
+    ratio >= 1 ? "tone-success-soft" : ratio >= 0.25 ? "tone-warning-soft" : "tone-danger-soft";
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${tone}`}
@@ -209,8 +211,14 @@ export default function FireSafetyCompliancePage() {
   const currentMonth = new Date().getMonth() + 1;
   const YEARS = React.useMemo(buildYears, []);
 
-  const [year, setYear] = React.useState<string>(String(currentYear));
-  const [month, setMonth] = React.useState<string>(String(currentMonth));
+  const {
+    state: filterState,
+    set: setFilterState,
+    resetState: resetFilterState,
+  } = useModuleFilterState();
+  const year = filterState.year;
+  const month = String(resolvePrimaryMonth(filterState));
+
   const [provinceno, setProvinceno] = React.useState<string>(
     scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
   );
@@ -314,8 +322,8 @@ export default function FireSafetyCompliancePage() {
   };
 
   const handleResetFilters = () => {
-    setYear(String(currentYear));
-    setMonth(String(currentMonth));
+    resetFilterState();
+
     if (!scope.provinceLocked) {
       setProvinceno(EMPTY_GUID);
       setProvincename("ALL");
@@ -348,7 +356,13 @@ export default function FireSafetyCompliancePage() {
         },
         { suppressGlobalLoading: true, signal: controller.signal },
       );
-      const { ok, data, total: apiTotal, error, canceled } = unwrap<FSISInventoryMonthlyItem[]>(resp);
+      const {
+        ok,
+        data,
+        total: apiTotal,
+        error,
+        canceled,
+      } = unwrap<FSISInventoryMonthlyItem[]>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
         toast.error(error || "Unable to load monthly inventory ledger.");
@@ -453,36 +467,14 @@ export default function FireSafetyCompliancePage() {
       </div>
 
       {/* Filters */}
-      <Card className="grid gap-3 border-border/60 p-4 md:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
-        <FilterField label="Year">
-          <Select value={year} onValueChange={setYear}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {YEARS.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
-        <FilterField label="Month">
-          <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m) => (
-                <SelectItem key={m.value} value={String(m.value)}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
+      <ModuleFilterBar
+        years={YEARS}
+        state={filterState}
+        onChange={setFilterState}
+        onReset={handleResetFilters}
+      >
         <ScopedLocationFilterPair
+          hideLabels
           scope={scope}
           provinceValue={provinceno}
           provinceLabel={provincename}
@@ -491,10 +483,7 @@ export default function FireSafetyCompliancePage() {
           onProvinceChange={handleProvinceSelect}
           onStationChange={handleStationSelect}
         />
-        <div className="flex items-end justify-end md:col-span-2 lg:col-span-1">
-          <ResetFiltersButton onReset={handleResetFilters} />
-        </div>
-      </Card>
+      </ModuleFilterBar>
 
       {/* Target vs. Accomplishment graph — shown above the monthly ledger */}
       <TargetAccomplishmentPanel
@@ -702,7 +691,9 @@ function ComplianceCard({
               {monthName} {row.year}
             </span>
           </div>
-          <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">{row.stationname}</div>
+          <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
+            {row.stationname}
+          </div>
           <div className="text-[11px] text-muted-foreground dark:text-slate-400">
             {row.cityname} · {row.provincename}
           </div>
@@ -755,14 +746,20 @@ function ComplianceCard({
                           return (
                             <tr
                               key={field.key}
-                              className={index % 2 === 0 ? "bg-card dark:bg-slate-800/30" : "bg-blue-50/40 dark:bg-slate-700/30"}
+                              className={
+                                index % 2 === 0
+                                  ? "bg-card dark:bg-slate-800/30"
+                                  : "bg-blue-50/40 dark:bg-slate-700/30"
+                              }
                             >
                               <td className="px-3 py-2 text-sm font-medium text-foreground dark:text-slate-200">
                                 {field.label}
                               </td>
                               <td
                                 className={`px-3 py-2 text-right tabular-nums ${
-                                  value === 0 ? "text-muted-foreground dark:text-slate-500" : "text-foreground dark:text-slate-100 font-semibold"
+                                  value === 0
+                                    ? "text-muted-foreground dark:text-slate-500"
+                                    : "text-foreground dark:text-slate-100 font-semibold"
                                 }`}
                               >
                                 {value.toLocaleString()}

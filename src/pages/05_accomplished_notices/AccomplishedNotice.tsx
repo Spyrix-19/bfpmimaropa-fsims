@@ -13,6 +13,11 @@ import {
 
 import FilterField from "@/components/filter-field";
 import ResetFiltersButton from "@/components/reset-filters-button";
+import {
+  ModuleFilterBar,
+  useModuleFilterState,
+  resolveModuleMonths,
+} from "@/components/shared/ModuleFilterBar";
 import SearchKey from "@/components/search-key";
 import PaginationControls from "@/components/pagination";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
@@ -21,10 +26,11 @@ import DeleteButton from "@/components/delete-button";
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
 
 import { usePagination } from "@/hooks/usePagination";
-import { useAuth } from "@/lib/auth";
+import { useAuth, resolveLocationScope } from "@/lib/auth";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { MONTHS } from "@/lib/fsims-constants";
 import { calendarDaysInMonth } from "@/lib/inventoryHelpers";
+import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 
 import { NoticeAddModal } from "./components/noticeNew";
 import { NoticeEditModal } from "./components/noticeEdit";
@@ -73,15 +79,29 @@ export default function AccomplishedNotice() {
     () => canManageTargetAndCompliance(user, systemAccess),
     [user, systemAccess],
   );
+  // Uniform station-type / role-based scope, identical to Monitoring and Target Reference.
+  const scope = React.useMemo(
+    () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
   const [records, setRecords] = React.useState<AccomplishedNoticeRecord[]>(accomplishedNoticesData);
   const [searchkey, setSearchkey] = React.useState("");
-  const [year, setYear] = React.useState<string>(String(currentYear));
-  const [month, setMonth] = React.useState<string>(String(currentMonth));
-  const [province, setProvince] = React.useState<string>("ALL");
+  const {
+    state: filterState,
+    set: setFilterState,
+    resetState: resetFilterState,
+  } = useModuleFilterState();
+  const year = filterState.year;
+  const selectedMonths = React.useMemo(() => resolveModuleMonths(filterState), [filterState]);
+  const monthKey = selectedMonths.join(",");
+
+  const [province, setProvince] = React.useState<string>(
+    scope.provinceLocked && scope.provincename ? scope.provincename : "ALL",
+  );
   const [station, setStation] = React.useState<string>("ALL");
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
 
@@ -99,6 +119,18 @@ export default function AccomplishedNotice() {
     [records],
   );
 
+  // Re-apply the scope whenever it resolves/changes so locked users can never widen it.
+  React.useEffect(() => {
+    if (scope.provinceLocked && scope.provincename) setProvince(scope.provincename);
+    if (scope.stationLocked && scope.stationname) {
+      const match = records.find(
+        (r) => r.stationName.toLowerCase() === scope.stationname.toLowerCase(),
+      );
+      setStation(match ? match.stationCode : "ALL");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope.provinceLocked, scope.stationLocked, scope.provincename, scope.stationname, records]);
+
   const stations = React.useMemo(() => {
     const scoped = records.filter((r) => province === "ALL" || r.province === province);
     const map = new Map<string, string>();
@@ -110,7 +142,19 @@ export default function AccomplishedNotice() {
     const needle = searchkey.trim().toLowerCase();
     const list = records.filter((r) => {
       if (String(r.reportYear) !== year) return false;
-      if (String(r.reportMonth) !== month) return false;
+      if (!selectedMonths.includes(Number(r.reportMonth))) return false;
+      if (
+        scope.provinceLocked &&
+        scope.provincename &&
+        r.province.toLowerCase() !== scope.provincename.toLowerCase()
+      )
+        return false;
+      if (
+        scope.stationLocked &&
+        scope.stationname &&
+        r.stationName.toLowerCase() !== scope.stationname.toLowerCase()
+      )
+        return false;
       if (province !== "ALL" && r.province !== province) return false;
       if (station !== "ALL" && r.stationCode !== station) return false;
       if (
@@ -124,7 +168,18 @@ export default function AccomplishedNotice() {
     });
     list.sort((a, b) => a.stationName.localeCompare(b.stationName));
     return list;
-  }, [records, searchkey, year, month, province, station]);
+  }, [
+    records,
+    searchkey,
+    year,
+    monthKey,
+    province,
+    station,
+    scope.provinceLocked,
+    scope.stationLocked,
+    scope.provincename,
+    scope.stationname,
+  ]);
 
   const total = filtered.length;
   const paged = React.useMemo(
@@ -137,18 +192,24 @@ export default function AccomplishedNotice() {
     setLoading(true);
     const t = window.setTimeout(() => setLoading(false), 120);
     return () => window.clearTimeout(t);
-  }, [year, month, province, station, searchkey, page, pageSize]);
+  }, [year, monthKey, province, station, searchkey, page, pageSize]);
 
   React.useEffect(() => {
     setPage(1);
-  }, [year, month, province, station, searchkey, pageSize, setPage]);
+  }, [year, monthKey, province, station, searchkey, pageSize, setPage]);
 
   const handleResetFilters = () => {
     setSearchkey("");
-    setYear(String(currentYear));
-    setMonth(String(currentMonth));
-    setProvince("ALL");
-    setStation("ALL");
+    resetFilterState();
+    setProvince(scope.provinceLocked && scope.provincename ? scope.provincename : "ALL");
+    if (scope.stationLocked && scope.stationname) {
+      const match = records.find(
+        (r) => r.stationName.toLowerCase() === scope.stationname.toLowerCase(),
+      );
+      setStation(match ? match.stationCode : "ALL");
+    } else {
+      setStation("ALL");
+    }
     setPage(1);
   };
 
@@ -214,44 +275,26 @@ export default function AccomplishedNotice() {
       </div>
 
       {/* Filters */}
-      <Card className="grid gap-3 border-border/60 p-4 md:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
-        <FilterField label="Search">
+      <ModuleFilterBar
+        years={[...REPORT_YEARS]}
+        state={filterState}
+        onChange={setFilterState}
+        onReset={handleResetFilters}
+        leading={
           <SearchKey
             value={searchkey}
             onChange={setSearchkey}
             placeholder="Search station or municipality"
-            widthClass="w-full"
           />
-        </FilterField>
-        <FilterField label="Year">
-          <Select value={year} onValueChange={setYear}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {REPORT_YEARS.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
-        <FilterField label="Month">
-          <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m) => (
-                <SelectItem key={m.value} value={String(m.value)}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
-        <FilterField label="Province">
+        }
+      >
+        {scope.provinceLocked ? (
+          <ReadOnlyField
+            value={scope.provincename}
+            placeholder="ALL"
+            title="Restricted to your assigned province"
+          />
+        ) : (
           <Select
             value={province}
             onValueChange={(v) => {
@@ -259,7 +302,7 @@ export default function AccomplishedNotice() {
               setStation("ALL");
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-auto">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -271,10 +314,16 @@ export default function AccomplishedNotice() {
               ))}
             </SelectContent>
           </Select>
-        </FilterField>
-        <FilterField label="Station">
+        )}
+        {scope.stationLocked ? (
+          <ReadOnlyField
+            value={scope.stationname}
+            placeholder="ALL"
+            title="Restricted to your assigned station"
+          />
+        ) : (
           <Select value={station} onValueChange={setStation}>
-            <SelectTrigger>
+            <SelectTrigger className="w-auto">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -286,11 +335,8 @@ export default function AccomplishedNotice() {
               ))}
             </SelectContent>
           </Select>
-        </FilterField>
-        <div className="flex items-end justify-end md:col-span-2 lg:col-span-1">
-          <ResetFiltersButton onReset={handleResetFilters} />
-        </div>
-      </Card>
+        )}
+      </ModuleFilterBar>
 
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
@@ -415,10 +461,7 @@ function NoticeCard({
     MONTHS.find((m) => m.value === record.reportMonth)?.name ?? String(record.reportMonth);
   const rows = computeCategoryRows(record.breakdown);
   const totals = computeTotals(record.breakdown);
-  const byCategory = React.useMemo(
-    () => new Map(rows.map((r) => [r.category, r])),
-    [rows],
-  );
+  const byCategory = React.useMemo(() => new Map(rows.map((r) => [r.category, r])), [rows]);
 
   const daysInMonth = calendarDaysInMonth(record.reportYear, record.reportMonth);
   const daysRecorded = record.dailyEntries.filter((entry) =>

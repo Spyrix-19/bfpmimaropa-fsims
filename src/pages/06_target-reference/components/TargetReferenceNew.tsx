@@ -190,70 +190,32 @@ export default function TargetReferenceForm({
     let cancelled = false;
     (async () => {
       setStationLoading(true);
-      if (isEdit) {
-        const resp = await targetreferenceAPI.getDetail(
-          { stationno: stationNo, reportyear: Number(year) },
-          { suppressGlobalLoading: true },
-        );
-        const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);
-        if (cancelled) return;
-        const detail = ok ? data : null;
-        if (detail) {
-          const nextStation: SearchStationModel = {
-            stationno: detail.stationno,
-            stationcode: detail.stationcode ?? "",
-            stationname: detail.stationname ?? "",
-            regionno: "",
-            regioncode: "",
-            regionname: "",
-            provinceno: detail.provinceno ?? "",
-            provincename: detail.provincename ?? "",
-            cityno: "",
-            cityname: "",
-            zipcode: "",
-            barangayno: "",
-            barangayname: "",
-            streetaddress: "",
-            logourl: detail.logourl ?? "",
-            filetype: "",
-          };
-          setStation(nextStation);
-          if (!scope.provinceLocked) {
-            setProvinceno(detail.provinceno || EMPTY_GUID);
-            setProvincename(detail.provincename || "");
-          }
-          setSelectedStationLabel(
-            `${detail.stationname}${detail.provincename ? ` — ${detail.provincename}` : ""}`,
-          );
-        }
-      } else {
-        // Backend search is text-based (stationcode/name), not GUID.
-        // Query with the login's stationcode, then pick the row whose stationno
-        // matches — the dropdown becomes the single source of truth.
-        const searchKey = user?.stationcode || user?.stationname || "";
-        const resp = await stationAPI.search(
-          {
-            searchKey,
-            provinceno: scope.provinceLocked ? scope.provinceno || undefined : undefined,
-            pageNumber: 1,
-            pageSize: 20,
-          },
-          { suppressGlobalLoading: true },
-        );
-        const { ok, data } = unwrap<SearchStationModel[]>(resp);
-        if (cancelled) return;
-        const list = ok && Array.isArray(data) ? data : [];
-        const nextStation =
-          list.find((s) => String(s.stationno) === String(stationNo)) ?? list[0] ?? null;
-        setStation(nextStation);
-      }
+      // Backend search is text-based (stationcode/name), not GUID.
+      // Query with the login's stationcode, then pick the row whose stationno
+      // matches — the dropdown becomes the single source of truth.
+      const searchKey = user?.stationcode || user?.stationname || "";
+      const resp = await stationAPI.search(
+        {
+          searchKey,
+          provinceno: scope.provinceLocked ? scope.provinceno || undefined : undefined,
+          pageNumber: 1,
+          pageSize: 20,
+        },
+        { suppressGlobalLoading: true },
+      );
+      const { ok, data } = unwrap<SearchStationModel[]>(resp);
+      if (cancelled) return;
+      const list = ok && Array.isArray(data) ? data : [];
+      const nextStation =
+        list.find((s) => String(s.stationno) === String(stationNo)) ?? list[0] ?? null;
+      setStation(nextStation);
       setStationLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [open, stationNo, station, scope.provinceLocked, scope.provinceno, user?.stationcode, user?.stationname, isEdit, year]);
+  }, [open, stationNo, station, scope.provinceLocked, scope.provinceno, user?.stationcode, user?.stationname]);
 
   // Fixed sector constants live in @/lib/fsims-constants (SECTORS).
   // 111=BPLO, 112=GOV, 113=PEZA, 114=TIEZA (OGA=115 intentionally excluded).
@@ -353,53 +315,6 @@ export default function TargetReferenceForm({
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
   }, [open, editing, currentYear, currentMonth, initialYear, initialMonth, scope.provinceLocked, scope.provinceno, user?.provinceno]);
 
-  // Load existing values for edit — Detail endpoint returns the station's
-  // full year in a single call, including database TargetNo for each cell.
-  React.useEffect(() => {
-    if (!open || !stationNo || stationNo === EMPTY_GUID || !isEdit) return;
-    let cancelled = false;
-    (async () => {
-      setExistingLoading(true);
-      const resp = await targetreferenceAPI.getDetail(
-        { stationno: stationNo, reportyear: Number(year) },
-        { suppressGlobalLoading: true },
-      );
-      const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);
-      if (cancelled) return;
-      const nextCells: CellMap = {};
-      const nextIds: Record<string, string> = {};
-      const nextEditableStatus: Record<string, number> = {};
-      const nextIsRevReq: Record<string, boolean> = {};
-      if (ok && data) {
-        (data.targetreferencelist ?? []).forEach((it) => {
-          // Daily mapping — match on reportyear + reportmonth + reportday.
-          if (Number(it.reportmonth) !== Number(month)) return;
-          const day = Number(it.reportday ?? 1);
-          if (!day || day < 1 || day > days.length) return;
-          nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
-          nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
-          nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.pezatotal ?? 0);
-          nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-          nextEditableStatus[String(day)] = Number(it.editablestatus ?? 0);
-          nextIsRevReq[String(day)] = Boolean(it.isrevisionrequest);
-          if (it.targetno && it.targetno !== EMPTY_GUID) {
-            nextIds[String(day)] = it.targetno;
-          }
-        });
-      }
-
-      setCells(nextCells);
-      setBaselineCells(nextCells);
-      setExistingTargetNos(nextIds);
-      setExistingEditableStatus(nextEditableStatus);
-      setExistingIsRevisionRequest(nextIsRevReq);
-      setExistingLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, stationNo, year, month, days.length, isEdit, reloadNonce]);
-
   const setCell = (day: number, sectorNo: number, raw: string) => {
     const key = `${day}-${sectorNo}`;
     setCells((prev) => ({ ...prev, [key]: toWhole(raw) }));
@@ -440,51 +355,6 @@ export default function TargetReferenceForm({
     return Object.keys(next).length === 0;
   };
 
-  const buildExistingTargetData = (detail: TargetReferenceDetailModel | null) => {
-    const nextCells: CellMap = {};
-    const nextIds: Record<string, string> = {};
-
-    // API now returns a full 12-month scaffold per station+year, with
-    // unsaved months carrying targetno === EMPTY_GUID and zero totals.
-    // Treat only rows with a real targetno as actually saved data.
-    (detail?.targetreferencelist ?? []).forEach((it) => {
-      if (Number(it.reportmonth) !== Number(month)) return;
-      const day = Number(it.reportday ?? 1);
-      if (!day || day < 1 || day > days.length) return;
-      const isSaved = Boolean(it.targetno) && it.targetno !== EMPTY_GUID;
-      if (!isSaved) return;
-      nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
-      nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
-      nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.pezatotal ?? 0);
-      nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-      nextIds[String(day)] = it.targetno;
-    });
-
-    return { cells: nextCells, ids: nextIds };
-  };
-
-  const checkExistingTargetReference = async (stationNumber: string, reportYear: number) => {
-    const resp = await targetreferenceAPI.getDetail(
-      { stationno: stationNumber, reportyear: reportYear },
-      { suppressGlobalLoading: true },
-    );
-    const { ok, data, error } = unwrap<TargetReferenceDetailModel>(resp);
-    if (!ok) {
-      // "No data found" from the backend just means nothing exists yet —
-      // it's not an error worth showing to the user during duplicate checks.
-      const isEmptyResult = /no\s*data|not\s*found|no\s*record/i.test(error || "");
-      if (!isEmptyResult) {
-        toast.error(error || "Unable to verify existing target reference.");
-      }
-      return null;
-    }
-    if (!data) return null;
-    const built = buildExistingTargetData(data);
-    // No real saved month -> nothing to duplicate.
-    if (Object.keys(built.ids).length === 0) return null;
-    return built;
-  };
-
   const stationCode = station?.stationcode ?? "";
   const stationName = station?.stationname ?? "";
   const logoUrl = station?.logourl ?? "";
@@ -504,16 +374,6 @@ export default function TargetReferenceForm({
       return;
     }
 
-    if (!isEdit && !duplicatePrompted) {
-      const existing = await checkExistingTargetReference(submitStationNo, selectedYear);
-      if (existing && Object.keys(existing.cells).length > 0) {
-        setPendingDuplicateData(existing);
-        setDuplicatePrompted(true);
-        setDuplicateDialogOpen(true);
-        return;
-      }
-    }
-
     if (scope.provinceLocked && scope.provinceno && station?.provinceno && String(station.provinceno) !== String(scope.provinceno)) {
       toast.error("Selected station is outside your assigned province.");
       return;
@@ -525,15 +385,6 @@ export default function TargetReferenceForm({
     if (!validate()) {
       toast.error("Please fix invalid target values.");
       return;
-    }
-
-    let resolvedExistingTargetNos = existingTargetNos;
-    if (isEdit) {
-      const existingLookup = await checkExistingTargetReference(submitStationNo, Number(year));
-      if (existingLookup?.ids && Object.keys(existingLookup.ids).length > 0) {
-        resolvedExistingTargetNos = { ...existingTargetNos, ...existingLookup.ids };
-        setExistingTargetNos(resolvedExistingTargetNos);
-      }
     }
 
     const list: TargetReferenceClass[] = isEdit
@@ -553,9 +404,9 @@ export default function TargetReferenceForm({
             govtotal !== Number(baselineCells[govKey] ?? 0) ||
             pezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
             tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
-          const existingTargetNo = resolvedExistingTargetNos[String(d)];
           return {
-            targetno: existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
+            // Create-only modal: never send an existing target id.
+            targetno: EMPTY_GUID,
             reportyear: Number(year),
             reportmonth: Number(month),
             reportday: Number(d),
@@ -564,7 +415,7 @@ export default function TargetReferenceForm({
             pezatotal,
             tiezatotal,
             isaccomplished,
-          } as TargetReferenceClass & { isaccomplished: boolean };
+          } as TargetReferenceClass;
         })
       : [
           {
@@ -576,6 +427,7 @@ export default function TargetReferenceForm({
             govtotal: Number(cells[`gov`] ?? 0),
             pezatotal: Number(cells[`peza`] ?? 0),
             tiezatotal: Number(cells[`tieza`] ?? 0),
+            isaccomplished: false,
             ...(remarks ? { remarks } : {}),
           } as TargetReferenceClass,
         ];

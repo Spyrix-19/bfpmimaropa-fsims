@@ -524,7 +524,7 @@ export default function TargetReferenceForm({
         pezatotal,
         tiezatotal,
         isaccomplished,
-      } as TargetReferenceClass & { isaccomplished: boolean };
+      } as TargetReferenceClass;
     });
 
     setSaving(true);

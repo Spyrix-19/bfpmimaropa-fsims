@@ -15,6 +15,7 @@ export interface TargetReferenceClass {
   govtotal: number;
   pezatotal: number;
   tiezatotal: number;
+  isaccomplished: boolean;
 }
 
 export interface TargetReferenceDetailParams {

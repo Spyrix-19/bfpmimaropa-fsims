@@ -1,3 +1,4 @@
+import * as React from "react";
 import FilterField from "@/components/filter-field";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
@@ -34,6 +35,7 @@ export function ScopedLocationFilterPair({
   onProvinceChange,
   onStationChange,
   showAllOption = true,
+  hideLabels = false,
 }: {
   scope: LocationScopeInfo;
   provinceValue: string;
@@ -52,6 +54,7 @@ export function ScopedLocationFilterPair({
     station?: SearchStationModel,
   ) => void;
   showAllOption?: boolean;
+  hideLabels?: boolean;
 }) {
   const stationProvinceNo =
     provinceValue && provinceValue !== EMPTY_GUID
@@ -60,9 +63,14 @@ export function ScopedLocationFilterPair({
         ? scope.provinceno
         : undefined;
 
+  const Field = hideLabels
+    ? ({ children }: { label: string; children: React.ReactNode }) => <>{children}</>
+    : FilterField;
+
   return (
     <>
-      <FilterField label="Province">
+      <Field label="Province">
+
         {scope.provinceLocked ? (
           <ReadOnlyField
             value={provinceLabel || scope.provincename}
@@ -82,9 +90,9 @@ export function ScopedLocationFilterPair({
             showAllOption={showAllOption}
           />
         )}
-      </FilterField>
+      </Field>
 
-      <FilterField label="Station">
+      <Field label="Station">
         {scope.stationLocked ? (
           <ReadOnlyField
             value={stationLabel || scope.stationname}
@@ -102,7 +110,7 @@ export function ScopedLocationFilterPair({
             showAllOption={showAllOption}
           />
         )}
-      </FilterField>
+      </Field>
     </>
   );
 }
