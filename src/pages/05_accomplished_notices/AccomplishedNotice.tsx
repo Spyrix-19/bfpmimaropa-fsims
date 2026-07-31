@@ -373,7 +373,7 @@ export default function AccomplishedNotice() {
           </Button>
           {canManage && (
             <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
-              <Plus className="h-4 w-4" /> Add Notice
+              Add Notice
             </Button>
           )}
         </div>

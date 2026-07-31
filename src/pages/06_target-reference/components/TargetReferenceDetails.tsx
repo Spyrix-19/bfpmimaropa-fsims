@@ -1,11 +1,13 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, Loader2, X } from "lucide-react";
 import { MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { buildYears } from "@/lib/utils";
 import type { TargetReferenceDetailModel } from "@/types/targetreferenceType";
 import {
   computeDerivedFromList,
@@ -57,8 +59,17 @@ function Row({
 }
 
 export default function TargetReferenceDetails({ open, onOpenChange, target, period, month }: Props) {
+  const YEARS = React.useMemo(buildYears, []);
   const [loading, setLoading] = React.useState(false);
   const [detail, setDetail] = React.useState<TargetReferenceDetailModel | null>(null);
+  const [selectedYear, setSelectedYear] = React.useState<number>(target?.reportyear ?? new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = React.useState<number>(month || new Date().getMonth() + 1);
+
+  React.useEffect(() => {
+    if (!target) return;
+    setSelectedYear(target.reportyear);
+    setSelectedMonth(month || new Date().getMonth() + 1);
+  }, [target, month]);
 
   React.useEffect(() => {
     if (!open || !target) {
@@ -71,8 +82,8 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
       const resp = await targetreferenceAPI.getDetail(
         {
           stationno: target.stationno,
-          reportyear: target.reportyear,
-          reportmonth: month,
+          reportyear: selectedYear,
+          reportmonth: selectedMonth,
         },
         { suppressGlobalLoading: true },
       );
@@ -84,7 +95,7 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
     return () => {
       cancelled = true;
     };
-  }, [open, target]);
+  }, [open, target, selectedYear, selectedMonth]);
 
   const dailyDerived = React.useMemo(
     () =>
@@ -129,38 +140,82 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
           </div>
         ) : detail && derived ? (
           <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
-            <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <AvatarWithFallback
-                  entity={{ name: detail.stationname }}
-                  src={detail.logourl || undefined}
-                  name={detail.stationname}
-                  className="h-20 w-20 rounded-full ring-2 ring-primary/20"
-                />
-                <div className="grid flex-1 gap-2 sm:grid-cols-2">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Station Code
+            <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+              <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <AvatarWithFallback
+                    entity={{ name: detail.stationname }}
+                    src={detail.logourl || undefined}
+                    name={detail.stationname}
+                    className="h-20 w-20 rounded-full ring-2 ring-primary/20"
+                  />
+                  <div className="grid flex-1 gap-2 sm:grid-cols-3">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                        Station Code
+                      </div>
+                      <div className="text-sm font-semibold">{detail.stationcode}</div>
                     </div>
-                    <div className="text-sm font-semibold">{detail.stationcode}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Station Name
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                        Station Name
+                      </div>
+                      <div className="text-sm font-semibold">{detail.stationname}</div>
                     </div>
-                    <div className="text-sm font-semibold">{detail.stationname}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Province
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                        Province
+                      </div>
+                      <div className="text-sm">{detail.provincename}</div>
                     </div>
-                    <div className="text-sm">{detail.provincename}</div>
                   </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
+                <div className="text-sm font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                  Filter by year and month
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
                     <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                       Year
                     </div>
-                    <div className="text-sm font-semibold">{target?.reportyear}</div>
+                    <Select
+                      value={String(selectedYear)}
+                      onValueChange={(next) => setSelectedYear(Number(next))}
+                    >
+                      <SelectTrigger className="h-10 min-w-[120px] rounded-md border bg-background px-3 text-left text-sm">
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {YEARS.map((yearOption) => (
+                          <SelectItem key={yearOption} value={String(yearOption)}>
+                            {yearOption}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                      Month
+                    </div>
+                    <Select
+                      value={String(selectedMonth)}
+                      onValueChange={(next) => setSelectedMonth(Number(next))}
+                    >
+                      <SelectTrigger className="h-10 min-w-[120px] rounded-md border bg-background px-3 text-left text-sm">
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((m) => (
+                          <SelectItem key={m.value} value={String(m.value)}>
+                            {m.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

@@ -46,6 +46,8 @@ export const MODULE_INTERVALS: { value: ModuleInterval; label: string }[] = [
   { value: "ANNUAL", label: "Annual" },
 ];
 
+const ALL_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+
 /** `all:yyyy-mm-dd` marks "all days" of the referenced month. */
 const ALL_DAYS_PREFIX = "all:";
 
@@ -64,14 +66,13 @@ export function baseDate(date: string): string {
 
 export function defaultModuleFilterState(): ModuleFilterState {
   const now = new Date();
-  const month = now.getMonth() + 1;
   return {
     year: String(now.getFullYear()),
     interval: "DAILY",
     date: toAllDays(toISODate(now)),
-    months: [month],
-    quarter: `q${Math.ceil(month / 3)}`,
-    semester: month <= 6 ? "s1" : "s2",
+    months: [],
+    quarter: "all",
+    semester: "all",
   };
 }
 
@@ -98,11 +99,15 @@ export function resolveModuleMonths(state: ModuleFilterState): number[] {
           return [7, 8, 9];
         case "q4":
           return [10, 11, 12];
+        case "all":
+          return ALL;
         default:
           return ALL;
       }
     case "SEMESTER":
-      return state.semester === "s2" ? [7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6];
+      if (state.semester === "s2") return [7, 8, 9, 10, 11, 12];
+      if (state.semester === "all") return ALL;
+      return [1, 2, 3, 4, 5, 6];
     default:
       return ALL;
   }
@@ -150,17 +155,35 @@ export function MonthMultiSelect({
   onChange: (next: number[]) => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const allSelected = value.length === 0 || value.length === ALL_MONTHS.length;
   const label =
-    value.length === 0
-      ? "Select month"
+    allSelected
+      ? "All months"
       : value.length === 1
         ? MONTHS.find((m) => m.value === value[0])?.name
-        : `${value.length} months selected`;
+        : value.length > 1
+          ? `${value.length} months selected`
+          : "Select month";
 
   const toggle = (m: number) => {
-    onChange(
-      value.includes(m) ? value.filter((v) => v !== m) : [...value, m].sort((a, b) => a - b),
-    );
+    if (allSelected) {
+      onChange([m]);
+      return;
+    }
+    if (value.includes(m)) {
+      const next = value.filter((v) => v !== m);
+      onChange(next.length === 0 ? [] : next);
+      return;
+    }
+    if (allSelected) {
+      onChange([m]);
+      return;
+    }
+    onChange([...value, m].sort((a, b) => a - b));
+  };
+
+  const toggleAll = () => {
+    onChange(allSelected ? [] : [...ALL_MONTHS]);
   };
 
   return (
@@ -181,8 +204,19 @@ export function MonthMultiSelect({
       </PopoverTrigger>
       <PopoverContent className="w-max min-w-[220px] p-0 pointer-events-auto" align="start">
         <div className="max-h-64 overflow-auto">
+          <button
+            type="button"
+            onClick={toggleAll}
+            className={cn(
+              "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted",
+              allSelected && "bg-muted",
+            )}
+          >
+            <div className="min-w-0 flex-1 truncate font-medium">All months</div>
+            {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+          </button>
           {MONTHS.map((m) => {
-            const sel = value.includes(m.value);
+            const sel = value.includes(m.value) && !allSelected;
             return (
               <button
                 key={m.value}
@@ -233,15 +267,15 @@ export function PeriodSelect({
       return;
     }
     if (next === "MONTHLY") {
-      onChange({ interval: next, months: [month] });
+      onChange({ interval: next, months: [] });
       return;
     }
     if (next === "QUARTERLY") {
-      onChange({ interval: next, quarter: `q${Math.ceil(month / 3)}` });
+      onChange({ interval: next, quarter: "all" });
       return;
     }
     if (next === "SEMESTER") {
-      onChange({ interval: next, semester: month <= 6 ? "s1" : "s2" });
+      onChange({ interval: next, semester: "all" });
       return;
     }
     onChange({ interval: next });
@@ -278,6 +312,11 @@ export function SubFilterControl({
     [state.interval, state.date],
   );
   const selectedDate = allDays ? null : refDate;
+  const [viewMonth, setViewMonth] = React.useState<Date>(refDate ?? new Date());
+
+  React.useEffect(() => {
+    if (refDate) setViewMonth(refDate);
+  }, [refDate?.getFullYear(), refDate?.getMonth()]);
 
   const handleDateChange = (d?: Date) => {
     if (!d) return;
@@ -285,11 +324,20 @@ export function SubFilterControl({
     setDateOpen(false);
   };
 
+  /** Arrow navigation: focus the whole month being browsed. */
+  const handleMonthChange = (m: Date) => {
+    setViewMonth(m);
+    const first = new Date(m.getFullYear(), m.getMonth(), 1);
+    onChange({ date: toAllDays(toISODate(first)), year: String(first.getFullYear()) });
+  };
+
   const handleAllDays = () => {
-    const ref = refDate ?? new Date();
-    onChange({ date: toAllDays(toISODate(ref)), year: String(ref.getFullYear()) });
+    const ref = viewMonth ?? refDate ?? new Date();
+    const first = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    onChange({ date: toAllDays(toISODate(first)), year: String(first.getFullYear()) });
     setDateOpen(false);
   };
+
 
   if (state.interval === "DAILY") {
     return (
@@ -328,10 +376,16 @@ export function SubFilterControl({
             mode="single"
             selected={selectedDate ?? undefined}
             onSelect={handleDateChange}
-            defaultMonth={refDate ?? undefined}
+            month={viewMonth}
+            onMonthChange={handleMonthChange}
+            labels={{
+              labelPrevious: () => "Previous month",
+              labelNext: () => "Next month",
+            }}
             initialFocus
             className={cn("p-3 pointer-events-auto")}
           />
+
         </PopoverContent>
       </Popover>
     );
@@ -346,6 +400,7 @@ export function SubFilterControl({
           <SelectValue placeholder="Quarter" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="all">All Quarters</SelectItem>
           <SelectItem value="q1">1st Quarter</SelectItem>
           <SelectItem value="q2">2nd Quarter</SelectItem>
           <SelectItem value="q3">3rd Quarter</SelectItem>
@@ -361,6 +416,7 @@ export function SubFilterControl({
           <SelectValue placeholder="Semester" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="all">All Semesters</SelectItem>
           <SelectItem value="s1">1st Semester</SelectItem>
           <SelectItem value="s2">2nd Semester</SelectItem>
         </SelectContent>

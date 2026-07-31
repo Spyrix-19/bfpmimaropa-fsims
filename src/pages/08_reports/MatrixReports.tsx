@@ -268,7 +268,10 @@ function MatrixHeader({
             colSpan={3 * catSpan}
             className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.quarter}`}
           >
-            {q.label}
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Quarter</span>
+              <span className="text-[10px] font-semibold leading-none">{q.label}</span>
+            </div>
           </th>
         ))}
         {QUARTERS.map((q) => (
@@ -278,7 +281,10 @@ function MatrixHeader({
             colSpan={catSpan}
             className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.quarter}`}
           >
-            {q.label} Total
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Quarter</span>
+              <span className="text-[10px] font-semibold leading-none">{q.label} Total</span>
+            </div>
           </th>
         ))}
         <th
@@ -286,21 +292,30 @@ function MatrixHeader({
           colSpan={catSpan}
           className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.semester}`}
         >
-          1st Semester
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Semester</span>
+            <span className="text-[10px] font-semibold leading-none">1st</span>
+          </div>
         </th>
         <th
           rowSpan={2}
           colSpan={catSpan}
           className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.semester}`}
         >
-          2nd Semester
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Semester</span>
+            <span className="text-[10px] font-semibold leading-none">2nd</span>
+          </div>
         </th>
         <th
           rowSpan={2}
           colSpan={catSpan}
           className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.annual}`}
         >
-          Annual
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Annual</span>
+            <span className="text-[10px] font-semibold leading-none">Total</span>
+          </div>
         </th>
       </tr>
       <tr>
@@ -313,7 +328,10 @@ function MatrixHeader({
                 i === 2 ? "border-r-2 border-r-white/30" : "border-r"
               } ${STYLE.month}`}
             >
-              {MONTH_NAMES[mv - 1]}
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Month</span>
+                <span className="text-[10px] font-semibold leading-none">{MONTH_NAMES[mv - 1]}</span>
+              </div>
             </th>
           )),
         )}

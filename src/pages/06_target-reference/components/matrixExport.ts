@@ -83,6 +83,18 @@ function fill(color: string): ExcelJS.Fill {
   };
 }
 
+function formatMilitaryTimestamp(value: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  }).format(value);
+}
+
 function border(
   style: ExcelJS.BorderStyle = "thin",
   color = "FF64748B",
@@ -143,6 +155,7 @@ export async function exportTargetMatrix(opts: {
   titleCell.value = `FIRE SAFETY INSPECTION TARGET MATRIX — ${year}`;
   titleCell.font = { bold: true, size: 14, color: { argb: "FF0F172A" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleCell.fill = fill("FFF8FAFC");
   ws.getRow(1).height = 26;
 
   // ---------------------------------------------------------- Header rows
@@ -375,14 +388,13 @@ export async function exportTargetMatrix(opts: {
   genCell.font = { bold: true, italic: true, size: 11 };
   genCell.alignment = { horizontal: "left", vertical: "middle" };
 
-  // Two blank lines for signature
+  // Two blank rows before the signature block
   cursor = sigStart + 1;
-  ws.mergeCells(cursor, 1, cursor, 6);
-  ws.getRow(cursor).height = 18;
-  cursor++;
-  ws.mergeCells(cursor, 1, cursor, 6);
-  ws.getRow(cursor).height = 18;
-  cursor++;
+  for (let i = 0; i < 2; i++) {
+    ws.mergeCells(cursor, 1, cursor, 6);
+    ws.getRow(cursor).height = 18;
+    cursor++;
+  }
 
   const nameRow = cursor;
   ws.mergeCells(nameRow, 1, nameRow, 6);
@@ -406,8 +418,16 @@ export async function exportTargetMatrix(opts: {
   desigCell.font = { italic: true, size: 10, color: { argb: "FF475569" } };
   desigCell.alignment = { horizontal: "left", vertical: "middle" };
 
+  cursor++;
+  const generatedDateRow = cursor;
+  ws.mergeCells(generatedDateRow, 1, generatedDateRow, 6);
+  const generatedDateCell = ws.getCell(generatedDateRow, 1);
+  generatedDateCell.value = `Date Generated: ${formatMilitaryTimestamp(new Date())}`;
+  generatedDateCell.font = { size: 10, color: { argb: "FF475569" } };
+  generatedDateCell.alignment = { horizontal: "left", vertical: "middle" };
+
   // Set print area
-  ws.pageSetup.printArea = `A1:${ws.getCell(desigRow, COL.LAST).address}`;
+  ws.pageSetup.printArea = `A1:${ws.getCell(generatedDateRow, COL.LAST).address}`;
   ws.pageSetup.printTitlesRow = `${HR1}:${HR3}`;
 
   const buf = await wb.xlsx.writeBuffer();

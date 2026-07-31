@@ -8,7 +8,7 @@ import { Building2, Calendar, Loader2, Lock, FilePen, Save, X, AlertTriangle, Tr
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
-import { cn, toWhole } from "@/lib/utils";
+import { cn, toWhole, buildYears } from "@/lib/utils";
 import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
 import { formatLongDate } from "@/lib/date-format";
 import ReadOnlyField from "./ReadOnlyField";
@@ -36,6 +36,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** When present, opens in Edit mode for that station+year+month. */
   editing?: { year: number; month?: number; stationno?: string } | null;
+  initialYear?: number;
+  initialMonth?: number;
   onSaved: () => void;
 }
 
@@ -90,13 +92,10 @@ function resolveDetailDay(
 }
 
 
-function hasPstLockActivated(reportyear: number, reportmonth: number, now: Date = new Date()): boolean {
-  const y = Number(reportyear);
-  const m = Number(reportmonth);
-  if (!y || !m || m < 1 || m > 12) return false;
-  const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
-  const lockActivationMs = Date.UTC(y, m /* next month, 0-indexed */, 4, 0, 0, 0);
-  return manilaNowMs >= lockActivationMs;
+function isPastTargetDate(year: number, month: number, day: number, now: Date = new Date()): boolean {
+  const targetDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 0, 0, 0));
+  const todayAtMidnight = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0));
+  return targetDate.getTime() < todayAtMidnight.getTime();
 }
 
 
@@ -104,6 +103,8 @@ export default function TargetReferenceForm({
   open,
   onOpenChange,
   editing,
+  initialYear,
+  initialMonth,
   onSaved,
 }: Props) {
   const { user, systemAccess } = useAuth();
@@ -125,6 +126,7 @@ export default function TargetReferenceForm({
 
   const [year, setYear] = React.useState<number>(currentYear);
   const [month, setMonth] = React.useState<number>(currentMonth);
+  const years = React.useMemo(() => buildYears(), []);
   const days = React.useMemo(() => buildDays(year, month), [year, month]);
   const [cells, setCells] = React.useState<CellMap>({});
   const [baselineCells, setBaselineCells] = React.useState<CellMap>({});
@@ -352,11 +354,11 @@ export default function TargetReferenceForm({
     setExistingTargetNos({});
     setAutoEdit(false);
     setDuplicatePrompted(false);
-    setYear(editing?.year ?? currentYear);
-    setMonth(editing?.month ?? currentMonth);
+    setYear(editing?.year ?? initialYear ?? currentYear);
+    setMonth(editing?.month ?? initialMonth ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
-  }, [open, editing, currentYear, currentMonth, scope.provinceLocked, scope.provinceno, user?.provinceno]);
+  }, [open, editing, currentYear, currentMonth, initialYear, initialMonth, scope.provinceLocked, scope.provinceno, user?.provinceno]);
 
   // Load existing values for edit — Detail endpoint returns the station's
   // full year in a single call, including database TargetNo for each cell.
@@ -381,14 +383,15 @@ export default function TargetReferenceForm({
           // Daily mapping — API returns `targetdate` per day of the month.
           const day = resolveDetailDay(it, Number(year), Number(month));
           if (!day || day < 1 || day > days.length) return;
+          const dayKey = String(day);
           nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
           nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
           nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.pezatotal ?? 0);
           nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-          nextEditableStatus[String(day)] = Number(it.editablestatus ?? 0);
-          nextIsRevReq[String(day)] = Boolean(it.isrevisionrequest);
+          nextEditableStatus[dayKey] = Number(it.editablestatus ?? 0);
+          nextIsRevReq[dayKey] = Boolean(it.isrevisionrequest);
           if (it.targetno && it.targetno !== EMPTY_GUID) {
-            nextIds[String(day)] = it.targetno;
+            nextIds[dayKey] = it.targetno;
             hasAny = true;
           }
         });
@@ -457,15 +460,16 @@ export default function TargetReferenceForm({
     (detail?.targetreferencelist ?? []).forEach((it) => {
       const day = resolveDetailDay(it, Number(year), Number(month));
       if (!day || day < 1 || day > days.length) return;
-      nextEditableStatus[String(day)] = Number(it.editablestatus ?? 0);
-      nextIsRevReq[String(day)] = Boolean(it.isrevisionrequest);
-      const isSaved = Boolean(it.targetno) && it.targetno !== EMPTY_GUID;
-      if (!isSaved) return;
+      const dayKey = String(day);
+      nextEditableStatus[dayKey] = Number(it.editablestatus ?? 0);
+      nextIsRevReq[dayKey] = Boolean(it.isrevisionrequest);
       nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
       nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
       nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.pezatotal ?? 0);
       nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
-      nextIds[String(day)] = it.targetno;
+      const isSaved = Boolean(it.targetno) && it.targetno !== EMPTY_GUID;
+      if (!isSaved) return;
+      nextIds[dayKey] = it.targetno;
     });
 
     return {
@@ -698,16 +702,14 @@ export default function TargetReferenceForm({
                 req.statuscode?.toUpperCase() === "PENDING",
             );
             // Server-driven flags (only source of truth for editability + action state)
-            const editablestatus = existingEditableStatus[String(d)];
+            const editablestatus = Number(existingEditableStatus[String(d)] ?? 0);
             const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
             const serverIsEditable = editablestatus === 153;
-            // PST lock-activation gate: until day 4 00:00 of the following
-            // month (Asia/Manila), the row must behave like an unlocked /
-            // current month regardless of any server-side lock hint.
-            const pstLockActive = hasPstLockActivated(year, Number(month));
-            const isEditable = serverIsEditable || !pstLockActive;
+            const hasPendingRevisionRequest = Boolean(activeReq) || serverIsRevisionRequest;
+            const isPastDate = isPastTargetDate(Number(year), Number(month), Number(d));
+            const isEditable = serverIsEditable || !isPastDate;
             const row = {
-              isrevisionrequest: serverIsRevisionRequest || Boolean(activeReq),
+              isrevisionrequest: hasPendingRevisionRequest,
             };
 
             // Pick a referencekey (targetno) for the row.
@@ -715,7 +717,7 @@ export default function TargetReferenceForm({
             return (
             <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
               <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
-                {row.isrevisionrequest ? (
+                {serverIsEditable ? null : row.isrevisionrequest ? (
                   <div className="flex items-center justify-center gap-1.5">
                     <EditButton
                       variant="square"
@@ -738,7 +740,7 @@ export default function TargetReferenceForm({
                       }}
                     />
                   </div>
-                ) : isEditable ? null : (
+                ) : isPastDate ? (
                   <div className="flex items-center justify-center gap-1.5">
                     <EditButton
                       variant="square"
@@ -757,7 +759,7 @@ export default function TargetReferenceForm({
                       onClick={() => setRevisionDay(Number(d))}
                     />
                   </div>
-                )}
+                ) : null}
               </td>
               <td className="whitespace-nowrap px-3 py-1.5 font-medium">
                 <div className="flex items-center gap-2">
@@ -845,7 +847,7 @@ export default function TargetReferenceForm({
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground/90">
               <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
-              Each month locks on the <span className="font-semibold">4th day of the following month at 12:00 AM (PST)</span>. The current and next month remain editable — past months require a revision request once locked.
+              Past dates are locked until a revision request is approved. Current and future dates remain editable.
             </p>
           </DialogHeader>
 
@@ -856,14 +858,53 @@ export default function TargetReferenceForm({
               <Label className="text-xs font-semibold">
                 {isEdit ? "Period" : "Date"} <span className="text-destructive">*</span>
               </Label>
-              <ReadOnlyField
-                value={
-                  isEdit
-                    ? `${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}`
-                    : formatLongDate(today)
-                }
-                title={isEdit ? "Editing every day of this month" : "Targets are encoded for today"}
-              />
+              {isEdit ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Select
+                    value={String(month)}
+                    onValueChange={(value) => {
+                      setMonth(Number(value));
+                      setDuplicatePrompted(false);
+                      setAutoEdit(false);
+                    }}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((mo) => (
+                        <SelectItem key={mo.value} value={String(mo.value)}>
+                          {mo.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={String(year)}
+                    onValueChange={(value) => {
+                      setYear(Number(value));
+                      setDuplicatePrompted(false);
+                      setAutoEdit(false);
+                    }}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <ReadOnlyField
+                  value={formatLongDate(today)}
+                  title="Targets are encoded for today"
+                />
+              )}
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
@@ -927,7 +968,7 @@ export default function TargetReferenceForm({
                 </div>
                 <div className="sm:col-span-2">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Complete Address
+                    Province
                   </div>
                   <div className="text-sm">
                     {completeAddress || (stationLoading ? "Loading…" : "—")}
@@ -1004,6 +1045,13 @@ export default function TargetReferenceForm({
           existingTargetNos[String(revisionDay)] !== EMPTY_GUID
             ? existingTargetNos[String(revisionDay)]
             : EMPTY_GUID
+        }
+        dateinspected={
+          revisionDay != null
+            ? new Date(Date.UTC(Number(year), Number(month) - 1, Number(revisionDay), 0, 0, 0))
+                .toISOString()
+                .slice(0, 10)
+            : undefined
         }
         onSubmitted={() => setReloadNonce((n) => n + 1)}
       />

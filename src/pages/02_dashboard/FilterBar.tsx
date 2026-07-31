@@ -40,19 +40,19 @@ export function FilterBar() {
 
   const filterState: ModuleFilterState = React.useMemo(() => {
     const p = filters.period ?? "";
-    const months = p
+    const months = (p === "all" ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : p
       .split(",")
       .map((v) => Number(v.trim()))
-      .filter((m) => m >= 1 && m <= 12);
+      .filter((m) => m >= 1 && m <= 12));
     return {
       year: filters.year,
       interval: filters.interval,
-      date: filters.interval === "DAILY" && p ? p : `all:${toISODate(today)}`,
-      months: filters.interval === "MONTHLY" && months.length ? months : [currentMonth],
-      quarter: /^q[1-4]$/.test(p) ? p : `q${Math.ceil(currentMonth / 3)}`,
-      semester: /^s[12]$/.test(p) ? p : currentMonth <= 6 ? "s1" : "s2",
+      date: filters.interval === "DAILY" ? (p && p !== "all" ? p : `all:${toISODate(today)}`) : `all:${toISODate(today)}`,
+      months: filters.interval === "MONTHLY" ? (months.length ? months : []) : [],
+      quarter: /^q[1-4]$/.test(p) ? p : p === "all" ? "all" : "all",
+      semester: /^s[12]$/.test(p) ? p : p === "all" ? "all" : "all",
     };
-  }, [filters.year, filters.interval, filters.period, today, currentMonth]);
+  }, [filters.year, filters.interval, filters.period, today]);
 
   const handleFilterChange = (patch: Partial<ModuleFilterState>) => {
     const next = { ...filterState, ...patch };
@@ -66,13 +66,13 @@ export function FilterBar() {
         period = next.date;
         break;
       case "MONTHLY":
-        period = next.months.join(",");
+        period = next.months.length === 0 || next.months.length === 12 ? "all" : next.months.join(",");
         break;
       case "QUARTERLY":
-        period = next.quarter;
+        period = next.quarter === "all" ? "all" : next.quarter;
         break;
       case "SEMESTER":
-        period = next.semester;
+        period = next.semester === "all" ? "all" : next.semester;
         break;
       default:
         period = "all";

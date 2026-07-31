@@ -68,6 +68,18 @@ function fill(color: string): ExcelJS.Fill {
   return { type: "pattern", pattern: "solid", fgColor: { argb: color } };
 }
 
+function formatMilitaryTimestamp(value: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  }).format(value);
+}
+
 function border(
   style: ExcelJS.BorderStyle = "thin",
   color = "FF64748B",
@@ -152,6 +164,7 @@ export async function exportComplianceMatrix(opts: {
   titleCell.value = `FIRE SAFETY COMPLIANCE MATRIX — ${year}`;
   titleCell.font = { bold: true, size: 14, color: { argb: "FF0F172A" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleCell.fill = fill("FFF8FAFC");
   ws.getRow(1).height = 26;
 
   // 5-row banded header (matches the reference layout):
@@ -388,13 +401,12 @@ export async function exportComplianceMatrix(opts: {
   genCell.alignment = { horizontal: "left", vertical: "middle" };
   cursor++;
 
-  // Two blank rows
-  ws.mergeCells(cursor, 1, cursor, 7);
-  ws.getRow(cursor).height = 18;
-  cursor++;
-  ws.mergeCells(cursor, 1, cursor, 7);
-  ws.getRow(cursor).height = 18;
-  cursor++;
+  // Two blank rows before the signature block
+  for (let i = 0; i < 2; i++) {
+    ws.mergeCells(cursor, 1, cursor, 7);
+    ws.getRow(cursor).height = 18;
+    cursor++;
+  }
 
   const nameRow = cursor;
   ws.mergeCells(nameRow, 1, nameRow, 7);
@@ -414,8 +426,16 @@ export async function exportComplianceMatrix(opts: {
   desigCell.value = signatory?.designation || "Designation";
   desigCell.font = { italic: true, size: 10, color: { argb: "FF475569" } };
   desigCell.alignment = { horizontal: "left", vertical: "middle" };
+  cursor++;
 
-  ws.pageSetup.printArea = `A1:${ws.getCell(desigRow, LAST).address}`;
+  const generatedDateRow = cursor;
+  ws.mergeCells(generatedDateRow, 1, generatedDateRow, 7);
+  const generatedDateCell = ws.getCell(generatedDateRow, 1);
+  generatedDateCell.value = `Date Generated: ${formatMilitaryTimestamp(new Date())}`;
+  generatedDateCell.font = { size: 10, color: { argb: "FF475569" } };
+  generatedDateCell.alignment = { horizontal: "left", vertical: "middle" };
+
+  ws.pageSetup.printArea = `A1:${ws.getCell(generatedDateRow, LAST).address}`;
   ws.pageSetup.printTitlesRow = `${HR1}:${HR4}`;
 
   const buf = await wb.xlsx.writeBuffer();
