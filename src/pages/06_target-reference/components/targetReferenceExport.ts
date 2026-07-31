@@ -50,6 +50,22 @@ function border(style: ExcelJS.BorderStyle = "thin", color = "FF64748B"): ExcelJ
   };
 }
 
+function titleStyle(): Partial<ExcelJS.Style> {
+  return {
+    font: { bold: true, color: { argb: "FFFFFFFF" }, size: 16 },
+    alignment: { horizontal: "center", vertical: "middle" },
+    border: border("medium", "FF0F172A"),
+  };
+}
+
+function subtitleStyle(): Partial<ExcelJS.Style> {
+  return {
+    font: { bold: true, size: 10, color: { argb: "FF0F172A" } },
+    alignment: { horizontal: "left", vertical: "middle" },
+    border: border("thin", "FFCBD5E1"),
+  };
+}
+
 function crownHeaderStyle(): Partial<ExcelJS.Style> {
   return {
     font: { bold: true, color: { argb: "FFFFFFFF" }, size: 10 },
@@ -58,11 +74,36 @@ function crownHeaderStyle(): Partial<ExcelJS.Style> {
   };
 }
 
+function categoryHeaderStyle(): Partial<ExcelJS.Style> {
+  return {
+    font: { bold: true, size: 9, color: { argb: "FF064E3B" } },
+    alignment: { horizontal: "center", vertical: "middle" },
+    border: border(),
+  };
+}
+
 function dataCellStyle(): Partial<ExcelJS.Style> {
   return {
     font: { size: 10 },
     alignment: { horizontal: "center", vertical: "middle" },
     border: border(),
+  };
+}
+
+function dataRowStyle(isAlternate: boolean): Partial<ExcelJS.Style> {
+  return {
+    font: { size: 10 },
+    alignment: { horizontal: "center", vertical: "middle" },
+    border: border(),
+    fill: isAlternate ? fill("FFF8FAFC") : undefined,
+  };
+}
+
+function provinceRowStyle(): Partial<ExcelJS.Style> {
+  return {
+    font: { bold: true, size: 10, color: { argb: "FF713F12" } },
+    alignment: { horizontal: "center", vertical: "middle" },
+    border: border("medium", "FF334155"),
   };
 }
 
@@ -187,22 +228,38 @@ export async function exportTargetReferenceWorkbook(opts: {
   ws.mergeCells(1, 1, 1, lastCol);
   const titleCell = ws.getCell(1, 1);
   titleCell.value = `TARGET REFERENCE EXPORT — ${year}`;
-  titleCell.font = { bold: true, size: 15, color: { argb: "FF0F172A" } };
-  titleCell.alignment = { horizontal: "center", vertical: "middle" };
-  titleCell.fill = fill("FFE2E8F0");
-  titleCell.border = border("medium", "FF64748B");
-  ws.getRow(1).height = 26;
+  Object.assign(titleCell, titleStyle());
+  titleCell.fill = fill("FF0F172A");
+  ws.getRow(1).height = 30;
 
-  const metaRow = ws.getRow(2);
-  metaRow.getCell(1).value = `Interval: ${interval}`;
-  metaRow.getCell(1).font = { bold: true, size: 11 };
-  metaRow.getCell(2).value = `Months: ${selectedMonths.length ? selectedMonths.join(", ") : "All"}`;
-  metaRow.getCell(2).font = { size: 10 };
-  metaRow.getCell(3).value = `Generated: ${new Date().toLocaleDateString("en-US")}`;
-  metaRow.getCell(3).font = { size: 10 };
+  ws.mergeCells(2, 1, 2, 4);
+  const metaIntervalCell = ws.getCell(2, 1);
+  metaIntervalCell.value = `Interval: ${interval}`;
+  Object.assign(metaIntervalCell, subtitleStyle());
+  metaIntervalCell.fill = fill("FFF8FAFC");
+
+  ws.mergeCells(2, 5, 2, 8);
+  const metaMonthsCell = ws.getCell(2, 5);
+  metaMonthsCell.value = `Months: ${selectedMonths.length ? selectedMonths.join(", ") : "All"}`;
+  Object.assign(metaMonthsCell, subtitleStyle());
+  metaMonthsCell.fill = fill("FFF8FAFC");
+
+  ws.mergeCells(3, 1, 3, 4);
+  const metaGeneratedCell = ws.getCell(3, 1);
+  metaGeneratedCell.value = `Generated: ${new Date().toLocaleDateString("en-US")}`;
+  Object.assign(metaGeneratedCell, subtitleStyle());
+  metaGeneratedCell.fill = fill("FFF8FAFC");
+
+  ws.mergeCells(3, 5, 3, 8);
+  const metaPreparedCell = ws.getCell(3, 5);
+  metaPreparedCell.value = `Prepared by: ${signatory?.fullname || "—"}`;
+  Object.assign(metaPreparedCell, subtitleStyle());
+  metaPreparedCell.fill = fill("FFF8FAFC");
+
   ws.getRow(2).height = 20;
+  ws.getRow(3).height = 20;
 
-  const headerRow = ws.getRow(4);
+  const headerRow = ws.getRow(5);
   headerRow.getCell(1).value = "No";
   headerRow.getCell(2).value = "Province";
   headerRow.getCell(3).value = "Station Code";
@@ -216,25 +273,23 @@ export async function exportTargetReferenceWorkbook(opts: {
   periods.forEach((period) => {
     const c2 = col + 3;
     ws.mergeCells(4, col, 4, c2);
-    const cell = ws.getCell(4, col);
+    const cell = ws.getCell(5, col);
     cell.value = period.label.toUpperCase();
     Object.assign(cell, crownHeaderStyle());
-    cell.fill = fill("FF059669");
+    cell.fill = fill("FF0F766E");
 
-    const catRow = ws.getRow(5);
+    const catRow = ws.getRow(6);
     ["BPLO", "Gov", "PEZA", "TIEZA"].forEach((label, idx) => {
       const catCell = catRow.getCell(col + idx);
       catCell.value = label;
       catCell.fill = fill("FFD1FAE5");
-      catCell.font = { bold: true, size: 9, color: { argb: "FF064E3B" } };
-      catCell.alignment = { horizontal: "center", vertical: "middle" };
-      catCell.border = border();
+      Object.assign(catCell, categoryHeaderStyle());
     });
     col += 4;
   });
 
-  ws.getRow(4).height = 24;
-  ws.getRow(5).height = 20;
+  ws.getRow(5).height = 24;
+  ws.getRow(6).height = 20;
 
   ws.getColumn(1).width = 5;
   ws.getColumn(2).width = 24;
@@ -252,17 +307,21 @@ export async function exportTargetReferenceWorkbook(opts: {
     provinceGroups.set(province, existing);
   });
 
-  let cursor = 6;
+  let cursor = 7;
   const provinceNames = Array.from(provinceGroups.keys()).sort((a, b) => a.localeCompare(b));
   provinceNames.forEach((provinceName, provinceIndex) => {
     const stationGroups = provinceGroups.get(provinceName) ?? [];
 
     stationGroups.forEach((station, stationIndex) => {
       const row = ws.getRow(cursor);
+      const isAlternate = stationIndex % 2 === 1;
       row.getCell(1).value = stationIndex + 1;
       row.getCell(2).value = provinceName;
       row.getCell(3).value = station.stationCode;
       row.getCell(4).value = station.stationName;
+      for (let c = 1; c <= 4; c++) {
+        Object.assign(row.getCell(c), dataRowStyle(isAlternate));
+      }
 
       let col = dataStartCol;
       periods.forEach((period) => {
@@ -284,9 +343,7 @@ export async function exportTargetReferenceWorkbook(opts: {
     const labelCell = provinceRow.getCell(1);
     labelCell.value = `PROVINCIAL TOTAL — ${provinceName.toUpperCase()}`;
     labelCell.fill = fill("FFFEF08A");
-    labelCell.font = { bold: true, size: 10, color: { argb: "FF713F12" } };
-    labelCell.alignment = { horizontal: "center", vertical: "middle" };
-    labelCell.border = border("medium", "FF334155");
+    Object.assign(labelCell, provinceRowStyle());
 
     let col = dataStartCol;
     periods.forEach((period) => {
@@ -299,9 +356,7 @@ export async function exportTargetReferenceWorkbook(opts: {
         cell.value = Number(value) || 0;
         cell.numFmt = "#,##0;(#,##0);-";
         cell.fill = fill("FFFEF08A");
-        cell.font = { bold: true, size: 10, color: { argb: "FF713F12" } };
-        cell.alignment = { horizontal: "center", vertical: "middle" };
-        cell.border = border();
+        Object.assign(cell, provinceRowStyle());
       });
       col += 4;
     });
@@ -338,7 +393,7 @@ export async function exportTargetReferenceWorkbook(opts: {
   designationCell.alignment = { horizontal: "left", vertical: "middle" };
 
   ws.pageSetup.printArea = `A1:${ws.getCell(designationRow, lastCol).address}`;
-  ws.pageSetup.printTitlesRow = "4:5";
+  ws.pageSetup.printTitlesRow = "5:6";
 
   const buf = await wb.xlsx.writeBuffer();
   saveAs(
