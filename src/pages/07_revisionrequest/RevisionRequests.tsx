@@ -155,6 +155,10 @@ export default function TargetRevisionRequests({
   const [approveTarget, setApproveTarget] = React.useState<FSISEditRequestModel | null>(null);
   const [busy, setBusy] = React.useState(false);
 
+  const dateColumnHeader = effectiveModule === "monitoring" ? "Inspected Date" : "Month Year";
+
+  const dateColumnHeader = effectiveModule === "monitoring" ? "Inspected Date" : "Month Year";
+
   const doStatus = async (r: FSISEditRequestModel, statusno: number, remarks: string) => {
     setBusy(true);
     try {
@@ -291,7 +295,14 @@ export default function TargetRevisionRequests({
         <table className="min-w-full border-collapse text-xs">
           <thead className="bg-muted/50 uppercase tracking-wider text-[10px] text-primary">
             <tr>
-              {["Action", "Station", "Month Year", "Status", "Requested", "Remarks"].map((h) => (
+              {[
+                "Action",
+                "Station",
+                dateColumnHeader,
+                "Status",
+                "Requested",
+                "Remarks",
+              ].map((h) => (
                 <th key={h} className="whitespace-nowrap border-b border-border/60 px-3 py-2 text-left font-semibold">
                   {h}
                 </th>
@@ -361,7 +372,7 @@ export default function TargetRevisionRequests({
 
                   <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
                     {String(r.requesttype ?? "").toUpperCase() === "ISSUANCE"
-                      ? formatDate((r as { dateinspected?: string }).dateinspected, "—")
+                      ? formatDate(r.dateinspected, "—")
                       : monthYearLabel(r.reportyear, r.reportmonth)}
                   </td>
 
