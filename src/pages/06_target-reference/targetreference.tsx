@@ -425,17 +425,14 @@ export default function TargetReferenceIndexPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      // Same Ledger endpoint as the list, but unpaginated so the export
-      // contains every station matching the active filters.
       const resp = await targetreferenceAPI.getLedger(
         {
-          parameters: buildLedgerRequest(filterState, "", provincePayload ?? []),
+          parameters: buildLedgerRequest(filterState, "", provincePayload),
           pagenumber: 0,
           pagesize: 0,
         },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
-
       const { ok, data, error } = unwrap<TargetReferenceModel[]>(resp);
       if (!ok) {
         toast.error(error || "Unable to export target references.");
@@ -463,8 +460,6 @@ export default function TargetReferenceIndexPage() {
         selectedMonths: selectedMonths,
         quarter: filterState.quarter,
         semester: filterState.semester,
-        selectedDay,
-
         signatory: {
           rank: user?.rankcode ?? user?.rankname ?? "",
           fullname: user?.fullname ?? user?.name ?? "",
