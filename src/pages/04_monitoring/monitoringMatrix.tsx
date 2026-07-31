@@ -614,7 +614,7 @@ export default function InventoryMatrix({
         groups: merged,
         fields: flatFields,
         signatory: {
-          rank: (user as unknown as { rankname?: string })?.rankname ?? user?.rankcode ?? "",
+          rank: (user as unknown as { rankcode?: string; rankname?: string })?.rankcode ?? (user as unknown as { rankname?: string })?.rankname ?? "",
           fullname: user?.fullname ?? user?.name ?? "",
           designation: (user as unknown as { designation?: string })?.designation ?? "",
         },

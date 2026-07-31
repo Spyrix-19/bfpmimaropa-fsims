@@ -432,7 +432,7 @@ export default function TargetMatrixModal({
           })),
         })),
         signatory: {
-          rank: user?.rankname ?? "",
+          rank: user?.rankcode ?? user?.rankname ?? "",
           fullname: user?.fullname ?? user?.name ?? "",
           designation: user?.designation ?? "",
         },
@@ -533,13 +533,10 @@ export default function TargetMatrixModal({
         onInteractOutside={(e) => e.preventDefault()}
         className="flex h-[90vh] w-[95vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
-        <DialogHeader className="flex flex-row items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+        <DialogHeader className="flex flex-row items-center justify-between gap-3 border-b bg-card px-5 py-3">
           <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-primary text-primary-foreground shadow-elegant">
-              <LayoutGrid className="h-4 w-4" />
-            </div>
             <div>
-              <DialogTitle className="text-lg font-bold">
+              <DialogTitle className="text-lg font-bold text-foreground">
                 Fire Safety Inspection Target Matrix
               </DialogTitle>
               <p className="text-xs text-muted-foreground">

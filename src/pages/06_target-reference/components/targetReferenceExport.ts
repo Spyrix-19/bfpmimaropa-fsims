@@ -52,10 +52,20 @@ function border(style: ExcelJS.BorderStyle = "thin", color = "FF64748B"): ExcelJ
 
 function titleStyle(): Partial<ExcelJS.Style> {
   return {
-    font: { bold: true, color: { argb: "FFFFFFFF" }, size: 16 },
+    font: { bold: true, color: { argb: "FF0F172A" }, size: 16 },
     alignment: { horizontal: "center", vertical: "middle" },
     border: border("medium", "FF0F172A"),
   };
+}
+
+function formatMilitaryTimestamp(value: Date): string {
+  const day = String(value.getDate()).padStart(2, "0");
+  const hours = String(value.getHours()).padStart(2, "0");
+  const minutes = String(value.getMinutes()).padStart(2, "0");
+  const seconds = String(value.getSeconds()).padStart(2, "0");
+  const month = value.toLocaleString("en-US", { month: "long" });
+  const year = value.getFullYear();
+  return `${day} ${hours}${minutes}${seconds}H ${month} ${year}`;
 }
 
 function subtitleStyle(): Partial<ExcelJS.Style> {
@@ -229,7 +239,7 @@ export async function exportTargetReferenceWorkbook(opts: {
   const titleCell = ws.getCell(1, 1);
   titleCell.value = `TARGET REFERENCE EXPORT — ${year}`;
   Object.assign(titleCell, titleStyle());
-  titleCell.fill = fill("FF0F172A");
+  titleCell.fill = fill("FFF8FAFC");
   ws.getRow(1).height = 30;
 
   ws.mergeCells(2, 1, 2, 4);
@@ -246,7 +256,8 @@ export async function exportTargetReferenceWorkbook(opts: {
 
   ws.mergeCells(3, 1, 3, 4);
   const metaGeneratedCell = ws.getCell(3, 1);
-  metaGeneratedCell.value = `Generated: ${new Date().toLocaleDateString("en-US")}`;
+  const generatedAt = new Date();
+  metaGeneratedCell.value = `Generated: ${formatMilitaryTimestamp(generatedAt)}`;
   Object.assign(metaGeneratedCell, subtitleStyle());
   metaGeneratedCell.fill = fill("FFF8FAFC");
 
@@ -260,11 +271,14 @@ export async function exportTargetReferenceWorkbook(opts: {
   ws.getRow(3).height = 20;
 
   const headerRow = ws.getRow(5);
-  headerRow.getCell(1).value = "No";
-  headerRow.getCell(2).value = "Province";
-  headerRow.getCell(3).value = "Station Code";
-  headerRow.getCell(4).value = "Station Name";
-  for (let c = 1; c <= 4; c++) {
+  ws.mergeCells(5, 1, 5, 4);
+  const stationInfoHeader = headerRow.getCell(1);
+  stationInfoHeader.value = "Station Information";
+  stationInfoHeader.fill = fill("FF1D4ED8");
+  Object.assign(stationInfoHeader, crownHeaderStyle());
+
+  for (let c = 2; c <= 4; c++) {
+    headerRow.getCell(c).value = "";
     headerRow.getCell(c).fill = fill("FF1D4ED8");
     Object.assign(headerRow.getCell(c), crownHeaderStyle());
   }
@@ -272,14 +286,14 @@ export async function exportTargetReferenceWorkbook(opts: {
   let col = dataStartCol;
   periods.forEach((period) => {
     const c2 = col + 3;
-    ws.mergeCells(4, col, 4, c2);
+    ws.mergeCells(5, col, 5, c2);
     const cell = ws.getCell(5, col);
     cell.value = period.label.toUpperCase();
     Object.assign(cell, crownHeaderStyle());
     cell.fill = fill("FF0F766E");
 
     const catRow = ws.getRow(6);
-    ["BPLO", "Gov", "PEZA", "TIEZA"].forEach((label, idx) => {
+    ["BPLO", "GOV", "PEZA", "TIEZA"].forEach((label, idx) => {
       const catCell = catRow.getCell(col + idx);
       catCell.value = label;
       catCell.fill = fill("FFD1FAE5");
@@ -376,12 +390,19 @@ export async function exportTargetReferenceWorkbook(opts: {
   genCell.font = { bold: true, italic: true, size: 11 };
   genCell.alignment = { horizontal: "left", vertical: "middle" };
 
-  const nameRow = footerStart + 2;
+  let signatureRow = footerStart + 1;
+  for (let i = 0; i < 2; i++) {
+    ws.mergeCells(signatureRow, 1, signatureRow, 6);
+    ws.getRow(signatureRow).height = 18;
+    signatureRow++;
+  }
+
+  const nameRow = signatureRow;
   ws.mergeCells(nameRow, 1, nameRow, 6);
   const nameCell = ws.getCell(nameRow, 1);
   const rankFullName = [signatory?.rank, signatory?.fullname].filter(Boolean).join(" ").trim();
   nameCell.value = rankFullName || "____________________________";
-  nameCell.font = { bold: true, size: 11, underline: true };
+  nameCell.font = { bold: true, size: 11, color: { argb: "FF0F172A" } };
   nameCell.alignment = { horizontal: "left", vertical: "middle" };
   nameCell.border = { top: { style: "thin", color: { argb: "FF334155" } } } as ExcelJS.Borders;
 
@@ -392,7 +413,14 @@ export async function exportTargetReferenceWorkbook(opts: {
   designationCell.font = { italic: true, size: 10, color: { argb: "FF475569" } };
   designationCell.alignment = { horizontal: "left", vertical: "middle" };
 
-  ws.pageSetup.printArea = `A1:${ws.getCell(designationRow, lastCol).address}`;
+  const generatedDateRow = designationRow + 1;
+  ws.mergeCells(generatedDateRow, 1, generatedDateRow, 6);
+  const generatedDateCell = ws.getCell(generatedDateRow, 1);
+  generatedDateCell.value = `Date Generated: ${formatMilitaryTimestamp(new Date())}`;
+  generatedDateCell.font = { size: 10, color: { argb: "FF475569" } };
+  generatedDateCell.alignment = { horizontal: "left", vertical: "middle" };
+
+  ws.pageSetup.printArea = `A1:${ws.getCell(generatedDateRow, lastCol).address}`;
   ws.pageSetup.printTitlesRow = "5:6";
 
   const buf = await wb.xlsx.writeBuffer();

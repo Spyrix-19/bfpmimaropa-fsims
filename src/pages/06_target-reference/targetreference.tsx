@@ -442,7 +442,7 @@ export default function TargetReferenceIndexPage() {
         quarter: filterState.quarter,
         semester: filterState.semester,
         signatory: {
-          rank: user?.rankname ?? "",
+          rank: user?.rankcode ?? user?.rankname ?? "",
           fullname: user?.fullname ?? user?.name ?? "",
           designation: user?.designation ?? "",
         },
@@ -490,7 +490,7 @@ export default function TargetReferenceIndexPage() {
           </Button>
           {canManage && (
             <AddButton onClick={handleAdd} className="w-full justify-center sm:w-auto">
-              <Target className="h-4 w-4" /> Add Target
+              Add Target
             </AddButton>
           )}
         </div>
@@ -721,27 +721,21 @@ function TargetCard({
   return (
     <Card className="flex flex-col overflow-hidden border-border/60 shadow-soft transition-shadow hover:shadow-elegant">
       {/* Header */}
-      <div className="flex items-start gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4">
-        <AvatarWithFallback
-          entity={{ name: group.stationName }}
-          src={group.logoUrl || undefined}
-          name={group.stationName}
-          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-primary/20"
-        />
+      <div className="flex items-start justify-between gap-3 border-b bg-card p-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+            <span className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-bold text-foreground">
               {group.stationCode}
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {group.year}
             </span>
           </div>
-          <div className="mt-1 text-sm font-bold">{group.stationName}</div>
+          <div className="mt-1 text-sm font-bold text-foreground">{group.stationName}</div>
           <div className="text-[11px] text-muted-foreground">{group.province}</div>
         </div>
         <div
-          className="grid h-10 w-14 place-items-center rounded-lg bg-primary/10 text-center text-primary"
+          className="grid h-10 w-14 place-items-center rounded-lg border border-border/60 bg-muted/40 text-center text-foreground"
           title="Annual Total"
         >
           <div className="text-[8px] font-bold uppercase leading-none">Total</div>
