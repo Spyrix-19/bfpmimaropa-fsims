@@ -140,35 +140,43 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
           </div>
         ) : detail && derived ? (
           <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
-            <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <AvatarWithFallback
-                  entity={{ name: detail.stationname }}
-                  src={detail.logourl || undefined}
-                  name={detail.stationname}
-                  className="h-20 w-20 rounded-full ring-2 ring-primary/20"
-                />
-                <div className="grid flex-1 gap-2 sm:grid-cols-3">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Station Code
+            <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+              <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <AvatarWithFallback
+                    entity={{ name: detail.stationname }}
+                    src={detail.logourl || undefined}
+                    name={detail.stationname}
+                    className="h-20 w-20 rounded-full ring-2 ring-primary/20"
+                  />
+                  <div className="grid flex-1 gap-2 sm:grid-cols-3">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                        Station Code
+                      </div>
+                      <div className="text-sm font-semibold">{detail.stationcode}</div>
                     </div>
-                    <div className="text-sm font-semibold">{detail.stationcode}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Station Name
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                        Station Name
+                      </div>
+                      <div className="text-sm font-semibold">{detail.stationname}</div>
                     </div>
-                    <div className="text-sm font-semibold">{detail.stationname}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Province
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                        Province
+                      </div>
+                      <div className="text-sm">{detail.provincename}</div>
                     </div>
-                    <div className="text-sm">{detail.provincename}</div>
                   </div>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
+              </div>
+
+              <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
+                <div className="text-sm font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                  Filter by year and month
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
                     <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                       Year
