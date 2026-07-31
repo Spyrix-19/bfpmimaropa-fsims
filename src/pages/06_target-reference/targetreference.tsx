@@ -55,7 +55,7 @@ import type {
   TargetReferenceParamClass,
 } from "@/types/targetreferenceType";
 
-import TargetReferenceForm from "./components/TargetReferenceNew";
+import TargetReferenceEdit from "./components/TargetReferenceEdit";
 import TargetReferenceDetails from "./components/TargetReferenceDetails";
 import TargetMatrixModal from "./components/TargetMatrix";
 import {
@@ -599,7 +599,7 @@ export default function TargetReferenceIndexPage() {
         />
       </div>
 
-      <TargetReferenceForm
+      <TargetReferenceEdit
         open={formOpen}
         onOpenChange={setFormOpen}
         editing={
