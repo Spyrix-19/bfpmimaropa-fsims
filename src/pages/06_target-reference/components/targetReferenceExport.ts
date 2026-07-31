@@ -59,13 +59,15 @@ function titleStyle(): Partial<ExcelJS.Style> {
 }
 
 function formatMilitaryTimestamp(value: Date): string {
-  const day = String(value.getDate()).padStart(2, "0");
-  const hours = String(value.getHours()).padStart(2, "0");
-  const minutes = String(value.getMinutes()).padStart(2, "0");
-  const seconds = String(value.getSeconds()).padStart(2, "0");
-  const month = value.toLocaleString("en-US", { month: "long" });
-  const year = value.getFullYear();
-  return `${day} ${hours}${minutes}${seconds}H ${month} ${year}`;
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  }).format(value);
 }
 
 function subtitleStyle(): Partial<ExcelJS.Style> {
@@ -213,7 +215,7 @@ export async function exportTargetReferenceWorkbook(opts: {
   wb.created = new Date();
 
   const ws = wb.addWorksheet(`Target Reference ${year}`, {
-    views: [{ state: "frozen", xSplit: 4, ySplit: 5, showGridLines: false }],
+    views: [{ state: "frozen", xSplit: 4, ySplit: 3, showGridLines: false }],
     pageSetup: {
       orientation: "landscape",
       fitToPage: true,
@@ -242,36 +244,8 @@ export async function exportTargetReferenceWorkbook(opts: {
   titleCell.fill = fill("FFF8FAFC");
   ws.getRow(1).height = 30;
 
+  const headerRow = ws.getRow(2);
   ws.mergeCells(2, 1, 2, 4);
-  const metaIntervalCell = ws.getCell(2, 1);
-  metaIntervalCell.value = `Interval: ${interval}`;
-  Object.assign(metaIntervalCell, subtitleStyle());
-  metaIntervalCell.fill = fill("FFF8FAFC");
-
-  ws.mergeCells(2, 5, 2, 8);
-  const metaMonthsCell = ws.getCell(2, 5);
-  metaMonthsCell.value = `Months: ${selectedMonths.length ? selectedMonths.join(", ") : "All"}`;
-  Object.assign(metaMonthsCell, subtitleStyle());
-  metaMonthsCell.fill = fill("FFF8FAFC");
-
-  ws.mergeCells(3, 1, 3, 4);
-  const metaGeneratedCell = ws.getCell(3, 1);
-  const generatedAt = new Date();
-  metaGeneratedCell.value = `Generated: ${formatMilitaryTimestamp(generatedAt)}`;
-  Object.assign(metaGeneratedCell, subtitleStyle());
-  metaGeneratedCell.fill = fill("FFF8FAFC");
-
-  ws.mergeCells(3, 5, 3, 8);
-  const metaPreparedCell = ws.getCell(3, 5);
-  metaPreparedCell.value = `Prepared by: ${signatory?.fullname || "—"}`;
-  Object.assign(metaPreparedCell, subtitleStyle());
-  metaPreparedCell.fill = fill("FFF8FAFC");
-
-  ws.getRow(2).height = 20;
-  ws.getRow(3).height = 20;
-
-  const headerRow = ws.getRow(5);
-  ws.mergeCells(5, 1, 5, 4);
   const stationInfoHeader = headerRow.getCell(1);
   stationInfoHeader.value = "Station Information";
   stationInfoHeader.fill = fill("FF1D4ED8");
@@ -292,7 +266,7 @@ export async function exportTargetReferenceWorkbook(opts: {
     Object.assign(cell, crownHeaderStyle());
     cell.fill = fill("FF0F766E");
 
-    const catRow = ws.getRow(6);
+    const catRow = ws.getRow(3);
     ["BPLO", "GOV", "PEZA", "TIEZA"].forEach((label, idx) => {
       const catCell = catRow.getCell(col + idx);
       catCell.value = label;
@@ -302,8 +276,8 @@ export async function exportTargetReferenceWorkbook(opts: {
     col += 4;
   });
 
-  ws.getRow(5).height = 24;
-  ws.getRow(6).height = 20;
+  ws.getRow(2).height = 24;
+  ws.getRow(3).height = 20;
 
   ws.getColumn(1).width = 5;
   ws.getColumn(2).width = 24;
@@ -321,7 +295,7 @@ export async function exportTargetReferenceWorkbook(opts: {
     provinceGroups.set(province, existing);
   });
 
-  let cursor = 7;
+  let cursor = 4;
   const provinceNames = Array.from(provinceGroups.keys()).sort((a, b) => a.localeCompare(b));
   provinceNames.forEach((provinceName, provinceIndex) => {
     const stationGroups = provinceGroups.get(provinceName) ?? [];
@@ -421,7 +395,7 @@ export async function exportTargetReferenceWorkbook(opts: {
   generatedDateCell.alignment = { horizontal: "left", vertical: "middle" };
 
   ws.pageSetup.printArea = `A1:${ws.getCell(generatedDateRow, lastCol).address}`;
-  ws.pageSetup.printTitlesRow = "5:6";
+  ws.pageSetup.printTitlesRow = "2:3";
 
   const buf = await wb.xlsx.writeBuffer();
   saveAs(

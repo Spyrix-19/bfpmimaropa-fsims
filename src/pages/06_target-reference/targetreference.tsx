@@ -423,20 +423,39 @@ export default function TargetReferenceIndexPage() {
   };
 
   const handleExport = async () => {
-    if (pageGroups.length === 0) {
-      toast.info("No target references to export.");
-      return;
-    }
     setExporting(true);
     try {
+      const resp = await targetreferenceAPI.getLedger(
+        {
+          parameters: buildLedgerRequest(filterState, "", provincePayload),
+          pagenumber: 0,
+          pagesize: 0,
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      const { ok, data, error } = unwrap<TargetReferenceModel[]>(resp);
+      if (!ok) {
+        toast.error(error || "Unable to export target references.");
+        return;
+      }
+
+      const exportRows = Array.isArray(data) ? data : [];
+      if (exportRows.length === 0) {
+        toast.info("No target references to export.");
+        return;
+      }
+
       await exportTargetReferenceWorkbook({
         year: Number(year),
-        groups: pageGroups.map((g) => ({
-          province: g.province,
-          stationCode: g.stationCode,
-          stationName: g.stationName,
-          targetreferencelist: g.row.targetreferencelist,
-        })),
+        groups: exportRows.map((row) => {
+          const group = toGroup(row, Number(year));
+          return {
+            province: group.province,
+            stationCode: group.stationCode,
+            stationName: group.stationName,
+            targetreferencelist: group.row.targetreferencelist,
+          };
+        }),
         interval: period,
         selectedMonths: selectedMonths,
         quarter: filterState.quarter,

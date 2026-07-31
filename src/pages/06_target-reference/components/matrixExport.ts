@@ -84,13 +84,15 @@ function fill(color: string): ExcelJS.Fill {
 }
 
 function formatMilitaryTimestamp(value: Date): string {
-  const day = String(value.getDate()).padStart(2, "0");
-  const hours = String(value.getHours()).padStart(2, "0");
-  const minutes = String(value.getMinutes()).padStart(2, "0");
-  const seconds = String(value.getSeconds()).padStart(2, "0");
-  const month = value.toLocaleString("en-US", { month: "long" });
-  const year = value.getFullYear();
-  return `${day} ${hours}${minutes}${seconds}H ${month} ${year}`;
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  }).format(value);
 }
 
 function border(
