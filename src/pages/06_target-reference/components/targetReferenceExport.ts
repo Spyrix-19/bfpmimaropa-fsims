@@ -1,0 +1,350 @@
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import { MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
+import {
+  addBucket,
+  computeDailyFromList,
+  computeDerivedFromList,
+  emptyBucket,
+  formatDayLabel,
+  type TargetBucket,
+  type TargetPeriod,
+} from "../helpers";
+import type { TargetReferenceClassModel } from "@/types/targetreferenceType";
+
+export interface TargetReferenceExportGroup {
+  province: string;
+  stationCode: string;
+  stationName: string;
+  targetreferencelist: TargetReferenceClassModel[];
+}
+
+export interface TargetReferenceExportSignatory {
+  rank?: string;
+  fullname?: string;
+  designation?: string;
+}
+
+interface PeriodDef {
+  key: string;
+  label: string;
+  getBucket: (list: TargetReferenceClassModel[]) => TargetBucket;
+}
+
+function fill(color: string): ExcelJS.Fill {
+  return {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: color },
+  };
+}
+
+function border(style: ExcelJS.BorderStyle = "thin", color = "FF64748B"): ExcelJS.Borders {
+  const b: Partial<ExcelJS.Border> = { style, color: { argb: color } };
+  return {
+    top: b as ExcelJS.Border,
+    left: b as ExcelJS.Border,
+    right: b as ExcelJS.Border,
+    bottom: b as ExcelJS.Border,
+    diagonal: {} as ExcelJS.Border,
+  };
+}
+
+function crownHeaderStyle(): Partial<ExcelJS.Style> {
+  return {
+    font: { bold: true, color: { argb: "FFFFFFFF" }, size: 10 },
+    alignment: { horizontal: "center", vertical: "middle", wrapText: true },
+    border: border("thin", "FF334155"),
+  };
+}
+
+function dataCellStyle(): Partial<ExcelJS.Style> {
+  return {
+    font: { size: 10 },
+    alignment: { horizontal: "center", vertical: "middle" },
+    border: border(),
+  };
+}
+
+function buildPeriodDefs(
+  interval: TargetPeriod,
+  year: number,
+  selectedMonths: number[],
+  quarter: string,
+  semester: string,
+): PeriodDef[] {
+  switch (interval) {
+    case "MONTHLY": {
+      return MONTHS.filter((m) => selectedMonths.includes(m.value)).map((m) => ({
+        key: `m${m.value}`,
+        label: m.name,
+        getBucket: (list) => {
+          const derived = computeDerivedFromList(list);
+          return derived.monthly[m.value] ?? emptyBucket();
+        },
+      }));
+    }
+    case "QUARTERLY": {
+      const quarters = quarter === "all" ? ["q1", "q2", "q3", "q4"] : [quarter];
+      return quarters.flatMap((q) => {
+        const idx = ["q1", "q2", "q3", "q4"].indexOf(q);
+        if (idx < 0) return [];
+        return [
+          {
+            key: q,
+            label: QUARTERS[idx],
+            getBucket: (list) => {
+              const derived = computeDerivedFromList(list);
+              return derived.quarters[idx] ?? emptyBucket();
+            },
+          },
+        ];
+      });
+    }
+    case "SEMI-ANNUAL": {
+      const semesters = semester === "all" ? ["s1", "s2"] : [semester];
+      return semesters.flatMap((s) => {
+        const idx = ["s1", "s2"].indexOf(s);
+        if (idx < 0) return [];
+        return [
+          {
+            key: s,
+            label: HALVES[idx],
+            getBucket: (list) => {
+              const derived = computeDerivedFromList(list);
+              return derived.halves[idx] ?? emptyBucket();
+            },
+          },
+        ];
+      });
+    }
+    case "ANNUAL":
+      return [
+        {
+          key: "annual",
+          label: "Annual Total",
+          getBucket: (list) => {
+            const derived = computeDerivedFromList(list);
+            return derived.annual ?? emptyBucket();
+          },
+        },
+      ];
+    case "DAILY": {
+      const month = selectedMonths[0] ?? new Date().getMonth() + 1;
+      const days = Array.from({ length: new Date(year, month, 0).getDate() }, (_, i) => i + 1);
+      return days.map((day) => ({
+        key: `d${day}`,
+        label: formatDayLabel(year, month, day),
+        getBucket: (list) => {
+          const daily = computeDailyFromList(list, year, month);
+          return daily.daily[day] ?? emptyBucket();
+        },
+      }));
+    }
+    default:
+      return [];
+  }
+}
+
+export async function exportTargetReferenceWorkbook(opts: {
+  year: number;
+  groups: TargetReferenceExportGroup[];
+  interval: TargetPeriod;
+  selectedMonths: number[];
+  quarter: string;
+  semester: string;
+  signatory?: TargetReferenceExportSignatory;
+  filename?: string;
+}) {
+  const { year, groups, interval, selectedMonths, quarter, semester, signatory, filename } = opts;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "FSIMS";
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet(`Target Reference ${year}`, {
+    views: [{ state: "frozen", xSplit: 4, ySplit: 5, showGridLines: false }],
+    pageSetup: {
+      orientation: "landscape",
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      paperSize: 9,
+      margins: {
+        left: 0.3,
+        right: 0.3,
+        top: 0.4,
+        bottom: 0.4,
+        header: 0.2,
+        footer: 0.2,
+      },
+    },
+  });
+
+  const periods = buildPeriodDefs(interval, year, selectedMonths, quarter, semester);
+  const dataStartCol = 5;
+  const lastCol = dataStartCol + periods.length * 4 - 1;
+
+  ws.mergeCells(1, 1, 1, lastCol);
+  const titleCell = ws.getCell(1, 1);
+  titleCell.value = `TARGET REFERENCE EXPORT — ${year}`;
+  titleCell.font = { bold: true, size: 15, color: { argb: "FF0F172A" } };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleCell.fill = fill("FFE2E8F0");
+  titleCell.border = border("medium", "FF64748B");
+  ws.getRow(1).height = 26;
+
+  const metaRow = ws.getRow(2);
+  metaRow.getCell(1).value = `Interval: ${interval}`;
+  metaRow.getCell(1).font = { bold: true, size: 11 };
+  metaRow.getCell(2).value = `Months: ${selectedMonths.length ? selectedMonths.join(", ") : "All"}`;
+  metaRow.getCell(2).font = { size: 10 };
+  metaRow.getCell(3).value = `Generated: ${new Date().toLocaleDateString("en-US")}`;
+  metaRow.getCell(3).font = { size: 10 };
+  ws.getRow(2).height = 20;
+
+  const headerRow = ws.getRow(4);
+  headerRow.getCell(1).value = "No";
+  headerRow.getCell(2).value = "Province";
+  headerRow.getCell(3).value = "Station Code";
+  headerRow.getCell(4).value = "Station Name";
+  for (let c = 1; c <= 4; c++) {
+    headerRow.getCell(c).fill = fill("FF1D4ED8");
+    Object.assign(headerRow.getCell(c), crownHeaderStyle());
+  }
+
+  let col = dataStartCol;
+  periods.forEach((period) => {
+    const c2 = col + 3;
+    ws.mergeCells(4, col, 4, c2);
+    const cell = ws.getCell(4, col);
+    cell.value = period.label.toUpperCase();
+    Object.assign(cell, crownHeaderStyle());
+    cell.fill = fill("FF059669");
+
+    const catRow = ws.getRow(5);
+    ["BPLO", "Gov", "PEZA", "TIEZA"].forEach((label, idx) => {
+      const catCell = catRow.getCell(col + idx);
+      catCell.value = label;
+      catCell.fill = fill("FFD1FAE5");
+      catCell.font = { bold: true, size: 9, color: { argb: "FF064E3B" } };
+      catCell.alignment = { horizontal: "center", vertical: "middle" };
+      catCell.border = border();
+    });
+    col += 4;
+  });
+
+  ws.getRow(4).height = 24;
+  ws.getRow(5).height = 20;
+
+  ws.getColumn(1).width = 5;
+  ws.getColumn(2).width = 24;
+  ws.getColumn(3).width = 16;
+  ws.getColumn(4).width = 32;
+  for (let c = dataStartCol; c <= lastCol; c++) {
+    ws.getColumn(c).width = 11;
+  }
+
+  const provinceGroups = new Map<string, TargetReferenceExportGroup[]>();
+  groups.forEach((group) => {
+    const province = group.province || "—";
+    const existing = provinceGroups.get(province) ?? [];
+    existing.push(group);
+    provinceGroups.set(province, existing);
+  });
+
+  let cursor = 6;
+  const provinceNames = Array.from(provinceGroups.keys()).sort((a, b) => a.localeCompare(b));
+  provinceNames.forEach((provinceName, provinceIndex) => {
+    const stationGroups = provinceGroups.get(provinceName) ?? [];
+
+    stationGroups.forEach((station, stationIndex) => {
+      const row = ws.getRow(cursor);
+      row.getCell(1).value = stationIndex + 1;
+      row.getCell(2).value = provinceName;
+      row.getCell(3).value = station.stationCode;
+      row.getCell(4).value = station.stationName;
+
+      let col = dataStartCol;
+      periods.forEach((period) => {
+        const bucket = period.getBucket(station.targetreferencelist);
+        [bucket.bplo, bucket.gov, bucket.peza, bucket.tieza].forEach((value, idx) => {
+          const cell = row.getCell(col + idx);
+          cell.value = Number(value) || 0;
+          cell.numFmt = "#,##0;(#,##0);-";
+          Object.assign(cell, dataCellStyle());
+        });
+        col += 4;
+      });
+      row.height = 22;
+      cursor++;
+    });
+
+    const provinceRow = ws.getRow(cursor);
+    ws.mergeCells(cursor, 1, cursor, 4);
+    const labelCell = provinceRow.getCell(1);
+    labelCell.value = `PROVINCIAL TOTAL — ${provinceName.toUpperCase()}`;
+    labelCell.fill = fill("FFFEF08A");
+    labelCell.font = { bold: true, size: 10, color: { argb: "FF713F12" } };
+    labelCell.alignment = { horizontal: "center", vertical: "middle" };
+    labelCell.border = border("medium", "FF334155");
+
+    let col = dataStartCol;
+    periods.forEach((period) => {
+      const totalBucket = stationGroups.reduce<TargetBucket>((acc, station) => {
+        const bucket = period.getBucket(station.targetreferencelist);
+        return addBucket(acc, bucket);
+      }, emptyBucket());
+      [totalBucket.bplo, totalBucket.gov, totalBucket.peza, totalBucket.tieza].forEach((value, idx) => {
+        const cell = provinceRow.getCell(col + idx);
+        cell.value = Number(value) || 0;
+        cell.numFmt = "#,##0;(#,##0);-";
+        cell.fill = fill("FFFEF08A");
+        cell.font = { bold: true, size: 10, color: { argb: "FF713F12" } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = border();
+      });
+      col += 4;
+    });
+    provinceRow.height = 24;
+    cursor++;
+
+    if (provinceIndex < provinceNames.length - 1) {
+      ws.getRow(cursor).height = 8;
+      cursor++;
+    }
+  });
+
+  const footerStart = cursor + 2;
+  ws.mergeCells(footerStart, 1, footerStart, 6);
+  const genCell = ws.getCell(footerStart, 1);
+  genCell.value = "Generated by:";
+  genCell.font = { bold: true, italic: true, size: 11 };
+  genCell.alignment = { horizontal: "left", vertical: "middle" };
+
+  const nameRow = footerStart + 2;
+  ws.mergeCells(nameRow, 1, nameRow, 6);
+  const nameCell = ws.getCell(nameRow, 1);
+  const rankFullName = [signatory?.rank, signatory?.fullname].filter(Boolean).join(" ").trim();
+  nameCell.value = rankFullName || "____________________________";
+  nameCell.font = { bold: true, size: 11, underline: true };
+  nameCell.alignment = { horizontal: "left", vertical: "middle" };
+  nameCell.border = { top: { style: "thin", color: { argb: "FF334155" } } } as ExcelJS.Borders;
+
+  const designationRow = nameRow + 1;
+  ws.mergeCells(designationRow, 1, designationRow, 6);
+  const designationCell = ws.getCell(designationRow, 1);
+  designationCell.value = signatory?.designation || "Designation";
+  designationCell.font = { italic: true, size: 10, color: { argb: "FF475569" } };
+  designationCell.alignment = { horizontal: "left", vertical: "middle" };
+
+  ws.pageSetup.printArea = `A1:${ws.getCell(designationRow, lastCol).address}`;
+  ws.pageSetup.printTitlesRow = "4:5";
+
+  const buf = await wb.xlsx.writeBuffer();
+  saveAs(
+    new Blob([buf], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    filename ?? `TargetReference_${year}.xlsx`,
+  );
+}

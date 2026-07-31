@@ -22,9 +22,6 @@ import {
   Download,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
-import ExcelJS from "exceljs";
-import { saveAs } from "file-saver";
-
 import AddButton from "@/components/add-button";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
@@ -58,6 +55,7 @@ import type {
 import TargetReferenceEdit from "./components/TargetReferenceEdit";
 import TargetReferenceDetails from "./components/TargetReferenceDetails";
 import TargetMatrixModal from "./components/TargetMatrix";
+import { exportTargetReferenceWorkbook } from "./components/targetReferenceExport";
 import {
   PERIOD_OPTIONS,
   computeDerivedFromList,
@@ -431,64 +429,24 @@ export default function TargetReferenceIndexPage() {
     }
     setExporting(true);
     try {
-      const wb = new ExcelJS.Workbook();
-      wb.creator = "FSIMS";
-      wb.created = new Date();
-      const ws = wb.addWorksheet(`Target Reference ${year}`);
-
-      ws.columns = [
-        { header: "Station Code", key: "stationCode", width: 16 },
-        { header: "Station Name", key: "stationName", width: 32 },
-        { header: "Province", key: "province", width: 22 },
-        { header: "Year", key: "year", width: 10 },
-        { header: "BPLO", key: "bplo", width: 12 },
-        { header: "Gov", key: "gov", width: 12 },
-        { header: "PEZA", key: "peza", width: 12 },
-        { header: "TIEZA", key: "tieza", width: 12 },
-      ];
-
-      ws.getRow(1).eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FF2563EB" },
-        };
-        cell.alignment = { horizontal: "center", vertical: "middle" };
-      });
-
-      for (const g of pageGroups) {
-        const derived = computeDerivedFromList(g.row.targetreferencelist);
-        const totals = derived.annual;
-        ws.addRow({
+      await exportTargetReferenceWorkbook({
+        year: Number(year),
+        groups: pageGroups.map((g) => ({
+          province: g.province,
           stationCode: g.stationCode,
           stationName: g.stationName,
-          province: g.province,
-          year: g.year,
-          bplo: totals.bplo,
-          gov: totals.gov,
-          peza: totals.peza,
-          tieza: totals.tieza,
-        });
-      }
-
-      ws.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
-        row.eachCell((cell, colNumber) => {
-          if (colNumber >= 5) {
-            cell.numFmt = "#,##0;(#,##0);-";
-            cell.alignment = { horizontal: "right" };
-          }
-        });
+          targetreferencelist: g.row.targetreferencelist,
+        })),
+        interval: period,
+        selectedMonths: selectedMonths,
+        quarter: filterState.quarter,
+        semester: filterState.semester,
+        signatory: {
+          rank: user?.rankname ?? "",
+          fullname: user?.fullname ?? user?.name ?? "",
+          designation: user?.designation ?? "",
+        },
       });
-
-      const buf = await wb.xlsx.writeBuffer();
-      saveAs(
-        new Blob([buf], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }),
-        `TargetReference_${year}.xlsx`,
-      );
       toast.success("Target Reference exported.");
     } catch (err) {
       console.error(err);
