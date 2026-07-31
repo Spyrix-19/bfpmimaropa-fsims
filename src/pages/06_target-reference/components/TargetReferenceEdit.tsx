@@ -968,7 +968,7 @@ export default function TargetReferenceForm({
                 </div>
                 <div className="sm:col-span-2">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Complete Address
+                    Province
                   </div>
                   <div className="text-sm">
                     {completeAddress || (stationLoading ? "Loading…" : "—")}

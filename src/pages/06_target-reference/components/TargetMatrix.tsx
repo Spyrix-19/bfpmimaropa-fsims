@@ -10,6 +10,7 @@ import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { unwrap } from "@/lib/api-envelope";
 import type {
   TargetReferenceModel,
+  TargetReferenceClassModel,
   ExportTargetReferenceRequestDTO,
   ProvinceStationSelectionClass,
   ProvinceExportModel,
@@ -75,12 +76,37 @@ interface ProvinceGroup {
   };
 }
 
+function resolveTargetMonth(it: { reportmonth?: number; targetdate?: string }): number | null {
+  if (it.reportmonth != null) {
+    const mv = Number(it.reportmonth);
+    if (mv >= 1 && mv <= 12) return mv;
+  }
+  if (it.targetdate) {
+    const targetdate = String(it.targetdate).trim();
+    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(targetdate);
+    if (isoMatch) {
+      const mv = Number(isoMatch[2]);
+      if (mv >= 1 && mv <= 12) return mv;
+    }
+    const slashMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(targetdate);
+    if (slashMatch) {
+      const mv = Number(slashMatch[1]);
+      if (mv >= 1 && mv <= 12) return mv;
+    }
+    const parsed = new Date(targetdate);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getMonth() + 1;
+    }
+  }
+  return null;
+}
+
 function buildStationRow(m: TargetReferenceModel): StationRow {
   const months: Record<number, Bucket> = {};
   for (let i = 1; i <= 12; i++) months[i] = emptyBucket();
-  (m.targetreferencelist ?? []).forEach((it) => {
-    const mv = Number(it.reportmonth);
-    if (!mv || mv < 1 || mv > 12) return;
+  (Array.isArray(m.targetreferencelist) ? m.targetreferencelist : []).forEach((it) => {
+    const mv = resolveTargetMonth(it);
+    if (!mv) return;
     months[mv] = {
       bplo: months[mv].bplo + (Number(it.bplototal) || 0),
       gov: months[mv].gov + (Number(it.govtotal) || 0),
@@ -90,24 +116,143 @@ function buildStationRow(m: TargetReferenceModel): StationRow {
   });
   return {
     stationno: m.stationno,
-    stationCode: m.stationcode ?? "",
-    stationName: m.stationname ?? "",
-    cityName: "",
-    province: m.provincename ?? "—",
-    logoUrl: m.logourl ?? "",
+    stationCode: m.stationcode ?? m.stationCode ?? "",
+    stationName: m.stationname ?? m.stationName ?? "",
+    cityName: (m as any).cityname ?? (m as any).cityName ?? "",
+    province: m.provincename ?? (m as any).province ?? "—",
+    logoUrl: m.logourl ?? (m as any).logoUrl ?? "",
     months,
   };
 }
 
-/**
- * Build province-grouped matrix rows directly from the nested export API
- * response:
- *   Province[] -> stations[] -> targetreferencelist[]
- * Preserves the province ordering returned by the server, sorts stations by
- * name within each province, and derives per-province monthly totals.
- */
-function buildGroupsFromExport(provinces: ProvinceExportModel[]): ProvinceGroup[] {
-  return provinces
+function normalizeTargetReferenceRow(item: any): TargetReferenceClassModel | null {
+  const targetdate = item.targetdate ?? item.Targetdate ?? item.targetDate;
+  const reportmonth = item.reportmonth ?? item.Reportmonth ?? item.reportMonth;
+  const bplototal = Number(item.bplototal ?? item.BPLOtotal ?? item.bploTotal ?? 0);
+  const govtotal = Number(item.govtotal ?? item.Govtotal ?? item.govTotal ?? 0);
+  const pezatotal = Number(item.pezatotal ?? item.PEZAtotal ?? item.pezaTotal ?? 0);
+  const tiezatotal = Number(item.tiezatotal ?? item.TIEZAtotal ?? item.tiezaTotal ?? 0);
+
+  if (targetdate == null && reportmonth == null && bplototal === 0 && govtotal === 0 && pezatotal === 0 && tiezatotal === 0) {
+    return null;
+  }
+
+  return {
+    targetno: String(item.targetno ?? item.Targetno ?? ""),
+    targetdate: targetdate == null ? undefined : String(targetdate),
+    reportyear: item.reportyear ?? item.Reportyear,
+    reportmonth: reportmonth == null ? undefined : Number(reportmonth),
+    reportday: item.reportday ?? item.Reportday,
+    remarks: item.remarks ?? item.Remarks,
+    bplototal,
+    govtotal,
+    pezatotal,
+    tiezatotal,
+  };
+}
+
+function normalizeExportStation(item: any): TargetReferenceModel {
+  const targetreferencelist = Array.isArray(item.targetreferencelist)
+    ? item.targetreferencelist
+    : Array.isArray(item.targetreferenceList)
+    ? item.targetreferenceList
+    : Array.isArray(item.TargetReferenceList)
+    ? item.TargetReferenceList
+    : null;
+
+  const rows = Array.isArray(targetreferencelist)
+    ? targetreferencelist
+        .map(normalizeTargetReferenceRow)
+        .filter((row): row is TargetReferenceClassModel => row != null)
+    : [];
+
+  const singleRow = normalizeTargetReferenceRow(item);
+  const targetreferencelistRows = rows.length > 0 ? rows : singleRow ? [singleRow] : [];
+
+  return {
+    stationno: String(item.stationno ?? item.Stationno ?? ""),
+    stationcode: String(item.stationcode ?? item.stationCode ?? item.Stationcode ?? ""),
+    stationname: String(item.stationname ?? item.stationName ?? item.Stationname ?? ""),
+    provinceno: String(item.provinceno ?? item.Provinceno ?? item.provinceNo ?? ""),
+    provincename: String(
+      item.provincename ?? item.province ?? item.provinceName ?? item.Provincename ?? "—",
+    ),
+    logourl: String(item.logourl ?? item.logoUrl ?? item.Logourl ?? ""),
+    targetreferencelist: targetreferencelistRows,
+  };
+}
+
+function buildGroupsFromExport(provinces: unknown): ProvinceGroup[] {
+  const normalizedProvinces: ProvinceExportModel[] = [];
+  const payload = Array.isArray(provinces)
+    ? provinces
+    : (provinces as any)?.data ?? (provinces as any)?.provinces ?? [];
+
+  if (!Array.isArray(payload) || payload.length === 0) {
+    return [];
+  }
+
+  const first = payload[0] as any;
+  if (Array.isArray(first.stations) || Array.isArray(first.stationlist)) {
+    for (const rawProv of payload as any[]) {
+      const stations = Array.isArray(rawProv.stations)
+        ? rawProv.stations
+        : Array.isArray(rawProv.stationlist)
+        ? rawProv.stationlist
+        : [];
+      normalizedProvinces.push({
+        provinceno: String(rawProv.provinceno ?? rawProv.provinceNo ?? rawProv.Provinceno ?? ""),
+        provincename: String(
+          rawProv.provincename ?? rawProv.province ?? rawProv.provinceName ?? rawProv.Provincename ?? "—",
+        ),
+        stations: stations.map(normalizeExportStation),
+      });
+    }
+  } else {
+    const groupsByProvince = new Map<
+      string,
+      {
+        provinceno: string;
+        provincename: string;
+        stations: Map<string, TargetReferenceModel>;
+      }
+    >();
+
+    for (const rawStation of payload as any[]) {
+      const station = normalizeExportStation(rawStation);
+      const stationKey = station.stationno || station.stationname || "__unknown";
+      const provinceKey = station.provinceno || station.provincename || "__unknown";
+      let province = groupsByProvince.get(provinceKey);
+      if (!province) {
+        province = {
+          provinceno: station.provinceno ?? "",
+          provincename: station.provincename ?? "—",
+          stations: new Map<string, TargetReferenceModel>(),
+        };
+        groupsByProvince.set(provinceKey, province);
+      }
+
+      const existingStation = province.stations.get(stationKey);
+      if (existingStation) {
+        existingStation.targetreferencelist = [
+          ...existingStation.targetreferencelist,
+          ...station.targetreferencelist,
+        ];
+      } else {
+        province.stations.set(stationKey, station);
+      }
+    }
+
+    for (const province of groupsByProvince.values()) {
+      normalizedProvinces.push({
+        provinceno: province.provinceno,
+        provincename: province.provincename,
+        stations: Array.from(province.stations.values()),
+      });
+    }
+  }
+
+  return normalizedProvinces
     .filter((p) => p && Array.isArray(p.stations))
     .map<ProvinceGroup>((p) => {
       const provinceName = p.provincename ?? "—";
