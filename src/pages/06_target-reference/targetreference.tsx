@@ -743,6 +743,20 @@ function TargetCard({
       ),
     [months, derived],
   );
+  const quarterlyTotal = React.useMemo(
+    () =>
+      QUARTERS.map((_, idx) => idx)
+        .filter((idx) => monthSet.has(idx * 3 + 1))
+        .reduce((acc, idx) => addBucket(acc, derived.quarters[idx]), emptyBucket()),
+    [derived.quarters, monthSet],
+  );
+  const semesterTotal = React.useMemo(
+    () =>
+      HALVES.map((_, idx) => idx)
+        .filter((idx) => monthSet.has(idx * 6 + 1))
+        .reduce((acc, idx) => addBucket(acc, derived.halves[idx]), emptyBucket()),
+    [derived.halves, monthSet],
+  );
   const annualSum =
     derived.annual.bplo + derived.annual.gov + derived.annual.peza + derived.annual.tieza;
 
@@ -892,25 +906,54 @@ function TargetCard({
                 icon={<BarChart3 className="h-3.5 w-3.5" />}
                 title="Quarterly Targets"
               />
-              <table className="w-full text-xs">
-                <TableHead firstLabel="Period" />
-                <tbody>
-                  {QUARTERS.map((q, idx) => ({ q, idx }))
-                    .filter(({ idx }) => monthSet.has(idx * 3 + 1))
-                    .map(({ q, idx }, i) => {
-                    const b = derived.quarters[idx];
-                    return (
-                      <tr key={q} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-                        <td className="px-2 py-1.5 font-medium">{q}</td>
-                        <BucketCell b={b} k="bplo" />
-                        <BucketCell b={b} k="gov" />
-                        <BucketCell b={b} k="peza" />
-                        <BucketCell b={b} k="tieza" />
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="max-h-56 overflow-auto">
+                <table className="w-full text-xs">
+                  <TableHead firstLabel="Period" />
+                  <tbody>
+                    {QUARTERS.map((q, idx) => ({ q, idx }))
+                      .filter(({ idx }) => monthSet.has(idx * 3 + 1))
+                      .map(({ q, idx }, i) => {
+                      const b = derived.quarters[idx];
+                      return (
+                        <tr key={q} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                          <td className="px-2 py-1.5 font-medium">{q}</td>
+                          <BucketCell b={b} k="bplo" />
+                          <BucketCell b={b} k="gov" />
+                          <BucketCell b={b} k="peza" />
+                          <BucketCell b={b} k="tieza" />
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="sticky bottom-0 z-20">
+                    <tr className="font-semibold">
+                      <td className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 shadow-[0_-1px_0_0_hsl(var(--border))]">
+                        TOTAL
+                      </td>
+                      <BucketCell
+                        b={quarterlyTotal}
+                        k="bplo"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={quarterlyTotal}
+                        k="gov"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={quarterlyTotal}
+                        k="peza"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={quarterlyTotal}
+                        k="tieza"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </>
           )}
 
@@ -920,25 +963,54 @@ function TargetCard({
                 icon={<Layers className="h-3.5 w-3.5" />}
                 title="Semi-Annual Targets"
               />
-              <table className="w-full text-xs">
-                <TableHead firstLabel="Period" />
-                <tbody>
-                  {HALVES.map((h, idx) => ({ h, idx }))
-                    .filter(({ idx }) => monthSet.has(idx * 6 + 1))
-                    .map(({ h, idx }, i) => {
-                    const b = derived.halves[idx];
-                    return (
-                      <tr key={h} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-                        <td className="px-2 py-1.5 font-medium">{h}</td>
-                        <BucketCell b={b} k="bplo" />
-                        <BucketCell b={b} k="gov" />
-                        <BucketCell b={b} k="peza" />
-                        <BucketCell b={b} k="tieza" />
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="max-h-56 overflow-auto">
+                <table className="w-full text-xs">
+                  <TableHead firstLabel="Period" />
+                  <tbody>
+                    {HALVES.map((h, idx) => ({ h, idx }))
+                      .filter(({ idx }) => monthSet.has(idx * 6 + 1))
+                      .map(({ h, idx }, i) => {
+                      const b = derived.halves[idx];
+                      return (
+                        <tr key={h} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                          <td className="px-2 py-1.5 font-medium">{h}</td>
+                          <BucketCell b={b} k="bplo" />
+                          <BucketCell b={b} k="gov" />
+                          <BucketCell b={b} k="peza" />
+                          <BucketCell b={b} k="tieza" />
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="sticky bottom-0 z-20">
+                    <tr className="font-semibold">
+                      <td className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] px-2 py-1.5 shadow-[0_-1px_0_0_hsl(var(--border))]">
+                        TOTAL
+                      </td>
+                      <BucketCell
+                        b={semesterTotal}
+                        k="bplo"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={semesterTotal}
+                        k="gov"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={semesterTotal}
+                        k="peza"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                      <BucketCell
+                        b={semesterTotal}
+                        k="tieza"
+                        className="sticky bottom-0 z-20 bg-card [background-image:linear-gradient(hsl(var(--primary)/0.1),hsl(var(--primary)/0.1))] shadow-[0_-1px_0_0_hsl(var(--border))]"
+                      />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </>
           )}
 
