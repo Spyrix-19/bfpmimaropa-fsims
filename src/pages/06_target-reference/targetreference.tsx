@@ -427,7 +427,7 @@ export default function TargetReferenceIndexPage() {
     try {
       const resp = await targetreferenceAPI.getLedger(
         {
-          parameters: buildLedgerRequest(filterState, "", provincePayload),
+          parameters: buildLedgerRequest(filterState, "", provincePayload ?? []),
           pagenumber: 0,
           pagesize: 0,
         },

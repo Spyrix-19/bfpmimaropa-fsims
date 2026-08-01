@@ -116,8 +116,8 @@ function buildStationRow(m: TargetReferenceModel): StationRow {
   });
   return {
     stationno: m.stationno,
-    stationCode: m.stationcode ?? m.stationCode ?? (m as any).stationCode ?? "",
-    stationName: m.stationname ?? m.stationName ?? (m as any).stationName ?? "",
+    stationCode: m.stationcode ?? (m as any).stationCode ?? "",
+    stationName: m.stationname ?? (m as any).stationName ?? "",
     cityName: (m as any).cityname ?? (m as any).cityName ?? (m as any).cityname ?? (m as any).cityName ?? "",
     province: m.provincename ?? (m as any).province ?? (m as any).province ?? "—",
     logoUrl: m.logourl ?? (m as any).logoUrl ?? (m as any).logoUrl ?? "",
