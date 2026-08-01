@@ -782,23 +782,66 @@ function InspectionsNewBody({
 
       {/* Actions ----------------------------------------------------------- */}
       <div className="flex flex-wrap justify-end gap-2">
-        {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
+        {needsRevisionRequest ? (
+          <Button
+            type="button"
+            onClick={() => {
+              if (!station.no || station.no === EMPTY_GUID) {
+                toast.error("Please select a station first.");
+                return;
+              }
+              setAddRevisionOpen(true);
+            }}
+            className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
+          >
+            <FilePen className="h-4 w-4" /> Request Revision
           </Button>
+        ) : hasPendingRevision ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                if (activeRequest) setCancelRequestId(activeRequest.requestno);
+                else toast.info("No active revision request to cancel.");
+              }}
+            >
+              <Ban className="h-4 w-4" /> Cancel Request
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="gap-2"
+              onClick={() => {
+                if (activeRequest) setDeleteRequestId(activeRequest.requestno);
+                else toast.info("No revision request to delete.");
+              }}
+            >
+              <Trash2 className="h-4 w-4" /> Delete Request
+            </Button>
+          </>
+        ) : (
+          <>
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+            <Button
+              type="submit"
+              disabled={saving || checkingExisting}
+              className="bg-gradient-primary text-primary-foreground shadow-elegant"
+            >
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {saving ? "Saving…" : existingFsisno ? "Update" : "Save Inspection"}
+            </Button>
+          </>
         )}
-        <Button
-          type="submit"
-          disabled={saving}
-          className="bg-gradient-primary text-primary-foreground shadow-elegant"
-        >
-          {saving ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          {saving ? "Saving…" : "Save Inspection"}
-        </Button>
       </div>
 
       {/* Track auth context so unused-var lint stays quiet in stand-alone mode. */}
@@ -811,11 +854,93 @@ function InspectionsNewBody({
         contentIconBgClass="tone-warning-soft"
         contentIconColorClass="text-warning"
         title="Fire Safety Compliance Already Exists"
-        description="A fire safety compliance record for this station and reporting date already exists. Open the existing record for editing instead."
-        confirmLabel="Edit Existing"
+        description={`A fire safety compliance record already exists for ${
+          pendingExistingRecord?.stationname || station.name || "this station"
+        } on ${formatLongDate(reportingDate)}.\n\n${
+          existingLocked
+            ? "This record is already locked — it will be opened as read-only and any change will require a revision request."
+            : "Do you want to open and edit the existing record?"
+        }`}
+        confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
         showCancel={false}
         onConfirm={handleDuplicateConfirm}
       />
+
+      {addRevisionOpen && (
+        <RevisionRequestDialog
+          open={addRevisionOpen}
+          onOpenChange={(v) => setAddRevisionOpen(v)}
+          module="monitoring"
+          station={{
+            stationno: station.no,
+            stationcode: station.model?.stationcode ?? "",
+            stationname: station.name || station.model?.stationname || "",
+            provinceno: province.no,
+            provincename: province.name,
+            cityname: station.model?.cityname ?? user?.cityname ?? "",
+          }}
+          year={year}
+          month={month}
+          referencekey={existingFsisno || EMPTY_GUID}
+          dateinspected={selectedDateKey}
+          onSubmitted={() => setReloadNonce((n) => n + 1)}
+        />
+      )}
+
+      <ReasonRemarksDialog
+        open={!!cancelRequestId}
+        onOpenChange={(v) => !v && setCancelRequestId(null)}
+        title="Cancel Revision Request"
+        description="Provide the reason for cancelling this pending request."
+        reasonLabel="Cancellation Reason"
+        confirmLabel="Cancel Request"
+        confirmVariant="destructive"
+        onConfirm={async ({ reason, remarks: cancelRemarks }) => {
+          if (!cancelRequestId) return;
+          const resp = await revisionrequestAPI.status({
+            requestno: cancelRequestId,
+            stationno: station.no || EMPTY_GUID,
+            requesttype: "ISSUANCE",
+            remarks: [reason, cancelRemarks].filter(Boolean).join(" — "),
+            statusno: 155,
+            taggedby: user?.memberno ?? "",
+          });
+          const { ok, error } = unwrap(resp);
+          if (!ok) {
+            toast.error(error || "Unable to cancel revision request.");
+            return;
+          }
+          toast.success("Revision request cancelled.");
+          setCancelRequestId(null);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteRequestId}
+        onOpenChange={(v) => !v && setDeleteRequestId(null)}
+        title="Delete Revision Request?"
+        description="This will permanently delete the selected revision request."
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        onConfirm={async () => {
+          if (!deleteRequestId) return;
+          const resp = await revisionrequestAPI.delete({
+            requestno: deleteRequestId,
+            deletedby: user?.memberno ?? "",
+            roleno: Number(systemAccess?.roleno ?? 0),
+          });
+          const { ok, error } = unwrap(resp);
+          if (!ok) {
+            toast.error(error || "Unable to delete revision request.");
+            return;
+          }
+          toast.success("Revision request deleted.");
+          setDeleteRequestId(null);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
+
     </form>
   );
 }
