@@ -27,16 +27,16 @@ import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
-import { MONITORING_THEME } from "./monitoringTheme";
+import { MONITORING_THEME } from "./complianceTheme";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { cn } from "@/lib/utils";
 
-import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+import { targetinventoryAPI } from "@/services/complianceAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type {
   FSISInventoryDTO,
-  } from "@/types/targetinventoryType";
+  } from "@/types/complianceType";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
 /* -------------------------------------------------------------------------- */

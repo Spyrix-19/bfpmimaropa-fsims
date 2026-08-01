@@ -2,9 +2,9 @@ import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT }
 
 import { FSISInventoryDTO, TargetAccomplishmentParams, TargetAccomplishmentModel, FSISInventoryLedgerParams, FSISInventoryLedgerModel,
 FSISUpdateInventoryDTO, FSISInventoryMonthlyParams, FSISCheckInventoryMonthlyParams, FSISInventoryMonthlyLedgerModel, FSISInventoryDeleteParams,
-ExportFSISInventoryDTO } from "@/types/targetinventoryType";
+ExportFSISInventoryDTO } from "@/types/complianceType";
 
-export const targetinventoryAPI = {
+export const complianceAPI = {
   async create(params: FSISInventoryDTO) {
     return await apiPost("/api/v1/FSISInventory/Create", params, { ...NO_RETRY });
   },

@@ -11,11 +11,11 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "@/components/ui/card";
-import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+import { targetinventoryAPI } from "@/services/complianceAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { cn } from "@/lib/utils";
-import type { TargetAccomplishmentModel } from "@/types/targetinventoryType";
+import type { TargetAccomplishmentModel } from "@/types/complianceType";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 
 type CategoryKey = "bplo" | "gov" | "peza" | "tieza";

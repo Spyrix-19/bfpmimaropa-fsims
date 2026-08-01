@@ -7,14 +7,14 @@ import { AppShell } from "@/components/AppShell";
 import { Toaster } from "@/components/ui/sonner";
 
 const Dashboard = lazy(() => import("@/pages/02_dashboard/Dashboard"));
-const Monitoring = lazy(() => import("./pages/04_monitoring/Monitoring.tsx"));
-const InventoryView = lazy(() => import("./pages/04_monitoring/components/monitoringView.tsx"));
-const InventoryEdit = lazy(() => import("./pages/04_monitoring/components/monitoringEdit.tsx"));
+const Monitoring = lazy(() => import("./pages/04_compliance/Compliance.tsx"));
+const InventoryView = lazy(() => import("./pages/04_compliance/components/complianceView.tsx"));
+const InventoryEdit = lazy(() => import("./pages/04_compliance/components/complianceEdit.tsx"));
 const TargetReference = lazy(() => import("@/pages/06_target-reference/targetreference"));
 const AccomplishedNotice = lazy(() => import("@/pages/05_accomplished_notices/AccomplishedNotice"));
 
 const Reports = lazy(() => import("@/pages/08_reports/MatrixReports.tsx"));
-const InspectionsNew = lazy(() => import("./pages/04_monitoring/components/monitoringNew.tsx"));
+const InspectionsNew = lazy(() => import("./pages/04_compliance/components/complianceNew.tsx"));
 const Profile = lazy(() => import("@/pages/03_profile/Profile"));
 const SettingsPage = lazy(() => import("@/pages/10_settings/Settings"));
 const AvailableUsers = lazy(() => import("@/pages/09_users/AvailableUsers"));

@@ -44,7 +44,7 @@ import { EMPTY_GUID, unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
-import { MONITORING_THEME } from "./monitoringTheme";
+import { MONITORING_THEME } from "./complianceTheme";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "@/pages/06_target-reference/revision/RevisionStatusBadge";
@@ -53,7 +53,7 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 
-import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+import { targetinventoryAPI } from "@/services/complianceAPI";
 import { stationAPI } from "@/services/stationAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
@@ -64,7 +64,7 @@ import type {
   FSISInventoryIssuanceClassDTO,
   FSISUpdateInventoryClass,
   FSISUpdateInventoryDTO,
-  } from "@/types/targetinventoryType";
+  } from "@/types/complianceType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 

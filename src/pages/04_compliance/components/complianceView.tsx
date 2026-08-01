@@ -20,8 +20,8 @@ import { ArrowLeft, Eye, Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import { stationAPI } from "@/services/stationAPI";
-import { targetinventoryAPI } from "@/services/targetinventoryAPI";
-import { MONITORING_THEME } from "./monitoringTheme";
+import { targetinventoryAPI } from "@/services/complianceAPI";
+import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
@@ -32,7 +32,7 @@ import type {
   FSISInventoryMonthlyLedgerModel,
   FSISInventoryMonthlyClass,
   FSISIssuanceClassModel,
-} from "@/types/targetinventoryType";
+} from "@/types/complianceType";
 import type { SearchStationModel } from "@/types/stationTypes";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 

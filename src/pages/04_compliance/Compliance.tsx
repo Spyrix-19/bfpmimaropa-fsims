@@ -24,10 +24,10 @@ import {
 } from "lucide-react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import InventoryMatrix from "./monitoringMatrix.tsx";
-import { InventoryViewModal } from "./components/monitoringView.tsx";
-import { InventoryEditModal } from "./components/monitoringEdit.tsx";
-import { InspectionsNewModal } from "./components/monitoringNew.tsx";
+import InventoryMatrix from "./complianceMatrix.tsx";
+import { InventoryViewModal } from "./components/complianceView.tsx";
+import { InventoryEditModal } from "./components/complianceEdit.tsx";
+import { InspectionsNewModal } from "./components/complianceNew.tsx";
 import TargetAccomplishmentPanel from "./components/TargetAccomplishmentPanel.tsx";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
@@ -53,7 +53,7 @@ import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField"
 // Monthly ledger queries are moved to the editor modal to avoid
 // calling the heavy Monthly endpoint on the main listing view.
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
-import { targetinventoryAPI } from "@/services/targetinventoryAPI";
+import { targetinventoryAPI } from "@/services/complianceAPI.ts";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
@@ -63,7 +63,7 @@ import type {
   FSISInventoryMonthlyLedgerModel,
   FSISInventoryMonthlyClass,
   FSISIssuanceClassModel,
-} from "@/types/targetinventoryType";
+} from "@/types/complianceType.ts";
 
 // Page-local aliases — the existing DTOs in `types/` are immutable; these
 // names keep this file's original semantics without touching type files.
