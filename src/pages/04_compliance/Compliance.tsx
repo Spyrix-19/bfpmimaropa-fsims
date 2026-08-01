@@ -30,7 +30,7 @@ import { InventoryEditModal } from "./components/complianceEdit.tsx";
 import { InspectionsNewModal } from "./components/complianceNew.tsx";
 import TargetAccomplishmentPanel from "./components/TargetAccomplishmentPanel.tsx";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
-import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
+import { MIMAROPA_REGION_CODE, MONTHS, QUARTERS } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import PaginationControls from "@/components/pagination";
 import ResetFiltersButton from "@/components/reset-filters-button";
@@ -38,6 +38,8 @@ import {
   ModuleFilterBar,
   useModuleFilterState,
   resolvePrimaryMonth,
+  resolveSelectedDay,
+  type ModuleInterval,
 } from "@/components/shared/ModuleFilterBar";
 
 import FilterField from "@/components/filter-field";
@@ -53,7 +55,7 @@ import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField"
 // Monthly ledger queries are moved to the editor modal to avoid
 // calling the heavy Monthly endpoint on the main listing view.
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
-import { targetinventoryAPI } from "@/services/complianceAPI.ts";
+import { targetinventoryAPI, complianceAPI } from "@/services/complianceAPI.ts";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
@@ -142,7 +144,10 @@ function sumBucket(
   return out;
 }
 
-export type LedgerRow = MonthlyInventoryRow & { daily?: FSISInventoryLedgerDailyItem[] };
+export type LedgerRow = MonthlyInventoryRow & {
+  daily?: FSISInventoryLedgerDailyItem[];
+  monthlyTargets?: Record<string, number>;
+};
 
 function mapMonthlyItemToRow(
   item: FSISInventoryMonthlyItem,
@@ -188,6 +193,15 @@ function mapMonthlyItemToRow(
   const year = Number(anyItem.reportyear) || fallbackYear || 0;
   const month = Number(anyItem.reportmonth) || fallbackMonth || 0;
 
+  // Capture station-level monthly targets so the ledger can show target
+  // values even when the daily records do not echo dailytarget* fields.
+  const monthlyTargets = {
+    inspectbplocount: Number((item as { totaltargetbplo?: number }).totaltargetbplo ?? 0) || 0,
+    inspectgovcount: Number((item as { totaltargetgov?: number }).totaltargetgov ?? 0) || 0,
+    inspectpezacount: Number((item as { totaltargetpeza?: number }).totaltargetpeza ?? 0) || 0,
+    inspecttiezacount: Number((item as { totaltargettieza?: number }).totaltargettieza ?? 0) || 0,
+  };
+
   return {
     key: `${item.stationno}|${year}|${month}`,
     stationno: item.stationno,
@@ -205,6 +219,94 @@ function mapMonthlyItemToRow(
     breakdown,
     lastupdated: latestDate,
     daily,
+    monthlyTargets,
+  };
+}
+
+/**
+ * /api/v1/FSISInventory/Ledger does NOT return the dailytarget* fields, so the
+ * Target columns render blank. /api/v1/FSISCompliance/Ledger does return them,
+ * keyed by `fsisno`. Fetch that once per listing and merge the targets into the
+ * daily records already loaded from the inventory ledger.
+ */
+async function fetchDailyTargets(
+  items: FSISInventoryMonthlyItem[],
+  year: number,
+  month: number,
+  signal?: AbortSignal,
+): Promise<Map<string, Record<string, number>>> {
+  const out = new Map<string, Record<string, number>>();
+  const byProvince = new Map<string, Set<string>>();
+  for (const it of items) {
+    if (!it.provinceno || !it.stationno) continue;
+    if (!byProvince.has(it.provinceno)) byProvince.set(it.provinceno, new Set());
+    byProvince.get(it.provinceno)!.add(it.stationno);
+  }
+  if (!byProvince.size || !year || !month) return out;
+
+  try {
+    const resp = await complianceAPI.getLedger(
+      {
+        parameters: {
+          searchkey: "",
+          reportyear: Number(year),
+          interval: 1,
+          targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
+          dateinspected: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
+          reportmonth: [Number(month)],
+          provinces: Array.from(byProvince, ([provinceno, stations]) => ({
+            provinceno,
+            stationnos: Array.from(stations),
+          })),
+        },
+        pagenumber: 1,
+        pagesize: Math.max(items.length, 10),
+      },
+      { suppressGlobalLoading: true, signal },
+    );
+    const { ok, data } = unwrap<
+      {
+        stationno?: string;
+        compliancelist?: Record<string, unknown>[];
+      }[]
+    >(resp);
+    if (!ok) return out;
+    for (const st of Array.isArray(data) ? data : []) {
+      for (const rec of Array.isArray(st?.compliancelist) ? st.compliancelist : []) {
+        const targets = {
+          dailytargetbplo: Number(rec?.dailytargetbplo ?? 0) || 0,
+          dailytargetgov: Number(rec?.dailytargetgov ?? 0) || 0,
+          dailytargetpeza: Number(rec?.dailytargetpeza ?? 0) || 0,
+          dailytargettieza: Number(rec?.dailytargettieza ?? 0) || 0,
+        };
+        const fsisno = String(rec?.fsisno ?? "");
+        if (fsisno) out.set(`fsis:${fsisno}`, targets);
+        const iso = String(rec?.dateinspected ?? "").slice(0, 10);
+        const stationno = String(rec?.stationno ?? st?.stationno ?? "");
+        if (iso && stationno) out.set(`date:${stationno}|${iso}`, targets);
+      }
+    }
+  } catch {
+    /* targets are best-effort — leave the ledger rendering without them */
+  }
+  return out;
+}
+
+/** Merges fetched dailytarget* values into a mapped row's daily records. */
+function withDailyTargets(
+  row: LedgerRow,
+  targets: Map<string, Record<string, number>>,
+): LedgerRow {
+  if (!targets.size || !Array.isArray(row.daily)) return row;
+  return {
+    ...row,
+    daily: row.daily.map((d) => {
+      const iso = String(d?.dateinspected ?? "").slice(0, 10);
+      const t =
+        targets.get(`fsis:${String((d as { fsisno?: string }).fsisno ?? "")}`) ??
+        targets.get(`date:${row.stationno}|${iso}`);
+      return t ? { ...d, ...t } : d;
+    }),
   };
 }
 
@@ -233,6 +335,9 @@ export default function FireSafetyCompliancePage() {
   } = useModuleFilterState();
   const year = filterState.year;
   const month = String(resolvePrimaryMonth(filterState));
+  /** Interval + specific day drive how TARGET values are aggregated (Target Reference parity). */
+  const interval = filterState.interval;
+  const selectedDay = React.useMemo(() => resolveSelectedDay(filterState), [filterState]);
 
   const [provinceno, setProvinceno] = React.useState<string>(
     scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
@@ -386,8 +491,20 @@ export default function FireSafetyCompliancePage() {
         setTotal(0);
       } else {
         const items = Array.isArray(data) ? data : [];
-        setRows(items.map((it) => mapMonthlyItemToRow(it, Number(year), Number(month))));
+        const mapped = items.map((it) => mapMonthlyItemToRow(it, Number(year), Number(month)));
+        setRows(mapped);
         setTotal(Number(apiTotal || items.length || 0));
+        // The inventory ledger has no target fields — enrich from the
+        // compliance ledger so the Target columns are populated.
+        const targets = await fetchDailyTargets(
+          items,
+          Number(year),
+          Number(month),
+          controller.signal,
+        );
+        if (!cancelled && targets.size) {
+          setRows(mapped.map((r) => withDailyTargets(r, targets)));
+        }
       }
       setLoading(false);
     })();
@@ -609,6 +726,8 @@ export default function FireSafetyCompliancePage() {
             <ComplianceLedgerCard
               key={r.key}
               row={r}
+              interval={interval}
+              selectedDay={selectedDay}
               locked={monthLocked || !canManage}
               onView={() => setViewTarget(r)}
               onEdit={() => setEditTarget(r)}
@@ -808,6 +927,13 @@ const ISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
 
 const ISSUANCE_COLS = ISSUANCE_GROUPS.flatMap((g) => g.cols);
 
+/** Columns that end a category group — used to draw a visual divider line. */
+const GROUP_END_KEYS = new Set([
+  ...INSPECTION_PLAIN_COLS.slice(-1).map((c) => c.key),
+  ...INSPECTION_TARGET_COLS.slice(-1).map((c) => c.key),
+  ...ISSUANCE_GROUPS.flatMap((g) => g.cols.slice(-1).map((c) => c.key)),
+]);
+
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
 type ModeCounts = Record<string, number>;
@@ -827,36 +953,96 @@ const emptyMode = (): ModeCounts =>
   Object.fromEntries(ISSUANCE_COLS.map((c) => [c.key, 0])) as ModeCounts;
 
 /**
- * Presentation-only: builds the complete, fixed interval list for the period.
+ * Presentation-only: builds the complete, fixed interval list for the period
+ * plus the bucket resolver, mirroring how Target Reference groups targets.
  *
- * - A concrete month (1-12) renders EVERY calendar day of that month.
- * - Month = 0 / ALL renders EVERY month, January → December.
+ * DAILY (specific day) → that calendar day only.
+ * DAILY (all days)     → EVERY calendar day of the month.
+ * MONTHLY              → January … December.
+ * QUARTERLY            → Q1 … Q4.
+ * SEMESTER             → Semester 1 / Semester 2.
+ * ANNUAL               → a single Annual line.
  * Intervals with no API record still render, showing 0.
  */
-function buildIntervals(year: number, month: number): { key: string; label: string }[] {
+type IntervalSpec = {
+  intervals: { key: string; label: string }[];
+  /** Maps an ISO date (yyyy-mm-dd) to its interval key, or null when outside. */
+  bucketOf: (iso: string) => string | null;
+};
+
+function buildIntervalSpec(
+  year: number,
+  month: number,
+  interval: ModuleInterval,
+  selectedDay: number | null,
+): IntervalSpec {
   const y = Number(year) || new Date().getFullYear();
   const m = Number(month) || 0;
-  if (m >= 1 && m <= 12) {
-    const days = calendarDaysInMonth(y, m);
-    return Array.from({ length: days }, (_, i) => {
-      const day = i + 1;
-      const iso = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const d = new Date(`${iso}T00:00:00`);
-      return {
-        key: iso,
-        label: Number.isNaN(d.getTime())
-          ? iso
-          : d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }),
-      };
-    });
-  }
-  return Array.from({ length: 12 }, (_, i) => {
-    const mm = i + 1;
+  const monthOf = (iso: string) => Number(iso.slice(5, 7)) || 0;
+  const yearOf = (iso: string) => Number(iso.slice(0, 4)) || 0;
+
+  if (interval === "MONTHLY") {
     return {
-      key: `${y}-${String(mm).padStart(2, "0")}`,
-      label: `${MONTHS.find((x) => x.value === mm)?.name ?? mm} ${y}`,
+      intervals: Array.from({ length: 12 }, (_, i) => ({
+        key: `${y}-${String(i + 1).padStart(2, "0")}`,
+        label: `${MONTHS.find((x) => x.value === i + 1)?.name ?? i + 1} ${y}`,
+      })),
+      bucketOf: (iso) => (yearOf(iso) === y ? iso.slice(0, 7) : null),
     };
-  });
+  }
+
+  if (interval === "QUARTERLY") {
+    return {
+      intervals: QUARTERS.map((q, i) => ({ key: `${y}-q${i + 1}`, label: `${q} ${y}` })),
+      bucketOf: (iso) => {
+        if (yearOf(iso) !== y) return null;
+        const mm = monthOf(iso);
+        if (mm < 1 || mm > 12) return null;
+        return `${y}-q${Math.floor((mm - 1) / 3) + 1}`;
+      },
+    };
+  }
+
+  if (interval === "SEMESTER") {
+    return {
+      intervals: [1, 2].map((s) => ({ key: `${y}-s${s}`, label: `Semester ${s} ${y}` })),
+      bucketOf: (iso) => {
+        if (yearOf(iso) !== y) return null;
+        const mm = monthOf(iso);
+        if (mm < 1 || mm > 12) return null;
+        return `${y}-s${mm <= 6 ? 1 : 2}`;
+      },
+    };
+  }
+
+  if (interval === "ANNUAL" || interval === "ALL") {
+    return {
+      intervals: [{ key: `${y}-annual`, label: `Annual ${y}` }],
+      bucketOf: (iso) => (yearOf(iso) === y ? `${y}-annual` : null),
+    };
+  }
+
+  // DAILY
+  const dm = m >= 1 && m <= 12 ? m : new Date().getMonth() + 1;
+  const dayLabel = (day: number) =>
+    new Date(y, dm - 1, day).toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  const isoOf = (day: number) =>
+    `${y}-${String(dm).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+  const days =
+    selectedDay && selectedDay >= 1
+      ? [selectedDay]
+      : Array.from({ length: calendarDaysInMonth(y, dm) }, (_, i) => i + 1);
+
+  const keys = new Set(days.map(isoOf));
+  return {
+    intervals: days.map((d) => ({ key: isoOf(d), label: dayLabel(d) })),
+    bucketOf: (iso) => (keys.has(iso) ? iso : null),
+  };
 }
 
 /** Presentation-only: expands the daily payload into MANUAL/FSIS lines per interval. */
@@ -864,9 +1050,11 @@ function buildDayLines(
   daily: FSISInventoryLedgerDailyItem[] | undefined,
   year: number,
   month: number,
+  interval: ModuleInterval = "DAILY",
+  selectedDay: number | null = null,
+  monthlyTargets?: Record<string, number>,
 ): DayLine[] {
-  const intervals = buildIntervals(year, month);
-  const isDaily = Number(month) >= 1 && Number(month) <= 12;
+  const { intervals, bucketOf } = buildIntervalSpec(year, month, interval, selectedDay);
 
   const lineByKey = new Map<string, DayLine>();
   for (const it of intervals) {
@@ -881,10 +1069,25 @@ function buildDayLines(
     });
   }
 
+  // Pre-compute a fallback target per interval when the backend only returns
+  // station-level monthly targets (totaltarget*) and not per-record dailytarget*.
+  const intervalCount = intervals.length || 1;
+  const fallbackTarget = (key: string, intervalKey: string): number => {
+    const total = Number(monthlyTargets?.[key] ?? 0) || 0;
+    if (!total) return 0;
+    // For DAILY, spread the monthly target evenly across days.
+    if (interval === "DAILY") return total / intervalCount;
+    // For MONTHLY/QUARTERLY/SEMESTER/ANNUAL the whole monthly target applies
+    // only to the interval that contains this station-month's data.
+    const bucket = bucketOf(`${year}-${String(month).padStart(2, "0")}-01`);
+    return bucket === intervalKey ? total : 0;
+  };
+
   for (const rec of Array.isArray(daily) ? daily : []) {
     const iso = String(rec?.dateinspected ?? "").slice(0, 10);
     if (!iso || iso.startsWith("1900")) continue;
-    const bucketKey = isDaily ? iso : iso.slice(0, 7);
+    const bucketKey = bucketOf(iso);
+    if (!bucketKey) continue;
     const line = lineByKey.get(bucketKey);
     if (!line) continue;
 
@@ -902,16 +1105,25 @@ function buildDayLines(
     }
     for (const c of INSPECTION_COLS)
       line.inspection[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
-    for (const c of INSPECTION_TARGET_COLS) {
-      const raw = num((rec as unknown as Record<string, unknown>)?.[c.targetKey]);
-      // Daily rows show the target as-is; month buckets accumulate the daily targets.
-      line.target[c.key] = isDaily ? Math.max(line.target[c.key], raw) : line.target[c.key] + raw;
-    }
+    // Targets aggregate exactly like Target Reference: records inside the same
+    // interval bucket are summed (daily, monthly, quarterly, semester, annual).
+    for (const c of INSPECTION_TARGET_COLS)
+      line.target[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.targetKey]);
+  }
 
+  // Apply monthly-target fallback for intervals that received no dailytarget*
+  // values from the backend (keeps the Target column from staying blank).
+  for (const line of lineByKey.values()) {
+    for (const c of INSPECTION_TARGET_COLS) {
+      if (!line.target[c.key]) {
+        line.target[c.key] = fallbackTarget(c.key, line.key);
+      }
+    }
   }
 
   return intervals.map((it) => lineByKey.get(it.key)!);
 }
+
 
 const headCell =
   "border border-border/50 bg-blue-50 dark:bg-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300 whitespace-nowrap text-center";
@@ -923,6 +1135,8 @@ const footCell =
 function ComplianceLedgerCard({
   row,
   locked,
+  interval = "DAILY",
+  selectedDay = null,
   onView,
   onEdit,
   onDelete,
@@ -930,6 +1144,8 @@ function ComplianceLedgerCard({
 }: {
   row: LedgerRow;
   locked: boolean;
+  interval?: ModuleInterval;
+  selectedDay?: number | null;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -938,8 +1154,8 @@ function ComplianceLedgerCard({
   const monthName = MONTHS.find((m) => m.value === row.month)?.name ?? String(row.month);
   const grandTotal = row.totals.inspection + row.totals.fsec + row.totals.fsic + row.totals.notices;
   const lines = React.useMemo(
-    () => buildDayLines(row.daily, row.year, row.month),
-    [row.daily, row.year, row.month],
+    () => buildDayLines(row.daily, row.year, row.month, interval, selectedDay, row.monthlyTargets),
+    [row.daily, row.year, row.month, interval, selectedDay, row.monthlyTargets],
   );
 
 
@@ -1013,44 +1229,44 @@ function ComplianceLedgerCard({
                 <tr>
                   <th
                     rowSpan={3}
-                    className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] text-left`}
+                    className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r-2 border-r-border/60 text-left`}
                   >
                     Date
                   </th>
                   <th
                     colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 2}
-                    className={`${headCell} sticky top-0 z-30`}
+                    className={`${headCell} sticky top-0 z-30 border-r-2 border-r-border/60`}
                   >
                     Inspection
                   </th>
-                  <th rowSpan={3} className={`${headCell} sticky top-0 z-30`}>
+                  <th rowSpan={3} className={`${headCell} sticky top-0 z-30 border-r-2 border-r-border/60`}>
                     Mode of Issuance
                   </th>
-                  {ISSUANCE_GROUPS.map((g) => (
+                  {ISSUANCE_GROUPS.map((g, idx) => (
                     <th
                       key={g.title}
                       colSpan={g.cols.length}
-                      className={`${headCell} sticky top-0 z-30`}
+                      className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
                     >
                       {g.title}
                     </th>
                   ))}
                 </tr>
                 <tr>
-                  {INSPECTION_PLAIN_COLS.map((c) => (
+                  {INSPECTION_PLAIN_COLS.map((c, idx) => (
                     <th
                       key={c.key}
                       rowSpan={2}
-                      className={`${headCell} sticky top-[30px] z-30 min-w-[5rem]`}
+                      className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
                     >
                       {c.label}
                     </th>
                   ))}
-                  {INSPECTION_TARGET_COLS.map((c) => (
+                  {INSPECTION_TARGET_COLS.map((c, idx) => (
                     <th
                       key={c.key}
                       colSpan={2}
-                      className={`${headCell} sticky top-[30px] z-30 min-w-[10rem]`}
+                      className={`${headCell} sticky top-[30px] z-30 min-w-[10rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
                     >
                       {c.label}
                     </th>
@@ -1059,17 +1275,17 @@ function ComplianceLedgerCard({
                     <th
                       key={c.key}
                       rowSpan={2}
-                      className={`${headCell} sticky top-[30px] z-30 min-w-[5rem]`}
+                      className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
                     >
                       {c.label}
                     </th>
                   ))}
                 </tr>
                 <tr>
-                  {INSPECTION_TARGET_COLS.map((c) => (
+                  {INSPECTION_TARGET_COLS.map((c, idx) => (
                     <React.Fragment key={c.key}>
-                      <th className={`${headCell} sticky top-[60px] z-30 min-w-[5rem]`}>Target</th>
-                      <th className={`${headCell} sticky top-[60px] z-30 min-w-[5rem]`}>
+                      <th className={`${headCell} sticky top-[60px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}>Target</th>
+                      <th className={`${headCell} sticky top-[60px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}>
                         Issuance
                       </th>
                     </React.Fragment>
@@ -1085,41 +1301,41 @@ function ComplianceLedgerCard({
                       <th
                         scope="row"
                         rowSpan={2}
-                        className="sticky left-0 z-10 border border-border/40 bg-inherit px-2 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap"
+                        className="sticky left-0 z-10 border border-border/40 border-r-2 border-r-border/60 bg-inherit px-2 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap"
                       >
                         {l.label}
                       </th>
                       {INSPECTION_PLAIN_COLS.map((c) => (
-                        <td key={c.key} rowSpan={2} className={bodyCell}>
+                        <td key={c.key} rowSpan={2} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                           {(l.inspection[c.key] ?? 0).toLocaleString()}
                         </td>
                       ))}
                       {INSPECTION_TARGET_COLS.map((c) => (
                         <React.Fragment key={c.key}>
-                          <td rowSpan={2} className={bodyCell}>
+                          <td rowSpan={2} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                             {(l.target[c.key] ?? 0).toLocaleString()}
                           </td>
-                          <td rowSpan={2} className={bodyCell}>
+                          <td rowSpan={2} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                             {(l.inspection[c.key] ?? 0).toLocaleString()}
                           </td>
                         </React.Fragment>
                       ))}
 
-                      <td className={`${bodyCell} font-semibold text-blue-700 dark:text-blue-300`}>
+                      <td className={`${bodyCell} border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}>
                         MANUAL
                       </td>
                       {ISSUANCE_COLS.map((c) => (
-                        <td key={c.key} className={bodyCell}>
+                        <td key={c.key} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                           {(l.manual[c.key] ?? 0).toLocaleString()}
                         </td>
                       ))}
                     </tr>
                     <tr className="bg-blue-50 dark:bg-slate-700">
-                      <td className={`${bodyCell} font-semibold text-blue-700 dark:text-blue-300`}>
+                      <td className={`${bodyCell} border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}>
                         FSIS
                       </td>
                       {ISSUANCE_COLS.map((c) => (
-                        <td key={c.key} className={bodyCell}>
+                        <td key={c.key} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                           {(l.fsis[c.key] ?? 0).toLocaleString()}
                         </td>
                       ))}
@@ -1132,37 +1348,37 @@ function ComplianceLedgerCard({
                   <th
                     scope="row"
                     rowSpan={2}
-                    className={`${footCell} sticky bottom-0 left-0 z-40 text-left uppercase`}
+                    className={`${footCell} sticky bottom-0 left-0 z-40 border-r-2 border-r-border/60 text-left uppercase`}
                   >
                     Total
                   </th>
                   {INSPECTION_PLAIN_COLS.map((c) => (
-                    <td key={c.key} rowSpan={2} className={`${footCell} sticky bottom-0 z-30`}>
+                    <td key={c.key} rowSpan={2} className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                       {totals.insp[c.key].toLocaleString()}
                     </td>
                   ))}
                   {INSPECTION_TARGET_COLS.map((c) => (
                     <React.Fragment key={c.key}>
-                      <td rowSpan={2} className={`${footCell} sticky bottom-0 z-30`}>
+                      <td rowSpan={2} className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                         {totals.tgt[c.key].toLocaleString()}
                       </td>
-                      <td rowSpan={2} className={`${footCell} sticky bottom-0 z-30`}>
+                      <td rowSpan={2} className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                         {totals.insp[c.key].toLocaleString()}
                       </td>
                     </React.Fragment>
                   ))}
 
-                  <td className={`${footCell} sticky bottom-[30px] z-30`}>MANUAL</td>
+                  <td className={`${footCell} sticky bottom-[30px] z-30 border-r-2 border-r-border/60`}>MANUAL</td>
                   {ISSUANCE_COLS.map((c) => (
-                    <td key={c.key} className={`${footCell} sticky bottom-[30px] z-30`}>
+                    <td key={c.key} className={`${footCell} sticky bottom-[30px] z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                       {totals.manual[c.key].toLocaleString()}
                     </td>
                   ))}
                 </tr>
                 <tr>
-                  <td className={`${footCell} sticky bottom-0 z-30`}>FSIS</td>
+                  <td className={`${footCell} sticky bottom-0 z-30 border-r-2 border-r-border/60`}>FSIS</td>
                   {ISSUANCE_COLS.map((c) => (
-                    <td key={c.key} className={`${footCell} sticky bottom-0 z-30`}>
+                    <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
                       {totals.fsis[c.key].toLocaleString()}
                     </td>
                   ))}

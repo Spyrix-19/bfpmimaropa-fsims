@@ -388,6 +388,12 @@ export interface FSISInventoryLedgerClass {
   inspectpezacount: number;
   inspecttiezacount: number;
 
+  /** Daily inspection targets echoed by the ledger endpoint. */
+  dailytargetbplo?: number;
+  dailytargetgov?: number;
+  dailytargetpeza?: number;
+  dailytargettieza?: number;
+
   fsecbuildingcount: number;
   fsecgovcount: number;
   fsecpezacount: number;
@@ -480,6 +486,12 @@ export interface FSISInventoryMonthlyClass {
   inspectgovcount: number;
   inspectpezacount: number;
   inspecttiezacount: number;
+
+  /** Daily inspection targets echoed by the monthly endpoint. */
+  dailytargetbplo?: number;
+  dailytargetgov?: number;
+  dailytargetpeza?: number;
+  dailytargettieza?: number;
 
   isrevisionrequest?: boolean;
   editablestatus?: number;
