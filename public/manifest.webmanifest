@@ -1,7 +1,7 @@
 {
-  "name": "BFP FSIMS — Fire Safety Inspection Monitoring System",
+  "name": "Fire Safety Inspection Monitoring System",
   "short_name": "FSIMS",
-  "description": "Bureau of Fire Protection Philippines — Fire Safety Inspection Monitoring System.",
+  "description": "Real-time Fire Safety Inspection Monitoring System.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
