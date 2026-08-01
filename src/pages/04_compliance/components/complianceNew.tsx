@@ -40,12 +40,13 @@ import type {
   FSISComplianceClass,
   FSISComplianceDetailClassModel,
   FSISIssuanceClassDTO,
+  TargetAccomplishmentModel,
 } from "@/types/complianceType";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import { formatLongDate } from "@/lib/date-format";
-import { Ban, FilePen, Trash2 } from "lucide-react";
+import { Ban, FilePen, Trash2, Lock } from "lucide-react";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
 /** Row shape returned by the compliance "detail by date" endpoint. */
@@ -64,8 +65,12 @@ function pickComplianceRow(data: unknown): ComplianceRow | null {
       return;
     }
     const obj = value as Record<string, unknown>;
-    if (Array.isArray(obj.compliancelist)) {
-      (obj.compliancelist as unknown[]).forEach(walk);
+    // The wrapper model carries the day rows under `compliancelist` on some
+    // endpoints and `issuancelist` on others — descend into whichever holds
+    // rows, then treat any object with an `fsisno` as a compliance row.
+    if (!obj.fsisno) {
+      if (Array.isArray(obj.compliancelist)) (obj.compliancelist as unknown[]).forEach(walk);
+      if (Array.isArray(obj.issuancelist)) (obj.issuancelist as unknown[]).forEach(walk);
       return;
     }
     rows.push(obj as unknown as ComplianceRow);
@@ -295,6 +300,12 @@ function InspectionsNewBody({
     isrevisionrequest: boolean;
     editablestatus: number;
   }>({ isrevisionrequest: false, editablestatus: 0 });
+  /**
+   * Target vs. inspected values taken straight from the "detail by date"
+   * record (dailytarget* / inspect*count). Null when no record exists for the
+   * selected date — the panel then falls back to its own monthly fetch.
+   */
+  const [dateSummary, setDateSummary] = React.useState<TargetAccomplishmentModel | null>(null);
 
   /* ── Revision workflow (requesttype = ISSUANCE) ──────────────────────────── */
   const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
@@ -356,6 +367,7 @@ function InspectionsNewBody({
     setPendingExistingRecord(null);
     setExistingLocked(false);
     setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+    setDateSummary(null);
   }, []);
 
   /* Existence check — runs whenever station / date changes. */
@@ -386,6 +398,21 @@ function InspectionsNewBody({
         setExistingMeta({
           isrevisionrequest: Boolean(record.isrevisionrequest),
           editablestatus: Number(record.editablestatus ?? 0),
+        });
+        // Bind the target pane straight to the record's daily target and
+        // inspected counts.
+        setDateSummary({
+          stationno: activeStationNo,
+          year: reportingDate.getFullYear(),
+          month: reportingDate.getMonth() + 1,
+          totaltargetbplo: Number(record.dailytargetbplo ?? 0),
+          totaltargetgov: Number(record.dailytargetgov ?? 0),
+          totaltargetpeza: Number(record.dailytargetpeza ?? 0),
+          totaltargettieza: Number(record.dailytargettieza ?? 0),
+          totalAccomplishmentbplo: Number(record.inspectbplocount ?? 0),
+          totalAccomplishmentgov: Number(record.inspectgovcount ?? 0),
+          totalAccomplishmentpeza: Number(record.inspectpezacount ?? 0),
+          totalAccomplishmenttieza: Number(record.inspecttiezacount ?? 0),
         });
         const isPast = reportingDate.getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
@@ -597,20 +624,13 @@ function InspectionsNewBody({
     }
   };
 
-  /** Edit → redirect to the Edit page for that record (or load it inline). */
+  /**
+   * Confirm → plot the existing record inline and switch Save into update
+   * mode (mirrors the Target Reference flow — no page redirect).
+   */
   const handleDuplicateConfirm = () => {
-    if (pendingDuplicateTarget && onEditExisting) {
-      onEditExisting(
-        pendingDuplicateTarget.stationno,
-        pendingDuplicateTarget.year,
-        pendingDuplicateTarget.month,
-        pendingDuplicateTarget.stationName,
-      );
-      setPendingDuplicateTarget(null);
-      setDuplicateDialogOpen(false);
-      return;
-    }
     if (pendingExistingRecord) plotExistingRecord(pendingExistingRecord);
+    setPendingDuplicateTarget(null);
     setDuplicateDialogOpen(false);
   };
 
@@ -641,6 +661,16 @@ function InspectionsNewBody({
 
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
+      {fieldsLocked && (
+        <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+          <span>
+            {hasPendingRevision
+              ? "A revision request for this date is pending approval. Fields stay locked until it is approved."
+              : "This date has already passed and is locked. Submit a revision request to enable editing."}
+          </span>
+        </div>
+      )}
       {/* 1. Reporting Period ------------------------------------------------ */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
@@ -741,7 +771,15 @@ function InspectionsNewBody({
           subtitle={`Reporting month · ${monthName} ${year}`}
         />
 
-        <TargetAccomplishmentPanel stationno={station.no || undefined} year={year} month={month} />
+        <TargetAccomplishmentPanel
+          variant="daily"
+          stationno={station.no || undefined}
+          year={year}
+          month={month}
+          periodLabel={format(reportingDate, "PPP")}
+          data={dateSummary}
+        />
+
 
         <div className="space-y-4">
           <InspectionMatrix

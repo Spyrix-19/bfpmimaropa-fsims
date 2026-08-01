@@ -81,6 +81,8 @@ export default function TargetAccomplishmentPanel({
   year,
   month,
   data: controlledData,
+  variant = "monthly",
+  periodLabel,
 }: {
   stationno: string | undefined;
   year: number;
@@ -91,12 +93,23 @@ export default function TargetAccomplishmentPanel({
    * MonitoringEdit to keep the summary in sync with in-progress ledger edits.
    */
   data?: TargetAccomplishmentModel | null;
+  /**
+   * "monthly" (default) — Edit screens: values come from the monthly
+   * TargetAccomplishment API (fetched here or supplied by the caller).
+   * "daily" — New screen: values come from the per-date payload returned by
+   * `getDetailBydate`, so the panel is always controlled and never fetches.
+   */
+  variant?: "monthly" | "daily";
+  /** Overrides the header period caption (e.g. the selected inspection date). */
+  periodLabel?: string;
 }) {
-  const controlled = controlledData !== undefined;
+  const daily = variant === "daily";
+  const controlled = daily || controlledData !== undefined;
   const [fetched, setFetched] = React.useState<TargetAccomplishmentModel | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const data = controlled ? controlledData : fetched;
+  const data = controlled ? controlledData ?? null : fetched;
+
 
   // Always request fresh data whenever station / year / month changes.
   React.useEffect(() => {
@@ -171,10 +184,15 @@ export default function TargetAccomplishmentPanel({
             <Target className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-sm font-semibold">Monthly Target vs. Inspected</div>
-            <div className="text-[11px] text-muted-foreground">
-              {stationno ? `${monthName} ${year}` : "Select a station to load"}
+            <div className="text-sm font-semibold">
+              {daily ? "Daily Target vs. Inspected" : "Monthly Target vs. Inspected"}
             </div>
+            <div className="text-[11px] text-muted-foreground">
+              {stationno
+                ? periodLabel ?? (daily ? "Selected inspection date" : `${monthName} ${year}`)
+                : "Select a station to load"}
+            </div>
+
           </div>
         </div>
         {loading && (
@@ -214,8 +232,9 @@ export default function TargetAccomplishmentPanel({
             <thead>
               <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-2 text-left">Category</th>
-                <th className="px-4 py-2 text-right"><Dot color={SERIES.target} />Monthly Target</th>
-                <th className="px-4 py-2 text-right"><Dot color={SERIES.inspected} />Monthly Inspected</th>
+                <th className="px-4 py-2 text-right"><Dot color={SERIES.target} />{daily ? "Daily Target" : "Monthly Target"}</th>
+                <th className="px-4 py-2 text-right"><Dot color={SERIES.inspected} />{daily ? "Daily Inspected" : "Monthly Inspected"}</th>
+
                 <th className="px-4 py-2 text-right"><Dot color={SERIES.variance} />Variance</th>
                 <th className="px-4 py-2 text-right"><Dot color={SERIES.positive} />Positive Listing</th>
                 <th className="px-4 py-2 text-right">% Accomplishment</th>
