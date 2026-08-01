@@ -1,7 +1,7 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 
 import { FSISTargetReferenceDTO, TargetReferenceDetailParams, TargetReferenceDetailModel, 
-  GetFSISTargetReferenceRequest, TargetReferenceModel, TargetReferenceDeleteParams, 
+  GetFSISTargetReferenceRequestLedgerParams, TargetReferenceModel, TargetReferenceDeleteParams, 
   ExportTargetReferenceRequestDTO, TargetReferenceByDateModel} from "@/types/targetreferenceType";
 
 export const targetreferenceAPI = {
@@ -10,15 +10,8 @@ export const targetreferenceAPI = {
   },  
 
   async getDetail(params?: TargetReferenceDetailParams, options?: import("@/lib/api").ApiOptions) {
-    const mappedParams = params
-      ? {
-          Stationno: params.stationno,
-          Reportyear: params.reportyear,
-          Reportmonth: params.reportmonth,
-        }
-      : undefined;
     return await apiGet<TargetReferenceDetailModel>("/api/v1/FSISTargetReference/Detail", {
-      params: mappedParams,
+      params,
       ...GET_RETRY,
       ...options,
     });
@@ -36,18 +29,12 @@ export const targetreferenceAPI = {
   },
 
   async getLedger(
-    request: GetFSISTargetReferenceRequest,
+    request: GetFSISTargetReferenceRequestLedgerParams,
     options?: import("@/lib/api").ApiOptions
   ) {
     return await apiPost<TargetReferenceModel[]>(
       "/api/v1/FSISTargetReference/Ledger",
-      request.parameters ?? {
-        searchkey: request.searchkey,
-        stationno: request.stationno,
-        provinceno: request.provinceno,
-        reportyear: request.reportyear,
-        reportmonth: request.reportmonth,
-      },
+      request.parameters,
       {
         params: {
           Pagenumber: request.pagenumber ?? 1,

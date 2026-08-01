@@ -83,14 +83,8 @@ export interface TargetReferenceDetailClassModel {
   dateencoded: string;
 }
 
-export interface GetFSISTargetReferenceRequest {
+export interface GetFSISTargetReferenceRequestLedgerParams {
   parameters?: TargetReferenceParams;
-  /** Legacy flat filter fields accepted by the ledger endpoint. */
-  searchkey?: string;
-  stationno?: string;
-  provinceno?: string;
-  reportyear?: number;
-  reportmonth?: number;
   pagenumber?: number;
   pagesize?: number;
 }
