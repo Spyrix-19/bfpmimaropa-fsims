@@ -81,6 +81,32 @@ function pickComplianceRow(data: unknown): ComplianceRow | null {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Mode of Issuance — the single source of truth for MANUAL / FSIS binding.  */
+/* -------------------------------------------------------------------------- */
+
+/** Mode of Issuance codes used by the API: 96 = MANUAL, 97 = FSIS. */
+export const FSIC_MODE = { MANUAL: 96, FSIS: 97 } as const;
+
+/**
+ * Resolves the Mode of Issuance for an issuance row. The API normally sends
+ * the numeric `fsicmode` (96/97) but some payloads only carry the description
+ * ("MANUAL" / "FSIS") — both are accepted so the row always binds to the
+ * correct column.
+ */
+function resolveFsicMode(row: unknown): number | null {
+  if (!row || typeof row !== "object") return null;
+  const obj = row as Record<string, unknown>;
+  const code = Number(obj.fsicmode);
+  if (code === FSIC_MODE.MANUAL || code === FSIC_MODE.FSIS) return code;
+  const text = String(obj.fsicmodedescription ?? obj.fsicmodedesc ?? obj.fsicmode ?? "")
+    .trim()
+    .toUpperCase();
+  if (text === "MANUAL") return FSIC_MODE.MANUAL;
+  if (text === "FSIS") return FSIC_MODE.FSIS;
+  return null;
+}
+
 /** Midnight of the current local day, in ms. */
 function startOfToday(): number {
   const n = new Date();
@@ -264,9 +290,7 @@ function InspectionsNewBody({
   const [manualIssuance, setManualIssuance] =
     React.useState<Record<string, number>>(defaultIssuance);
   const [fsisIssuance, setFsisIssuance] = React.useState<Record<string, number>>(defaultIssuance);
-  // Mode of Issuance is fixed per column: MANUAL = 96, FSIS = 97.
-  const manualModeNo = "96";
-  const fsisModeNo = "97";
+  // Mode of Issuance is fixed per column: MANUAL = 96, FSIS = 97 (see FSIC_MODE).
   const [remarks, setRemarks] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
@@ -345,16 +369,24 @@ function InspectionsNewBody({
       not_closure: Number(row?.closurecount ?? 0),
     });
 
+    // Bind each issuance row to its column strictly by Mode of Issuance:
+    // 96 = MANUAL, 97 = FSIS. Rows with any other mode are ignored.
     const list = Array.isArray(rec.issuancelist) ? rec.issuancelist : [];
-    const manualRow = list.find((i) => Number(i?.fsicmode) === 96);
-    const fsisRow = list.find((i) => Number(i?.fsicmode) === 97);
+    let manualRow = list.find((i) => resolveFsicMode(i) === FSIC_MODE.MANUAL);
+    let fsisRow = list.find((i) => resolveFsicMode(i) === FSIC_MODE.FSIS);
+    // Legacy / unset payloads come back with `fsicmode: 0` on every row. In
+    // that case fall back to positional order: first row = MANUAL, second = FSIS.
+    if (!manualRow && !fsisRow) {
+      manualRow = list[0];
+      fsisRow = list[1];
+    }
     setManualIssuance(fromIssuance(manualRow as unknown as Record<string, unknown>));
     setFsisIssuance(fromIssuance(fsisRow as unknown as Record<string, unknown>));
 
     // Keep the DATABASE identifiers — never regenerate them.
     setExistingIssuanceNos({
-      "96": manualRow?.issuanceno ? String(manualRow.issuanceno) : EMPTY_GUID,
-      "97": fsisRow?.issuanceno ? String(fsisRow.issuanceno) : EMPTY_GUID,
+      [FSIC_MODE.MANUAL]: manualRow?.issuanceno ? String(manualRow.issuanceno) : EMPTY_GUID,
+      [FSIC_MODE.FSIS]: fsisRow?.issuanceno ? String(fsisRow.issuanceno) : EMPTY_GUID,
     });
     setExistingFsisno(String(rec.fsisno));
     setRemarks(rec.remarks ?? "");
@@ -384,13 +416,26 @@ function InspectionsNewBody({
       const resp = await complianceAPI.getDetailBydate(
         {
           Stationno: activeStationNo,
-          Dateinspected: format(reportingDate, "MM/dd/yyyy"),
+          // The API expects the non-padded US format, e.g. 8/1/2026.
+          Dateinspected: format(reportingDate, "M/d/yyyy"),
         },
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
       const { ok, data } = unwrap<unknown>(resp);
       const record = ok ? pickComplianceRow(data) : null;
+      // Daily targets now live on the station wrapper of Detail/Date; fall
+      // back to the row for older payloads that still carry them per record.
+      const wrapper = (ok && data && typeof data === "object" ? data : {}) as Record<
+        string,
+        unknown
+      >;
+      const target = (key: string) =>
+        Number(
+          (wrapper[key] as number | undefined) ??
+            ((record as unknown as Record<string, unknown>)?.[key] as number | undefined) ??
+            0,
+        );
       setCheckingExisting(false);
 
       if (record) {
@@ -405,10 +450,10 @@ function InspectionsNewBody({
           stationno: activeStationNo,
           year: reportingDate.getFullYear(),
           month: reportingDate.getMonth() + 1,
-          totaltargetbplo: Number(record.dailytargetbplo ?? 0),
-          totaltargetgov: Number(record.dailytargetgov ?? 0),
-          totaltargetpeza: Number(record.dailytargetpeza ?? 0),
-          totaltargettieza: Number(record.dailytargettieza ?? 0),
+          totaltargetbplo: target("dailytargetbplo"),
+          totaltargetgov: target("dailytargetgov"),
+          totaltargetpeza: target("dailytargetpeza"),
+          totaltargettieza: target("dailytargettieza"),
           totalAccomplishmentbplo: Number(record.inspectbplocount ?? 0),
           totalAccomplishmentgov: Number(record.inspectgovcount ?? 0),
           totalAccomplishmentpeza: Number(record.inspectpezacount ?? 0),
@@ -559,14 +604,13 @@ function InspectionsNewBody({
       }
 
       const buildIssuance = (
-        modeNo: string,
+        mode: number,
         vals: Record<string, number>,
       ): FSISIssuanceClassDTO => {
-        const modeNum = Number(modeNo);
         return {
           // Always reuse the database issuance id when editing an existing row.
-          issuanceno: existingIssuanceNos[modeNo] || EMPTY_GUID,
-          fsicmode: Number.isFinite(modeNum) ? modeNum : 0,
+          issuanceno: existingIssuanceNos[String(mode)] || EMPTY_GUID,
+          fsicmode: mode,
           fsecbuildingcount: vals.fsec_new_building ?? 0,
           fsecgovcount: vals.fsec_new_gov ?? 0,
           fsecpezacount: vals.fsec_new_peza ?? 0,
@@ -598,8 +642,9 @@ function InspectionsNewBody({
         isaccomplished: Boolean(existingFsisno),
         remarks: remarks ?? "",
         issuancelist: [
-          buildIssuance(manualModeNo, manualIssuance),
-          buildIssuance(fsisModeNo, fsisIssuance),
+          // 96 → MANUAL column, 97 → FSIS column.
+          buildIssuance(FSIC_MODE.MANUAL, manualIssuance),
+          buildIssuance(FSIC_MODE.FSIS, fsisIssuance),
         ],
       };
 
@@ -900,7 +945,7 @@ function InspectionsNewBody({
         contentIconColorClass="text-warning"
         title="Fire Safety Compliance Already Exists"
         description={`A fire safety compliance record already exists for ${
-          pendingExistingRecord?.stationname || station.name || "this station"
+          station.name || user?.stationname || "this station"
         } on ${formatLongDate(reportingDate)}.\n\n${
           existingLocked
             ? "This record is already locked — it will be opened as read-only and any change will require a revision request."

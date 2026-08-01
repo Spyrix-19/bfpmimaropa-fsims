@@ -71,41 +71,6 @@ export interface FSISComplianceDetailParams {
   reportmonth?: number;
 }
 
-export interface FSISComplianceDetailModel {
-  stationno: string;
-  stationcode: string;
-  stationname: string;
-  provinceno: string;
-  provincename: string;
-  logourl: string;
-  compliancelist: FSISComplianceDetailClassModel[];
-}
-
-export interface FSISComplianceDetailClassModel {
-  fsisno: string;
-  stationno: string;
-  stationcode: string;
-  stationname: string;
-  provinceno: string;
-  provincename: string;
-  logourl: string;
-  dailytargetbplo: number;
-  dailytargetgov: number;
-  dailytargetpeza: number;
-  dailytargettieza: number;
-  inspectduringcount: number;
-  inspectaftercount: number;
-  inspectbplocount: number;
-  inspectgovcount: number;
-  inspectpezacount: number;
-  inspecttiezacount: number;
-  isrevisionrequest: boolean;
-  editablestatus: number;
-  remarks: string;
-  dateinspected: string; // ISO Date string
-  issuancelist: FSISIssuanceDetailClassModel[];
-}
-
 export interface FSISIssuanceDetailClassModel {
   issuanceno: string;
   fsicmode: number;
@@ -124,6 +89,64 @@ export interface FSISIssuanceDetailClassModel {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+}
+
+export interface FSISComplianceDetailByDateClassModel {
+  fsisno: string;
+  inspectduringcount: number;
+  inspectaftercount: number;
+  inspectbplocount: number;
+  inspectgovcount: number;
+  inspectpezacount: number;
+  inspecttiezacount: number;
+  isrevisionrequest: boolean;
+  editablestatus: number;
+  remarks: string;
+  dateinspected: string;
+  issuancelist: FSISIssuanceDetailClassModel[];
+}
+
+export interface FSISComplianceDetailByDateModel {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  logourl: string;
+  dailytargetbplo: number;
+  dailytargetgov: number;
+  dailytargetpeza: number;
+  dailytargettieza: number;
+  compliancelist: FSISComplianceDetailByDateClassModel[];
+}
+
+export interface FSISComplianceDetailClassModel {
+  fsisno: string;
+  dailytargetbplo: number;
+  dailytargetgov: number;
+  dailytargetpeza: number;
+  dailytargettieza: number;
+  inspectduringcount: number;
+  inspectaftercount: number;
+  inspectbplocount: number;
+  inspectgovcount: number;
+  inspectpezacount: number;
+  inspecttiezacount: number;
+  isrevisionrequest: boolean;
+  editablestatus: number;
+  remarks: string;
+  dateinspected: string;
+  issuancelist: FSISIssuanceDetailClassModel[];
+}
+
+export interface FSISComplianceDetailModel {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  logourl: string;
+  compliancelist: FSISComplianceDetailClassModel[];
 }
 
 // Ledger Models
