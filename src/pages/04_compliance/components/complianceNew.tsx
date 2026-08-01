@@ -424,18 +424,12 @@ function InspectionsNewBody({
       if (cancelled) return;
       const { ok, data } = unwrap<unknown>(resp);
       const record = ok ? pickComplianceRow(data) : null;
-      // Daily targets now live on the station wrapper of Detail/Date; fall
-      // back to the row for older payloads that still carry them per record.
+      // Daily targets are returned at the root of the Detail/Date response.
       const wrapper = (ok && data && typeof data === "object" ? data : {}) as Record<
         string,
         unknown
       >;
-      const target = (key: string) =>
-        Number(
-          (wrapper[key] as number | undefined) ??
-            ((record as unknown as Record<string, unknown>)?.[key] as number | undefined) ??
-            0,
-        );
+      const target = (key: string) => Number((wrapper[key] as number | undefined) ?? 0);
       setCheckingExisting(false);
 
       if (record) {
@@ -478,13 +472,28 @@ function InspectionsNewBody({
           plotExistingRecord(record);
         }
       } else {
-        // No record for this date → clean CREATE.
+        // No record for this date → clean CREATE, but the daily targets still
+        // come back at the root of the Detail/Date response, so keep them.
         promptedDateKeyRef.current = null;
         setDuplicatePrompted(false);
         setDuplicateDialogOpen(false);
         setPendingDuplicateTarget(null);
         resetExistingRecord();
+        setDateSummary({
+          stationno: activeStationNo,
+          year: reportingDate.getFullYear(),
+          month: reportingDate.getMonth() + 1,
+          totaltargetbplo: target("dailytargetbplo"),
+          totaltargetgov: target("dailytargetgov"),
+          totaltargetpeza: target("dailytargetpeza"),
+          totaltargettieza: target("dailytargettieza"),
+          totalAccomplishmentbplo: 0,
+          totalAccomplishmentgov: 0,
+          totalAccomplishmentpeza: 0,
+          totalAccomplishmenttieza: 0,
+        });
       }
+
     })();
 
     return () => {

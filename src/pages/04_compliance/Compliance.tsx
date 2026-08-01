@@ -142,11 +142,13 @@ function sumBucket(
   return out;
 }
 
+export type LedgerRow = MonthlyInventoryRow & { daily?: FSISInventoryLedgerDailyItem[] };
+
 function mapMonthlyItemToRow(
   item: FSISInventoryMonthlyItem,
   fallbackYear = 0,
   fallbackMonth = 0,
-): MonthlyInventoryRow {
+): LedgerRow {
   const daily = Array.isArray(item.fsisInventoryLedgerList) ? item.fsisInventoryLedgerList : [];
   const breakdown = {
     inspection: sumBucket(daily, LEDGER_FIELD_MAP.inspection),
@@ -202,6 +204,7 @@ function mapMonthlyItemToRow(
     totals,
     breakdown,
     lastupdated: latestDate,
+    daily,
   };
 }
 
@@ -245,7 +248,7 @@ export default function FireSafetyCompliancePage() {
   );
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
 
-  const [rows, setRows] = React.useState<MonthlyInventoryRow[]>([]);
+  const [rows, setRows] = React.useState<LedgerRow[]>([]);
   const [total, setTotal] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
@@ -601,9 +604,9 @@ export default function FireSafetyCompliancePage() {
           No monthly inventory records match the current filters.
         </Card>
       ) : (
-        <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
+        <div className="grid grid-cols-1 gap-4">
           {paged.map((r) => (
-            <ComplianceCard
+            <ComplianceLedgerCard
               key={r.key}
               row={r}
               locked={monthLocked || !canManage}
@@ -614,6 +617,7 @@ export default function FireSafetyCompliancePage() {
             />
           ))}
         </div>
+
       )}
 
       <div className="border-t border-border/60 pt-3">
@@ -741,20 +745,182 @@ export default function FireSafetyCompliancePage() {
   );
 }
 
-/* ------------------------------- Card ------------------------------- */
+/* ------------------------------ Ledger ------------------------------ */
 
-const DETAIL_SECTIONS: {
-  title: string;
-  key: keyof MonthlyInventoryRow["breakdown"];
-  fields: { key: string; label: string }[];
-}[] = [
-  { title: "Inspection", key: "inspection", fields: CATEGORY_FIELDS.INSPECTION },
-  { title: "FSEC", key: "fsec", fields: CATEGORY_FIELDS.FSEC },
-  { title: "FSIC", key: "fsic", fields: CATEGORY_FIELDS.FSIC },
-  { title: "Others", key: "notices", fields: CATEGORY_FIELDS.NOTICES },
+type LedgerCol = { key: string; label: string };
+
+const INSPECTION_COLS: LedgerCol[] = [
+  { key: "inspectduringcount", label: "During" },
+  { key: "inspectaftercount", label: "After" },
+  { key: "inspectbplocount", label: "1st BPLO" },
+  { key: "inspectgovcount", label: "1st GOV" },
+  { key: "inspectpezacount", label: "1st PEZA" },
+  { key: "inspecttiezacount", label: "1st TIEZA" },
 ];
 
-function ComplianceCard({
+/** Inspection columns rendered as a single value (no TARGET sub-column). */
+const INSPECTION_PLAIN_COLS: LedgerCol[] = [
+  { key: "inspectduringcount", label: "During" },
+  { key: "inspectaftercount", label: "After" },
+];
+
+/** Inspection columns rendered as a TARGET / ISSUANCE pair. */
+const INSPECTION_TARGET_COLS: (LedgerCol & { targetKey: string })[] = [
+  { key: "inspectbplocount", label: "1st BPLO", targetKey: "dailytargetbplo" },
+  { key: "inspectgovcount", label: "1st GOV", targetKey: "dailytargetgov" },
+  { key: "inspectpezacount", label: "1st PEZA", targetKey: "dailytargetpeza" },
+  { key: "inspecttiezacount", label: "1st TIEZA", targetKey: "dailytargettieza" },
+];
+
+
+const ISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
+  {
+    title: "FSEC",
+    cols: [
+      { key: "fsecbuildingcount", label: "Building" },
+      { key: "fsecgovcount", label: "GOV" },
+      { key: "fsecpezacount", label: "PEZA" },
+      { key: "fsectiezacount", label: "TIEZA" },
+    ],
+  },
+  {
+    title: "FSIC",
+    cols: [
+      { key: "fsicoccupancycount", label: "Occupancy" },
+      { key: "fsicbplonewcount", label: "BPLO New" },
+      { key: "fsicbplorenewcount", label: "BPLO Renew" },
+      { key: "fsicgovcount", label: "GOV" },
+      { key: "fsicpezacount", label: "PEZA" },
+      { key: "fsictiezacount", label: "TIEZA" },
+    ],
+  },
+  {
+    title: "Notices",
+    cols: [
+      { key: "nodcount", label: "NOD" },
+      { key: "ntccount", label: "NTC" },
+      { key: "ntcvcount", label: "NTCV" },
+      { key: "abatementcount", label: "Abatement" },
+      { key: "closurecount", label: "Closure" },
+    ],
+  },
+];
+
+const ISSUANCE_COLS = ISSUANCE_GROUPS.flatMap((g) => g.cols);
+
+const num = (v: unknown) => Number(v ?? 0) || 0;
+
+type ModeCounts = Record<string, number>;
+
+interface DayLine {
+  key: string;
+  label: string;
+  inspection: Record<string, number>;
+  /** Daily target per inspection group (presentation only, sourced from the same payload). */
+  target: Record<string, number>;
+  manual: ModeCounts;
+  fsis: ModeCounts;
+}
+
+
+const emptyMode = (): ModeCounts =>
+  Object.fromEntries(ISSUANCE_COLS.map((c) => [c.key, 0])) as ModeCounts;
+
+/**
+ * Presentation-only: builds the complete, fixed interval list for the period.
+ *
+ * - A concrete month (1-12) renders EVERY calendar day of that month.
+ * - Month = 0 / ALL renders EVERY month, January → December.
+ * Intervals with no API record still render, showing 0.
+ */
+function buildIntervals(year: number, month: number): { key: string; label: string }[] {
+  const y = Number(year) || new Date().getFullYear();
+  const m = Number(month) || 0;
+  if (m >= 1 && m <= 12) {
+    const days = calendarDaysInMonth(y, m);
+    return Array.from({ length: days }, (_, i) => {
+      const day = i + 1;
+      const iso = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const d = new Date(`${iso}T00:00:00`);
+      return {
+        key: iso,
+        label: Number.isNaN(d.getTime())
+          ? iso
+          : d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }),
+      };
+    });
+  }
+  return Array.from({ length: 12 }, (_, i) => {
+    const mm = i + 1;
+    return {
+      key: `${y}-${String(mm).padStart(2, "0")}`,
+      label: `${MONTHS.find((x) => x.value === mm)?.name ?? mm} ${y}`,
+    };
+  });
+}
+
+/** Presentation-only: expands the daily payload into MANUAL/FSIS lines per interval. */
+function buildDayLines(
+  daily: FSISInventoryLedgerDailyItem[] | undefined,
+  year: number,
+  month: number,
+): DayLine[] {
+  const intervals = buildIntervals(year, month);
+  const isDaily = Number(month) >= 1 && Number(month) <= 12;
+
+  const lineByKey = new Map<string, DayLine>();
+  for (const it of intervals) {
+    lineByKey.set(it.key, {
+      key: it.key,
+      label: it.label,
+      inspection: Object.fromEntries(INSPECTION_COLS.map((c) => [c.key, 0])),
+      target: Object.fromEntries(INSPECTION_TARGET_COLS.map((c) => [c.key, 0])),
+
+      manual: emptyMode(),
+      fsis: emptyMode(),
+    });
+  }
+
+  for (const rec of Array.isArray(daily) ? daily : []) {
+    const iso = String(rec?.dateinspected ?? "").slice(0, 10);
+    if (!iso || iso.startsWith("1900")) continue;
+    const bucketKey = isDaily ? iso : iso.slice(0, 7);
+    const line = lineByKey.get(bucketKey);
+    if (!line) continue;
+
+    const issuances = Array.isArray(rec?.issuancelist) ? rec.issuancelist : [];
+    if (issuances.length) {
+      for (const iss of issuances) {
+        const target = num(iss?.fsicmode) === 97 ? line.fsis : line.manual;
+        for (const c of ISSUANCE_COLS)
+          target[c.key] += num((iss as unknown as Record<string, unknown>)?.[c.key]);
+      }
+    } else {
+      // Flat ledger payloads carry no issuance modes — show them as MANUAL.
+      for (const c of ISSUANCE_COLS)
+        line.manual[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
+    }
+    for (const c of INSPECTION_COLS)
+      line.inspection[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
+    for (const c of INSPECTION_TARGET_COLS) {
+      const raw = num((rec as unknown as Record<string, unknown>)?.[c.targetKey]);
+      // Daily rows show the target as-is; month buckets accumulate the daily targets.
+      line.target[c.key] = isDaily ? Math.max(line.target[c.key], raw) : line.target[c.key] + raw;
+    }
+
+  }
+
+  return intervals.map((it) => lineByKey.get(it.key)!);
+}
+
+const headCell =
+  "border border-border/50 bg-blue-50 dark:bg-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300 whitespace-nowrap text-center";
+const bodyCell = "border border-border/40 px-2 py-1.5 text-xs tabular-nums text-center";
+const footCell =
+  "border border-border/50 bg-blue-100 dark:bg-slate-800 px-2 py-1.5 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
+
+
+function ComplianceLedgerCard({
   row,
   locked,
   onView,
@@ -762,7 +928,7 @@ function ComplianceCard({
   onDelete,
   onMatrix,
 }: {
-  row: MonthlyInventoryRow;
+  row: LedgerRow;
   locked: boolean;
   onView: () => void;
   onEdit: () => void;
@@ -771,10 +937,36 @@ function ComplianceCard({
 }) {
   const monthName = MONTHS.find((m) => m.value === row.month)?.name ?? String(row.month);
   const grandTotal = row.totals.inspection + row.totals.fsec + row.totals.fsic + row.totals.notices;
+  const lines = React.useMemo(
+    () => buildDayLines(row.daily, row.year, row.month),
+    [row.daily, row.year, row.month],
+  );
+
+
+  const totals = React.useMemo(() => {
+    const insp: Record<string, number> = Object.fromEntries(
+      INSPECTION_COLS.map((c) => [c.key, 0]),
+    );
+    const tgt: Record<string, number> = Object.fromEntries(
+      INSPECTION_TARGET_COLS.map((c) => [c.key, 0]),
+    );
+    const manual = emptyMode();
+    const fsis = emptyMode();
+    for (const l of lines) {
+      for (const c of INSPECTION_COLS) insp[c.key] += l.inspection[c.key] ?? 0;
+      for (const c of INSPECTION_TARGET_COLS) tgt[c.key] += l.target[c.key] ?? 0;
+      for (const c of ISSUANCE_COLS) {
+        manual[c.key] += l.manual[c.key] ?? 0;
+        fsis[c.key] += l.fsis[c.key] ?? 0;
+      }
+    }
+    return { insp, tgt, manual, fsis };
+  }, [lines]);
+
 
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
-      {/* Header — mirrors TargetReference card */}
+      {/* Header — station details */}
       <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-blue-50 dark:from-slate-700/40 via-blue-50/50 dark:via-slate-700/20 to-transparent dark:to-transparent p-4">
         <AvatarWithFallback
           entity={{ name: row.stationname }}
@@ -790,6 +982,7 @@ function ComplianceCard({
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
               {monthName} {row.year}
             </span>
+            <DaysEncodedBadge encoded={row.daysEncoded} total={row.daysInMonth} />
           </div>
           <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
             {row.stationname}
@@ -807,87 +1000,184 @@ function ComplianceCard({
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 space-y-3 p-3">
-        <div className="flex flex-col gap-3 rounded-2xl border border-border/40 dark:border-border/50 bg-card dark:bg-slate-800/60 p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground dark:text-slate-100">
-              <ClipboardList className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              Monthly Totals
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <DaysEncodedBadge encoded={row.daysEncoded} total={row.daysInMonth} />
-              <span className="rounded-full bg-blue-100 dark:bg-slate-600 px-3 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                {grandTotal.toLocaleString()} total
-              </span>
-            </div>
+      {/* Spreadsheet body — sticky header, sticky totals, scrollable rows */}
+      <div className="p-3">
+        {lines.length === 0 ? (
+          <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
+            No daily entries for this period.
           </div>
-          <div className="border-b border-border/40 dark:border-border/50" />
-          <div className="grid gap-3 md:grid-cols-2">
-            {[DETAIL_SECTIONS.slice(0, 2), DETAIL_SECTIONS.slice(2, 4)].map((group, groupIndex) => (
-              <div key={groupIndex} className="space-y-3">
-                {group.map((section) => (
-                  <div
-                    key={section.key}
-                    className="rounded-xl border border-border/40 dark:border-border/50 bg-card dark:bg-slate-800/50 overflow-hidden"
+        ) : (
+          <div className="max-h-[24rem] overflow-auto rounded-xl border border-border/40">
+            <table className="w-full min-w-[1400px] border-separate border-spacing-0 text-xs">
+              <thead>
+                <tr>
+                  <th
+                    rowSpan={3}
+                    className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] text-left`}
                   >
-                    <div className="flex items-center justify-between gap-2 border-b border-border/40 dark:border-border/50 bg-blue-50 dark:bg-slate-700/60 px-3 py-2">
-                      <span className="text-xs font-semibold uppercase tracking-[0.15em] text-blue-600 dark:text-blue-400">
-                        {section.title}
-                      </span>
-                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
-                        {row.totals[section.key].toLocaleString()}
-                      </span>
-                    </div>
-                    <table className="w-full text-xs">
-                      <tbody>
-                        {section.fields.map((field, index) => {
-                          const value = row.breakdown[section.key][field.key] ?? 0;
-                          return (
-                            <tr
-                              key={field.key}
-                              className={
-                                index % 2 === 0
-                                  ? "bg-card dark:bg-slate-800/30"
-                                  : "bg-blue-50/40 dark:bg-slate-700/30"
-                              }
-                            >
-                              <td className="px-3 py-2 text-sm font-medium text-foreground dark:text-slate-200">
-                                {field.label}
-                              </td>
-                              <td
-                                className={`px-3 py-2 text-right tabular-nums ${
-                                  value === 0
-                                    ? "text-muted-foreground dark:text-slate-500"
-                                    : "text-foreground dark:text-slate-100 font-semibold"
-                                }`}
-                              >
-                                {value.toLocaleString()}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {section.key === "fsec" && (
-                          <tr className="h-8 bg-card dark:bg-slate-800/30">
-                            <td className="px-3 py-2" />
-                            <td className="px-3 py-2" />
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
+                    Date
+                  </th>
+                  <th
+                    colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 2}
+                    className={`${headCell} sticky top-0 z-30`}
+                  >
+                    Inspection
+                  </th>
+                  <th rowSpan={3} className={`${headCell} sticky top-0 z-30`}>
+                    Mode of Issuance
+                  </th>
+                  {ISSUANCE_GROUPS.map((g) => (
+                    <th
+                      key={g.title}
+                      colSpan={g.cols.length}
+                      className={`${headCell} sticky top-0 z-30`}
+                    >
+                      {g.title}
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {INSPECTION_PLAIN_COLS.map((c) => (
+                    <th
+                      key={c.key}
+                      rowSpan={2}
+                      className={`${headCell} sticky top-[30px] z-30 min-w-[5rem]`}
+                    >
+                      {c.label}
+                    </th>
+                  ))}
+                  {INSPECTION_TARGET_COLS.map((c) => (
+                    <th
+                      key={c.key}
+                      colSpan={2}
+                      className={`${headCell} sticky top-[30px] z-30 min-w-[10rem]`}
+                    >
+                      {c.label}
+                    </th>
+                  ))}
+                  {ISSUANCE_COLS.map((c) => (
+                    <th
+                      key={c.key}
+                      rowSpan={2}
+                      className={`${headCell} sticky top-[30px] z-30 min-w-[5rem]`}
+                    >
+                      {c.label}
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {INSPECTION_TARGET_COLS.map((c) => (
+                    <React.Fragment key={c.key}>
+                      <th className={`${headCell} sticky top-[60px] z-30 min-w-[5rem]`}>Target</th>
+                      <th className={`${headCell} sticky top-[60px] z-30 min-w-[5rem]`}>
+                        Issuance
+                      </th>
+                    </React.Fragment>
+                  ))}
+                </tr>
+              </thead>
 
-        <div className="text-[10px] text-muted-foreground dark:text-slate-400">
+
+              <tbody>
+                {lines.map((l) => (
+                  <React.Fragment key={l.key}>
+                    <tr className="bg-card dark:bg-slate-800">
+                      <th
+                        scope="row"
+                        rowSpan={2}
+                        className="sticky left-0 z-10 border border-border/40 bg-inherit px-2 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap"
+                      >
+                        {l.label}
+                      </th>
+                      {INSPECTION_PLAIN_COLS.map((c) => (
+                        <td key={c.key} rowSpan={2} className={bodyCell}>
+                          {(l.inspection[c.key] ?? 0).toLocaleString()}
+                        </td>
+                      ))}
+                      {INSPECTION_TARGET_COLS.map((c) => (
+                        <React.Fragment key={c.key}>
+                          <td rowSpan={2} className={bodyCell}>
+                            {(l.target[c.key] ?? 0).toLocaleString()}
+                          </td>
+                          <td rowSpan={2} className={bodyCell}>
+                            {(l.inspection[c.key] ?? 0).toLocaleString()}
+                          </td>
+                        </React.Fragment>
+                      ))}
+
+                      <td className={`${bodyCell} font-semibold text-blue-700 dark:text-blue-300`}>
+                        MANUAL
+                      </td>
+                      {ISSUANCE_COLS.map((c) => (
+                        <td key={c.key} className={bodyCell}>
+                          {(l.manual[c.key] ?? 0).toLocaleString()}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="bg-blue-50 dark:bg-slate-700">
+                      <td className={`${bodyCell} font-semibold text-blue-700 dark:text-blue-300`}>
+                        FSIS
+                      </td>
+                      {ISSUANCE_COLS.map((c) => (
+                        <td key={c.key} className={bodyCell}>
+                          {(l.fsis[c.key] ?? 0).toLocaleString()}
+                        </td>
+                      ))}
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th
+                    scope="row"
+                    rowSpan={2}
+                    className={`${footCell} sticky bottom-0 left-0 z-40 text-left uppercase`}
+                  >
+                    Total
+                  </th>
+                  {INSPECTION_PLAIN_COLS.map((c) => (
+                    <td key={c.key} rowSpan={2} className={`${footCell} sticky bottom-0 z-30`}>
+                      {totals.insp[c.key].toLocaleString()}
+                    </td>
+                  ))}
+                  {INSPECTION_TARGET_COLS.map((c) => (
+                    <React.Fragment key={c.key}>
+                      <td rowSpan={2} className={`${footCell} sticky bottom-0 z-30`}>
+                        {totals.tgt[c.key].toLocaleString()}
+                      </td>
+                      <td rowSpan={2} className={`${footCell} sticky bottom-0 z-30`}>
+                        {totals.insp[c.key].toLocaleString()}
+                      </td>
+                    </React.Fragment>
+                  ))}
+
+                  <td className={`${footCell} sticky bottom-[30px] z-30`}>MANUAL</td>
+                  {ISSUANCE_COLS.map((c) => (
+                    <td key={c.key} className={`${footCell} sticky bottom-[30px] z-30`}>
+                      {totals.manual[c.key].toLocaleString()}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <td className={`${footCell} sticky bottom-0 z-30`}>FSIS</td>
+                  {ISSUANCE_COLS.map((c) => (
+                    <td key={c.key} className={`${footCell} sticky bottom-0 z-30`}>
+                      {totals.fsis[c.key].toLocaleString()}
+                    </td>
+                  ))}
+                </tr>
+              </tfoot>
+
+            </table>
+          </div>
+        )}
+        <div className="mt-2 text-[10px] text-muted-foreground dark:text-slate-400">
           Last updated: {row.lastupdated ? new Date(row.lastupdated).toLocaleString() : "—"}
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer — actions */}
       <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border/40 dark:border-border/50 bg-muted/10 dark:bg-slate-800/30 p-2">
         <button
           type="button"
