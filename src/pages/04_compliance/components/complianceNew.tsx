@@ -1072,11 +1072,13 @@ function IssuanceTable({
   fsisValues,
   setManualValues,
   setFsisValues,
+  locked,
 }: {
   manualValues: Record<string, number>;
   fsisValues: Record<string, number>;
   setManualValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   setFsisValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  locked?: boolean;
 }) {
   const makeHandler = React.useCallback(
     (setter: React.Dispatch<React.SetStateAction<Record<string, number>>>) =>
@@ -1349,17 +1351,19 @@ function InspectionMatrix({
   values,
   errors,
   onChange,
+  locked,
 }: {
   constructionFields: NumericFieldSpec[];
   firstFields: NumericFieldSpec[];
   values: Record<string, number>;
   errors: Record<string, string>;
   onChange: (key: string, raw: string) => void;
+  locked?: boolean;
 }) {
   const constructionRow = constructionFields.find((f) => f.key === "insp_during_construction");
   const occupancyRow = constructionFields.find((f) => f.key === "insp_fsic_occupancy");
 
-  const renderNumericInput = (f: NumericFieldSpec, disabled?: boolean) => (
+  const renderNumericInput = (f: NumericFieldSpec, disabled: boolean = Boolean(locked)) => (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium text-muted-foreground">
         {f.label} <span className="text-destructive">*</span>
