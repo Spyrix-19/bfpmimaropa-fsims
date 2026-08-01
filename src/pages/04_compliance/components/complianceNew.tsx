@@ -750,6 +750,7 @@ function InspectionsNewBody({
             values={numeric}
             errors={errors}
             onChange={setNumericField}
+            locked={fieldsLocked}
           />
         </div>
       </Card>
@@ -767,6 +768,7 @@ function InspectionsNewBody({
             fsisValues={fsisIssuance}
             setManualValues={setManualIssuance}
             setFsisValues={setFsisIssuance}
+            locked={fieldsLocked}
           />
         </TooltipProvider>
 
@@ -774,10 +776,15 @@ function InspectionsNewBody({
           <Textarea
             rows={3}
             value={remarks}
-            onChange={(e) => setRemarks(e.target.value.slice(0, 1000))}
+            readOnly={fieldsLocked}
+            onChange={(e) => {
+              if (fieldsLocked) return;
+              setRemarks(e.target.value.slice(0, 1000));
+            }}
             placeholder="Additional notes about the inspection…"
           />
         </Field>
+
       </Card>
 
       {/* Actions ----------------------------------------------------------- */}
@@ -1163,6 +1170,8 @@ function IssuanceTable({
               inputMode="numeric"
               pattern="[0-9]*"
               value={String(values[f.key] ?? 0)}
+              disabled={locked}
+              readOnly={locked}
               onChange={(e) => onChange(f.key, e.target.value)}
               onKeyDown={(e) => {
                 if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
