@@ -278,70 +278,213 @@ function InspectionsNewBody({
   const month = reportingDate.getMonth() + 1;
   const monthName = MONTHS.find((m) => m.value === month)?.name ?? "";
 
-  const formatDateKey = (value: string | Date | null | undefined) => {
-    if (!value) return null;
-    if (typeof value === "string") return value.slice(0, 10);
-    if (value instanceof Date && !Number.isNaN(value.getTime())) return format(value, "yyyy-MM-dd");
-    return null;
-  };
+  /* ── Existing-record (per inspection date) detection ─────────────────────
+   * Mirrors the Target Reference flow: whenever the station or the selected
+   * date changes we ask the API whether a compliance record already exists.
+   * When it does, the user confirms whether to open it for editing.
+   */
+  const [existingFsisno, setExistingFsisno] = React.useState<string | null>(null);
+  const [existingIssuanceNos, setExistingIssuanceNos] = React.useState<Record<string, string>>({});
+  const [checkingExisting, setCheckingExisting] = React.useState(false);
+  const [pendingExistingRecord, setPendingExistingRecord] = React.useState<ComplianceRow | null>(
+    null,
+  );
+  const [existingLocked, setExistingLocked] = React.useState(false);
+  const promptedDateKeyRef = React.useRef<string | null>(null);
+  const [existingMeta, setExistingMeta] = React.useState<{
+    isrevisionrequest: boolean;
+    editablestatus: number;
+  }>({ isrevisionrequest: false, editablestatus: 0 });
 
-  const checkExistingDailyRecord = async (
-    stationNumber: string,
-    provinceNumber: string,
-    date: Date,
-  ) => {
-    const resp = await targetinventoryAPI.getMonthlyExist(
-      {
-        Stationno: stationNumber || EMPTY_GUID,
-        Provinceno: provinceNumber || EMPTY_GUID,
-        Dateinspected: format(date, "yyyy-MM-dd"),
-      },
-      { suppressGlobalLoading: true },
-    );
+  /* ── Revision workflow (requesttype = ISSUANCE) ──────────────────────────── */
+  const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
+  const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
+  const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
+  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
+  const [reloadNonce, setReloadNonce] = React.useState(0);
 
-    const { ok, data, error } = unwrap<boolean>(resp);
-    if (!ok) {
-      toast.error(error || "Unable to verify existing fire safety compliance record.");
-      return null;
+  const selectedDateKey = format(reportingDate, "yyyy-MM-dd");
+
+  /** Plots an existing record into the form and switches Save into update mode. */
+  const plotExistingRecord = React.useCallback((rec: ComplianceRow) => {
+    setNumeric({
+      insp_during_construction: Number(rec.inspectduringcount ?? 0),
+      insp_fsic_occupancy: Number(rec.inspectaftercount ?? 0),
+      insp_1st_bplo: Number(rec.inspectbplocount ?? 0),
+      insp_1st_gov: Number(rec.inspectgovcount ?? 0),
+      insp_1st_peza: Number(rec.inspectpezacount ?? 0),
+      insp_1st_tieza: Number(rec.inspecttiezacount ?? 0),
+    });
+
+    const fromIssuance = (row?: { [k: string]: unknown }) => ({
+      fsec_new_building: Number(row?.fsecbuildingcount ?? 0),
+      fsec_new_gov: Number(row?.fsecgovcount ?? 0),
+      fsec_new_peza: Number(row?.fsecpezacount ?? 0),
+      fsec_new_tieza: Number(row?.fsectiezacount ?? 0),
+      fsic_occupancy: Number(row?.fsicoccupancycount ?? 0),
+      fsic_business_new: Number(row?.fsicbplonewcount ?? 0),
+      fsic_business_renewal: Number(row?.fsicbplorenewcount ?? 0),
+      fsic_gov: Number(row?.fsicgovcount ?? 0),
+      fsic_peza: Number(row?.fsicpezacount ?? 0),
+      fsic_tieza: Number(row?.fsictiezacount ?? 0),
+      not_nod: Number(row?.nodcount ?? 0),
+      not_ntc: Number(row?.ntccount ?? 0),
+      not_ntcv: Number(row?.ntcvcount ?? 0),
+      not_abatement: Number(row?.abatementcount ?? 0),
+      not_closure: Number(row?.closurecount ?? 0),
+    });
+
+    const list = Array.isArray(rec.issuancelist) ? rec.issuancelist : [];
+    const manualRow = list.find((i) => Number(i?.fsicmode) === 96);
+    const fsisRow = list.find((i) => Number(i?.fsicmode) === 97);
+    setManualIssuance(fromIssuance(manualRow as unknown as Record<string, unknown>));
+    setFsisIssuance(fromIssuance(fsisRow as unknown as Record<string, unknown>));
+
+    // Keep the DATABASE identifiers — never regenerate them.
+    setExistingIssuanceNos({
+      "96": manualRow?.issuanceno ? String(manualRow.issuanceno) : EMPTY_GUID,
+      "97": fsisRow?.issuanceno ? String(fsisRow.issuanceno) : EMPTY_GUID,
+    });
+    setExistingFsisno(String(rec.fsisno));
+    setRemarks(rec.remarks ?? "");
+    setErrors({});
+  }, []);
+
+  const resetExistingRecord = React.useCallback(() => {
+    setExistingFsisno(null);
+    setExistingIssuanceNos({});
+    setPendingExistingRecord(null);
+    setExistingLocked(false);
+    setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+  }, []);
+
+  /* Existence check — runs whenever station / date changes. */
+  React.useEffect(() => {
+    const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
+    if (!activeStationNo || activeStationNo === EMPTY_GUID || !reportingDate) {
+      resetExistingRecord();
+      return;
     }
 
-    if (!data) return null;
-
-    return {
-      stationno: stationNumber,
-      year: date.getFullYear(),
-      month: date.getMonth() + 1,
-    };
-  };
-
-  React.useEffect(() => {
-    if (duplicatePrompted || !station.no || !province.no || !reportingDate) return;
-
     let cancelled = false;
+    (async () => {
+      setCheckingExisting(true);
+      const resp = await complianceAPI.getDetailBydate(
+        {
+          Stationno: activeStationNo,
+          Dateinspected: format(reportingDate, "MM/dd/yyyy"),
+        },
+        { suppressGlobalLoading: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<unknown>(resp);
+      const record = ok ? pickComplianceRow(data) : null;
+      setCheckingExisting(false);
 
-    const lookupDuplicate = async () => {
-      const existing = await checkExistingDailyRecord(station.no, province.no, reportingDate);
-      if (cancelled || !existing) return;
-      setDuplicatePrompted(true);
-      setPendingDuplicateTarget({
-        stationno: existing.stationno,
-        year: existing.year,
-        month: existing.month,
-        stationName: station.name || user?.stationname,
-      });
-      setDuplicateDialogOpen(true);
-    };
+      if (record) {
+        setPendingExistingRecord(record);
+        setExistingMeta({
+          isrevisionrequest: Boolean(record.isrevisionrequest),
+          editablestatus: Number(record.editablestatus ?? 0),
+        });
+        const isPast = reportingDate.getTime() < startOfToday();
+        const unlocked = Number(record.editablestatus ?? 0) === 153;
+        setExistingLocked(isPast && !unlocked);
 
-    lookupDuplicate();
+        const key = `${activeStationNo}|${selectedDateKey}`;
+        if (promptedDateKeyRef.current !== key) {
+          promptedDateKeyRef.current = key;
+          setPendingDuplicateTarget({
+            stationno: activeStationNo,
+            year: reportingDate.getFullYear(),
+            month: reportingDate.getMonth() + 1,
+            stationName: station.name || user?.stationname,
+          });
+          setDuplicatePrompted(true);
+          setDuplicateDialogOpen(true);
+        } else if (isPast && !unlocked) {
+          plotExistingRecord(record);
+        }
+      } else {
+        // No record for this date → clean CREATE.
+        promptedDateKeyRef.current = null;
+        setDuplicatePrompted(false);
+        setDuplicateDialogOpen(false);
+        setPendingDuplicateTarget(null);
+        resetExistingRecord();
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [duplicatePrompted, station.no, station.name, province.no, reportingDate, user?.stationname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    station.no,
+    station.name,
+    scope.stationLocked,
+    scope.stationno,
+    selectedDateKey,
+    reloadNonce,
+  ]);
+
+  /* Revision requests ledger for the selected station/year (ISSUANCE). */
+  React.useEffect(() => {
+    const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
+    if (!activeStationNo || activeStationNo === EMPTY_GUID) {
+      setRevisionRequests([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const resp = await revisionrequestAPI.getLedger(
+        {
+          stationno: activeStationNo,
+          reportyear: Number(year),
+          reportmonth: 0,
+          provinceno: province.no || EMPTY_GUID,
+          requesttype: "ISSUANCE",
+          pagenumber: 1,
+          pagesize: 100,
+        },
+        { suppressGlobalLoading: true },
+      );
+      if (cancelled) return;
+      const { ok, data, error } = unwrap<FSISEditRequestModel[]>(resp);
+      if (ok && Array.isArray(data)) {
+        setRevisionRequests(data);
+      } else {
+        const isEmptyResult = /no\s*data|not\s*found|no\s*record/i.test(error || "");
+        if (!isEmptyResult && error) toast.error(error);
+        setRevisionRequests([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [station.no, scope.stationLocked, scope.stationno, province.no, year, reloadNonce]);
+
+  /* ── Lock rules for the selected (single) date ───────────────────────────── */
+  const isPastSelectedDate = reportingDate.getTime() < startOfToday();
+  const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
+  const activeRequest = React.useMemo(() => {
+    return (
+      revisionRequests.find((r) => {
+        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
+        if (existingFsisno && String(r.referencekey) === String(existingFsisno)) return true;
+        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === selectedDateKey : false;
+      }) ?? null
+    );
+  }, [revisionRequests, selectedDateKey, existingFsisno]);
+  const hasPendingRevision =
+    isPastSelectedDate && (existingMeta.isrevisionrequest || !!activeRequest) && !unlockedByApproval;
+  const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
+  const fieldsLocked = isPastSelectedDate && !unlockedByApproval;
 
   /* ------------------------- Monthly summary lookups ---------------------- */
-  // Data now lives in <TargetAccomplishmentPanel/>, which fetches via
-  // targetinventoryAPI.getTargetAccomplishment whenever (station, year, month)
-  // changes and dedupes identical requests.
+  // Data lives in <TargetAccomplishmentPanel/>.
 
   /* --------------------------- Numeric handlers --------------------------- */
 
@@ -388,31 +531,14 @@ function InspectionsNewBody({
         return;
       }
 
-      if (!duplicatePrompted) {
-        const existing = await checkExistingDailyRecord(
-          submitStationNo,
-          province.no,
-          reportingDate,
-        );
-        if (existing) {
-          setDuplicatePrompted(true);
-          setPendingDuplicateTarget({
-            stationno: existing.stationno,
-            year: existing.year,
-            month: existing.month,
-            stationName: station.name || user?.stationname,
-          });
-          setDuplicateDialogOpen(true);
-          setSaving(false);
-          return;
-        }
-      }
-
-      const iso = format(reportingDate, "yyyy-MM-dd");
-      const buildIssuance = (modeNo: string, vals: Record<string, number>) => {
+      const buildIssuance = (
+        modeNo: string,
+        vals: Record<string, number>,
+      ): FSISIssuanceClassDTO => {
         const modeNum = Number(modeNo);
         return {
-          issuanceno: EMPTY_GUID,
+          // Always reuse the database issuance id when editing an existing row.
+          issuanceno: existingIssuanceNos[modeNo] || EMPTY_GUID,
           fsicmode: Number.isFinite(modeNum) ? modeNum : 0,
           fsecbuildingcount: vals.fsec_new_building ?? 0,
           fsecgovcount: vals.fsec_new_gov ?? 0,
@@ -431,38 +557,47 @@ function InspectionsNewBody({
           closurecount: vals.not_closure ?? 0,
         };
       };
-      const payload: FSISInventoryDTO = {
-        fsisno: EMPTY_GUID,
-        stationno: submitStationNo,
-        dateinspected: iso,
+
+      const compliance: FSISComplianceClass = {
+        // Existing record → send its fsisno so the backend UPDATEs.
+        fsisno: existingFsisno || EMPTY_GUID,
+        dateinspected: toInspectedDate(reportingDate),
         inspectduringcount: numeric.insp_during_construction ?? 0,
         inspectaftercount: numeric.insp_fsic_occupancy ?? 0,
         inspectbplocount: numeric.insp_1st_bplo ?? 0,
         inspectgovcount: numeric.insp_1st_gov ?? 0,
         inspectpezacount: numeric.insp_1st_peza ?? 0,
         inspecttiezacount: numeric.insp_1st_tieza ?? 0,
+        isaccomplished: Boolean(existingFsisno),
         remarks: remarks ?? "",
-        // Always the currently logged-in user — never EMPTY_GUID.
-        updatedby: user?.memberno ?? "",
-        encodedby: user?.memberno ?? "",
         issuancelist: [
           buildIssuance(manualModeNo, manualIssuance),
           buildIssuance(fsisModeNo, fsisIssuance),
         ],
       };
-      const resp = await targetinventoryAPI.create(payload);
+
+      const payload: FSISComplianceDTO = {
+        stationno: submitStationNo,
+        encodedby: user?.memberno ?? "",
+        compliancelist: [compliance],
+      };
+
+      const resp = await complianceAPI.create(payload);
       const { ok, error } = unwrap(resp);
       if (!ok) {
         toast.error(error || "Unable to save fire safety compliance.");
         return;
       }
-      toast.success("Fire safety compliance saved.");
+      toast.success(
+        existingFsisno ? "Fire safety compliance updated." : "Fire safety compliance saved.",
+      );
       onSaved?.();
     } finally {
       setSaving(false);
     }
   };
 
+  /** Edit → redirect to the Edit page for that record (or load it inline). */
   const handleDuplicateConfirm = () => {
     if (pendingDuplicateTarget && onEditExisting) {
       onEditExisting(
@@ -471,24 +606,36 @@ function InspectionsNewBody({
         pendingDuplicateTarget.month,
         pendingDuplicateTarget.stationName,
       );
+      setPendingDuplicateTarget(null);
+      setDuplicateDialogOpen(false);
+      return;
     }
-    setDuplicatePrompted(false);
-    setPendingDuplicateTarget(null);
+    if (pendingExistingRecord) plotExistingRecord(pendingExistingRecord);
     setDuplicateDialogOpen(false);
   };
 
+  /** Cancel → stay on the current page with a blank form. */
   const handleDuplicateCancel = () => {
-    setDuplicatePrompted(false);
-    setPendingDuplicateTarget(null);
     setDuplicateDialogOpen(false);
+    // Locked records stay plotted read-only so the revision-request action
+    // still has a reference record to point at.
+    if (existingLocked && pendingExistingRecord) {
+      plotExistingRecord(pendingExistingRecord);
+      return;
+    }
+    setPendingDuplicateTarget(null);
+    setExistingFsisno(null);
+    setExistingIssuanceNos({});
   };
 
   const handleDuplicateDialogOpenChange = (newOpen: boolean) => {
-    if (!newOpen && !pendingDuplicateTarget) {
-      setDuplicatePrompted(false);
+    if (!newOpen) {
+      handleDuplicateCancel();
+      return;
     }
     setDuplicateDialogOpen(newOpen);
   };
+
 
   /* ---------------------------------- UI ---------------------------------- */
 
