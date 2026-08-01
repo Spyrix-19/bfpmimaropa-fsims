@@ -32,12 +32,62 @@ import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { cn } from "@/lib/utils";
 
-import { targetinventoryAPI } from "@/services/complianceAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type {
-  FSISInventoryDTO,
-  } from "@/types/complianceType";
+  FSISComplianceDTO,
+  FSISComplianceClass,
+  FSISComplianceDetailClassModel,
+  FSISIssuanceClassDTO,
+} from "@/types/complianceType";
+import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
+import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
+import { formatLongDate } from "@/lib/date-format";
+import { Ban, FilePen, Trash2 } from "lucide-react";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
+
+/** Row shape returned by the compliance "detail by date" endpoint. */
+type ComplianceRow = FSISComplianceDetailClassModel & { isdeleted?: boolean };
+
+/**
+ * The endpoint may answer with either a flat array of compliance rows or the
+ * wrapper model carrying `compliancelist`. Normalise both into a single row.
+ */
+function pickComplianceRow(data: unknown): ComplianceRow | null {
+  const rows: ComplianceRow[] = [];
+  const walk = (value: unknown) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    const obj = value as Record<string, unknown>;
+    if (Array.isArray(obj.compliancelist)) {
+      (obj.compliancelist as unknown[]).forEach(walk);
+      return;
+    }
+    rows.push(obj as unknown as ComplianceRow);
+  };
+  walk(data);
+  return (
+    rows.find((r) => r && r.fsisno && String(r.fsisno) !== EMPTY_GUID && !r.isdeleted) ?? null
+  );
+}
+
+/** Midnight of the current local day, in ms. */
+function startOfToday(): number {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+}
+
+/** Builds the ISO date-time the Create endpoint expects for an inspection day. */
+function toInspectedDate(date: Date): string {
+  return new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
+  ).toISOString();
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Field spec — a single declarative source drives layout, defaults, keys.   */
