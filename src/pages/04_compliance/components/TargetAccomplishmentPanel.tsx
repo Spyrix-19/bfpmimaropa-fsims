@@ -12,7 +12,6 @@ import {
 } from "recharts";
 import { Card } from "@/components/ui/card";
 import { complianceAPI } from "@/services/complianceAPI";
-import { toTargetAccomplishment } from "@/lib/complianceAdapters";
 import { unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { cn } from "@/lib/utils";
@@ -143,7 +142,35 @@ export default function TargetAccomplishmentPanel({
         setFetched(null);
         setError(err || "Unable to load target / accomplishment.");
       } else {
-        setFetched(toTargetAccomplishment(station, year, month));
+        const totals = (Array.isArray(station?.compliancelist) ? station.compliancelist : []).reduce(
+          (acc, rec) => {
+            acc.totaltargetbplo += Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0;
+            acc.totaltargetgov += Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0;
+            acc.totaltargetpeza += Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0;
+            acc.totaltargettieza += Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0;
+            acc.totalAccomplishmentbplo += Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0;
+            acc.totalAccomplishmentgov += Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0;
+            acc.totalAccomplishmentpeza += Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0;
+            acc.totalAccomplishmenttieza += Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0;
+            return acc;
+          },
+          {
+            totaltargetbplo: 0,
+            totaltargetgov: 0,
+            totaltargetpeza: 0,
+            totaltargettieza: 0,
+            totalAccomplishmentbplo: 0,
+            totalAccomplishmentgov: 0,
+            totalAccomplishmentpeza: 0,
+            totalAccomplishmenttieza: 0,
+          } as TargetAccomplishmentModel,
+        );
+        setFetched({
+          stationno: station.stationno ?? "",
+          month,
+          year,
+          ...totals,
+        });
       }
       setLoading(false);
     })();
@@ -240,12 +267,12 @@ export default function TargetAccomplishmentPanel({
             <thead>
               <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-2 text-left">Category</th>
-                <th className="px-4 py-2 text-right"><Dot color={SERIES.target} />{daily ? "Daily Target" : "Monthly Target"}</th>
-                <th className="px-4 py-2 text-right"><Dot color={SERIES.inspected} />{daily ? "Daily Inspected" : "Monthly Inspected"}</th>
+                <th className="px-4 py-2 text-center"><Dot color={SERIES.target} />{daily ? "Daily Target" : "Monthly Target"}</th>
+                <th className="px-4 py-2 text-center"><Dot color={SERIES.inspected} />{daily ? "Daily Inspected" : "Monthly Inspected"}</th>
 
-                <th className="px-4 py-2 text-right"><Dot color={SERIES.variance} />Variance</th>
-                <th className="px-4 py-2 text-right"><Dot color={SERIES.positive} />Positive Listing</th>
-                <th className="px-4 py-2 text-right">% Accomplishment</th>
+                <th className="px-4 py-2 text-center"><Dot color={SERIES.variance} />Variance</th>
+                <th className="px-4 py-2 text-center"><Dot color={SERIES.positive} />Positive Listing</th>
+                <th className="px-4 py-2 text-center">% Accomplishment</th>
               </tr>
             </thead>
             <tbody>
@@ -260,26 +287,26 @@ export default function TargetAccomplishmentPanel({
                   <td className="px-4 py-2 font-semibold text-foreground">
                     {r.label}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums" style={stationno ? { color: SERIES.target } : undefined}>
+                  <td className="px-4 py-2 text-center tabular-nums" style={stationno ? { color: SERIES.target } : undefined}>
                     {stationno ? r.target.toLocaleString() : "—"}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums" style={stationno ? { color: SERIES.inspected } : undefined}>
+                  <td className="px-4 py-2 text-center tabular-nums" style={stationno ? { color: SERIES.inspected } : undefined}>
                     {stationno ? r.inspected.toLocaleString() : "—"}
                   </td>
                   <td
-                    className="px-4 py-2 text-right tabular-nums font-medium"
+                    className="px-4 py-2 text-center tabular-nums font-medium"
                     style={stationno && r.variance > 0 ? { color: SERIES.variance } : undefined}
                   >
                     {stationno ? r.variance.toLocaleString() : "—"}
                   </td>
                   <td
-                    className="px-4 py-2 text-right tabular-nums font-medium"
+                    className="px-4 py-2 text-center tabular-nums font-medium"
                     style={stationno && r.positive > 0 ? { color: SERIES.positive } : undefined}
                   >
                     {stationno ? r.positive.toLocaleString() : "—"}
                   </td>
                   <td
-                    className="px-4 py-2 text-right tabular-nums font-medium"
+                    className="px-4 py-2 text-center tabular-nums font-medium"
                     style={
                       stationno
                         ? { color: r.percentage >= 100 ? SERIES.positive : SERIES.inspected }
@@ -292,26 +319,26 @@ export default function TargetAccomplishmentPanel({
               ))}
               <tr className="border-t-2 border-border bg-primary/5 font-semibold">
                 <td className="px-4 py-2">Total</td>
-                <td className="px-4 py-2 text-right tabular-nums" style={stationno ? { color: SERIES.target } : undefined}>
+                <td className="px-4 py-2 text-center tabular-nums" style={stationno ? { color: SERIES.target } : undefined}>
                   {stationno ? totals.target.toLocaleString() : "—"}
                 </td>
-                <td className="px-4 py-2 text-right tabular-nums" style={stationno ? { color: SERIES.inspected } : undefined}>
+                <td className="px-4 py-2 text-center tabular-nums" style={stationno ? { color: SERIES.inspected } : undefined}>
                   {stationno ? totals.inspected.toLocaleString() : "—"}
                 </td>
                 <td
-                  className="px-4 py-2 text-right tabular-nums"
+                  className="px-4 py-2 text-center tabular-nums"
                   style={stationno && totalVariance > 0 ? { color: SERIES.variance } : undefined}
                 >
                   {stationno ? totalVariance.toLocaleString() : "—"}
                 </td>
                 <td
-                  className="px-4 py-2 text-right tabular-nums"
+                  className="px-4 py-2 text-center tabular-nums"
                   style={stationno && totalPositive > 0 ? { color: SERIES.positive } : undefined}
                 >
                   {stationno ? totalPositive.toLocaleString() : "—"}
                 </td>
                 <td
-                  className="px-4 py-2 text-right tabular-nums"
+                  className="px-4 py-2 text-center tabular-nums"
                   style={
                     stationno
                       ? { color: totalPct >= 100 ? SERIES.positive : SERIES.inspected }

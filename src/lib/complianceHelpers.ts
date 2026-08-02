@@ -1,5 +1,5 @@
 /**
- * Pure helpers for the FSIS Inventory monthly monitoring workflow.
+ * Pure helpers for the compliance monthly monitoring workflow.
  *
  * Every monthly / quarterly / semester / annual / province total is derived
  * from raw daily rows — never persisted. Keep this module free of React,
@@ -326,12 +326,9 @@ export const MONTH_SHORT = [
  * Report Matrix (Target | Actual)
  *
  * Extends `buildMatrix` output so every field carries BOTH a target and
- * an actual value. Actuals come from the centralized daily inventory store
- * (same source as `buildMatrix`). Targets are derived deterministically from
- * the same rows so the mock is stable across reloads — no separate dataset.
- *
- * When the real backend is ready, replace `deriveTarget()` with data
- * pulled from `targetreferenceAPI` and every consumer stays untouched.
+ * an actual value. Actuals come from the same daily compliance rows as
+ * `buildMatrix`. Targets are derived deterministically from those rows so
+ * the report remains consistent without needing a separate dataset.
  * ------------------------------------------------------------------------ */
 
 export interface TargetActualCell {

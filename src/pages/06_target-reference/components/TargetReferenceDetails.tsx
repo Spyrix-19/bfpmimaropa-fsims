@@ -44,14 +44,14 @@ function Row({
       {(["bplo", "gov", "peza", "tieza"] as const).map((k) => (
         <td
           key={k}
-          className={`border-b px-3 py-2 text-right tabular-nums ${
+          className={`border-b px-3 py-2 text-center tabular-nums ${
             b[k] === 0 ? "text-muted-foreground/60" : ""
           }`}
         >
           {b[k].toLocaleString()}
         </td>
       ))}
-      <td className="border-b px-3 py-2 text-right tabular-nums font-semibold bg-card">
+      <td className="border-b px-3 py-2 text-center tabular-nums font-semibold bg-card">
         {total.toLocaleString()}
       </td>
     </tr>
@@ -244,11 +244,11 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                           ? "Period"
                           : "Annual Total"}
                       </th>
-                      <th className="px-3 py-2 text-right font-semibold bg-card">BPLO</th>
-                      <th className="px-3 py-2 text-right font-semibold bg-card">Government</th>
-                      <th className="px-3 py-2 text-right font-semibold bg-card">PEZA</th>
-                      <th className="px-3 py-2 text-right font-semibold bg-card">TIEZA</th>
-                      <th className="px-3 py-2 text-right font-semibold bg-card">TOTAL</th>
+                      <th className="px-3 py-2 text-center font-semibold bg-card">BPLO</th>
+                      <th className="px-3 py-2 text-center font-semibold bg-card">Government</th>
+                      <th className="px-3 py-2 text-center font-semibold bg-card">PEZA</th>
+                      <th className="px-3 py-2 text-center font-semibold bg-card">TIEZA</th>
+                      <th className="px-3 py-2 text-center font-semibold bg-card">TOTAL</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -278,11 +278,11 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                       <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
                         <td className="border-t px-3 py-2 bg-card">TOTAL</td>
                         {(["bplo", "gov", "peza", "tieza"] as const).map((k) => (
-                          <td key={k} className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                          <td key={k} className="border-t px-3 py-2 text-center bg-card tabular-nums">
                             {dailyDerived.total[k].toLocaleString()}
                           </td>
                         ))}
-                        <td className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
                           {(
                             dailyDerived.total.bplo +
                             dailyDerived.total.gov +
@@ -297,19 +297,19 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                     <tfoot className="sticky bottom-0 bg-card">
                       <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
                         <td className="border-t px-3 py-2 bg-card">TOTAL</td>
-                        <td className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
                           {overallTotals.bplo.toLocaleString()}
                         </td>
-                        <td className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
                           {overallTotals.gov.toLocaleString()}
                         </td>
-                        <td className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
                           {overallTotals.peza.toLocaleString()}
                         </td>
-                        <td className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
                           {overallTotals.tieza.toLocaleString()}
                         </td>
-                        <td className="border-t px-3 py-2 text-right bg-card tabular-nums">
+                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
                           {(
                             overallTotals.bplo +
                             overallTotals.gov +

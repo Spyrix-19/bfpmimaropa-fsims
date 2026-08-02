@@ -683,13 +683,13 @@ export default function TargetReferenceForm({
             {sectors.map((s) => (
               <th
                 key={s.detno}
-                className="border-b border-border/60 bg-card px-3 py-2 text-right font-semibold"
+                className="border-b border-border/60 bg-card px-3 py-2 text-center font-semibold"
                 title={s.description}
               >
                 {s.recordcode || s.description}
               </th>
             ))}
-            <th className="border-b border-l border-border/60 bg-card px-3 py-2 text-right font-semibold">TOTAL</th>
+            <th className="border-b border-l border-border/60 bg-card px-3 py-2 text-center font-semibold">TOTAL</th>
           </tr>
         </thead>
         <tbody>
@@ -798,7 +798,7 @@ export default function TargetReferenceForm({
                       aria-readonly={locked}
                       title={locked ? "This row is not editable." : undefined}
                       className={cn(
-                        "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-right text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                        "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-center text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
                         hasErr && "border-destructive focus:border-destructive focus:ring-destructive",
                         locked && "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
                       )}
@@ -806,7 +806,7 @@ export default function TargetReferenceForm({
                   </td>
                 );
               })}
-              <td className="border-l border-border/60 bg-card px-3 py-1.5 text-right font-semibold tabular-nums text-primary">
+              <td className="border-l border-border/60 bg-card px-3 py-1.5 text-center font-semibold tabular-nums text-primary">
                 {dayTotal(d).toLocaleString()}
               </td>
             </tr>
@@ -819,11 +819,11 @@ export default function TargetReferenceForm({
             <td className="border-r border-t border-border/60 bg-card px-3 py-2" />
             <td className="border-t border-border/60 px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] bg-card">TOTAL</td>
             {sectors.map((s) => (
-              <td key={s.detno} className="border-t border-border/60 bg-card px-3 py-2 text-right font-bold tabular-nums">
+              <td key={s.detno} className="border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">
                 {sectorTotal(Number(s.detno)).toLocaleString()}
               </td>
             ))}
-            <td className="border-l border-t border-border/60 bg-card px-3 py-2 text-right font-bold tabular-nums">{grandTotal.toLocaleString()}</td>
+            <td className="border-l border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">{grandTotal.toLocaleString()}</td>
           </tr>
         </tfoot>
       </table>

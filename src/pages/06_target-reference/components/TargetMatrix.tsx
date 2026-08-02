@@ -795,7 +795,7 @@ function MatrixHeader() {
             CATS.map((c, i) => (
               <th
                 key={`c-${mv}-${c.key}`}
-                className={`border-b px-1.5 py-1 text-right text-[10px] font-bold uppercase ${
+                className={`border-b px-1.5 py-1 text-center text-[10px] font-bold uppercase ${
                   i === 3 && monthIdx === 2 ? "border-r-2 border-r-emerald-800/60" : "border-r"
                 } ${STYLE.cat}`}
               >
@@ -808,7 +808,7 @@ function MatrixHeader() {
           CATS.map((c, i) => (
             <th
               key={`c-final-${grpIdx}-${c.key}`}
-              className={`border-b px-1.5 py-1 text-right text-[10px] font-bold uppercase ${
+              className={`border-b px-1.5 py-1 text-center text-[10px] font-bold uppercase ${
                 i === 3 ? "border-r-2 border-r-white/40" : "border-r"
               } ${grpIdx <= 3 ? STYLE.quarter : grpIdx === 6 ? STYLE.annual : STYLE.semester}`}
             >
@@ -875,7 +875,7 @@ function NumCell({
 }) {
   return (
     <td
-      className={`border-b px-2 py-1.5 text-right tabular-nums ${
+      className={`border-b px-2 py-1.5 text-center tabular-nums ${
         boundary ? "border-r-2 border-r-slate-300 dark:border-r-slate-700" : "border-r"
       } ${bold ? "font-bold" : ""} ${
         value === 0 && !bold ? "text-muted-foreground/60" : ""

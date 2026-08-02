@@ -996,23 +996,23 @@ function InspectionsNewBody({
                   <thead>
                     <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-2 text-left">Category</th>
-                      <th className="px-4 py-2 text-right">
+                      <th className="px-4 py-2 text-center">
                         <DailyDot color={DAILY_SERIES.target} />
                         Daily Target
                       </th>
-                      <th className="px-4 py-2 text-right">
+                      <th className="px-4 py-2 text-center">
                         <DailyDot color={DAILY_SERIES.inspected} />
                         Daily Inspected
                       </th>
-                      <th className="px-4 py-2 text-right">
+                      <th className="px-4 py-2 text-center">
                         <DailyDot color={DAILY_SERIES.variance} />
                         Variance
                       </th>
-                      <th className="px-4 py-2 text-right">
+                      <th className="px-4 py-2 text-center">
                         <DailyDot color={DAILY_SERIES.positive} />
                         Positive Listing
                       </th>
-                      <th className="px-4 py-2 text-right">% Accomplishment</th>
+                      <th className="px-4 py-2 text-center">% Accomplishment</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1026,31 +1026,31 @@ function InspectionsNewBody({
                       >
                         <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
                         <td
-                          className="px-4 py-2 text-right tabular-nums"
+                          className="px-4 py-2 text-center tabular-nums"
                           style={{ color: DAILY_SERIES.target }}
                         >
                           {r.target.toLocaleString()}
                         </td>
                         <td
-                          className="px-4 py-2 text-right tabular-nums"
+                          className="px-4 py-2 text-center tabular-nums"
                           style={{ color: DAILY_SERIES.inspected }}
                         >
                           {r.inspected.toLocaleString()}
                         </td>
                         <td
-                          className="px-4 py-2 text-right tabular-nums font-medium"
+                          className="px-4 py-2 text-center tabular-nums font-medium"
                           style={r.variance > 0 ? { color: DAILY_SERIES.variance } : undefined}
                         >
                           {r.variance.toLocaleString()}
                         </td>
                         <td
-                          className="px-4 py-2 text-right tabular-nums font-medium"
+                          className="px-4 py-2 text-center tabular-nums font-medium"
                           style={r.positive > 0 ? { color: DAILY_SERIES.positive } : undefined}
                         >
                           {r.positive.toLocaleString()}
                         </td>
                         <td
-                          className="px-4 py-2 text-right tabular-nums font-medium"
+                          className="px-4 py-2 text-center tabular-nums font-medium"
                           style={{
                             color:
                               r.percentage >= 100
@@ -1065,19 +1065,19 @@ function InspectionsNewBody({
                     <tr className="border-t-2 border-border bg-primary/5 font-semibold">
                       <td className="px-4 py-2">Total</td>
                       <td
-                        className="px-4 py-2 text-right tabular-nums"
+                        className="px-4 py-2 text-center tabular-nums"
                         style={{ color: DAILY_SERIES.target }}
                       >
                         {dailySummaryRows.totals.target.toLocaleString()}
                       </td>
                       <td
-                        className="px-4 py-2 text-right tabular-nums"
+                        className="px-4 py-2 text-center tabular-nums"
                         style={{ color: DAILY_SERIES.inspected }}
                       >
                         {dailySummaryRows.totals.inspected.toLocaleString()}
                       </td>
                       <td
-                        className="px-4 py-2 text-right tabular-nums"
+                        className="px-4 py-2 text-center tabular-nums"
                         style={
                           dailySummaryRows.totalVariance > 0
                             ? { color: DAILY_SERIES.variance }
@@ -1087,7 +1087,7 @@ function InspectionsNewBody({
                         {dailySummaryRows.totalVariance.toLocaleString()}
                       </td>
                       <td
-                        className="px-4 py-2 text-right tabular-nums"
+                        className="px-4 py-2 text-center tabular-nums"
                         style={
                           dailySummaryRows.totalPositive > 0
                             ? { color: DAILY_SERIES.positive }
@@ -1097,7 +1097,7 @@ function InspectionsNewBody({
                         {dailySummaryRows.totalPositive.toLocaleString()}
                       </td>
                       <td
-                        className="px-4 py-2 text-right tabular-nums"
+                        className="px-4 py-2 text-center tabular-nums"
                         style={{
                           color:
                             dailySummaryRows.totalPct >= 100
@@ -1539,7 +1539,7 @@ function IssuanceTable({
       </td>
       {groups.flatMap((g) =>
         g.fields.map((f) => (
-          <td key={f.key} className="border-b border-r px-1.5 py-1.5 text-right">
+          <td key={f.key} className="border-b border-r px-1.5 py-1.5 text-center">
             <Input
               type="number"
               min={0}
@@ -1553,7 +1553,7 @@ function IssuanceTable({
               onKeyDown={(e) => {
                 if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
               }}
-              className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+              className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
             />
           </td>
         )),

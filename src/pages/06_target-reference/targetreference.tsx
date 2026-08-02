@@ -84,7 +84,7 @@ function BucketCell({
   const v = b[k];
   return (
     <td
-      className={`px-2 py-1.5 text-right tabular-nums ${v === 0 ? "text-muted-foreground/60" : ""} ${className ?? ""}`}
+      className={`px-2 py-1.5 text-center tabular-nums ${v === 0 ? "text-muted-foreground/60" : ""} ${className ?? ""}`}
     >
       {v.toLocaleString()}
     </td>
@@ -663,10 +663,10 @@ function TableHead({ firstLabel }: { firstLabel: string }) {
     <thead className="sticky top-0 z-20">
       <tr className="text-left text-[10px] uppercase tracking-[0.15em] text-primary">
         <th className={cell}>{firstLabel}</th>
-        <th className={`${cell} text-right`}>BPLO</th>
-        <th className={`${cell} text-right`}>Gov</th>
-        <th className={`${cell} text-right`}>PEZA</th>
-        <th className={`${cell} text-right`}>TIEZA</th>
+        <th className={`${cell} text-center`}>BPLO</th>
+        <th className={`${cell} text-center`}>Gov</th>
+        <th className={`${cell} text-center`}>PEZA</th>
+        <th className={`${cell} text-center`}>TIEZA</th>
       </tr>
     </thead>
   );

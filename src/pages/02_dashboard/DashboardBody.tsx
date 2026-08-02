@@ -123,11 +123,11 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
           <thead>
             <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               <th className="py-1 text-left">Sector</th>
-              <th className="py-1 text-right">Target</th>
-              <th className="py-1 text-right">Accomplished</th>
-              <th className="py-1 text-right">Remaining</th>
-              <th className="py-1 text-right">Positive Listing</th>
-              <th className="py-1 text-right">%</th>
+              <th className="py-1 text-center">Target</th>
+              <th className="py-1 text-center">Accomplished</th>
+              <th className="py-1 text-center">Remaining</th>
+              <th className="py-1 text-center">Positive Listing</th>
+              <th className="py-1 text-center">%</th>
             </tr>
           </thead>
           <tbody>
@@ -146,21 +146,21 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
                       {s.name}
                     </span>
                   </td>
-                  <td className="py-1.5 text-right tabular-nums">{s.target.toLocaleString()}</td>
-                  <td className="py-1.5 text-right font-semibold tabular-nums text-success">
+                  <td className="py-1.5 text-center tabular-nums">{s.target.toLocaleString()}</td>
+                  <td className="py-1.5 text-center font-semibold tabular-nums text-success">
                     {s.accomplished.toLocaleString()}
                   </td>
                   <td
-                    className={`py-1.5 text-right tabular-nums ${remaining < 0 ? "text-success" : "text-warning"}`}
+                    className={`py-1.5 text-center tabular-nums ${remaining < 0 ? "text-success" : "text-warning"}`}
                     title={remaining < 0 ? "Accomplishment exceeded target" : undefined}
                   >
                     {remaining.toLocaleString()}
                   </td>
-                  <td className="py-1.5 text-right tabular-nums text-success">
+                  <td className="py-1.5 text-center tabular-nums text-success">
                     {positive ? positive.toLocaleString() : "—"}
                   </td>
                   <td
-                    className={`py-1.5 text-right font-semibold tabular-nums ${pct >= 100 ? "text-success" : ""}`}
+                    className={`py-1.5 text-center font-semibold tabular-nums ${pct >= 100 ? "text-success" : ""}`}
                   >
                     {pct}%
                   </td>

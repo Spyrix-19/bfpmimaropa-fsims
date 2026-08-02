@@ -669,7 +669,7 @@ function NoticeCard({
                                 {CATEGORY_LABEL[category]}
                               </td>
                               <td
-                                className={`px-3 py-2 text-right tabular-nums ${
+                                className={`px-3 py-2 text-center tabular-nums ${
                                   value === 0
                                     ? "text-muted-foreground dark:text-slate-500"
                                     : "text-foreground dark:text-slate-100 font-semibold"

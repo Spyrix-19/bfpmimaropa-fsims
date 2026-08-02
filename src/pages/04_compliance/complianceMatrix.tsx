@@ -19,7 +19,6 @@ import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
 import { sumMonths, MONTH_NAMES } from "@/lib/complianceHelpers";
 import { complianceAPI } from "@/services/complianceAPI";
-import { toDailyRow, monthOfRecord } from "@/lib/complianceAdapters";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { EMPTY_GUID } from "@/lib/utils";
 import { buildYears } from "@/lib/utils";
@@ -63,7 +62,7 @@ const QUARTERS = [
 
 // ---------------------------------------------------------------------------
 // Compliance fields — real backend DTO keys (FSISComplianceLedgerClass), no
-// aliasing. Keeps 1:1 parity with `targetinventoryAPI.getInventoryLedger`
+// Keeps the matrix aligned with the compliance ledger fields from the API.
 // and `monitoringEdit.tsx` so the on-screen matrix and the exported workbook
 // share exactly the same column identity as the source of truth.
 // ---------------------------------------------------------------------------
@@ -165,7 +164,39 @@ function buildGroupsFromLedger(rows: FSISComplianceModel[]): ProvinceGroup[] {
     }
     const months: Record<number, Record<string, number>> = {};
     for (const rec of st.compliancelist ?? []) {
-      const r = toDailyRow(rec);
+      const r = {
+        fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
+        inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
+        inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
+        inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
+        inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
+        inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
+        inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
+        dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
+        dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
+        dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
+        dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
+        isrevisionrequest: Boolean((rec as { isrevisionrequest?: boolean }).isrevisionrequest),
+        editablestatus: Number((rec as { editablestatus?: number }).editablestatus ?? 0) || 0,
+        remarks: String((rec as { remarks?: string }).remarks ?? ""),
+        dateinspected: (rec as { dateinspected?: string }).dateinspected ?? "",
+        issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist) ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[]) : [],
+        fsecbuildingcount: Number((rec as { fsecbuildingcount?: number }).fsecbuildingcount ?? 0) || 0,
+        fsecgovcount: Number((rec as { fsecgovcount?: number }).fsecgovcount ?? 0) || 0,
+        fsecpezacount: Number((rec as { fsecpezacount?: number }).fsecpezacount ?? 0) || 0,
+        fsectiezacount: Number((rec as { fsectiezacount?: number }).fsectiezacount ?? 0) || 0,
+        fsicoccupancycount: Number((rec as { fsicoccupancycount?: number }).fsicoccupancycount ?? 0) || 0,
+        fsicbplonewcount: Number((rec as { fsicbplonewcount?: number }).fsicbplonewcount ?? 0) || 0,
+        fsicbplorenewcount: Number((rec as { fsicbplorenewcount?: number }).fsicbplorenewcount ?? 0) || 0,
+        fsicgovcount: Number((rec as { fsicgovcount?: number }).fsicgovcount ?? 0) || 0,
+        fsicpezacount: Number((rec as { fsicpezacount?: number }).fsicpezacount ?? 0) || 0,
+        fsictiezacount: Number((rec as { fsictiezacount?: number }).fsictiezacount ?? 0) || 0,
+        nodcount: Number((rec as { nodcount?: number }).nodcount ?? 0) || 0,
+        ntccount: Number((rec as { ntccount?: number }).ntccount ?? 0) || 0,
+        ntcvcount: Number((rec as { ntcvcount?: number }).ntcvcount ?? 0) || 0,
+        abatementcount: Number((rec as { abatementcount?: number }).abatementcount ?? 0) || 0,
+        closurecount: Number((rec as { closurecount?: number }).closurecount ?? 0) || 0,
+      };
       const m = monthOf(rec.dateinspected);
       if (m < 1 || m > 12) continue;
       const bucket = (months[m] ??= Object.fromEntries(keys.map((k) => [k, 0])));
@@ -481,10 +512,50 @@ export default function ComplianceMatrixTable({
           };
 
           for (const rec of Array.isArray(s.compliancelist) ? s.compliancelist : []) {
-            const month = monthOfRecord(rec?.dateinspected);
+            const month = (() => {
+              const raw = String((rec as { dateinspected?: string }).dateinspected ?? "").trim();
+              if (!raw) return null;
+              const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(raw);
+              if (iso) return Number(iso[2]) || null;
+              const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(raw);
+              if (slash) return Number(slash[1]) || null;
+              const parsed = new Date(raw);
+              return Number.isNaN(parsed.getTime()) ? null : parsed.getMonth() + 1;
+            })();
             if (!month || month < 1 || month > 12) continue;
             const bucket = (entry.months[month] ??= emptyBucket());
-            const flat = toDailyRow(rec) as unknown as Record<string, unknown>;
+            const flat = {
+              fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
+              inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
+              inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
+              inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
+              inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
+              inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
+              inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
+              dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
+              dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
+              dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
+              dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
+              isrevisionrequest: Boolean((rec as { isrevisionrequest?: boolean }).isrevisionrequest),
+              editablestatus: Number((rec as { editablestatus?: number }).editablestatus ?? 0) || 0,
+              remarks: String((rec as { remarks?: string }).remarks ?? ""),
+              dateinspected: (rec as { dateinspected?: string }).dateinspected ?? "",
+              fsecbuildingcount: Number((rec as { fsecbuildingcount?: number }).fsecbuildingcount ?? 0) || 0,
+              fsecgovcount: Number((rec as { fsecgovcount?: number }).fsecgovcount ?? 0) || 0,
+              fsecpezacount: Number((rec as { fsecpezacount?: number }).fsecpezacount ?? 0) || 0,
+              fsectiezacount: Number((rec as { fsectiezacount?: number }).fsectiezacount ?? 0) || 0,
+              fsicoccupancycount: Number((rec as { fsicoccupancycount?: number }).fsicoccupancycount ?? 0) || 0,
+              fsicbplonewcount: Number((rec as { fsicbplonewcount?: number }).fsicbplonewcount ?? 0) || 0,
+              fsicbplorenewcount: Number((rec as { fsicbplorenewcount?: number }).fsicbplorenewcount ?? 0) || 0,
+              fsicgovcount: Number((rec as { fsicgovcount?: number }).fsicgovcount ?? 0) || 0,
+              fsicpezacount: Number((rec as { fsicpezacount?: number }).fsicpezacount ?? 0) || 0,
+              fsictiezacount: Number((rec as { fsictiezacount?: number }).fsictiezacount ?? 0) || 0,
+              nodcount: Number((rec as { nodcount?: number }).nodcount ?? 0) || 0,
+              ntccount: Number((rec as { ntccount?: number }).ntccount ?? 0) || 0,
+              ntcvcount: Number((rec as { ntcvcount?: number }).ntcvcount ?? 0) || 0,
+              abatementcount: Number((rec as { abatementcount?: number }).abatementcount ?? 0) || 0,
+              closurecount: Number((rec as { closurecount?: number }).closurecount ?? 0) || 0,
+            } as unknown as Record<string, unknown>;
             for (const k of fieldKeyList) {
               bucket[k] += Number(flat[k] ?? 0) || 0;
             }
@@ -883,7 +954,7 @@ function MatrixHeader({
             fields.map((f, i) => (
               <th
                 key={`c-${mv}-${String(f.key)}`}
-                className={`border-b px-1.5 py-1 text-right text-[10px] font-bold uppercase ${
+                className={`border-b px-1.5 py-1 text-center text-[10px] font-bold uppercase ${
                   i === catSpan - 1 && monthIdx === 2
                     ? "border-r-2 border-r-emerald-800/60"
                     : "border-r"
@@ -898,7 +969,7 @@ function MatrixHeader({
           fields.map((f, i) => (
             <th
               key={`c-final-${grpIdx}-${String(f.key)}`}
-              className={`border-b px-1.5 py-1 text-right text-[10px] font-bold uppercase ${
+              className={`border-b px-1.5 py-1 text-center text-[10px] font-bold uppercase ${
                 i === catSpan - 1 ? "border-r-2 border-r-white/40" : "border-r"
               } ${f.category ? CATEGORY_SUB_STYLE[f.category] : grpIdx <= 3 ? STYLE.quarter : grpIdx === 6 ? STYLE.annual : STYLE.semester}`}
             >

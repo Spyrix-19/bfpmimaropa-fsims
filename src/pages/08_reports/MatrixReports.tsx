@@ -19,7 +19,6 @@ import { MONTHS, REGION_NAME } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { unwrap } from "@/lib/api-envelope";
 import { complianceAPI } from "@/services/complianceAPI";
-import { toDailyRow } from "@/lib/complianceAdapters";
 import FilterField from "@/components/filter-field";
 import {
   CATEGORY_FIELDS,
@@ -46,7 +45,36 @@ function toDailyCounts(stations: FSISComplianceModel[]): ComplianceDailyCounts[]
   for (const st of stations) {
     const list = Array.isArray(st?.compliancelist) ? st.compliancelist : [];
     for (const rec of list) {
-      const flat = toDailyRow(rec) as unknown as Record<string, unknown>;
+      const flat = {
+        fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
+        inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
+        inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
+        inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
+        inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
+        inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
+        inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
+        dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
+        dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
+        dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
+        dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
+        remarks: String((rec as { remarks?: string }).remarks ?? ""),
+        dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
+        fsecbuildingcount: Number((rec as { fsecbuildingcount?: number }).fsecbuildingcount ?? 0) || 0,
+        fsecgovcount: Number((rec as { fsecgovcount?: number }).fsecgovcount ?? 0) || 0,
+        fsecpezacount: Number((rec as { fsecpezacount?: number }).fsecpezacount ?? 0) || 0,
+        fsectiezacount: Number((rec as { fsectiezacount?: number }).fsectiezacount ?? 0) || 0,
+        fsicoccupancycount: Number((rec as { fsicoccupancycount?: number }).fsicoccupancycount ?? 0) || 0,
+        fsicbplonewcount: Number((rec as { fsicbplonewcount?: number }).fsicbplonewcount ?? 0) || 0,
+        fsicbplorenewcount: Number((rec as { fsicbplorenewcount?: number }).fsicbplorenewcount ?? 0) || 0,
+        fsicgovcount: Number((rec as { fsicgovcount?: number }).fsicgovcount ?? 0) || 0,
+        fsicpezacount: Number((rec as { fsicpezacount?: number }).fsicpezacount ?? 0) || 0,
+        fsictiezacount: Number((rec as { fsictiezacount?: number }).fsictiezacount ?? 0) || 0,
+        nodcount: Number((rec as { nodcount?: number }).nodcount ?? 0) || 0,
+        ntccount: Number((rec as { ntccount?: number }).ntccount ?? 0) || 0,
+        ntcvcount: Number((rec as { ntcvcount?: number }).ntcvcount ?? 0) || 0,
+        abatementcount: Number((rec as { abatementcount?: number }).abatementcount ?? 0) || 0,
+        closurecount: Number((rec as { closurecount?: number }).closurecount ?? 0) || 0,
+      } as unknown as Record<string, unknown>;
       const num = (k: string) => Number(flat[k] ?? 0) || 0;
       const iso = String(flat.dateinspected ?? "").slice(0, 10);
       if (!iso || iso.startsWith("1900")) continue;
@@ -519,7 +547,7 @@ function TgtActCell({
   const meetOrOver = cell.target > 0 && cell.actual >= cell.target;
   return (
     <td
-      className={`border-b px-2 py-1.5 text-right tabular-nums ${
+      className={`border-b px-2 py-1.5 text-center tabular-nums ${
         boundary ? "border-r-2 border-r-slate-300 dark:border-r-slate-700" : "border-r"
       } ${bold ? "font-bold" : ""} ${zero ? "text-muted-foreground/60" : ""} ${rowClass ?? ""}`}
     >

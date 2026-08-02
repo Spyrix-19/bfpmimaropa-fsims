@@ -61,7 +61,6 @@ import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 
 import { complianceAPI } from "@/services/complianceAPI";
-import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { stationAPI } from "@/services/stationAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { ComplianceDailyCounts } from "@/types/complianceType";
@@ -166,7 +165,7 @@ interface FSISComplianceDetailStation {
   totalAccomplishmentpeza?: number;
   totalAccomplishmenttieza?: number;
 
-  fsisInventoryDetailList?: FSISComplianceDetailItem[] | null;
+  complianceDetailList?: FSISComplianceDetailItem[] | null;
 }
 
 const FIELD_TO_API: Record<string, keyof FSISComplianceDetailItem> = {
@@ -693,11 +692,56 @@ function ComplianceEditBody({
       const station = ok
         ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null))
         : null;
-      const first = station ? toMonthlyLedgerModel(station, year, month) : null;
+      const first = station ? {
+        stationno: String(station?.stationno ?? ""),
+        stationcode: String(station?.stationcode ?? ""),
+        stationname: String(station?.stationname ?? ""),
+        regionno: "",
+        regioncode: "",
+        regionname: "",
+        provinceno: String(station?.provinceno ?? ""),
+        provincename: String(station?.provincename ?? ""),
+        cityno: "",
+        zipcode: "",
+        cityname: String(station?.cityname ?? ""),
+        barangayno: "",
+        barangayname: "",
+        streetaddress: "",
+        logourl: String(station?.logourl ?? ""),
+        month,
+        year,
+        totaltargetbplo: 0,
+        totaltargetgov: 0,
+        totaltargetpeza: 0,
+        totaltargettieza: 0,
+        totalAccomplishmentbplo: 0,
+        totalAccomplishmentgov: 0,
+        totalAccomplishmentpeza: 0,
+        totalAccomplishmenttieza: 0,
+        updatedby: "",
+        encodedby: "",
+        complianceLedgerList: (Array.isArray(station?.compliancelist) ? station.compliancelist : []).map((rec) => ({
+          ...rec,
+          fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
+          dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
+          dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
+          dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
+          dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
+          inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
+          inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
+          inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
+          inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
+          inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
+          inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
+          remarks: String((rec as { remarks?: string }).remarks ?? ""),
+          dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
+          issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist) ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[]) : [],
+        })) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"],
+      } : null;
 
       setStation(first);
 
-      const days = buildEditableDays(first?.fsisInventoryLedgerList, year, month);
+      const days = buildEditableDays(first?.complianceLedgerList, year, month);
       setEditableDays(days);
       setBaseline(JSON.stringify(Array.from(days.entries())));
       setBaselineMap(
@@ -1293,7 +1337,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1315,7 +1359,7 @@ function ComplianceEditBody({
                                     "manual",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
                               />
                             )}
                           </td>
@@ -1329,7 +1373,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1351,7 +1395,7 @@ function ComplianceEditBody({
                                     "manual",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
                               />
                             )}
                           </td>
@@ -1365,7 +1409,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1387,7 +1431,7 @@ function ComplianceEditBody({
                                     "manual",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
                               />
                             )}
                           </td>
@@ -1395,7 +1439,7 @@ function ComplianceEditBody({
                       })}
                       <td
                         rowSpan={2}
-                        className="border-b px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
+                        className="border-b border-r px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
                       >
                         {DETAIL_FIELDS.reduce(
                           (sum, f) => sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
@@ -1404,9 +1448,21 @@ function ComplianceEditBody({
                       </td>
                       <td
                         rowSpan={2}
-                        className="border-b px-3 py-1.5 text-left align-middle text-muted-foreground text-[10px]"
+                        className="border-b px-2 py-1.5 text-left align-middle text-[10px]"
                       >
-                        {dayEntry.inspection.remarks || "—"}
+                        {dayEntry.isLocked ? (
+                          <span className="text-muted-foreground">
+                            {dayEntry.inspection.remarks || "—"}
+                          </span>
+                        ) : (
+                          <Input
+                            type="text"
+                            value={dayEntry.inspection.remarks ?? ""}
+                            onChange={(e) => updateDayRemarks(dayEntry.key, e.target.value)}
+                            placeholder="Remarks"
+                            className="h-8 w-full min-w-[160px] rounded-sm border-border/70 bg-white/90 px-2 py-1 text-[11px]"
+                          />
+                        )}
                       </td>
                     </tr>
 
@@ -1425,7 +1481,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1447,7 +1503,7 @@ function ComplianceEditBody({
                                     "fsis",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
                               />
                             )}
                           </td>
@@ -1461,7 +1517,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1483,7 +1539,7 @@ function ComplianceEditBody({
                                     "fsis",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
                               />
                             )}
                           </td>
@@ -1497,7 +1553,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1519,7 +1575,7 @@ function ComplianceEditBody({
                                     "fsis",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
                               />
                             )}
                           </td>

@@ -246,9 +246,12 @@ export function MonthMultiSelect({
 export function PeriodSelect({
   value,
   onChange,
+  intervals,
 }: {
   value: ModuleInterval;
   onChange: (patch: Partial<ModuleFilterState>) => void;
+  /** Restricts the selectable periods (defaults to all). */
+  intervals?: ModuleInterval[];
 }) {
   const handleIntervalChange = (v: string) => {
     const next = v as ModuleInterval;
@@ -281,13 +284,17 @@ export function PeriodSelect({
     onChange({ interval: next });
   };
 
+  const options = intervals?.length
+    ? MODULE_INTERVALS.filter((it) => intervals.includes(it.value))
+    : MODULE_INTERVALS;
+
   return (
     <Select value={value} onValueChange={handleIntervalChange}>
       <SelectTrigger>
         <SelectValue placeholder="Period" />
       </SelectTrigger>
       <SelectContent>
-        {MODULE_INTERVALS.map((it) => (
+        {options.map((it) => (
           <SelectItem key={it.value} value={it.value}>
             {it.label}
           </SelectItem>
@@ -301,9 +308,12 @@ export function PeriodSelect({
 export function SubFilterControl({
   state,
   onChange,
+  allowAllDays = true,
 }: {
   state: ModuleFilterState;
   onChange: (patch: Partial<ModuleFilterState>) => void;
+  /** DAILY only: when false, the "All (whole month)" shortcut is hidden. */
+  allowAllDays?: boolean;
 }) {
   const [dateOpen, setDateOpen] = React.useState(false);
   const allDays = isAllDays(state.date);
@@ -361,6 +371,7 @@ export function SubFilterControl({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
+          {allowAllDays && (
           <button
             type="button"
             onClick={handleAllDays}
@@ -372,6 +383,7 @@ export function SubFilterControl({
             <span className="font-medium">All (whole month)</span>
             {allDays ? <Check className="h-4 w-4 text-primary" /> : null}
           </button>
+          )}
           <Calendar
             mode="single"
             selected={selectedDate ?? undefined}
@@ -438,6 +450,8 @@ export function ModuleFilterBar({
   onReset,
   leading,
   children,
+  intervals,
+  allowAllDays = true,
 }: {
   title?: string;
   years: number[];
@@ -448,6 +462,10 @@ export function ModuleFilterBar({
   leading?: React.ReactNode;
   /** Province + Station controls. */
   children?: React.ReactNode;
+  /** Restricts the selectable periods (defaults to all). */
+  intervals?: ModuleInterval[];
+  /** DAILY only: when false, the "All (whole month)" shortcut is hidden. */
+  allowAllDays?: boolean;
 }) {
 
   return (
@@ -469,9 +487,9 @@ export function ModuleFilterBar({
             </SelectContent>
           </Select>
 
-          <PeriodSelect value={state.interval} onChange={onChange} />
+          <PeriodSelect value={state.interval} onChange={onChange} intervals={intervals} />
 
-          <SubFilterControl state={state} onChange={onChange} />
+          <SubFilterControl state={state} onChange={onChange} allowAllDays={allowAllDays} />
 
           {children}
         </div>

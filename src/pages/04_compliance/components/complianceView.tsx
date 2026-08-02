@@ -31,7 +31,6 @@ import { toast } from "@/lib/toast";
 
 import { stationAPI } from "@/services/stationAPI";
 import { complianceAPI } from "@/services/complianceAPI";
-import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
@@ -408,19 +407,19 @@ function InlineAccomplishmentPanel({
           <thead>
             <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-2 text-left">Category</th>
-              <th className="px-4 py-2 text-right">
+              <th className="px-4 py-2 text-center">
                 <Dot color={SERIES.target} />Target
               </th>
-              <th className="px-4 py-2 text-right">
+              <th className="px-4 py-2 text-center">
                 <Dot color={SERIES.compliance} />Compliance
               </th>
-              <th className="px-4 py-2 text-right">
+              <th className="px-4 py-2 text-center">
                 <Dot color={SERIES.variance} />Variance
               </th>
-              <th className="px-4 py-2 text-right">
+              <th className="px-4 py-2 text-center">
                 <Dot color={SERIES.positive} />Positive Listing
               </th>
-              <th className="px-4 py-2 text-right">% Accomplishment</th>
+              <th className="px-4 py-2 text-center">% Accomplishment</th>
             </tr>
           </thead>
           <tbody>
@@ -430,29 +429,29 @@ function InlineAccomplishmentPanel({
                 className={cn("border-t border-border/50", i % 2 === 1 && "bg-muted/20")}
               >
                 <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
-                <td className="px-4 py-2 text-right tabular-nums" style={{ color: SERIES.target }}>
+                <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.target }}>
                   {r.target.toLocaleString()}
                 </td>
                 <td
-                  className="px-4 py-2 text-right tabular-nums"
+                  className="px-4 py-2 text-center tabular-nums"
                   style={{ color: SERIES.compliance }}
                 >
                   {r.compliance.toLocaleString()}
                 </td>
                 <td
-                  className="px-4 py-2 text-right font-medium tabular-nums"
+                  className="px-4 py-2 text-center font-medium tabular-nums"
                   style={r.variance > 0 ? { color: SERIES.variance } : undefined}
                 >
                   {r.variance.toLocaleString()}
                 </td>
                 <td
-                  className="px-4 py-2 text-right font-medium tabular-nums"
+                  className="px-4 py-2 text-center font-medium tabular-nums"
                   style={r.positive > 0 ? { color: SERIES.positive } : undefined}
                 >
                   {r.positive.toLocaleString()}
                 </td>
                 <td
-                  className="px-4 py-2 text-right font-medium tabular-nums"
+                  className="px-4 py-2 text-center font-medium tabular-nums"
                   style={{
                     color: r.percentage >= 100 ? SERIES.positive : SERIES.compliance,
                   }}
@@ -463,29 +462,29 @@ function InlineAccomplishmentPanel({
             ))}
             <tr className="border-t-2 border-border bg-primary/5 font-semibold">
               <td className="px-4 py-2">Total</td>
-              <td className="px-4 py-2 text-right tabular-nums" style={{ color: SERIES.target }}>
+              <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.target }}>
                 {totals.target.toLocaleString()}
               </td>
               <td
-                className="px-4 py-2 text-right tabular-nums"
+                className="px-4 py-2 text-center tabular-nums"
                 style={{ color: SERIES.compliance }}
               >
                 {totals.compliance.toLocaleString()}
               </td>
               <td
-                className="px-4 py-2 text-right tabular-nums"
+                className="px-4 py-2 text-center tabular-nums"
                 style={totals.variance > 0 ? { color: SERIES.variance } : undefined}
               >
                 {totals.variance.toLocaleString()}
               </td>
               <td
-                className="px-4 py-2 text-right tabular-nums"
+                className="px-4 py-2 text-center tabular-nums"
                 style={totals.positive > 0 ? { color: SERIES.positive } : undefined}
               >
                 {totals.positive.toLocaleString()}
               </td>
               <td
-                className="px-4 py-2 text-right tabular-nums"
+                className="px-4 py-2 text-center tabular-nums"
                 style={{ color: totalPct >= 100 ? SERIES.positive : SERIES.compliance }}
               >
                 {totalPct.toFixed(2)}%
@@ -566,7 +565,58 @@ function ComplianceViewBody({
           ? (data[0] ?? null)
           : (data ?? null)
         : null;
-      setStation(first ? toMonthlyLedgerModel(first, year, selectedMonth) : null);
+      setStation(
+        first
+          ? ({
+              stationno: String(first?.stationno ?? ""),
+              stationcode: String(first?.stationcode ?? ""),
+              stationname: String(first?.stationname ?? ""),
+              regionno: "",
+              regioncode: "",
+              regionname: "",
+              provinceno: String(first?.provinceno ?? ""),
+              provincename: String(first?.provincename ?? ""),
+              cityno: "",
+              zipcode: "",
+              cityname: String(first?.cityname ?? ""),
+              barangayno: "",
+              barangayname: "",
+              streetaddress: "",
+              logourl: String(first?.logourl ?? ""),
+              month: selectedMonth,
+              year,
+              totaltargetbplo: 0,
+              totaltargetgov: 0,
+              totaltargetpeza: 0,
+              totaltargettieza: 0,
+              totalAccomplishmentbplo: 0,
+              totalAccomplishmentgov: 0,
+              totalAccomplishmentpeza: 0,
+              totalAccomplishmenttieza: 0,
+              updatedby: "",
+              encodedby: "",
+              complianceLedgerList: (Array.isArray(first?.compliancelist) ? first.compliancelist : []).map((rec) => ({
+                ...rec,
+                fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
+                dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
+                dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
+                dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
+                dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
+                inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
+                inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
+                inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
+                inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
+                inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
+                inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
+                remarks: String((rec as { remarks?: string }).remarks ?? ""),
+                dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
+                issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist)
+                  ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[])
+                  : [],
+              })) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"],
+            } as FSISComplianceMonthlyLedgerModel)
+          : null,
+      );
       setLoading(false);
     })();
     return () => {
@@ -575,7 +625,7 @@ function ComplianceViewBody({
   }, [stationno, provinceno, year, selectedMonth]);
 
   const slices = React.useMemo<DaySlice[]>(
-    () => buildSlices(station?.fsisInventoryLedgerList, year, selectedMonth),
+    () => buildSlices(station?.complianceLedgerList, year, selectedMonth),
     [station, year, selectedMonth],
   );
 
@@ -795,7 +845,7 @@ function ComplianceViewBody({
                             <td
                               key={`${key}__target`}
                               rowSpan={2}
-                              className="border-b border-r border-grid px-2 py-1.5 text-right align-middle tabular-nums text-muted-foreground"
+                              className="border-b border-r border-grid px-2 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
                             >
                               {t.toLocaleString()}
                             </td>,
@@ -805,7 +855,7 @@ function ComplianceViewBody({
                           <td
                             key={key}
                             rowSpan={2}
-                            className="border-b border-r border-grid px-2 py-1.5 text-right align-middle tabular-nums"
+                            className="border-b border-r border-grid px-2 py-1.5 text-center align-middle tabular-nums"
                           >
                             {v.toLocaleString()}
                           </td>,
@@ -825,7 +875,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-right tabular-nums"
+                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
                             {v.toLocaleString()}
                           </td>
@@ -840,7 +890,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-right tabular-nums"
+                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
                             {v.toLocaleString()}
                           </td>
@@ -855,7 +905,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-right tabular-nums"
+                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
                             {v.toLocaleString()}
                           </td>
@@ -893,7 +943,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-right tabular-nums"
+                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
                             {v.toLocaleString()}
                           </td>
@@ -908,7 +958,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-right tabular-nums"
+                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
                             {v.toLocaleString()}
                           </td>
@@ -923,7 +973,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-right tabular-nums"
+                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
                             {v.toLocaleString()}
                           </td>

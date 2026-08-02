@@ -310,7 +310,7 @@ export interface FSISComplianceLedgerClass {
 /** Alias kept for the monthly ledger screens. */
 export type FSISComplianceDailyClass = FSISComplianceLedgerClass;
 
-/** Station-month wrapper built by `complianceAdapters`. */
+/** Station-month wrapper for the compliance ledger UI. */
 export interface FSISComplianceMonthlyLedgerModel {
   stationno: string;
   stationcode: string;
@@ -349,12 +349,12 @@ export interface FSISComplianceMonthlyLedgerModel {
   updatedby: string;
   encodedby: string;
 
-  fsisInventoryLedgerList: (FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>)[];
+  complianceLedgerList: (FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>)[];
 }
 
 /** UI-key daily counts used by the ledger / matrix presentation layer. */
 export interface ComplianceDailyCounts {
-  inventoryno: string;
+  complianceNo: string;
   stationno: string;
   stationcode: string;
   stationname: string;
