@@ -325,19 +325,18 @@ function InventoryViewBody({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await targetinventoryAPI.getMonthly(
+      const resp = await complianceAPI.getDetail(
         {
-          Stationno: stationno || EMPTY_GUID,
-          Provinceno: provinceno,
-          Reportyear: year,
-          Reportmonth: selectedMonth,
+          stationno: stationno || EMPTY_GUID,
+          reportyear: year,
+          reportmonth: selectedMonth,
         },
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
 
       const { ok, data, error } = unwrap<
-        FSISInventoryMonthlyLedgerModel | FSISInventoryMonthlyLedgerModel[]
+        FSISComplianceDetailModel | FSISComplianceDetailModel[]
       >(resp);
       if (!ok) toast.error(error || "Failed to load daily details.");
       const first = ok
@@ -345,7 +344,7 @@ function InventoryViewBody({
           ? (data[0] ?? null)
           : (data ?? null)
         : null;
-      setStation(first);
+      setStation(first ? toMonthlyLedgerModel(first, year, selectedMonth) : null);
       setLoading(false);
     })();
     return () => {
