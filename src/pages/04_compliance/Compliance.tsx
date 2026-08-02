@@ -486,6 +486,7 @@ export default function FireSafetyCompliancePage() {
             reportyear: Number(year),
             interval: 1,
             targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
+            dateinspected: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
             reportmonth: [Number(month)],
             provinces,
           },
@@ -554,7 +555,7 @@ export default function FireSafetyCompliancePage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const resp = await targetinventoryAPI.delete({
+      const resp = await complianceAPI.delete({
         stationno: deleteTarget.stationno,
         reportyear: Number(deleteTarget.year),
         reportmonth: Number(deleteTarget.month),
