@@ -53,7 +53,8 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 
-import { targetinventoryAPI } from "@/services/complianceAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { stationAPI } from "@/services/stationAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
@@ -62,8 +63,10 @@ import type {
   FSISInventoryMonthlyClass,
   FSISIssuanceClassModel,
   FSISInventoryIssuanceClassDTO,
-  FSISUpdateInventoryClass,
-  FSISUpdateInventoryDTO,
+  FSISComplianceDetailModel,
+  FSISComplianceDTO,
+  FSISComplianceClass,
+  FSISIssuanceClassDTO,
   } from "@/types/complianceType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
