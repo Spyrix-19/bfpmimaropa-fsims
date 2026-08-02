@@ -79,7 +79,7 @@ function toDailyCounts(stations: FSISComplianceModel[]): ComplianceDailyCounts[]
       const iso = String(flat.dateinspected ?? "").slice(0, 10);
       if (!iso || iso.startsWith("1900")) continue;
       out.push({
-        inventoryno: String(flat.fsisno ?? ""),
+        fsisno: String(flat.fsisno ?? ""),
         stationno: st.stationno,
         stationcode: st.stationcode ?? "",
         stationname: st.stationname ?? "",
