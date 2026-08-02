@@ -225,92 +225,9 @@ function mapMonthlyItemToRow(
   };
 }
 
-/**
- * /api/v1/FSISInventory/Ledger does NOT return the dailytarget* fields, so the
- * Target columns render blank. /api/v1/FSISCompliance/Ledger does return them,
- * keyed by `fsisno`. Fetch that once per listing and merge the targets into the
- * daily records already loaded from the inventory ledger.
- */
-async function fetchDailyTargets(
-  items: FSISInventoryMonthlyItem[],
-  year: number,
-  month: number,
-  signal?: AbortSignal,
-): Promise<Map<string, Record<string, number>>> {
-  const out = new Map<string, Record<string, number>>();
-  const byProvince = new Map<string, Set<string>>();
-  for (const it of items) {
-    if (!it.provinceno || !it.stationno) continue;
-    if (!byProvince.has(it.provinceno)) byProvince.set(it.provinceno, new Set());
-    byProvince.get(it.provinceno)!.add(it.stationno);
-  }
-  if (!byProvince.size || !year || !month) return out;
+/* The FSISCompliance Ledger returns the dailytarget* fields inline, so no
+ * secondary target enrichment pass is needed. */
 
-  try {
-    const resp = await complianceAPI.getLedger(
-      {
-        parameters: {
-          searchkey: "",
-          reportyear: Number(year),
-          interval: 1,
-          targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
-          dateinspected: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
-          reportmonth: [Number(month)],
-          provinces: Array.from(byProvince, ([provinceno, stations]) => ({
-            provinceno,
-            stationnos: Array.from(stations),
-          })),
-        },
-        pagenumber: 1,
-        pagesize: Math.max(items.length, 10),
-      },
-      { suppressGlobalLoading: true, signal },
-    );
-    const { ok, data } = unwrap<
-      {
-        stationno?: string;
-        compliancelist?: Record<string, unknown>[];
-      }[]
-    >(resp);
-    if (!ok) return out;
-    for (const st of Array.isArray(data) ? data : []) {
-      for (const rec of Array.isArray(st?.compliancelist) ? st.compliancelist : []) {
-        const targets = {
-          dailytargetbplo: Number(rec?.dailytargetbplo ?? 0) || 0,
-          dailytargetgov: Number(rec?.dailytargetgov ?? 0) || 0,
-          dailytargetpeza: Number(rec?.dailytargetpeza ?? 0) || 0,
-          dailytargettieza: Number(rec?.dailytargettieza ?? 0) || 0,
-        };
-        const fsisno = String(rec?.fsisno ?? "");
-        if (fsisno) out.set(`fsis:${fsisno}`, targets);
-        const iso = String(rec?.dateinspected ?? "").slice(0, 10);
-        const stationno = String(rec?.stationno ?? st?.stationno ?? "");
-        if (iso && stationno) out.set(`date:${stationno}|${iso}`, targets);
-      }
-    }
-  } catch {
-    /* targets are best-effort — leave the ledger rendering without them */
-  }
-  return out;
-}
-
-/** Merges fetched dailytarget* values into a mapped row's daily records. */
-function withDailyTargets(
-  row: LedgerRow,
-  targets: Map<string, Record<string, number>>,
-): LedgerRow {
-  if (!targets.size || !Array.isArray(row.daily)) return row;
-  return {
-    ...row,
-    daily: row.daily.map((d) => {
-      const iso = String(d?.dateinspected ?? "").slice(0, 10);
-      const t =
-        targets.get(`fsis:${String((d as { fsisno?: string }).fsisno ?? "")}`) ??
-        targets.get(`date:${row.stationno}|${iso}`);
-      return t ? { ...d, ...t } : d;
-    }),
-  };
-}
 
 export default function FireSafetyCompliancePage() {
   const { user, systemAccess } = useAuth();
