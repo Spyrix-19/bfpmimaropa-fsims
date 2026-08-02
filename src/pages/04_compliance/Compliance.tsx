@@ -465,13 +465,28 @@ export default function FireSafetyCompliancePage() {
       setLoading(true);
       const effectiveProvinceNo = scope.provinceLocked ? scope.provinceno : provinceno;
       const effectiveStationNo = scope.stationLocked ? scope.stationno : stationno;
-      const resp = await targetinventoryAPI.getInventoryLedger(
+      const provinces =
+        effectiveProvinceNo && effectiveProvinceNo !== EMPTY_GUID
+          ? [
+              {
+                provinceno: effectiveProvinceNo,
+                stationnos:
+                  effectiveStationNo && effectiveStationNo !== EMPTY_GUID
+                    ? [effectiveStationNo]
+                    : [],
+              },
+            ]
+          : [];
+      const resp = await complianceAPI.getLedger(
         {
-          searchkey: "",
-          stationno: effectiveStationNo || EMPTY_GUID,
-          provinceno: effectiveProvinceNo || EMPTY_GUID,
-          reportyear: Number(year),
-          reportmonth: Number(month),
+          parameters: {
+            searchkey: "",
+            reportyear: Number(year),
+            interval: 1,
+            targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
+            reportmonth: [Number(month)],
+            provinces,
+          },
           pagenumber: page,
           pagesize: pageSize,
         },
@@ -483,28 +498,19 @@ export default function FireSafetyCompliancePage() {
         total: apiTotal,
         error,
         canceled,
-      } = unwrap<FSISInventoryMonthlyItem[]>(resp);
+      } = unwrap<FSISComplianceModel[]>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
-        toast.error(error || "Unable to load monthly inventory ledger.");
+        toast.error(error || "Unable to load monthly compliance ledger.");
         setRows([]);
         setTotal(0);
       } else {
-        const items = Array.isArray(data) ? data : [];
+        const items = (Array.isArray(data) ? data : []).map((st) =>
+          toMonthlyLedgerModel(st, Number(year), Number(month)),
+        );
         const mapped = items.map((it) => mapMonthlyItemToRow(it, Number(year), Number(month)));
         setRows(mapped);
         setTotal(Number(apiTotal || items.length || 0));
-        // The inventory ledger has no target fields — enrich from the
-        // compliance ledger so the Target columns are populated.
-        const targets = await fetchDailyTargets(
-          items,
-          Number(year),
-          Number(month),
-          controller.signal,
-        );
-        if (!cancelled && targets.size) {
-          setRows(mapped.map((r) => withDailyTargets(r, targets)));
-        }
       }
       setLoading(false);
     })();
