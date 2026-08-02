@@ -20,7 +20,8 @@ import { ArrowLeft, Eye, Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import { stationAPI } from "@/services/stationAPI";
-import { targetinventoryAPI } from "@/services/complianceAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
