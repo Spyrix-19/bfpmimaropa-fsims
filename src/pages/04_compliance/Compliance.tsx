@@ -55,7 +55,8 @@ import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField"
 // Monthly ledger queries are moved to the editor modal to avoid
 // calling the heavy Monthly endpoint on the main listing view.
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
-import { targetinventoryAPI, complianceAPI } from "@/services/complianceAPI.ts";
+import { complianceAPI } from "@/services/complianceAPI.ts";
+import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
@@ -65,6 +66,7 @@ import type {
   FSISInventoryMonthlyLedgerModel,
   FSISInventoryMonthlyClass,
   FSISIssuanceClassModel,
+  FSISComplianceModel,
 } from "@/types/complianceType.ts";
 
 // Page-local aliases — the existing DTOs in `types/` are immutable; these
