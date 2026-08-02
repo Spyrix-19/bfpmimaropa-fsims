@@ -11,7 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "@/components/ui/card";
-import { targetinventoryAPI } from "@/services/complianceAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { toTargetAccomplishment } from "@/lib/complianceAdapters";
 import { unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { cn } from "@/lib/utils";
