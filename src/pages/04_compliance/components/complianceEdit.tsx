@@ -1243,7 +1243,7 @@ function ComplianceEditBody({
                             <td
                               key={`${String(field.key)}__target`}
                               rowSpan={2}
-                              className="min-w-[56px] w-[56px] border-b border-r px-1.5 py-1.5 text-right align-middle tabular-nums text-muted-foreground"
+                              className="min-w-[56px] w-[56px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
                             >
                               {num(dayEntry.inspection[targetKey]).toLocaleString()}
                             </td>,
@@ -1253,7 +1253,7 @@ function ComplianceEditBody({
                           <td
                             key={String(field.key)}
                             rowSpan={2}
-                            className={`min-w-[56px] w-[56px] border-b border-r px-1.5 py-1.5 align-middle ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            className="min-w-[56px] w-[56px] border-b border-r px-1.5 py-1.5 text-center align-middle"
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1275,7 +1275,7 @@ function ComplianceEditBody({
                                     "inspection",
                                   )
                                 }
-                                className="h-8 w-14 max-w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-right tabular-nums"
+                                className="h-8 w-14 max-w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums"
                               />
                             )}
                           </td>,

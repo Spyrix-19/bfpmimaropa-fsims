@@ -982,7 +982,7 @@ function DrillCell({
   boundary?: boolean;
   rowClass?: string;
 }) {
-  const base = `border-b px-2 py-1.5 text-right tabular-nums ${
+  const base = `border-b px-2 py-1.5 text-center tabular-nums ${
     boundary ? "border-r-2 border-r-slate-300 dark:border-r-slate-700" : "border-r"
   } ${bold ? "font-bold" : ""} ${value === 0 && !bold ? "text-muted-foreground/60" : ""} ${rowClass ?? ""}`;
   if (onClick) {
