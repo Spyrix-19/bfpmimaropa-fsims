@@ -106,7 +106,7 @@ const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
 /*  Detail API shapes (per-day records)                                      */
 /* ========================================================================== */
 
-interface FSISInventoryDetailItem {
+interface FSISComplianceDetailItem {
   fsisno: string;
   dateinspected: string | Date;
   remarks?: string | null;
@@ -137,7 +137,7 @@ interface FSISInventoryDetailItem {
   closurecount?: number | null;
 }
 
-interface FSISInventoryDetailStation {
+interface FSISComplianceDetailStation {
   stationno: string;
   stationname?: string;
   provincename?: string;
@@ -154,10 +154,10 @@ interface FSISInventoryDetailStation {
   totalAccomplishmentpeza?: number;
   totalAccomplishmenttieza?: number;
 
-  fsisInventoryDetailList?: FSISInventoryDetailItem[] | null;
+  fsisInventoryDetailList?: FSISComplianceDetailItem[] | null;
 }
 
-const FIELD_TO_API: Record<string, keyof FSISInventoryDetailItem> = {
+const FIELD_TO_API: Record<string, keyof FSISComplianceDetailItem> = {
   insp_during: "inspectduringcount",
   insp_after: "inspectaftercount",
   insp_bplo: "inspectbplocount",
@@ -207,7 +207,7 @@ interface EditableDay {
   day: number;
   label: string;
   key: string;
-  inspection: FSISInventoryDetailItem;
+  inspection: FSISComplianceDetailItem;
   manual: EditableIssuance;
   fsis: EditableIssuance;
   isLocked: boolean;
@@ -323,7 +323,7 @@ function buildEditableDays(
     const apiData = dataByDate.get(key);
 
     // Extract inspection data
-    const inspection: FSISInventoryDetailItem = apiData
+    const inspection: FSISComplianceDetailItem = apiData
       ? {
           fsisno: apiData.fsisno ?? EMPTY_GUID,
           dateinspected: apiData.dateinspected ?? key,
@@ -425,7 +425,7 @@ function buildEditableDays(
 /*  Editor body — per-day editable table                                     */
 /* ========================================================================== */
 
-function InventoryEditBody({
+function ComplianceEditBody({
   stationno,
   year,
   month,
@@ -476,13 +476,13 @@ function InventoryEditBody({
   const isDayModified = React.useCallback((originalSerialized: string, day: EditableDay) => {
     try {
       const orig = JSON.parse(originalSerialized) as {
-        inspection: Partial<FSISInventoryDetailItem>;
+        inspection: Partial<FSISComplianceDetailItem>;
         manual: Partial<EditableIssuance>;
         fsis: Partial<EditableIssuance>;
       };
 
       // Inspection fields to compare
-      const inspKeys: (keyof FSISInventoryDetailItem)[] = [
+      const inspKeys: (keyof FSISComplianceDetailItem)[] = [
         "inspectduringcount",
         "inspectaftercount",
         "inspectbplocount",
@@ -699,7 +699,7 @@ function InventoryEditBody({
       const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
 
       const apiKey = FIELD_TO_API[fieldKey] as
-        keyof (FSISInventoryDetailItem | EditableIssuance) | undefined;
+        keyof (FSISComplianceDetailItem | EditableIssuance) | undefined;
       if (!apiKey) return prev;
 
       const updated = { ...day };
@@ -716,7 +716,7 @@ function InventoryEditBody({
       const totals: DayTotals = {};
       for (const f of DETAIL_FIELDS) {
         if (f.key.startsWith("insp_")) {
-          const key = FIELD_TO_API[String(f.key)] as keyof FSISInventoryDetailItem;
+          const key = FIELD_TO_API[String(f.key)] as keyof FSISComplianceDetailItem;
           if (key) {
             totals[f.key as keyof ComplianceDailyCounts] = num(updated.inspection[key]);
           }
@@ -1724,7 +1724,7 @@ function SectionTitle({
 /*  Route + Modal exports                                                     */
 /* -------------------------------------------------------------------------- */
 
-export default function InventoryEdit() {
+export default function ComplianceEditPage() {
   const { stationno = "", year = "", month = "" } = useParams();
   const navigate = useNavigate();
   const y = Number(year);
@@ -1747,7 +1747,7 @@ export default function InventoryEdit() {
         </div>
       </div>
 
-      <InventoryEditBody
+      <ComplianceEditBody
         stationno={stationno}
         year={y}
         month={m}
@@ -1758,7 +1758,7 @@ export default function InventoryEdit() {
   );
 }
 
-export function InventoryEditModal({
+export function ComplianceEditModal({
   open,
   onOpenChange,
   stationno,
@@ -1807,7 +1807,7 @@ export function InventoryEditModal({
 
         <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
           {open ? (
-            <InventoryEditBody
+            <ComplianceEditBody
               stationno={stationno}
               year={year}
               month={month}

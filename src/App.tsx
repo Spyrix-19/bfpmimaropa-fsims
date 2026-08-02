@@ -8,8 +8,8 @@ import { Toaster } from "@/components/ui/sonner";
 
 const Dashboard = lazy(() => import("@/pages/02_dashboard/Dashboard"));
 const Monitoring = lazy(() => import("./pages/04_compliance/Compliance.tsx"));
-const InventoryView = lazy(() => import("./pages/04_compliance/components/complianceView.tsx"));
-const InventoryEdit = lazy(() => import("./pages/04_compliance/components/complianceEdit.tsx"));
+const ComplianceViewPage = lazy(() => import("./pages/04_compliance/components/complianceView.tsx"));
+const ComplianceEditPage = lazy(() => import("./pages/04_compliance/components/complianceEdit.tsx"));
 const TargetReference = lazy(() => import("@/pages/06_target-reference/targetreference"));
 const AccomplishedNotice = lazy(() => import("@/pages/05_accomplished_notices/AccomplishedNotice"));
 
@@ -96,7 +96,7 @@ export default function App() {
                     path="/monitoring/view/:stationno/:year/:month"
                     element={
                       <RequireAccess module="monitoring">
-                        <InventoryView />
+                        <ComplianceViewPage />
                       </RequireAccess>
                     }
                   />
@@ -104,7 +104,7 @@ export default function App() {
                     path="/monitoring/edit/:stationno/:year/:month"
                     element={
                       <RequireAccess module="monitoring">
-                        <InventoryEdit />
+                        <ComplianceEditPage />
                       </RequireAccess>
                     }
                   />

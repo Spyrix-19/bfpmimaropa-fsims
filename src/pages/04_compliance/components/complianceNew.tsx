@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { z } from "zod";
-import { AlertTriangle, CalendarIcon, FilePlus2, Loader2, Save, Building2 } from "lucide-react";
+import { AlertTriangle, CalendarIcon, FilePlus2, Loader2, Save, Building2, Target } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -31,6 +31,17 @@ import { MONITORING_THEME } from "./complianceTheme";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { cn } from "@/lib/utils";
+import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { complianceAPI } from "@/services/complianceAPI";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
@@ -47,7 +58,6 @@ import RevisionRequestDialog from "@/pages/06_target-reference/revision/Revision
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import { formatLongDate } from "@/lib/date-format";
 import { Ban, FilePen, Trash2, Lock } from "lucide-react";
-import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
 /** Row shape returned by the compliance "detail by date" endpoint. */
 type ComplianceRow = FSISComplianceDetailClassModel & { isdeleted?: boolean };
@@ -211,6 +221,66 @@ const defaultIssuance = Object.fromEntries(ISSUANCE_FIELDS.map((f) => [f.key, 0]
   string,
   number
 >;
+
+/* -------------------------------------------------------------------------- */
+/*  Inline daily target vs. inspected panel — bound to the date summary       */
+/*  populated by complianceAPI.getDetailBydate.                                 */
+/* -------------------------------------------------------------------------- */
+
+type DailyCategoryKey = "bplo" | "gov" | "peza" | "tieza";
+
+const DAILY_CATEGORIES: { key: DailyCategoryKey; label: string }[] = [
+  { key: "bplo", label: "BPLO" },
+  { key: "gov", label: "GOV" },
+  { key: "peza", label: "PEZA" },
+  { key: "tieza", label: "TIEZA" },
+];
+
+const DAILY_SERIES = {
+  target: "var(--color-warning)",
+  inspected: "var(--color-primary)",
+  variance: "var(--color-destructive)",
+  positive: "var(--color-success)",
+} as const;
+
+function DailyPct(inspected: number, target: number): number {
+  return target > 0 ? (inspected / target) * 100 : 0;
+}
+
+function DailyDot({ color }: { color: string }) {
+  return (
+    <span
+      className="mr-1.5 inline-block h-2 w-2 rounded-[2px] align-middle"
+      style={{ background: color }}
+    />
+  );
+}
+
+function DailyPickTarget(m: TargetAccomplishmentModel, k: DailyCategoryKey): number {
+  switch (k) {
+    case "bplo":
+      return Number(m.totaltargetbplo ?? 0) || 0;
+    case "gov":
+      return Number(m.totaltargetgov ?? 0) || 0;
+    case "peza":
+      return Number(m.totaltargetpeza ?? 0) || 0;
+    case "tieza":
+      return Number(m.totaltargettieza ?? 0) || 0;
+  }
+}
+
+function DailyPickInspected(m: TargetAccomplishmentModel, k: DailyCategoryKey): number {
+  switch (k) {
+    case "bplo":
+      return Number(m.totalAccomplishmentbplo ?? 0) || 0;
+    case "gov":
+      return Number(m.totalAccomplishmentgov ?? 0) || 0;
+    case "peza":
+      return Number(m.totalAccomplishmentpeza ?? 0) || 0;
+    case "tieza":
+      return Number(m.totalAccomplishmenttieza ?? 0) || 0;
+  }
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Screen body — used stand-alone AND inside the modal wrapper.              */
@@ -570,8 +640,54 @@ function InspectionsNewBody({
   const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
   const fieldsLocked = isPastSelectedDate && !unlockedByApproval;
 
-  /* ------------------------- Monthly summary lookups ---------------------- */
-  // Data lives in <TargetAccomplishmentPanel/>.
+  /* ------------------------- Daily target vs inspected summary ---------------------- */
+  const dailySummaryRows = React.useMemo(() => {
+    if (!dateSummary) {
+      return {
+        rows: [] as {
+          key: DailyCategoryKey;
+          label: string;
+          target: number;
+          inspected: number;
+          variance: number;
+          positive: number;
+          percentage: number;
+        }[],
+        chartData: [] as { name: string; Target: number; Accomplishment: number }[],
+        totals: { target: 0, inspected: 0, variance: 0, positive: 0 },
+        totalVariance: 0,
+        totalPositive: 0,
+        totalPct: 0,
+      };
+    }
+    const rows = DAILY_CATEGORIES.map((c) => {
+      const target = DailyPickTarget(dateSummary, c.key);
+      const inspected = DailyPickInspected(dateSummary, c.key);
+      const variance = Math.max(target - inspected, 0);
+      const positive = Math.max(inspected - target, 0);
+      const percentage = DailyPct(inspected, target);
+      return { ...c, target, inspected, variance, positive, percentage };
+    });
+    const chartData = rows.map((r) => ({
+      name: r.label,
+      Target: r.target,
+      Accomplishment: r.inspected,
+    }));
+    const totals = rows.reduce(
+      (acc, r) => {
+        acc.target += r.target;
+        acc.inspected += r.inspected;
+        acc.variance += r.variance;
+        acc.positive += r.positive;
+        return acc;
+      },
+      { target: 0, inspected: 0, variance: 0, positive: 0 },
+    );
+    const totalVariance = totals.variance;
+    const totalPositive = totals.positive;
+    const totalPct = DailyPct(totals.inspected, totals.target);
+    return { rows, chartData, totals, totalVariance, totalPositive, totalPct };
+  }, [dateSummary]);
 
   /* --------------------------- Numeric handlers --------------------------- */
 
@@ -834,14 +950,174 @@ function InspectionsNewBody({
           subtitle={`Reporting month · ${monthName} ${year}`}
         />
 
-        <TargetAccomplishmentPanel
-          variant="daily"
-          stationno={station.no || undefined}
-          year={year}
-          month={month}
-          periodLabel={format(reportingDate, "PPP")}
-          data={dateSummary}
-        />
+        <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
+          <div className="flex items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3">
+            <div className="flex items-center gap-2">
+              <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                <Target className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold">Daily Target vs. Inspected</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {station.no
+                    ? format(reportingDate, "PPP")
+                    : "Select a station to load"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {station.no ? (
+            <>
+              <div className="border-b border-border/50 bg-card/40 p-4">
+                <div className="h-64 w-full">
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={dailySummaryRows.chartData}
+                      margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                      <XAxis dataKey="name" {...axisProps} allowDecimals={false} />
+                      <YAxis {...axisProps} allowDecimals={false} />
+                      <RechartsTooltip contentStyle={tooltipStyle} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="Target" fill={DAILY_SERIES.target} radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="Accomplishment"
+                        fill={DAILY_SERIES.inspected}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="px-4 py-2 text-left">Category</th>
+                      <th className="px-4 py-2 text-right">
+                        <DailyDot color={DAILY_SERIES.target} />
+                        Daily Target
+                      </th>
+                      <th className="px-4 py-2 text-right">
+                        <DailyDot color={DAILY_SERIES.inspected} />
+                        Daily Inspected
+                      </th>
+                      <th className="px-4 py-2 text-right">
+                        <DailyDot color={DAILY_SERIES.variance} />
+                        Variance
+                      </th>
+                      <th className="px-4 py-2 text-right">
+                        <DailyDot color={DAILY_SERIES.positive} />
+                        Positive Listing
+                      </th>
+                      <th className="px-4 py-2 text-right">% Accomplishment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailySummaryRows.rows.map((r, i) => (
+                      <tr
+                        key={r.key}
+                        className={cn(
+                          "border-t border-border/50",
+                          i % 2 === 1 && "bg-muted/20",
+                        )}
+                      >
+                        <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
+                        <td
+                          className="px-4 py-2 text-right tabular-nums"
+                          style={{ color: DAILY_SERIES.target }}
+                        >
+                          {r.target.toLocaleString()}
+                        </td>
+                        <td
+                          className="px-4 py-2 text-right tabular-nums"
+                          style={{ color: DAILY_SERIES.inspected }}
+                        >
+                          {r.inspected.toLocaleString()}
+                        </td>
+                        <td
+                          className="px-4 py-2 text-right tabular-nums font-medium"
+                          style={r.variance > 0 ? { color: DAILY_SERIES.variance } : undefined}
+                        >
+                          {r.variance.toLocaleString()}
+                        </td>
+                        <td
+                          className="px-4 py-2 text-right tabular-nums font-medium"
+                          style={r.positive > 0 ? { color: DAILY_SERIES.positive } : undefined}
+                        >
+                          {r.positive.toLocaleString()}
+                        </td>
+                        <td
+                          className="px-4 py-2 text-right tabular-nums font-medium"
+                          style={{
+                            color:
+                              r.percentage >= 100
+                                ? DAILY_SERIES.positive
+                                : DAILY_SERIES.inspected,
+                          }}
+                        >
+                          {`${r.percentage.toFixed(2)}%`}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-border bg-primary/5 font-semibold">
+                      <td className="px-4 py-2">Total</td>
+                      <td
+                        className="px-4 py-2 text-right tabular-nums"
+                        style={{ color: DAILY_SERIES.target }}
+                      >
+                        {dailySummaryRows.totals.target.toLocaleString()}
+                      </td>
+                      <td
+                        className="px-4 py-2 text-right tabular-nums"
+                        style={{ color: DAILY_SERIES.inspected }}
+                      >
+                        {dailySummaryRows.totals.inspected.toLocaleString()}
+                      </td>
+                      <td
+                        className="px-4 py-2 text-right tabular-nums"
+                        style={
+                          dailySummaryRows.totalVariance > 0
+                            ? { color: DAILY_SERIES.variance }
+                            : undefined
+                        }
+                      >
+                        {dailySummaryRows.totalVariance.toLocaleString()}
+                      </td>
+                      <td
+                        className="px-4 py-2 text-right tabular-nums"
+                        style={
+                          dailySummaryRows.totalPositive > 0
+                            ? { color: DAILY_SERIES.positive }
+                            : undefined
+                        }
+                      >
+                        {dailySummaryRows.totalPositive.toLocaleString()}
+                      </td>
+                      <td
+                        className="px-4 py-2 text-right tabular-nums"
+                        style={{
+                          color:
+                            dailySummaryRows.totalPct >= 100
+                              ? DAILY_SERIES.positive
+                              : DAILY_SERIES.inspected,
+                        }}
+                      >
+                        {`${dailySummaryRows.totalPct.toFixed(2)}%`}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              Select a station to view target vs. accomplishment.
+            </div>
+          )}
+        </Card>
 
 
         <div className="space-y-4">
@@ -1092,7 +1368,7 @@ export default function InspectionsNew() {
   );
 }
 
-/** Modal wrapper — used by the FSIS Inventory Add button. */
+/** Modal wrapper — used by the FSIS Compliance Add button. */
 export function InspectionsNewModal({
   open,
   onOpenChange,

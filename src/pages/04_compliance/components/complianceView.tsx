@@ -284,7 +284,7 @@ function buildSlices(
  *    (rowSpan=2) so the day's values represent the combined MANUAL + FSIS
  *    output.
  */
-function InventoryViewBody({
+function ComplianceViewBody({
   stationno,
   year,
   initialMonth,
@@ -706,7 +706,7 @@ function InventoryViewBody({
 }
 
 /** Route page — kept for deep-linking / bookmarks. */
-export default function InventoryView() {
+export default function ComplianceViewPage() {
   const { stationno = "", year = "", month = "" } = useParams();
   const navigate = useNavigate();
   const m = Number(month);
@@ -730,7 +730,7 @@ export default function InventoryView() {
         </Button>
       </div>
 
-      <InventoryViewBody
+      <ComplianceViewBody
         stationno={stationno}
         year={Number(year)}
         initialMonth={m >= 1 && m <= 12 ? m : undefined}
@@ -739,8 +739,8 @@ export default function InventoryView() {
   );
 }
 
-/** Modal wrapper — used from the FSIS Inventory ledger. */
-export function InventoryViewModal({
+/** Modal wrapper — used from the FSIS Compliance ledger. */
+export function ComplianceViewModal({
   open,
   onOpenChange,
   stationno,
@@ -773,7 +773,7 @@ export function InventoryViewModal({
         </DialogHeader>
         <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
           {open ? (
-            <InventoryViewBody stationno={stationno} year={year} initialMonth={month} />
+            <ComplianceViewBody stationno={stationno} year={year} initialMonth={month} />
           ) : null}
         </div>
       </DialogContent>

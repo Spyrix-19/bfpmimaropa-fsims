@@ -107,6 +107,10 @@ export type AnyComplianceStation = {
   provincename?: string;
   logourl?: string;
   cityname?: string;
+  dailytargetbplo?: number;
+  dailytargetgov?: number;
+  dailytargetpeza?: number;
+  dailytargettieza?: number;
   compliancelist?: AnyComplianceRecord[];
 };
 
@@ -120,9 +124,22 @@ export function toMonthlyLedgerModel(
   year: number,
   month: number,
 ): FSISComplianceMonthlyLedgerModel {
+  const pick = (recVal: unknown, stationVal: unknown) =>
+    recVal === undefined || recVal === null ? stationVal : recVal;
+
   const daily = (Array.isArray(station?.compliancelist) ? station.compliancelist : []).map(
-    (rec) => toDailyRow(rec as AnyComplianceRecord),
+    (rec) =>
+      toDailyRow({
+        ...rec,
+        // Ledger payloads carry dailytarget* on each record; Detail payloads
+        // carry them on the station wrapper. Prefer the record's own values.
+        dailytargetbplo: pick(rec?.dailytargetbplo, station.dailytargetbplo) as number,
+        dailytargetgov: pick(rec?.dailytargetgov, station.dailytargetgov) as number,
+        dailytargetpeza: pick(rec?.dailytargetpeza, station.dailytargetpeza) as number,
+        dailytargettieza: pick(rec?.dailytargettieza, station.dailytargettieza) as number,
+      }),
   );
+
 
   const sum = (key: keyof FSISComplianceDailyClass) =>
     daily.reduce((acc, d) => acc + n(d[key]), 0);

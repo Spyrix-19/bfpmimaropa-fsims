@@ -213,7 +213,7 @@ interface Props {
   readOnly?: boolean;
 }
 
-export default function InventoryMatrix({
+export default function ComplianceMatrixTable({
   open,
   onOpenChange,
   initialFilters,
