@@ -345,25 +345,31 @@ export default function InventoryMatrix({
     });
   };
 
-  // Fetch full-year matrix data by calling the working Export API once per
-  // month (12 requests in parallel) and merging results by station. The
-  // Ledger endpoint returns station metadata but an empty inventory list,
-  // so we can't use it as the source of truth for the on-screen matrix.
+  // Fetch full-year matrix data from the FSISCompliance Ledger endpoint in a
+  // single call (all 12 months), then bucket each station's daily records by
+  // month for the on-screen matrix.
   React.useEffect(() => {
     if (!open) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      // Step 1 — enumerate stations/provinces from the Ledger endpoint.
-      const ledgerResp = await targetinventoryAPI.getInventoryLedger({
-        searchkey: "",
-        stationno: EMPTY_GUID,
-        provinceno: EMPTY_GUID,
-        reportyear: Number(year),
-        pagenumber: 1,
-        pagesize: 10000,
-      });
-      const ledger = unwrap<FSISInventoryLedgerModel[]>(ledgerResp);
+      const ledgerResp = await complianceAPI.getLedger(
+        {
+          parameters: {
+            searchkey: "",
+            reportyear: Number(year),
+            interval: 1,
+            targetdate: `${year}-01-01T00:00:00`,
+            dateinspected: `${year}-01-01T00:00:00`,
+            reportmonth: Array.from({ length: 12 }, (_, i) => i + 1),
+            provinces: [],
+          },
+          pagenumber: 1,
+          pagesize: 10000,
+        },
+        { suppressGlobalLoading: true },
+      );
+      const ledger = unwrap<FSISComplianceModel[]>(ledgerResp);
       if (cancelled) return;
       if (!ledger.ok) {
         toast.error(ledger.error || "Unable to load matrix.");
@@ -372,112 +378,7 @@ export default function InventoryMatrix({
         return;
       }
       const stations = Array.isArray(ledger.data) ? ledger.data : [];
-
-      // Step 2 — build the Export payload (all provinces + all their stations).
-      const provinceMap = new Map<string, { provinceno: string; stationnos: Set<string> }>();
-      for (const st of stations) {
-        const key = st.provinceno || st.provincename || "";
-        if (!key) continue;
-        const entry =
-          provinceMap.get(key) ?? { provinceno: st.provinceno, stationnos: new Set<string>() };
-        entry.stationnos.add(st.stationno);
-        provinceMap.set(key, entry);
-      }
-      const provincesPayload = Array.from(provinceMap.values())
-        .filter((p) => p.stationnos.size > 0)
-        .map((p) => ({ provinceno: p.provinceno, stationnos: Array.from(p.stationnos) }));
-
-      if (provincesPayload.length === 0) {
-        setGroups([]);
-        setLoading(false);
-        return;
-      }
-
-      // Step 3 — fire 12 Export calls in parallel (one per month).
-      const monthCalls = Array.from({ length: 12 }, (_, i) =>
-        targetinventoryAPI.export({
-          searchkey: "",
-          reportyear: Number(year),
-          reportmonth: i + 1,
-          provinces: provincesPayload,
-        }),
-      );
-      const monthResps = await Promise.all(monthCalls);
-      if (cancelled) return;
-
-      // Step 4 — merge into per-station monthly buckets, using ledger metadata
-      // (province name/no, station code/name, city, logo) as the display layer.
-      const stationMeta = new Map<string, FSISInventoryLedgerModel>();
-      for (const st of stations) stationMeta.set(st.stationno, st);
-
-      const keys = COMPLIANCE_FIELDS.map((f) => String(f.key));
-      const emptyBucket = () =>
-        Object.fromEntries(keys.map((k) => [k, 0])) as Record<string, number>;
-
-      // stationno -> monthly buckets
-      const stationMonths = new Map<string, Record<number, Record<string, number>>>();
-      monthResps.forEach((resp, idx) => {
-        const m = idx + 1;
-        const { ok, data } = unwrap<ExportInventoryStationClassModel[]>(resp);
-        if (!ok || !Array.isArray(data)) return;
-        for (const s of data) {
-          const buckets = stationMonths.get(s.stationno) ?? {};
-          const bucket = (buckets[m] = emptyBucket());
-          for (const row of s.inventorylist ?? []) {
-            // Guard against backend echoing rows from other periods/stations:
-            // only aggregate rows that match the requested station + year + month.
-            const r = row as unknown as Record<string, unknown>;
-            const ry = Number(r.reportyear ?? 0);
-            const rm = Number(r.reportmonth ?? 0);
-            const rSt = String(r.stationno ?? "");
-            if (ry !== Number(year) || rm !== m) continue;
-            if (rSt && s.stationno && rSt !== s.stationno) continue;
-            for (const k of keys) {
-              bucket[k] += Number(r[k] ?? 0) || 0;
-            }
-          }
-          stationMonths.set(s.stationno, buckets);
-        }
-      });
-
-      // Assemble province groups in ledger order.
-      const byProv = new Map<string, ProvinceGroup>();
-      const orderedGroups: ProvinceGroup[] = [];
-      for (const st of stations) {
-        const provkey = st.provinceno || st.provincename || "";
-        let g = byProv.get(provkey);
-        if (!g) {
-          g = {
-            province: st.provincename ?? "",
-            provinceno: st.provinceno ?? "",
-            stations: [],
-            provincialTotal: {},
-          };
-          byProv.set(provkey, g);
-          orderedGroups.push(g);
-        }
-        const months = stationMonths.get(st.stationno) ?? {};
-        g.stations.push({
-          stationno: st.stationno,
-          stationcode: st.stationcode,
-          stationname: st.stationname,
-          provinceno: st.provinceno,
-          province: st.provincename,
-          cityname: (stationMeta.get(st.stationno)?.cityname as string) ?? "",
-          logoUrl: st.logourl ?? "",
-          months,
-        });
-        for (const mn of Object.keys(months)) {
-          const m = Number(mn);
-          const dst = (g.provincialTotal[m] ??= emptyBucket());
-          for (const k of keys) dst[k] += months[m][k] ?? 0;
-        }
-      }
-      orderedGroups.forEach((g) =>
-        g.stations.sort((a, b) => (a.stationcode || "").localeCompare(b.stationcode || "")),
-      );
-      orderedGroups.sort((a, b) => (a.province || "").localeCompare(b.province || ""));
-      setGroups(orderedGroups);
+      setGroups(buildGroupsFromLedger(stations));
       setLoading(false);
     })();
     return () => {
