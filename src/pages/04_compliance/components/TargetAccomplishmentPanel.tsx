@@ -125,18 +125,22 @@ export default function TargetAccomplishmentPanel({
     (async () => {
       setLoading(true);
       setError(null);
-      const resp = await targetinventoryAPI.getTargetAccomplishment({
-        stationno,
-        reportyear: year,
-        reportmonth: month,
-      });
-      const { ok, data: payload, error: err } = unwrap<TargetAccomplishmentModel>(resp);
+      const resp = await complianceAPI.getDetail(
+        { stationno, reportyear: year, reportmonth: month },
+        { suppressGlobalLoading: true },
+      );
+      const {
+        ok,
+        data: payload,
+        error: err,
+      } = unwrap<FSISComplianceDetailModel | FSISComplianceDetailModel[]>(resp);
       if (cancelled) return;
-      if (!ok || !payload) {
+      const station = Array.isArray(payload) ? (payload[0] ?? null) : (payload ?? null);
+      if (!ok || !station) {
         setFetched(null);
         setError(err || "Unable to load target / accomplishment.");
       } else {
-        setFetched(payload);
+        setFetched(toTargetAccomplishment(station, year, month));
       }
       setLoading(false);
     })();
