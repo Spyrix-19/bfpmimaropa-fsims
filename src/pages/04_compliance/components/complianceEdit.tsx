@@ -43,7 +43,7 @@ import { useAuth } from "@/lib/auth";
 import { EMPTY_GUID, unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
-import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
+import { CATEGORY_FIELDS } from "@/lib/complianceHelpers";
 import { MONITORING_THEME } from "./complianceTheme";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
@@ -57,16 +57,15 @@ import { complianceAPI } from "@/services/complianceAPI";
 import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { stationAPI } from "@/services/stationAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
-import type { DailyInventoryDTO } from "@/types/inventoryType";
+import type { ComplianceDailyCounts } from "@/types/complianceType";
 import type {
-  FSISInventoryMonthlyLedgerModel,
-  FSISInventoryMonthlyClass,
+  FSISComplianceMonthlyLedgerModel,
+  FSISComplianceDailyClass,
   FSISIssuanceClassModel,
-  FSISInventoryIssuanceClassDTO,
+  FSISIssuanceClassDTO,
   FSISComplianceDetailModel,
   FSISComplianceDTO,
   FSISComplianceClass,
-  FSISIssuanceClassDTO,
   } from "@/types/complianceType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
@@ -182,7 +181,7 @@ const FIELD_TO_API: Record<string, keyof FSISInventoryDetailItem> = {
   not_closure: "closurecount",
 };
 
-type DayTotals = Partial<Record<keyof DailyInventoryDTO, number>>;
+type DayTotals = Partial<Record<keyof ComplianceDailyCounts, number>>;
 
 interface EditableIssuance {
   issuanceno: string;
@@ -280,14 +279,14 @@ function isDayPassed(dateStr: string): boolean {
  * Separates inspection data from MANUAL and FSIS issuance data.
  */
 function buildEditableDays(
-  list: Array<FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>> | null | undefined,
+  list: Array<FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>> | null | undefined,
   year: number,
   month: number,
 ): Map<string, EditableDay> {
   const map = new Map<string, EditableDay>();
 
   // Index API data by date
-  const dataByDate = new Map<string, FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>>();
+  const dataByDate = new Map<string, FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>>();
   if (Array.isArray(list)) {
     for (const item of list) {
       const key = normalizeDateKey(item?.dateinspected);
@@ -386,12 +385,12 @@ function buildEditableDays(
       if (field.key.startsWith("insp_")) {
         const apiKey = FIELD_TO_API[String(field.key)];
         if (apiKey) {
-          totals[field.key as keyof DailyInventoryDTO] = num(inspection[apiKey]);
+          totals[field.key as keyof ComplianceDailyCounts] = num(inspection[apiKey]);
         }
       } else {
         const manualKey = FIELD_TO_API[String(field.key)] as keyof EditableIssuance | undefined;
         if (manualKey && manualKey in manual) {
-          totals[field.key as keyof DailyInventoryDTO] =
+          totals[field.key as keyof ComplianceDailyCounts] =
             num((manual as any)[manualKey]) + num((fsis as any)[manualKey]);
         }
       }
@@ -455,7 +454,7 @@ function InventoryEditBody({
   const [revisionRequestRefreshTick, setRevisionRequestRefreshTick] = React.useState(0);
 
   // Station info from Monthly API
-  const [station, setStation] = React.useState<FSISInventoryMonthlyLedgerModel | null>(null);
+  const [station, setStation] = React.useState<FSISComplianceMonthlyLedgerModel | null>(null);
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
 
   // Editable days indexed by YYYY-MM-DD
@@ -719,12 +718,12 @@ function InventoryEditBody({
         if (f.key.startsWith("insp_")) {
           const key = FIELD_TO_API[String(f.key)] as keyof FSISInventoryDetailItem;
           if (key) {
-            totals[f.key as keyof DailyInventoryDTO] = num(updated.inspection[key]);
+            totals[f.key as keyof ComplianceDailyCounts] = num(updated.inspection[key]);
           }
         } else {
           const key = FIELD_TO_API[String(f.key)] as keyof EditableIssuance;
           if (key && key in updated.manual && key in updated.fsis) {
-            totals[f.key as keyof DailyInventoryDTO] =
+            totals[f.key as keyof ComplianceDailyCounts] =
               num((updated.manual as any)[key]) + num((updated.fsis as any)[key]);
           }
         }
@@ -1115,7 +1114,7 @@ function InventoryEditBody({
             <tbody>
               {days.map((dayEntry, dayIndex) => {
                 const rowTotal = DETAIL_FIELDS.reduce(
-                  (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
+                  (sum, f) => sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
                   0,
                 );
                 const hasRevisionRequest = dayEntry.isrevisionrequest || Boolean(activeReq);
@@ -1353,7 +1352,7 @@ function InventoryEditBody({
                         className="border-b px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
                       >
                         {DETAIL_FIELDS.reduce(
-                          (sum, f) => sum + num(dayEntry.totals[f.key as keyof DailyInventoryDTO]),
+                          (sum, f) => sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
                           0,
                         ).toLocaleString()}
                       </td>
@@ -1496,7 +1495,7 @@ function InventoryEditBody({
                 </td>
                 {DETAIL_FIELDS.map((field, idx) => {
                   const columnTotal = days.reduce(
-                    (sum, d) => sum + num(d.totals[field.key as keyof DailyInventoryDTO]),
+                    (sum, d) => sum + num(d.totals[field.key as keyof ComplianceDailyCounts]),
                     0,
                   );
                   // Insert Mode-of-Issuance spacer cell between INSPECTION (6 fields) and FSEC
@@ -1525,7 +1524,7 @@ function InventoryEditBody({
                       (sum, d) =>
                         sum +
                         DETAIL_FIELDS.reduce(
-                          (rowSum, f) => rowSum + num(d.totals[f.key as keyof DailyInventoryDTO]),
+                          (rowSum, f) => rowSum + num(d.totals[f.key as keyof ComplianceDailyCounts]),
                           0,
                         ),
                       0,

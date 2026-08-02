@@ -60,19 +60,19 @@ import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
-import { CATEGORY_FIELDS, calendarDaysInMonth } from "@/lib/inventoryHelpers";
-import type { MonthlyInventoryRow } from "@/types/inventoryType";
+import { CATEGORY_FIELDS, calendarDaysInMonth } from "@/lib/complianceHelpers";
+import type { ComplianceMonthlyRow } from "@/types/complianceType";
 import type {
-  FSISInventoryMonthlyLedgerModel,
-  FSISInventoryMonthlyClass,
+  FSISComplianceMonthlyLedgerModel,
+  FSISComplianceDailyClass,
   FSISIssuanceClassModel,
   FSISComplianceModel,
 } from "@/types/complianceType.ts";
 
 // Page-local aliases — the existing DTOs in `types/` are immutable; these
 // names keep this file's original semantics without touching type files.
-type FSISInventoryMonthlyItem = FSISInventoryMonthlyLedgerModel;
-type FSISInventoryLedgerDailyItem = FSISInventoryMonthlyClass &
+type FSISInventoryMonthlyItem = FSISComplianceMonthlyLedgerModel;
+type FSISInventoryLedgerDailyItem = FSISComplianceDailyClass &
   Partial<FSISIssuanceClassModel> & { dateinspected?: string | Date };
 import type { SearchStationModel } from "@/types/stationTypes";
 
@@ -95,7 +95,7 @@ function DaysEncodedBadge({ encoded, total }: { encoded: number; total: number }
  * Monthly response mapper
  *
  * Converts a `FSISInventoryMonthlyItem` (station-month row from
- * /api/v1/FSISInventory/Monthly) into the `MonthlyInventoryRow` shape the
+ * /api/v1/FSISInventory/Monthly) into the `ComplianceMonthlyRow` shape the
  * existing ComplianceCard already consumes.  Every count sums the daily
  * entries in `fsisInventoryLedgerList`.
  * ---------------------------------------------------------------------- */
@@ -146,7 +146,7 @@ function sumBucket(
   return out;
 }
 
-export type LedgerRow = MonthlyInventoryRow & {
+export type LedgerRow = ComplianceMonthlyRow & {
   daily?: FSISInventoryLedgerDailyItem[];
   monthlyTargets?: Record<string, number>;
 };
@@ -279,7 +279,7 @@ export default function FireSafetyCompliancePage() {
   const [refreshTick, setRefreshTick] = React.useState(0);
   const refresh = () => setRefreshTick((t) => t + 1);
 
-  const [deleteTarget, setDeleteTarget] = React.useState<MonthlyInventoryRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<ComplianceMonthlyRow | null>(null);
   const [deleting, setDeleting] = React.useState(false);
   const [matrixOpen, setMatrixOpen] = React.useState(false);
   const [matrixTarget, setMatrixTarget] = React.useState<{
@@ -290,15 +290,15 @@ export default function FireSafetyCompliancePage() {
     provinceno?: string;
     provinceName?: string;
   } | null>(null);
-  const [viewTarget, setViewTarget] = React.useState<MonthlyInventoryRow | null>(null);
-  const [editTarget, setEditTarget] = React.useState<MonthlyInventoryRow | null>(null);
+  const [viewTarget, setViewTarget] = React.useState<ComplianceMonthlyRow | null>(null);
+  const [editTarget, setEditTarget] = React.useState<ComplianceMonthlyRow | null>(null);
   const [addOpen, setAddOpen] = React.useState(false);
 
   const openMatrixGlobal = () => {
     setMatrixTarget(null);
     setMatrixOpen(true);
   };
-  const openMatrixForCard = (r: MonthlyInventoryRow) => {
+  const openMatrixForCard = (r: ComplianceMonthlyRow) => {
     setMatrixTarget({
       year: r.year,
       stationno: r.stationno,
@@ -467,7 +467,7 @@ export default function FireSafetyCompliancePage() {
   const panelStationNo =
     effectiveStationNo && effectiveStationNo !== EMPTY_GUID ? effectiveStationNo : undefined;
 
-  const askDelete = (r: MonthlyInventoryRow) => setDeleteTarget(r);
+  const askDelete = (r: ComplianceMonthlyRow) => setDeleteTarget(r);
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -481,10 +481,10 @@ export default function FireSafetyCompliancePage() {
       });
       const { ok, error } = unwrap(resp);
       if (!ok) {
-        toast.error(error || "Unable to delete monthly inventory.");
+        toast.error(error || "Unable to delete monthly compliance.");
         return;
       }
-      toast.success("Monthly inventory deleted.");
+      toast.success("Monthly compliance deleted.");
       setDeleteTarget(null);
       refresh();
     } finally {
@@ -640,11 +640,11 @@ export default function FireSafetyCompliancePage() {
 
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading monthly inventory…
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading monthly compliance…
         </Card>
       ) : paged.length === 0 ? (
         <Card className="border-border/60 p-10 text-center text-sm text-muted-foreground">
-          No monthly inventory records match the current filters.
+          No monthly compliance records match the current filters.
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -678,7 +678,7 @@ export default function FireSafetyCompliancePage() {
       <SecureDeleteDialog
         open={!!deleteTarget}
         onOpenChange={(o) => !o && !deleting && setDeleteTarget(null)}
-        title="Delete Monthly Inventory?"
+        title="Delete Monthly Compliance?"
         subject={
           deleteTarget ? (
             <>

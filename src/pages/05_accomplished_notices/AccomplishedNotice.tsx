@@ -34,7 +34,7 @@ import { useAuth, resolveLocationScope } from "@/lib/auth";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import { MONTHS } from "@/lib/fsims-constants";
-import { calendarDaysInMonth } from "@/lib/inventoryHelpers";
+import { calendarDaysInMonth } from "@/lib/complianceHelpers";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 
 import { NoticeAddModal } from "./components/noticeNew";

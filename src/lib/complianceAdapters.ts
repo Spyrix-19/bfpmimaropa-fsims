@@ -12,8 +12,8 @@ import type {
   FSISComplianceDetailClassModel,
   FSISComplianceDetailModel,
   FSISComplianceModel,
-  FSISInventoryMonthlyClass,
-  FSISInventoryMonthlyLedgerModel,
+  FSISComplianceDailyClass,
+  FSISComplianceMonthlyLedgerModel,
   FSISIssuanceClassModel,
   TargetAccomplishmentModel,
 } from "@/types/complianceType";
@@ -76,7 +76,7 @@ export type AnyComplianceRecord = {
  */
 export function toDailyRow(
   rec: AnyComplianceRecord,
-): FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel> {
+): FSISComplianceDailyClass & Partial<FSISIssuanceClassModel> {
   const issuancelist = Array.isArray(rec?.issuancelist) ? rec.issuancelist : [];
   return {
     fsisno: String(rec?.fsisno ?? ""),
@@ -119,12 +119,12 @@ export function toMonthlyLedgerModel(
   station: AnyComplianceStation,
   year: number,
   month: number,
-): FSISInventoryMonthlyLedgerModel {
+): FSISComplianceMonthlyLedgerModel {
   const daily = (Array.isArray(station?.compliancelist) ? station.compliancelist : []).map(
     (rec) => toDailyRow(rec as AnyComplianceRecord),
   );
 
-  const sum = (key: keyof FSISInventoryMonthlyClass) =>
+  const sum = (key: keyof FSISComplianceDailyClass) =>
     daily.reduce((acc, d) => acc + n(d[key]), 0);
 
   return {

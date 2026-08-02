@@ -6,7 +6,10 @@ export interface FSISComplianceTargetAccomParams {
 
 export interface TargetAccomplishmentModel {
   stationno: string;
-  dateinspected: string; // ISO date string
+  dateinspected?: string; // ISO date string
+  /** Present when the summary is derived for a whole month instead of one day. */
+  month?: number;
+  year?: number;
   totaltargetbplo: number;
   totaltargetgov: number;
   totaltargetpeza: number;
@@ -163,6 +166,7 @@ export interface FSISComplianceParams {
   reportyear: number;
   interval: number; // 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual
   targetdate: string;
+  dateinspected?: string;
   reportmonth: number[];
   provinces: FSISComplianceParamClass[];
 }
@@ -253,4 +257,190 @@ export interface ExportFSISComplianceRequestDTO {
 export interface FSISComplianceProvinceStationSelectionClass {
   provinceno: string;
   stationnos: string[];
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Derived / UI-facing compliance shapes                                     */
+/*  (single source of truth — nothing outside this file defines these)        */
+/* -------------------------------------------------------------------------- */
+
+/** Category tabs shared by the ledger, matrix and report screens. */
+export type ComplianceCategoryKey = "INSPECTION" | "FSEC" | "FSIC" | "NOTICES" | "OVERALL";
+
+/** One flat compliance day row (API count keys + flattened issuance counts). */
+export interface FSISComplianceLedgerClass {
+  fsisno: string;
+  dateinspected: string | Date;
+  remarks: string;
+
+  inspectduringcount: number;
+  inspectaftercount: number;
+  inspectbplocount: number;
+  inspectgovcount: number;
+  inspectpezacount: number;
+  inspecttiezacount: number;
+
+  dailytargetbplo: number;
+  dailytargetgov: number;
+  dailytargetpeza: number;
+  dailytargettieza: number;
+
+  isrevisionrequest: boolean;
+  editablestatus: number;
+
+  issuancelist: FSISIssuanceClassModel[];
+
+  fsecbuildingcount?: number;
+  fsecgovcount?: number;
+  fsecpezacount?: number;
+  fsectiezacount?: number;
+  fsicoccupancycount?: number;
+  fsicbplonewcount?: number;
+  fsicbplorenewcount?: number;
+  fsicgovcount?: number;
+  fsicpezacount?: number;
+  fsictiezacount?: number;
+  nodcount?: number;
+  ntccount?: number;
+  ntcvcount?: number;
+  abatementcount?: number;
+  closurecount?: number;
+}
+
+/** Alias kept for the monthly ledger screens. */
+export type FSISComplianceDailyClass = FSISComplianceLedgerClass;
+
+/** Station-month wrapper built by `complianceAdapters`. */
+export interface FSISComplianceMonthlyLedgerModel {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+
+  regionno: string;
+  regioncode: string;
+  regionname: string;
+
+  provinceno: string;
+  provincename: string;
+
+  cityno: string;
+  zipcode: string;
+  cityname: string;
+
+  barangayno: string;
+  barangayname: string;
+
+  streetaddress: string;
+  logourl: string;
+
+  month: number;
+  year: number;
+
+  totaltargetbplo: number;
+  totaltargetgov: number;
+  totaltargetpeza: number;
+  totaltargettieza: number;
+
+  totalAccomplishmentbplo: number;
+  totalAccomplishmentgov: number;
+  totalAccomplishmentpeza: number;
+  totalAccomplishmenttieza: number;
+
+  updatedby: string;
+  encodedby: string;
+
+  fsisInventoryLedgerList: (FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>)[];
+}
+
+/** UI-key daily counts used by the ledger / matrix presentation layer. */
+export interface ComplianceDailyCounts {
+  inventoryno: string;
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  cityno: string;
+  cityname: string;
+  provinceno: string;
+  provincename: string;
+  dateinspected: string;
+
+  insp_during: number;
+  insp_after: number;
+  insp_bplo: number;
+  insp_gov: number;
+  insp_peza: number;
+  insp_tieza: number;
+
+  fsec_building: number;
+  fsec_gov: number;
+  fsec_peza: number;
+  fsec_tieza: number;
+
+  fsic_occupancy: number;
+  fsic_bplo_new: number;
+  fsic_bplo_renewal: number;
+  fsic_gov: number;
+  fsic_peza: number;
+  fsic_tieza: number;
+
+  not_nod: number;
+  not_ntc: number;
+  not_ntcv: number;
+  not_abatement: number;
+  not_closure: number;
+
+  remarks: string;
+  encodedby: string;
+  encodedbyname: string;
+  lastupdated: string;
+  deletedat: string | null;
+}
+
+export interface ComplianceCategoryBucket {
+  inspection: number;
+  fsec: number;
+  fsic: number;
+  notices: number;
+}
+
+/** One station-month card row on the compliance ledger. */
+export interface ComplianceMonthlyRow {
+  key: string;
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  cityname: string;
+  logoUrl: string;
+  year: number;
+  month: number;
+  daysEncoded: number;
+  daysInMonth: number;
+  totals: ComplianceCategoryBucket;
+  breakdown: {
+    inspection: Record<string, number>;
+    fsec: Record<string, number>;
+    fsic: Record<string, number>;
+    notices: Record<string, number>;
+  };
+  lastupdated: string;
+}
+
+export interface ComplianceMatrixStationRow {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  province: string;
+  logoUrl: string;
+  /** month (1-12) -> field key -> value */
+  months: Record<number, Record<string, number>>;
+}
+
+export interface ComplianceMatrixProvinceGroup {
+  province: string;
+  provinceno: string;
+  stations: ComplianceMatrixStationRow[];
+  provincialTotal: Record<number, Record<string, number>>;
 }

@@ -18,22 +18,81 @@ import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MONTHS, REGION_NAME } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { unwrap } from "@/lib/api-envelope";
-import { inventoryAPI } from "@/services/inventoryAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { toDailyRow } from "@/lib/complianceAdapters";
 import FilterField from "@/components/filter-field";
 import {
   CATEGORY_FIELDS,
   MONTH_NAMES,
   sumReportMonths,
+  buildReportMatrix,
   type ReportMatrixProvinceGroup,
   type TargetActualCell,
-} from "@/lib/inventoryHelpers";
-import { INVENTORY_STATIONS } from "@/mock/inventoryMock";
-import type { InventoryCategory } from "@/types/inventoryType";
+} from "@/lib/complianceHelpers";
+import type {
+  ComplianceCategoryKey,
+  ComplianceDailyCounts,
+  FSISComplianceModel,
+} from "@/types/complianceType";
 import { MATRIX_TONE } from "@/lib/theme";
 
-const PROVINCE_OPTIONS = Array.from(new Set(INVENTORY_STATIONS.map((s) => s.provincename))).sort();
+/**
+ * Flattens the FSISCompliance Ledger response (station wrapper +
+ * `compliancelist` + nested `issuancelist`) into the UI-key daily rows the
+ * matrix builder consumes. Compliance is the only data source here.
+ */
+function toDailyCounts(stations: FSISComplianceModel[]): ComplianceDailyCounts[] {
+  const out: ComplianceDailyCounts[] = [];
+  for (const st of stations) {
+    const list = Array.isArray(st?.compliancelist) ? st.compliancelist : [];
+    for (const rec of list) {
+      const flat = toDailyRow(rec) as unknown as Record<string, unknown>;
+      const num = (k: string) => Number(flat[k] ?? 0) || 0;
+      const iso = String(flat.dateinspected ?? "").slice(0, 10);
+      if (!iso || iso.startsWith("1900")) continue;
+      out.push({
+        inventoryno: String(flat.fsisno ?? ""),
+        stationno: st.stationno,
+        stationcode: st.stationcode ?? "",
+        stationname: st.stationname ?? "",
+        cityno: "",
+        cityname: "",
+        provinceno: st.provinceno ?? "",
+        provincename: st.provincename ?? "",
+        dateinspected: iso,
+        insp_during: num("inspectduringcount"),
+        insp_after: num("inspectaftercount"),
+        insp_bplo: num("inspectbplocount"),
+        insp_gov: num("inspectgovcount"),
+        insp_peza: num("inspectpezacount"),
+        insp_tieza: num("inspecttiezacount"),
+        fsec_building: num("fsecbuildingcount"),
+        fsec_gov: num("fsecgovcount"),
+        fsec_peza: num("fsecpezacount"),
+        fsec_tieza: num("fsectiezacount"),
+        fsic_occupancy: num("fsicoccupancycount"),
+        fsic_bplo_new: num("fsicbplonewcount"),
+        fsic_bplo_renewal: num("fsicbplorenewcount"),
+        fsic_gov: num("fsicgovcount"),
+        fsic_peza: num("fsicpezacount"),
+        fsic_tieza: num("fsictiezacount"),
+        not_nod: num("nodcount"),
+        not_ntc: num("ntccount"),
+        not_ntcv: num("ntcvcount"),
+        not_abatement: num("abatementcount"),
+        not_closure: num("closurecount"),
+        remarks: String(flat.remarks ?? ""),
+        encodedby: "",
+        encodedbyname: "",
+        lastupdated: iso,
+        deletedat: null,
+      });
+    }
+  }
+  return out;
+}
 
-const CAT_OPTIONS: { value: InventoryCategory; label: string }[] = [
+const CAT_OPTIONS: { value: ComplianceCategoryKey; label: string }[] = [
   { value: "INSPECTION", label: "Inspection" },
   { value: "FSEC", label: "FSEC" },
   { value: "FSIC", label: "FSIC" },
@@ -75,9 +134,10 @@ export default function Reports() {
   const [province, setProvince] = React.useState<string>(
     scope.provinceLocked ? scope.provincename || "ALL" : "ALL",
   );
-  const [category, setCategory] = React.useState<InventoryCategory>("INSPECTION");
+  const [category, setCategory] = React.useState<ComplianceCategoryKey>("INSPECTION");
   const [search, setSearch] = React.useState("");
   const [groups, setGroups] = React.useState<ReportMatrixProvinceGroup[]>([]);
+  const [provinceOptions, setProvinceOptions] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   const fields = CATEGORY_FIELDS[category];
@@ -89,14 +149,28 @@ export default function Reports() {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await inventoryAPI.getInventoryReportMatrix(
-        { year: Number(year), searchkey: search },
-        category,
+      const resp = await complianceAPI.getLedger(
+        {
+          parameters: {
+            searchkey: search,
+            reportyear: Number(year),
+            interval: 1,
+            targetdate: `${year}-01-01T00:00:00`,
+            dateinspected: `${year}-01-01T00:00:00`,
+            reportmonth: Array.from({ length: 12 }, (_, i) => i + 1),
+            provinces: [],
+          },
+          pagenumber: 1,
+          pagesize: 10000,
+        },
+        { suppressGlobalLoading: true },
       );
-      const { ok, data, error } = unwrap<ReportMatrixProvinceGroup[]>(resp);
+      const { ok, data, error } = unwrap<FSISComplianceModel[]>(resp);
       if (cancelled) return;
       if (!ok) toast.error(error || "Unable to load matrix report.");
-      const list = Array.isArray(data) ? data : [];
+      const stations = Array.isArray(data) ? data : [];
+      const list = buildReportMatrix(toDailyCounts(stations), category);
+      setProvinceOptions(Array.from(new Set(list.map((g) => g.province))).sort());
       const effectiveProvince = scope.provinceLocked ? scope.provincename : province;
       const filtered = effectiveProvince === "ALL" ? list : list.filter((g) => g.province === effectiveProvince);
       setGroups(filtered);
@@ -171,7 +245,7 @@ export default function Reports() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All provinces</SelectItem>
-              {PROVINCE_OPTIONS.map((p) => (
+              {provinceOptions.map((p) => (
                 <SelectItem key={p} value={p}>
                   {p}
                 </SelectItem>
@@ -180,7 +254,7 @@ export default function Reports() {
           </Select>
         </FilterField>
         <FilterField label="Category">
-          <Select value={category} onValueChange={(v) => setCategory(v as InventoryCategory)}>
+          <Select value={category} onValueChange={(v) => setCategory(v as ComplianceCategoryKey)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>

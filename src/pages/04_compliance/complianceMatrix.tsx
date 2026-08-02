@@ -17,7 +17,7 @@ import { LocationMultiSelect, type SelectedLocation } from "@/components/locatio
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
-import { sumMonths, MONTH_NAMES } from "@/lib/inventoryHelpers";
+import { sumMonths, MONTH_NAMES } from "@/lib/complianceHelpers";
 import { complianceAPI } from "@/services/complianceAPI";
 import { toDailyRow, monthOfRecord } from "@/lib/complianceAdapters";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
@@ -27,7 +27,7 @@ import { useAuth } from "@/lib/auth";
 import { resolveTargetScope } from "@/pages/06_target-reference/helpers";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import type {
-  FSISInventoryLedgerClass,
+  FSISComplianceLedgerClass,
   FSISComplianceModel,
   ProvinceIssuanceExportModel,
 } from "@/types/complianceType";
@@ -62,14 +62,14 @@ const QUARTERS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Compliance fields — real backend DTO keys (FSISInventoryLedgerClass), no
+// Compliance fields — real backend DTO keys (FSISComplianceLedgerClass), no
 // aliasing. Keeps 1:1 parity with `targetinventoryAPI.getInventoryLedger`
 // and `monitoringEdit.tsx` so the on-screen matrix and the exported workbook
 // share exactly the same column identity as the source of truth.
 // ---------------------------------------------------------------------------
 type ComplianceCategory = "INSPECTION" | "FSEC" | "FSIC" | "NOTICES";
 
-const COMPLIANCE_FIELDS: { key: keyof FSISInventoryLedgerClass; label: string; category: ComplianceCategory }[] = [
+const COMPLIANCE_FIELDS: { key: keyof FSISComplianceLedgerClass; label: string; category: ComplianceCategory }[] = [
   { key: "inspectduringcount", label: "During",     category: "INSPECTION" },
   { key: "inspectaftercount",  label: "After",      category: "INSPECTION" },
   { key: "inspectbplocount",   label: "1st BPLO",   category: "INSPECTION" },
@@ -738,7 +738,7 @@ export default function InventoryMatrix({
                     colSpan={totalCols}
                     className="border-b bg-card px-4 py-10 text-center text-sm text-muted-foreground"
                   >
-                    No inventory data for {year}.
+                    No compliance data for {year}.
                   </td>
                 </tr>
               )}

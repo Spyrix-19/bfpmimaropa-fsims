@@ -245,6 +245,12 @@ function InspectionsNewBody({
     return new Date(y, m - 1, Math.min(now.getDate(), lastDay));
   });
   const [dateOpen, setDateOpen] = React.useState(false);
+  // Keeps the calendar view on the month of the currently selected date so the
+  // displayed value and the highlighted day never disagree.
+  const [calendarMonth, setCalendarMonth] = React.useState<Date>(() => reportingDate);
+  React.useEffect(() => {
+    if (dateOpen) setCalendarMonth(reportingDate);
+  }, [dateOpen, reportingDate]);
 
   const [province, setProvince] = React.useState<{ no: string; name: string; code: string }>(
     scope.provinceLocked
@@ -415,9 +421,9 @@ function InspectionsNewBody({
       setCheckingExisting(true);
       const resp = await complianceAPI.getDetailBydate(
         {
-          Stationno: activeStationNo,
+          stationno: activeStationNo,
           // The API expects the non-padded US format, e.g. 8/1/2026.
-          Dateinspected: format(reportingDate, "M/d/yyyy"),
+          dateinspected: format(reportingDate, "M/d/yyyy"),
         },
         { suppressGlobalLoading: true },
       );
@@ -748,6 +754,9 @@ function InspectionsNewBody({
                 <Calendar
                   mode="single"
                   selected={reportingDate}
+                  defaultMonth={reportingDate}
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
                   onSelect={(d) => {
                     if (d) {
                       setReportingDate(d);

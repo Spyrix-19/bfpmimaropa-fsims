@@ -25,13 +25,13 @@ import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
-import { CATEGORY_FIELDS } from "@/lib/inventoryHelpers";
+import { CATEGORY_FIELDS } from "@/lib/complianceHelpers";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
-import type { DailyInventoryDTO } from "@/types/inventoryType";
+import type { ComplianceDailyCounts } from "@/types/complianceType";
 import type {
   TargetAccomplishmentModel,
-  FSISInventoryMonthlyLedgerModel,
-  FSISInventoryMonthlyClass,
+  FSISComplianceMonthlyLedgerModel,
+  FSISComplianceDailyClass,
   FSISIssuanceClassModel,
   FSISComplianceDetailModel,
 } from "@/types/complianceType";
@@ -96,7 +96,7 @@ interface IssuanceCounts {
   closurecount: number;
 }
 
-/** Map DailyInventoryDTO keys to the flat API count keys. */
+/** Map ComplianceDailyCounts keys to the flat API count keys. */
 const FIELD_TO_API: Record<string, string> = {
   insp_during: "inspectduringcount",
   insp_after: "inspectaftercount",
@@ -121,7 +121,7 @@ const FIELD_TO_API: Record<string, string> = {
   not_closure: "closurecount",
 };
 
-type DayTotals = Partial<Record<keyof DailyInventoryDTO, number>>;
+type DayTotals = Partial<Record<keyof ComplianceDailyCounts, number>>;
 
 interface DaySlice {
   day: number;
@@ -184,7 +184,7 @@ const emptyIssuance = (): IssuanceCounts => ({
 
 function buildSlices(
   list:
-    | Array<FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>>
+    | Array<FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>>
     | null
     | undefined,
   year: number,
@@ -192,7 +192,7 @@ function buildSlices(
 ): DaySlice[] {
   const byDate = new Map<
     string,
-    FSISInventoryMonthlyClass & Partial<FSISIssuanceClassModel>
+    FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>
   >();
   if (Array.isArray(list)) {
     for (const item of list) {
@@ -253,11 +253,11 @@ function buildSlices(
       const apiKey = FIELD_TO_API[String(field.key)];
       if (!apiKey) continue;
       if (String(field.key).startsWith("insp_")) {
-        totals[field.key as keyof DailyInventoryDTO] = num(
+        totals[field.key as keyof ComplianceDailyCounts] = num(
           (inspection as any)[apiKey],
         );
       } else {
-        totals[field.key as keyof DailyInventoryDTO] =
+        totals[field.key as keyof ComplianceDailyCounts] =
           num((manual as any)[apiKey]) + num((fsis as any)[apiKey]);
       }
     }
@@ -298,7 +298,7 @@ function InventoryViewBody({
     return new Date().getMonth() + 1;
   });
   const [loading, setLoading] = React.useState(true);
-  const [station, setStation] = React.useState<FSISInventoryMonthlyLedgerModel | null>(
+  const [station, setStation] = React.useState<FSISComplianceMonthlyLedgerModel | null>(
     null,
   );
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
@@ -379,7 +379,7 @@ function InventoryViewBody({
     const totals: Record<string, number> = {};
     for (const field of DETAIL_FIELDS) {
       totals[String(field.key)] = slices.reduce(
-        (sum, s) => sum + num(s.totals[field.key as keyof DailyInventoryDTO]),
+        (sum, s) => sum + num(s.totals[field.key as keyof ComplianceDailyCounts]),
         0,
       );
     }
@@ -511,7 +511,7 @@ function InventoryViewBody({
               {slices.map((slice, dayIndex) => {
                 const rowBg = dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd;
                 const rowTotal = DETAIL_FIELDS.reduce(
-                  (sum, f) => sum + num(slice.totals[f.key as keyof DailyInventoryDTO]),
+                  (sum, f) => sum + num(slice.totals[f.key as keyof ComplianceDailyCounts]),
                   0,
                 );
                 return (
