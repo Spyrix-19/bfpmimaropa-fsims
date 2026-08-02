@@ -99,8 +99,15 @@ export function toDailyRow(
   };
 }
 
-type AnyComplianceStation = Partial<FSISComplianceModel & FSISComplianceDetailModel> & {
+export type AnyComplianceStation = {
+  stationno?: string;
+  stationcode?: string;
+  stationname?: string;
+  provinceno?: string;
+  provincename?: string;
+  logourl?: string;
   cityname?: string;
+  compliancelist?: AnyComplianceRecord[];
 };
 
 /**
