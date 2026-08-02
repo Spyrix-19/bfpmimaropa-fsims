@@ -67,7 +67,7 @@ export function toDailyRow(
     inspectbplocount: n(rec?.inspectbplocount),
     inspectgovcount: n(rec?.inspectgovcount),
     inspectpezacount: n(rec?.inspectpezacount),
-    inspecttiezacount: n(rec?.inspectpezacount) * 0 + n(rec?.inspecttiezacount),
+    inspecttiezacount: n(rec?.inspecttiezacount),
     dailytargetbplo: n(rec?.dailytargetbplo),
     dailytargetgov: n(rec?.dailytargetgov),
     dailytargetpeza: n(rec?.dailytargetpeza),
