@@ -50,7 +50,25 @@ export function sumIssuances(
   return out;
 }
 
-type AnyComplianceRecord = Partial<FSISComplianceClassModel & FSISComplianceDetailClassModel>;
+/** Loose record shape accepted from either the Ledger or the Detail payload. */
+export type AnyComplianceRecord = {
+  fsisno?: string;
+  dateinspected?: string | Date;
+  remarks?: string | null;
+  inspectduringcount?: number;
+  inspectaftercount?: number;
+  inspectbplocount?: number;
+  inspectgovcount?: number;
+  inspectpezacount?: number;
+  inspecttiezacount?: number;
+  dailytargetbplo?: number;
+  dailytargetgov?: number;
+  dailytargetpeza?: number;
+  dailytargettieza?: number;
+  isrevisionrequest?: boolean;
+  editablestatus?: number;
+  issuancelist?: Partial<FSISIssuanceClassModel>[];
+};
 
 /**
  * One compliance day record → the flat daily row shape (inspection counts +
