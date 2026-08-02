@@ -16,7 +16,10 @@ import { toTargetAccomplishment } from "@/lib/complianceAdapters";
 import { unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { cn } from "@/lib/utils";
-import type { TargetAccomplishmentModel } from "@/types/complianceType";
+import type {
+  TargetAccomplishmentModel,
+  FSISComplianceDetailModel,
+} from "@/types/complianceType";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 
 type CategoryKey = "bplo" | "gov" | "peza" | "tieza";
