@@ -627,22 +627,22 @@ function InventoryEditBody({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await targetinventoryAPI.getMonthly(
+      const resp = await complianceAPI.getDetail(
         {
-          Stationno: stationno || EMPTY_GUID,
-          Provinceno: provinceno,
-          Reportyear: year,
-          Reportmonth: month,
+          stationno: stationno || EMPTY_GUID,
+          reportyear: year,
+          reportmonth: month,
         },
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
 
-      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel | FSISInventoryMonthlyLedgerModel[]>(resp);
+      const { ok, data, error } = unwrap<FSISComplianceDetailModel | FSISComplianceDetailModel[]>(resp);
       if (!ok) toast.error(error || "Failed to load monthly data.");
-      const first = ok
+      const station = ok
         ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null))
         : null;
+      const first = station ? toMonthlyLedgerModel(station, year, month) : null;
 
       setStation(first);
 
