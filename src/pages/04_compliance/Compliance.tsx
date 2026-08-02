@@ -22,8 +22,6 @@ import {
   Grid3x3,
   Download,
 } from "lucide-react";
-import ExcelJS from "exceljs";
-import { saveAs } from "file-saver";
 import ComplianceMatrixTable from "./complianceMatrix.tsx";
 import { ComplianceViewModal } from "./components/complianceView.tsx";
 import { ComplianceEditModal } from "./components/complianceEdit.tsx";
@@ -40,7 +38,14 @@ import {
   useModuleFilterState,
   baseDate,
   isAllDays,
+  resolveModuleMonths,
+  resolveSelectedDay,
 } from "@/components/shared/ModuleFilterBar";
+import {
+  exportComplianceWorkbook,
+  type CompliancePeriod,
+  type ComplianceExportRecord,
+} from "./components/complianceExport";
 
 
 
@@ -241,18 +246,90 @@ export default function FireSafetyCompliancePage() {
     state: filterState,
     set: setFilterState,
     resetState: resetFilterState,
-  } = useModuleFilterState({ interval: "DAILY", date: toISODate(new Date()) });
+  } = useModuleFilterState();
   const year = filterState.year;
+  /** Every period except DAILY renders aggregated lines for its own interval. */
+  const isAggregated = filterState.interval !== "DAILY";
   /** DAILY: either one specific date, or ALL dates of the browsed month. */
-  const allDates = isAllDays(filterState.date);
+  const allDates = isAggregated || isAllDays(filterState.date);
   const selectedDateISO = React.useMemo(
     () => baseDate(filterState.date) || toISODate(new Date()),
     [filterState.date],
   );
-  const month = String(Number(selectedDateISO.slice(5, 7)) || 1);
+  /**
+   * MONTHLY / QUARTERLY / SEMESTER / ANNUAL: every month the period covers.
+   * DAILY: the month of the browsed date.
+   */
+  const selectedMonths = React.useMemo(
+    () =>
+      isAggregated
+        ? resolveModuleMonths(filterState)
+        : [Number(selectedDateISO.slice(5, 7)) || 1],
+    [isAggregated, filterState, selectedDateISO],
+  );
+  const monthsKey = selectedMonths.join(",");
+  const month = String(selectedMonths[0] ?? 1);
 
-  /** Backend interval code: 1 = Daily. */
-  const intervalCode = 1;
+  /** Workbook period label — mirrors the Target Reference export contract. */
+  const exportPeriod: CompliancePeriod =
+    filterState.interval === "SEMESTER"
+      ? "SEMI-ANNUAL"
+      : (filterState.interval as CompliancePeriod);
+
+
+
+  /** Backend interval code: 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual. */
+  const intervalCode = React.useMemo(() => {
+    switch (filterState.interval) {
+      case "DAILY":
+        return 1;
+      case "MONTHLY":
+        return 2;
+      case "QUARTERLY":
+        return 3;
+      case "SEMESTER":
+        return 4;
+      default:
+        return 5;
+    }
+  }, [filterState.interval]);
+
+  /** Header caption for aggregated cards, e.g. "Q1 2026" or "Jan – Mar 2026". */
+  const periodLabel = React.useMemo(() => {
+    if (!isAggregated) return null;
+    const name = (m: number) => MONTHS.find((x) => x.value === m)?.name ?? String(m);
+    switch (filterState.interval) {
+      case "ANNUAL":
+        return `Annual ${year}`;
+      case "QUARTERLY":
+        return filterState.quarter === "all"
+          ? `All Quarters ${year}`
+          : `${filterState.quarter.toUpperCase()} ${year}`;
+      case "SEMESTER":
+        return filterState.semester === "all"
+          ? `All Semesters ${year}`
+          : `${filterState.semester === "s2" ? "2nd" : "1st"} Semester ${year}`;
+      default:
+        return selectedMonths.length === 12
+          ? `All Months ${year}`
+          : `${selectedMonths.map(name).join(", ")} ${year}`;
+    }
+  }, [isAggregated, filterState.interval, filterState.quarter, filterState.semester, selectedMonths, year]);
+
+  const ledgerGranularity: LedgerGranularity = React.useMemo(() => {
+    switch (filterState.interval) {
+      case "QUARTERLY":
+        return "quarter";
+      case "SEMESTER":
+        return "semester";
+      case "ANNUAL":
+        return "annual";
+      case "MONTHLY":
+        return "month";
+      default:
+        return "day";
+    }
+  }, [filterState.interval]);
 
 
   const [provinceno, setProvinceno] = React.useState<string>(
@@ -394,9 +471,10 @@ export default function FireSafetyCompliancePage() {
             ]
           : [];
       // DAILY: interval 1. Specific date -> `dateinspected`; ALL dates -> empty.
+      // MONTHLY: interval 2, no specific date, every selected month is plotted.
       const dateinspected = allDates ? "" : `${selectedDateISO}T00:00:00`;
 
-      const reportmonth = [Number(month)];
+      const reportmonth = [...selectedMonths];
       const resp = await complianceAPI.getLedger(
         {
           parameters: {
@@ -427,9 +505,30 @@ export default function FireSafetyCompliancePage() {
         setRows([]);
         setTotal(0);
       } else {
-        // Specific date: bind only that date. ALL dates: keep every record
-        // returned for the browsed month.
-        const items = (Array.isArray(data) ? data : []).map((st) => ({
+        const monthSet = new Set(selectedMonths);
+        const normalizeRec = (rec: unknown) => {
+          const r = rec as Record<string, unknown>;
+          return {
+            ...(rec as object),
+            fsisno: String(r.fsisno ?? ""),
+            dailytargetbplo: Number(r.dailytargetbplo ?? 0) || 0,
+            dailytargetgov: Number(r.dailytargetgov ?? 0) || 0,
+            dailytargetpeza: Number(r.dailytargetpeza ?? 0) || 0,
+            dailytargettieza: Number(r.dailytargettieza ?? 0) || 0,
+            inspectduringcount: Number(r.inspectduringcount ?? 0) || 0,
+            inspectaftercount: Number(r.inspectaftercount ?? 0) || 0,
+            inspectbplocount: Number(r.inspectbplocount ?? 0) || 0,
+            inspectgovcount: Number(r.inspectgovcount ?? 0) || 0,
+            inspectpezacount: Number(r.inspectpezacount ?? 0) || 0,
+            inspecttiezacount: Number(r.inspecttiezacount ?? 0) || 0,
+            remarks: String(r.remarks ?? ""),
+            dateinspected: String(r.dateinspected ?? ""),
+            issuancelist: Array.isArray(r.issuancelist) ? (r.issuancelist as unknown[]) : [],
+          };
+        };
+
+        const stations = Array.isArray(data) ? data : [];
+        const baseItem = (st: FSISComplianceModel, itemMonth: number) => ({
           stationno: String(st.stationno ?? ""),
           stationcode: String(st.stationcode ?? ""),
           stationname: String(st.stationname ?? ""),
@@ -445,7 +544,7 @@ export default function FireSafetyCompliancePage() {
           barangayname: "",
           streetaddress: "",
           logourl: String(st.logourl ?? ""),
-          month: Number(month),
+          month: itemMonth,
           year: Number(year),
           totaltargetbplo: 0,
           totaltargetgov: 0,
@@ -457,27 +556,55 @@ export default function FireSafetyCompliancePage() {
           totalAccomplishmenttieza: 0,
           updatedby: "",
           encodedby: "",
-          complianceLedgerList: (Array.isArray(st?.compliancelist) ? st.compliancelist : []).filter(
-            (rec) => allDates || String(rec?.dateinspected ?? "").slice(0, 10) === selectedDateISO,
-          ).map((rec) => ({
-            ...rec,
-            fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
-            dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
-            dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
-            dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
-            dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
-            inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
-            inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
-            inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
-            inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
-            inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
-            inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
-            remarks: String((rec as { remarks?: string }).remarks ?? ""),
-            dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
-            issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist) ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[]) : [],
-          })) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"],
-        }));
-        const mapped = items.map((it) => mapMonthlyItemToRow(it, Number(year), Number(month)));
+          complianceLedgerList: [] as FSISComplianceMonthlyLedgerModel["complianceLedgerList"],
+        });
+
+        type LedgerItem = ReturnType<typeof baseItem>;
+        const items: LedgerItem[] = [];
+
+        if (isAggregated) {
+          // One card per station covering the whole period; the ledger below
+          // renders one summed line per month.
+          for (const st of stations) {
+            const item = baseItem(st, Number(month));
+            for (const rec of Array.isArray(st?.compliancelist) ? st.compliancelist : []) {
+              const iso = String(rec?.dateinspected ?? "").slice(0, 10);
+              if (!iso || iso.startsWith("1900")) continue;
+              const m = Number(iso.slice(5, 7)) || 0;
+              if (!m || !monthSet.has(m)) continue;
+              item.complianceLedgerList.push(
+                normalizeRec(rec) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"][number],
+              );
+            }
+            items.push(item);
+          }
+        } else {
+          // Specific date: bind only that date. ALL dates: keep every record
+          // returned for the browsed month.
+          for (const st of stations) {
+            const item = baseItem(st, Number(month));
+            item.complianceLedgerList = (Array.isArray(st?.compliancelist) ? st.compliancelist : [])
+              .filter(
+                (rec) => allDates || String(rec?.dateinspected ?? "").slice(0, 10) === selectedDateISO,
+              )
+              .map(normalizeRec) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"];
+            items.push(item);
+          }
+        }
+
+        const mapped = items.map((it) => {
+          const mappedRow = mapMonthlyItemToRow(it, Number(year), it.month);
+          if (!isAggregated) return mappedRow;
+          return {
+            ...mappedRow,
+            key: `${it.stationno}|${year}|${monthsKey}`,
+            // Encoding coverage spans every month in the selected period.
+            daysInMonth: selectedMonths.reduce(
+              (acc, m) => acc + calendarDaysInMonth(Number(year), m),
+              0,
+            ),
+          };
+        });
         setRows(mapped);
         setTotal(Number(apiTotal || items.length || 0));
       }
@@ -490,6 +617,8 @@ export default function FireSafetyCompliancePage() {
   }, [
     year,
     month,
+    monthsKey,
+    isAggregated,
     intervalCode,
     selectedDateISO,
     allDates,
@@ -507,7 +636,7 @@ export default function FireSafetyCompliancePage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [year, month, selectedDateISO, allDates, provinceno, stationno, pageSize]);
+  }, [year, monthsKey, isAggregated, selectedDateISO, allDates, provinceno, stationno, pageSize]);
 
 
   // Server-side ledger returns a single page — use `rows` directly and
@@ -579,70 +708,71 @@ export default function FireSafetyCompliancePage() {
   };
 
   const handleExport = async () => {
-    if (paged.length === 0) {
-      toast.info("No compliance records to export.");
-      return;
-    }
     setExporting(true);
     try {
-      const wb = new ExcelJS.Workbook();
-      wb.creator = "FSIMS";
-      wb.created = new Date();
-      const ws = wb.addWorksheet(`Fire Safety Compliance ${year}`);
+      const effProvinceNo = scope.provinceLocked ? scope.provinceno : provinceno;
+      const effStationNo = scope.stationLocked ? scope.stationno : stationno;
+      const provinces =
+        effProvinceNo && effProvinceNo !== EMPTY_GUID
+          ? [
+              {
+                provinceno: effProvinceNo,
+                stationnos:
+                  effStationNo && effStationNo !== EMPTY_GUID ? [effStationNo] : [],
+              },
+            ]
+          : [];
 
-      ws.columns = [
-        { header: "Station Code", key: "stationCode", width: 16 },
-        { header: "Station Name", key: "stationName", width: 32 },
-        { header: "Province", key: "province", width: 22 },
-        { header: "Year", key: "year", width: 10 },
-        { header: "Month", key: "month", width: 12 },
-        { header: "Inspection", key: "inspection", width: 14 },
-        { header: "FSEC", key: "fsec", width: 12 },
-        { header: "FSIC", key: "fsic", width: 12 },
-        { header: "Notices", key: "notices", width: 12 },
-      ];
+      const resp = await complianceAPI.getLedger(
+        {
+          parameters: {
+            searchkey: "",
+            reportyear: Number(year),
+            interval: intervalCode,
+            targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
+            dateinspected: allDates ? "" : `${selectedDateISO}T00:00:00`,
+            reportmonth: [...selectedMonths],
+            provinces,
+          },
+          pagenumber: 0,
+          pagesize: 0,
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
 
-      ws.getRow(1).eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FF2563EB" },
-        };
-        cell.alignment = { horizontal: "center", vertical: "middle" };
-      });
-
-      for (const r of paged) {
-        ws.addRow({
-          stationCode: r.stationcode,
-          stationName: r.stationname,
-          province: r.provincename,
-          year: r.year,
-          month: MONTHS.find((m) => m.value === r.month)?.name ?? r.month,
-          inspection: r.totals.inspection,
-          fsec: r.totals.fsec,
-          fsic: r.totals.fsic,
-          notices: r.totals.notices,
-        });
+      const { ok, data, error } = unwrap<FSISComplianceModel[]>(resp);
+      if (!ok) {
+        toast.error(error || "Unable to export compliance records.");
+        return;
       }
 
-      ws.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
-        row.eachCell((cell, colNumber) => {
-          if (colNumber >= 6) {
-            cell.numFmt = "#,##0;(#,##0);-";
-            cell.alignment = { horizontal: "right" };
-          }
-        });
-      });
+      const exportRows = Array.isArray(data) ? data : [];
+      if (exportRows.length === 0) {
+        toast.info("No compliance records to export.");
+        return;
+      }
 
-      const buf = await wb.xlsx.writeBuffer();
-      saveAs(
-        new Blob([buf], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }),
-        `FireSafetyCompliance_${year}_${month}.xlsx`,
-      );
+      await exportComplianceWorkbook({
+        year: Number(year),
+        groups: exportRows.map((row) => ({
+          province: row.provincename ?? "",
+          stationCode: row.stationcode ?? "",
+          stationName: row.stationname ?? "",
+          compliancelist: (Array.isArray(row.compliancelist)
+            ? row.compliancelist
+            : []) as ComplianceExportRecord[],
+        })),
+        interval: exportPeriod,
+        selectedMonths,
+        quarter: filterState.quarter,
+        semester: filterState.semester,
+        selectedDay: resolveSelectedDay(filterState),
+        signatory: {
+          rank: user?.rankcode ?? user?.rankname ?? "",
+          fullname: user?.fullname ?? user?.name ?? "",
+          designation: user?.designation ?? "",
+        },
+      });
       toast.success("Fire Safety Compliance exported.");
     } catch (err) {
       console.error(err);
@@ -704,7 +834,7 @@ export default function FireSafetyCompliancePage() {
         state={filterState}
         onChange={setFilterState}
         onReset={handleResetFilters}
-        intervals={["DAILY"]}
+        intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
         allowAllDays
       >
         <ScopedLocationFilterPair
@@ -734,13 +864,16 @@ export default function FireSafetyCompliancePage() {
 
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading daily compliance…
+          <Loader2 className="h-4 w-4 animate-spin" />{" "}
+          {isAggregated ? "Loading compliance…" : "Loading daily compliance…"}
         </Card>
       ) : paged.length === 0 ? (
         <Card className="border-border/60 p-10 text-center text-sm text-muted-foreground">
-          {allDates
-            ? "No compliance records for the selected month."
-            : "No compliance records for the selected date."}
+          {isAggregated
+            ? "No compliance records for the selected period."
+            : allDates
+              ? "No compliance records for the selected month."
+              : "No compliance records for the selected date."}
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -749,6 +882,8 @@ export default function FireSafetyCompliancePage() {
               key={r.key}
               row={r}
               dateISO={allDates ? null : selectedDateISO}
+              groupBy={ledgerGranularity}
+              periodLabel={periodLabel}
               locked={!canManage}
 
               onView={() => setViewTarget(r)}
@@ -970,6 +1105,8 @@ interface DayLine {
   fsis: ModeCounts;
 }
 
+type LedgerGranularity = "day" | "month" | "quarter" | "semester" | "annual";
+
 
 const emptyMode = (): ModeCounts =>
   Object.fromEntries(ISSUANCE_COLS.map((c) => [c.key, 0])) as ModeCounts;
@@ -981,9 +1118,16 @@ const dayLabel = (iso: string) => {
     : d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 };
 
-const emptyLine = (iso: string): DayLine => ({
-  key: iso,
-  label: dayLabel(iso),
+/** `yyyy-mm` -> "January 2026". */
+const monthLabel = (ym: string) => {
+  const m = Number(ym.slice(5, 7)) || 0;
+  const name = MONTHS.find((x) => x.value === m)?.name ?? ym.slice(5, 7);
+  return `${name} ${ym.slice(0, 4)}`;
+};
+
+const emptyLine = (key: string, label: string): DayLine => ({
+  key,
+  label,
   inspection: Object.fromEntries(INSPECTION_COLS.map((c) => [c.key, 0])),
   target: Object.fromEntries(INSPECTION_TARGET_COLS.map((c) => [c.key, 0])),
   manual: emptyMode(),
@@ -992,24 +1136,47 @@ const emptyLine = (iso: string): DayLine => ({
 
 /**
  * Presentation-only: binds the API records into MANUAL / FSIS lines.
- * `dateISO` = one specific date -> a single line for that date.
- * `dateISO` = null -> one line per date present in the payload (All dates).
+ * `groupBy: "day"` — one line per date (or just `dateISO` when provided).
+ * Aggregated intervals use one summed line per month, quarter, semester, or year.
  */
 function buildDayLines(
   daily: FSISComplianceLedgerDailyItem[] | undefined,
   dateISO: string | null,
+  groupBy: LedgerGranularity = "day",
 ): DayLine[] {
-  const byDate = new Map<string, DayLine>();
+  const byKey = new Map<string, DayLine>();
 
   for (const rec of Array.isArray(daily) ? daily : []) {
     const iso = String(rec?.dateinspected ?? "").slice(0, 10);
     if (!iso || iso.startsWith("1900")) continue;
-    if (dateISO && iso !== dateISO) continue;
+    if (groupBy === "day" && dateISO && iso !== dateISO) continue;
 
-    let line = byDate.get(iso);
+    const recordMonth = Number(iso.slice(5, 7)) || 1;
+    const recordYear = iso.slice(0, 4);
+    const key =
+      groupBy === "month"
+        ? iso.slice(0, 7)
+        : groupBy === "quarter"
+          ? `${recordYear}-q${Math.ceil(recordMonth / 3)}`
+          : groupBy === "semester"
+            ? `${recordYear}-s${recordMonth <= 6 ? 1 : 2}`
+            : groupBy === "annual"
+              ? recordYear
+              : iso;
+    let line = byKey.get(key);
     if (!line) {
-      line = emptyLine(iso);
-      byDate.set(iso, line);
+      const label =
+        groupBy === "month"
+          ? monthLabel(iso)
+          : groupBy === "quarter"
+            ? `Q${Math.ceil(recordMonth / 3)} ${recordYear}`
+            : groupBy === "semester"
+              ? `${recordMonth <= 6 ? "1st" : "2nd"} Semester ${recordYear}`
+              : groupBy === "annual"
+                ? `Annual ${recordYear}`
+                : dayLabel(iso);
+      line = emptyLine(key, label);
+      byKey.set(key, line);
     }
 
     const issuances = Array.isArray(rec?.issuancelist) ? rec.issuancelist : [];
@@ -1030,7 +1197,7 @@ function buildDayLines(
       line.target[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.targetKey]);
   }
 
-  return [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, l]) => l);
+  return [...byKey.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, l]) => l);
 }
 
 
@@ -1046,6 +1213,8 @@ function ComplianceLedgerCard({
   row,
   locked,
   dateISO,
+  groupBy = "day",
+  periodLabel = null,
   onView,
   onEdit,
   onDelete,
@@ -1055,6 +1224,10 @@ function ComplianceLedgerCard({
   locked: boolean;
   /** A specific calendar date (yyyy-mm-dd), or null to render all dates. */
   dateISO: string | null;
+  /** Ledger row granularity follows the selected reporting interval. */
+  groupBy?: LedgerGranularity;
+  /** Caption for aggregated periods; falls back to the row's month + year. */
+  periodLabel?: string | null;
 
   onView: () => void;
   onEdit: () => void;
@@ -1063,7 +1236,10 @@ function ComplianceLedgerCard({
 }) {
   const monthName = MONTHS.find((m) => m.value === row.month)?.name ?? String(row.month);
   const grandTotal = row.totals.inspection + row.totals.fsec + row.totals.fsic + row.totals.notices;
-  const lines = React.useMemo(() => buildDayLines(row.daily, dateISO), [row.daily, dateISO]);
+  const lines = React.useMemo(
+    () => buildDayLines(row.daily, dateISO, groupBy),
+    [row.daily, dateISO, groupBy],
+  );
 
 
   const totals = React.useMemo(() => {
@@ -1103,7 +1279,7 @@ function ComplianceLedgerCard({
               {row.stationcode}
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
-              {monthName} {row.year}
+              {periodLabel ?? `${monthName} ${row.year}`}
             </span>
             <DaysEncodedBadge encoded={row.daysEncoded} total={row.daysInMonth} />
           </div>
@@ -1127,7 +1303,7 @@ function ComplianceLedgerCard({
       <div className="p-3">
         {lines.length === 0 ? (
           <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
-            No daily entries for this period.
+            {groupBy === "day" ? "No daily entries for this period." : "No entries for this period."}
           </div>
         ) : (
           <div className="max-h-[24rem] overflow-auto rounded-xl border border-border/40">
@@ -1138,7 +1314,11 @@ function ComplianceLedgerCard({
                     rowSpan={3}
                     className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r-2 border-r-border/60 text-left`}
                   >
-                    Date
+                    {groupBy === "day"
+                      ? "Date"
+                      : groupBy === "month"
+                        ? "Month"
+                        : "Period"}
                   </th>
                   <th
                     colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 2}

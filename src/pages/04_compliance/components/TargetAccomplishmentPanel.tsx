@@ -166,10 +166,10 @@ export default function TargetAccomplishmentPanel({
           } as TargetAccomplishmentModel,
         );
         setFetched({
+          ...totals,
           stationno: station.stationno ?? "",
           month,
           year,
-          ...totals,
         });
       }
       setLoading(false);

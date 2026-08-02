@@ -150,6 +150,7 @@ export interface FSISComplianceDetailModel {
   stationname: string;
   provinceno: string;
   provincename: string;
+  cityname?: string;
   logourl: string;
   compliancelist: FSISComplianceDetailClassModel[];
 }
@@ -182,6 +183,7 @@ export interface FSISComplianceModel {
   stationname: string;
   provinceno: string;
   provincename: string;
+  cityname?: string;
   logourl: string;
   compliancelist: FSISComplianceClassModel[];
 }
@@ -285,8 +287,8 @@ export interface FSISComplianceLedgerClass {
   dailytargetpeza: number;
   dailytargettieza: number;
 
-  isrevisionrequest: boolean;
-  editablestatus: number;
+  isrevisionrequest?: boolean;
+  editablestatus?: number;
 
   issuancelist: FSISIssuanceClassModel[];
 
@@ -354,7 +356,8 @@ export interface FSISComplianceMonthlyLedgerModel {
 
 /** UI-key daily counts used by the ledger / matrix presentation layer. */
 export interface ComplianceDailyCounts {
-  complianceNo: string;
+  complianceNo?: string;
+  fsisno?: string;
   stationno: string;
   stationcode: string;
   stationname: string;
