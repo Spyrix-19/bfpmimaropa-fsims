@@ -1,3 +1,24 @@
+//Target Accomplishment
+export interface FSISComplianceTargetAccomParams {
+  stationno: string;
+  dateinspected: string;
+}
+
+export interface TargetAccomplishmentModel {
+  stationno: string;
+  dateinspected: string; // ISO date string
+  totaltargetbplo: number;
+  totaltargetgov: number;
+  totaltargetpeza: number;
+  totaltargettieza: number;
+  totalAccomplishmentbplo: number;
+  totalAccomplishmentgov: number;
+  totalAccomplishmentpeza: number;
+  totalAccomplishmenttieza: number;
+}
+
+
+// Create/Update
 export interface FSISComplianceDTO {
   stationno: string;
   encodedby: string;
@@ -38,31 +59,6 @@ export interface FSISIssuanceClassDTO {
   closurecount: number;
 }
 
-export interface FSISIssuanceParamClass {
-  provinceno: string;
-  stationnos: string[];
-}
-
-export interface FSISComplianceParams {
-  searchkey: string;
-  reportyear: number;
-  interval: number; // 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual
-  dateinspected: string; // ISO Date string
-  reportmonth: number[];
-  provinces: FSISIssuanceParamClass[];
-}
-
-export interface ExportFSISComplianceRequestDTO {
-  searchkey: string;
-  reportyear: number;
-  provinces: FSISComplianceProvinceStationSelectionClass[];
-}
-
-export interface FSISComplianceProvinceStationSelectionClass {
-  provinceno: string;
-  stationnos: string[];
-}
-
 
 // Detail Models
 export interface FSISComplianceDetailParams {
@@ -89,6 +85,12 @@ export interface FSISIssuanceDetailClassModel {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+}
+
+//Detail by Date
+export interface FSISComplianceDetailByDateParams {
+  stationno: string;
+  dateinspected: string;
 }
 
 export interface FSISComplianceDetailByDateClassModel {
@@ -170,8 +172,6 @@ export interface FSISComplianceParamClass {
   stationnos: string[];
 }
 
-
-
 export interface FSISComplianceModel {
   stationno: string;
   stationcode: string;
@@ -228,6 +228,7 @@ export interface FSISIssuanceClassModel {
   closurecount: number;
 }
 
+//Delete
 export interface FSISComplianceDeleteParams {
   stationno: string;
   reportyear: number;
@@ -236,364 +237,20 @@ export interface FSISComplianceDeleteParams {
   roleno: number;
 }
 
+//Export
 export interface ProvinceIssuanceExportModel {
   provinceno: string;
   provincename: string;
   stations: FSISComplianceModel[];
 }
 
-// ===== Legacy FSISInventory types (used by compliance ledger/matrix/edit/view) =====
-export interface FSISInventoryDTO {
-  fsisno: string;
-  stationno: string;
-  dateinspected: string | Date;
-
-  inspectduringcount: number;
-  inspectaftercount: number;
-  inspectbplocount: number;
-  inspectgovcount: number;
-  inspectpezacount: number;
-  inspecttiezacount: number;
-
-  remarks: string;
-
-  updatedby: string;
-  encodedby: string;
-
-  issuancelist: FSISInventoryIssuanceClassDTO[];
-}
-
-export interface FSISInventoryIssuanceClassDTO {
-  issuanceno: string;
-
-  fsicmode: number;
-
-  fsecbuildingcount: number;
-  fsecgovcount: number;
-  fsecpezacount: number;
-  fsectiezacount: number;
-
-  fsicoccupancycount: number;
-  fsicbplonewcount: number;
-  fsicbplorenewcount: number;
-  fsicgovcount: number;
-  fsicpezacount: number;
-  fsictiezacount: number;
-
-  nodcount: number;
-  ntccount: number;
-  ntcvcount: number;
-
-  abatementcount: number;
-  closurecount: number;
-}
-
-export interface FSISUpdateInventoryDTO {
-  stationno: string;
-  updatedby: string;
-  encodedby: string;
-
-  fsisUpdateInventoryList: FSISUpdateInventoryClass[];
-}
-
-export interface FSISUpdateInventoryClass {
-  fsisno: string;
-  stationno: string;
-  dateinspected: string | Date;
-
-  inspectduringcount: number;
-  inspectaftercount: number;
-  inspectbplocount: number;
-  inspectgovcount: number;
-  inspectpezacount: number;
-  inspecttiezacount: number;
-
-  isaccomplished: boolean;
-  remarks: string;
-
-  updatedby: string;
-  encodedby: string;
-
-  issuancelist: FSISInventoryIssuanceClassDTO[];
-}
-
-export interface ExportFSISInventoryDTO {
+export interface ExportFSISComplianceRequestDTO {
   searchkey: string;
   reportyear: number;
-  reportmonth?: number;
-
-  provinces: ProvinceStationSelectionClass[];
+  provinces: FSISComplianceProvinceStationSelectionClass[];
 }
 
-export interface ProvinceStationSelectionClass {
+export interface FSISComplianceProvinceStationSelectionClass {
   provinceno: string;
   stationnos: string[];
-}
-
-
-
-
-
-
-// =========================
-// Ledger
-// =========================
-
-export interface FSISInventoryLedgerParams {
-  searchkey?: string;
-  stationno?: string;
-  provinceno?: string;
-  reportyear: number;
-  reportmonth?: number;
-  pagenumber: number;
-  pagesize: number;
-}
-
-export interface FSISInventoryLedgerModel {
-  stationno: string;
-  stationcode: string;
-  stationname: string;
-
-  regionno: string;
-  regioncode: string;
-  regionname: string;
-
-  provinceno: string;
-  provincename: string;
-
-  cityno: string;
-  zipcode: string;
-  cityname: string;
-
-  barangayno: string;
-  barangayname: string;
-
-  streetaddress: string;
-  logourl: string;
-
-  updatedby: string;
-  encodedby: string;
-
-  fsisInventoryLedgerList: FSISInventoryLedgerClass[];
-}
-
-export interface FSISInventoryLedgerClass {
-  stationno: string;
-  fsisno: string;
-
-  inspectduringcount: number;
-  inspectaftercount: number;
-  inspectbplocount: number;
-  inspectgovcount: number;
-  inspectpezacount: number;
-  inspecttiezacount: number;
-
-  /** Daily inspection targets echoed by the ledger endpoint. */
-  dailytargetbplo?: number;
-  dailytargetgov?: number;
-  dailytargetpeza?: number;
-  dailytargettieza?: number;
-
-  fsecbuildingcount: number;
-  fsecgovcount: number;
-  fsecpezacount: number;
-  fsectiezacount: number;
-
-  fsicoccupancycount: number;
-  fsicbplonewcount: number;
-  fsicbplorenewcount: number;
-  fsicgovcount: number;
-  fsicpezacount: number;
-  fsictiezacount: number;
-
-  nodcount: number;
-  ntccount: number;
-  ntcvcount: number;
-
-  abatementcount: number;
-  closurecount: number;
-
-  remarks: string;
-  dateinspected: string | Date;
-}
-
-// =========================
-// Monthly Inventory
-// =========================
-
-export interface FSISInventoryMonthlyParams {
-  Stationno: string;
-  Provinceno: string;
-  Reportyear: number;
-  Reportmonth: number;
-}
-
-export interface FSISCheckInventoryMonthlyParams {
-  Stationno: string;
-  Provinceno: string;
-  /** Complete date based on Reporting Period as of (yyyy-MM-dd). */
-  Dateinspected: string;
-}
-
-
-export interface FSISInventoryMonthlyLedgerModel {
-  stationno: string;
-  stationcode: string;
-  stationname: string;
-
-  regionno: string;
-  regioncode: string;
-  regionname: string;
-
-  provinceno: string;
-  provincename: string;
-
-  cityno: string;
-  zipcode: string;
-  cityname: string;
-
-  barangayno: string;
-  barangayname: string;
-
-  streetaddress: string;
-  logourl: string;
-
-  month: number;
-  year: number;
-
-  totaltargetbplo: number;
-  totaltargetgov: number;
-  totaltargetpeza: number;
-  totaltargettieza: number;
-
-  totalAccomplishmentbplo: number;
-  totalAccomplishmentgov: number;
-  totalAccomplishmentpeza: number;
-  totalAccomplishmenttieza: number;
-
-  updatedby: string;
-  encodedby: string;
-
-  fsisInventoryLedgerList: FSISInventoryMonthlyClass[];
-}
-
-export interface FSISInventoryMonthlyClass {
-  fsisno: string;
-
-  inspectduringcount: number;
-  inspectaftercount: number;
-  inspectbplocount: number;
-  inspectgovcount: number;
-  inspectpezacount: number;
-  inspecttiezacount: number;
-
-  /** Daily inspection targets echoed by the monthly endpoint. */
-  dailytargetbplo?: number;
-  dailytargetgov?: number;
-  dailytargetpeza?: number;
-  dailytargettieza?: number;
-
-  isrevisionrequest?: boolean;
-  editablestatus?: number;
-
-  remarks: string;
-  dateinspected: string | Date;
-
-  issuancelist: FSISIssuanceClassModel[];
-}
-
-
-// =========================
-// Target Accomplishment
-// =========================
-
-export interface TargetAccomplishmentParams {
-  stationno: string;
-  reportyear: number;
-  reportmonth: number;
-}
-
-export interface TargetAccomplishmentModel {
-  stationno: string;
-
-  month: number;
-  year: number;
-
-  totaltargetbplo: number;
-  totaltargetgov: number;
-  totaltargetpeza: number;
-  totaltargettieza: number;
-
-  totalAccomplishmentbplo: number;
-  totalAccomplishmentgov: number;
-  totalAccomplishmentpeza: number;
-  totalAccomplishmenttieza: number;
-}
-
-export interface FSISInventoryDeleteParams {
-  stationno: string;
-  reportyear: number;
-  reportmonth: number;
-  deletedby: string;
-  roleno: number;
-}
-
-// =========================
-// Export Inventory
-// =========================
-
-
-export interface ExportInventoryModel {
-  updatedby: string;
-  encodedby: string;
-
-  accomplishmentStationlist: ExportInventoryStationClassModel[];
-}
-
-export interface ExportInventoryStationClassModel {
-  stationno: string;
-  provinceno: string;
-
-  stationcode: string;
-  stationname: string;
-
-  provincename: string;
-  cityname: string;
-
-  logourl: string;
-
-  inventorylist: ExportInventoryClassModel[];
-}
-
-export interface ExportInventoryClassModel {
-  stationno: string;
-
-  reportyear: number;
-  reportmonth: number;
-
-  inspectduringcount: number;
-  inspectaftercount: number;
-  inspectbplocount: number;
-  inspectgovcount: number;
-  inspectpezacount: number;
-  inspecttiezacount: number;
-
-  fsecbuildingcount: number;
-  fsecgovcount: number;
-  fsecpezacount: number;
-  fsectiezacount: number;
-
-  fsicoccupancycount: number;
-  fsicbplonewcount: number;
-  fsicbplorenewcount: number;
-  fsicgovcount: number;
-  fsicpezacount: number;
-  fsictiezacount: number;
-
-  nodcount: number;
-  ntccount: number;
-  ntcvcount: number;
-
-  abatementcount: number;
-  closurecount: number;
 }

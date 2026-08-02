@@ -2,26 +2,31 @@ import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT }
 
 import { FSISComplianceDTO, FSISComplianceDetailModel, FSISComplianceDetailByDateModel, FSISComplianceDetailParams, 
   FSISComplianceLedgerParams, FSISComplianceModel, FSISComplianceDeleteParams, 
-  ExportFSISComplianceRequestDTO} from "@/types/complianceType";
+  ExportFSISComplianceRequestDTO, FSISComplianceTargetAccomParams, TargetAccomplishmentModel,
+  FSISComplianceDetailByDateParams} from "@/types/complianceType";
 
 export const complianceAPI = {
+  async getTargetAccomplishment(
+    params?: FSISComplianceTargetAccomParams, options?: import("@/lib/api").ApiOptions ) {
+    return await apiGet<TargetAccomplishmentModel>("/api/v1/FSISCompliance/TargetAccomplishment", { 
+      params, 
+      ...GET_RETRY, 
+      ...options 
+    });
+  },
+
+
   async create(params: FSISComplianceDTO) {
     return await apiPost("/api/v1/FSISCompliance/Create", params, { ...NO_RETRY });
   },  
 
-  /**
-   * Existence check for a station + specific target date (M/D/YYYY).
-   * Returns the station wrapper model whose `compliancelist` is empty when no
-   * record exists for that date.
-   */
 async getDetailBydate(
-    params: { Stationno: string; Dateinspected: string },
-    options?: import("@/lib/api").ApiOptions
-  ) {
-    return await apiGet<FSISComplianceDetailByDateModel>(
-      "/api/v1/FSISCompliance/Detail/Date",
-      { params, ...GET_RETRY, ...options }
-    );
+    params?: FSISComplianceDetailByDateParams, options?: import("@/lib/api").ApiOptions ) {
+    return await apiGet<FSISComplianceDetailByDateModel>("/api/v1/FSISCompliance/Detail/Date", { 
+      params, 
+      ...GET_RETRY, 
+      ...options 
+    });
   },
 
   async getDetail(params?: FSISComplianceDetailParams, options?: import("@/lib/api").ApiOptions) {
