@@ -55,7 +55,8 @@ import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField"
 // Monthly ledger queries are moved to the editor modal to avoid
 // calling the heavy Monthly endpoint on the main listing view.
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
-import { targetinventoryAPI, complianceAPI } from "@/services/complianceAPI.ts";
+import { complianceAPI } from "@/services/complianceAPI.ts";
+import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
@@ -65,6 +66,7 @@ import type {
   FSISInventoryMonthlyLedgerModel,
   FSISInventoryMonthlyClass,
   FSISIssuanceClassModel,
+  FSISComplianceModel,
 } from "@/types/complianceType.ts";
 
 // Page-local aliases — the existing DTOs in `types/` are immutable; these
@@ -223,92 +225,9 @@ function mapMonthlyItemToRow(
   };
 }
 
-/**
- * /api/v1/FSISInventory/Ledger does NOT return the dailytarget* fields, so the
- * Target columns render blank. /api/v1/FSISCompliance/Ledger does return them,
- * keyed by `fsisno`. Fetch that once per listing and merge the targets into the
- * daily records already loaded from the inventory ledger.
- */
-async function fetchDailyTargets(
-  items: FSISInventoryMonthlyItem[],
-  year: number,
-  month: number,
-  signal?: AbortSignal,
-): Promise<Map<string, Record<string, number>>> {
-  const out = new Map<string, Record<string, number>>();
-  const byProvince = new Map<string, Set<string>>();
-  for (const it of items) {
-    if (!it.provinceno || !it.stationno) continue;
-    if (!byProvince.has(it.provinceno)) byProvince.set(it.provinceno, new Set());
-    byProvince.get(it.provinceno)!.add(it.stationno);
-  }
-  if (!byProvince.size || !year || !month) return out;
+/* The FSISCompliance Ledger returns the dailytarget* fields inline, so no
+ * secondary target enrichment pass is needed. */
 
-  try {
-    const resp = await complianceAPI.getLedger(
-      {
-        parameters: {
-          searchkey: "",
-          reportyear: Number(year),
-          interval: 1,
-          targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
-          dateinspected: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
-          reportmonth: [Number(month)],
-          provinces: Array.from(byProvince, ([provinceno, stations]) => ({
-            provinceno,
-            stationnos: Array.from(stations),
-          })),
-        },
-        pagenumber: 1,
-        pagesize: Math.max(items.length, 10),
-      },
-      { suppressGlobalLoading: true, signal },
-    );
-    const { ok, data } = unwrap<
-      {
-        stationno?: string;
-        compliancelist?: Record<string, unknown>[];
-      }[]
-    >(resp);
-    if (!ok) return out;
-    for (const st of Array.isArray(data) ? data : []) {
-      for (const rec of Array.isArray(st?.compliancelist) ? st.compliancelist : []) {
-        const targets = {
-          dailytargetbplo: Number(rec?.dailytargetbplo ?? 0) || 0,
-          dailytargetgov: Number(rec?.dailytargetgov ?? 0) || 0,
-          dailytargetpeza: Number(rec?.dailytargetpeza ?? 0) || 0,
-          dailytargettieza: Number(rec?.dailytargettieza ?? 0) || 0,
-        };
-        const fsisno = String(rec?.fsisno ?? "");
-        if (fsisno) out.set(`fsis:${fsisno}`, targets);
-        const iso = String(rec?.dateinspected ?? "").slice(0, 10);
-        const stationno = String(rec?.stationno ?? st?.stationno ?? "");
-        if (iso && stationno) out.set(`date:${stationno}|${iso}`, targets);
-      }
-    }
-  } catch {
-    /* targets are best-effort — leave the ledger rendering without them */
-  }
-  return out;
-}
-
-/** Merges fetched dailytarget* values into a mapped row's daily records. */
-function withDailyTargets(
-  row: LedgerRow,
-  targets: Map<string, Record<string, number>>,
-): LedgerRow {
-  if (!targets.size || !Array.isArray(row.daily)) return row;
-  return {
-    ...row,
-    daily: row.daily.map((d) => {
-      const iso = String(d?.dateinspected ?? "").slice(0, 10);
-      const t =
-        targets.get(`fsis:${String((d as { fsisno?: string }).fsisno ?? "")}`) ??
-        targets.get(`date:${row.stationno}|${iso}`);
-      return t ? { ...d, ...t } : d;
-    }),
-  };
-}
 
 export default function FireSafetyCompliancePage() {
   const { user, systemAccess } = useAuth();
@@ -465,13 +384,29 @@ export default function FireSafetyCompliancePage() {
       setLoading(true);
       const effectiveProvinceNo = scope.provinceLocked ? scope.provinceno : provinceno;
       const effectiveStationNo = scope.stationLocked ? scope.stationno : stationno;
-      const resp = await targetinventoryAPI.getInventoryLedger(
+      const provinces =
+        effectiveProvinceNo && effectiveProvinceNo !== EMPTY_GUID
+          ? [
+              {
+                provinceno: effectiveProvinceNo,
+                stationnos:
+                  effectiveStationNo && effectiveStationNo !== EMPTY_GUID
+                    ? [effectiveStationNo]
+                    : [],
+              },
+            ]
+          : [];
+      const resp = await complianceAPI.getLedger(
         {
-          searchkey: "",
-          stationno: effectiveStationNo || EMPTY_GUID,
-          provinceno: effectiveProvinceNo || EMPTY_GUID,
-          reportyear: Number(year),
-          reportmonth: Number(month),
+          parameters: {
+            searchkey: "",
+            reportyear: Number(year),
+            interval: 1,
+            targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
+            dateinspected: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
+            reportmonth: [Number(month)],
+            provinces,
+          },
           pagenumber: page,
           pagesize: pageSize,
         },
@@ -483,28 +418,19 @@ export default function FireSafetyCompliancePage() {
         total: apiTotal,
         error,
         canceled,
-      } = unwrap<FSISInventoryMonthlyItem[]>(resp);
+      } = unwrap<FSISComplianceModel[]>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
-        toast.error(error || "Unable to load monthly inventory ledger.");
+        toast.error(error || "Unable to load monthly compliance ledger.");
         setRows([]);
         setTotal(0);
       } else {
-        const items = Array.isArray(data) ? data : [];
+        const items = (Array.isArray(data) ? data : []).map((st) =>
+          toMonthlyLedgerModel(st, Number(year), Number(month)),
+        );
         const mapped = items.map((it) => mapMonthlyItemToRow(it, Number(year), Number(month)));
         setRows(mapped);
         setTotal(Number(apiTotal || items.length || 0));
-        // The inventory ledger has no target fields — enrich from the
-        // compliance ledger so the Target columns are populated.
-        const targets = await fetchDailyTargets(
-          items,
-          Number(year),
-          Number(month),
-          controller.signal,
-        );
-        if (!cancelled && targets.size) {
-          setRows(mapped.map((r) => withDailyTargets(r, targets)));
-        }
       }
       setLoading(false);
     })();
@@ -546,7 +472,7 @@ export default function FireSafetyCompliancePage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const resp = await targetinventoryAPI.delete({
+      const resp = await complianceAPI.delete({
         stationno: deleteTarget.stationno,
         reportyear: Number(deleteTarget.year),
         reportmonth: Number(deleteTarget.month),

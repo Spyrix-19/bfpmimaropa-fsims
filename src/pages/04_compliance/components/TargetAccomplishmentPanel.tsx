@@ -11,11 +11,15 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "@/components/ui/card";
-import { targetinventoryAPI } from "@/services/complianceAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { toTargetAccomplishment } from "@/lib/complianceAdapters";
 import { unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { cn } from "@/lib/utils";
-import type { TargetAccomplishmentModel } from "@/types/complianceType";
+import type {
+  TargetAccomplishmentModel,
+  FSISComplianceDetailModel,
+} from "@/types/complianceType";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 
 type CategoryKey = "bplo" | "gov" | "peza" | "tieza";
@@ -124,18 +128,22 @@ export default function TargetAccomplishmentPanel({
     (async () => {
       setLoading(true);
       setError(null);
-      const resp = await targetinventoryAPI.getTargetAccomplishment({
-        stationno,
-        reportyear: year,
-        reportmonth: month,
-      });
-      const { ok, data: payload, error: err } = unwrap<TargetAccomplishmentModel>(resp);
+      const resp = await complianceAPI.getDetail(
+        { stationno, reportyear: year, reportmonth: month },
+        { suppressGlobalLoading: true },
+      );
+      const {
+        ok,
+        data: payload,
+        error: err,
+      } = unwrap<FSISComplianceDetailModel | FSISComplianceDetailModel[]>(resp);
       if (cancelled) return;
-      if (!ok || !payload) {
+      const station = Array.isArray(payload) ? (payload[0] ?? null) : (payload ?? null);
+      if (!ok || !station) {
         setFetched(null);
         setError(err || "Unable to load target / accomplishment.");
       } else {
-        setFetched(payload);
+        setFetched(toTargetAccomplishment(station, year, month));
       }
       setLoading(false);
     })();

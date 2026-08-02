@@ -53,7 +53,8 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 
-import { targetinventoryAPI } from "@/services/complianceAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { stationAPI } from "@/services/stationAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { DailyInventoryDTO } from "@/types/inventoryType";
@@ -62,8 +63,10 @@ import type {
   FSISInventoryMonthlyClass,
   FSISIssuanceClassModel,
   FSISInventoryIssuanceClassDTO,
-  FSISUpdateInventoryClass,
-  FSISUpdateInventoryDTO,
+  FSISComplianceDetailModel,
+  FSISComplianceDTO,
+  FSISComplianceClass,
+  FSISIssuanceClassDTO,
   } from "@/types/complianceType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
@@ -627,22 +630,22 @@ function InventoryEditBody({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await targetinventoryAPI.getMonthly(
+      const resp = await complianceAPI.getDetail(
         {
-          Stationno: stationno || EMPTY_GUID,
-          Provinceno: provinceno,
-          Reportyear: year,
-          Reportmonth: month,
+          stationno: stationno || EMPTY_GUID,
+          reportyear: year,
+          reportmonth: month,
         },
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
 
-      const { ok, data, error } = unwrap<FSISInventoryMonthlyLedgerModel | FSISInventoryMonthlyLedgerModel[]>(resp);
+      const { ok, data, error } = unwrap<FSISComplianceDetailModel | FSISComplianceDetailModel[]>(resp);
       if (!ok) toast.error(error || "Failed to load monthly data.");
-      const first = ok
+      const station = ok
         ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null))
         : null;
+      const first = station ? toMonthlyLedgerModel(station, year, month) : null;
 
       setStation(first);
 
@@ -769,7 +772,7 @@ function InventoryEditBody({
       // Send every day from the 1st through the last day, with zero/empty
       // values for unchanged rows and `isaccomplished: true` only for
       // rows that were actually modified.
-      const updates: FSISUpdateInventoryClass[] = [];
+      const updates: FSISComplianceClass[] = [];
       let hasAnyChange = false;
 
       for (const [, day] of editableDays) {
@@ -781,7 +784,7 @@ function InventoryEditBody({
 
         // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes.
         // Always send both entries so the update payload matches the create structure.
-        const issuancelist: FSISInventoryIssuanceClassDTO[] = [
+        const issuancelist: FSISIssuanceClassDTO[] = [
           {
             issuanceno: day.manual.issuanceno || EMPTY_GUID,
             fsicmode: 96,
@@ -822,9 +825,8 @@ function InventoryEditBody({
           },
         ];
 
-        const item: FSISUpdateInventoryClass = {
+        const item: FSISComplianceClass = {
           fsisno: day.inspection.fsisno || EMPTY_GUID,
-          stationno,
           dateinspected: day.key,
           inspectduringcount: day.inspection.inspectduringcount ?? 0,
           inspectaftercount: day.inspection.inspectaftercount ?? 0,
@@ -833,8 +835,6 @@ function InventoryEditBody({
           inspectpezacount: day.inspection.inspectpezacount ?? 0,
           inspecttiezacount: day.inspection.inspecttiezacount ?? 0,
           remarks: (day.inspection.remarks ?? "").trim(),
-          updatedby: user?.memberno ?? "",
-          encodedby: user?.memberno ?? "",
           issuancelist,
           isaccomplished: isRowModified,
         };
@@ -847,14 +847,13 @@ function InventoryEditBody({
         return;
       }
 
-      const payload: FSISUpdateInventoryDTO = {
+      const payload: FSISComplianceDTO = {
         stationno,
-        updatedby: user?.memberno ?? "",
         encodedby: user?.memberno ?? "",
-        fsisUpdateInventoryList: updates,
+        compliancelist: updates,
       };
 
-      const resp = await targetinventoryAPI.update(payload);
+      const resp = await complianceAPI.create(payload);
       const { ok, error } = unwrap(resp);
       if (!ok) {
         const msg = error || "Failed to save changes. Please try again.";

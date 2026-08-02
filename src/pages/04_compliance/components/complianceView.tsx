@@ -20,7 +20,8 @@ import { ArrowLeft, Eye, Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import { stationAPI } from "@/services/stationAPI";
-import { targetinventoryAPI } from "@/services/complianceAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { toMonthlyLedgerModel } from "@/lib/complianceAdapters";
 import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
@@ -32,6 +33,7 @@ import type {
   FSISInventoryMonthlyLedgerModel,
   FSISInventoryMonthlyClass,
   FSISIssuanceClassModel,
+  FSISComplianceDetailModel,
 } from "@/types/complianceType";
 import type { SearchStationModel } from "@/types/stationTypes";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
@@ -324,19 +326,18 @@ function InventoryViewBody({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await targetinventoryAPI.getMonthly(
+      const resp = await complianceAPI.getDetail(
         {
-          Stationno: stationno || EMPTY_GUID,
-          Provinceno: provinceno,
-          Reportyear: year,
-          Reportmonth: selectedMonth,
+          stationno: stationno || EMPTY_GUID,
+          reportyear: year,
+          reportmonth: selectedMonth,
         },
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
 
       const { ok, data, error } = unwrap<
-        FSISInventoryMonthlyLedgerModel | FSISInventoryMonthlyLedgerModel[]
+        FSISComplianceDetailModel | FSISComplianceDetailModel[]
       >(resp);
       if (!ok) toast.error(error || "Failed to load daily details.");
       const first = ok
@@ -344,7 +345,7 @@ function InventoryViewBody({
           ? (data[0] ?? null)
           : (data ?? null)
         : null;
-      setStation(first);
+      setStation(first ? toMonthlyLedgerModel(first, year, selectedMonth) : null);
       setLoading(false);
     })();
     return () => {
