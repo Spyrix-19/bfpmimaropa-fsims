@@ -146,7 +146,7 @@ function monthOf(d: string | Date): number {
   return Number.isFinite(m) ? m : 0;
 }
 
-function buildGroupsFromLedger(rows: FSISInventoryLedgerModel[]): ProvinceGroup[] {
+function buildGroupsFromLedger(rows: FSISComplianceModel[]): ProvinceGroup[] {
   const keys = COMPLIANCE_FIELDS.map((f) => f.key as string);
   const groups: ProvinceGroup[] = [];
   const byProv = new Map<string, ProvinceGroup>();
@@ -164,8 +164,9 @@ function buildGroupsFromLedger(rows: FSISInventoryLedgerModel[]): ProvinceGroup[
       groups.push(g);
     }
     const months: Record<number, Record<string, number>> = {};
-    for (const r of st.fsisInventoryLedgerList ?? []) {
-      const m = monthOf(r.dateinspected);
+    for (const rec of st.compliancelist ?? []) {
+      const r = toDailyRow(rec);
+      const m = monthOf(rec.dateinspected);
       if (m < 1 || m > 12) continue;
       const bucket = (months[m] ??= Object.fromEntries(keys.map((k) => [k, 0])));
       for (const k of keys) {
@@ -178,7 +179,7 @@ function buildGroupsFromLedger(rows: FSISInventoryLedgerModel[]): ProvinceGroup[
       stationname: st.stationname,
       provinceno: st.provinceno,
       province: st.provincename,
-      cityname: st.cityname ?? "",
+      cityname: (st as unknown as { cityname?: string }).cityname ?? "",
       logoUrl: st.logourl ?? "",
       months,
     });
