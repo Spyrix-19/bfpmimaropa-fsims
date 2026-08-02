@@ -18,7 +18,8 @@ import { StationMultiSelect, type SelectedStation } from "@/components/station-m
 import ResetFiltersButton from "@/components/reset-filters-button";
 import { unwrap } from "@/lib/api-envelope";
 import { sumMonths, MONTH_NAMES } from "@/lib/inventoryHelpers";
-import { targetinventoryAPI } from "@/services/complianceAPI";
+import { complianceAPI } from "@/services/complianceAPI";
+import { toDailyRow, monthOfRecord } from "@/lib/complianceAdapters";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { EMPTY_GUID } from "@/lib/utils";
 import { buildYears } from "@/lib/utils";
@@ -26,9 +27,9 @@ import { useAuth } from "@/lib/auth";
 import { resolveTargetScope } from "@/pages/06_target-reference/helpers";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import type {
-  FSISInventoryLedgerModel,
   FSISInventoryLedgerClass,
-  ExportInventoryStationClassModel,
+  FSISComplianceModel,
+  ProvinceIssuanceExportModel,
 } from "@/types/complianceType";
 import { exportComplianceMatrix } from "./components/matrixExport";
 import { MONTH_COLORS } from "./components/monthColors";
