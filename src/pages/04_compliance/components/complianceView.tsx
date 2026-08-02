@@ -16,7 +16,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Target } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "@/lib/toast";
 
 import { stationAPI } from "@/services/stationAPI";
@@ -26,17 +36,17 @@ import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { CATEGORY_FIELDS } from "@/lib/complianceHelpers";
+import { cn } from "@/lib/utils";
+import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import type { ComplianceDailyCounts } from "@/types/complianceType";
 import type {
-  TargetAccomplishmentModel,
   FSISComplianceMonthlyLedgerModel,
   FSISComplianceDailyClass,
   FSISIssuanceClassModel,
   FSISComplianceDetailModel,
 } from "@/types/complianceType";
 import type { SearchStationModel } from "@/types/stationTypes";
-import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
 const CATEGORY_ORDER = ["INSPECTION", "FSEC", "FSIC", "NOTICES"] as const;
 const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
@@ -76,6 +86,10 @@ interface InspectionCounts {
   inspectgovcount: number;
   inspectpezacount: number;
   inspecttiezacount: number;
+  dailytargetbplo: number;
+  dailytargetgov: number;
+  dailytargetpeza: number;
+  dailytargettieza: number;
 }
 
 interface IssuanceCounts {
@@ -120,6 +134,19 @@ const FIELD_TO_API: Record<string, string> = {
   not_abatement: "abatementcount",
   not_closure: "closurecount",
 };
+
+/** Inspection columns that render a Target | Compliance pair. */
+const INSP_TARGET_FIELDS: Record<string, keyof InspectionCounts> = {
+  insp_bplo: "dailytargetbplo",
+  insp_gov: "dailytargetgov",
+  insp_peza: "dailytargetpeza",
+  insp_tieza: "dailytargettieza",
+};
+
+const INSPECTION_COLSPAN = CATEGORY_FIELDS.INSPECTION.reduce(
+  (n, f) => n + (INSP_TARGET_FIELDS[String(f.key)] ? 2 : 1),
+  0,
+);
 
 type DayTotals = Partial<Record<keyof ComplianceDailyCounts, number>>;
 
@@ -218,6 +245,10 @@ function buildSlices(
       inspectgovcount: num(rec?.inspectgovcount),
       inspectpezacount: num(rec?.inspectpezacount),
       inspecttiezacount: num(rec?.inspecttiezacount),
+      dailytargetbplo: num(rec?.dailytargetbplo),
+      dailytargetgov: num(rec?.dailytargetgov),
+      dailytargetpeza: num(rec?.dailytargetpeza),
+      dailytargettieza: num(rec?.dailytargettieza),
     };
 
     let manual = emptyIssuance();
@@ -275,6 +306,196 @@ function buildSlices(
   }
 
   return out;
+}
+
+/* ------------------------------------------------------------------ */
+/* Inline Target vs. Compliance panel (no external panel component)    */
+/* ------------------------------------------------------------------ */
+
+const ACC_CATEGORIES: {
+  label: string;
+  targetKey: keyof InspectionCounts;
+  countKey: keyof InspectionCounts;
+}[] = [
+  { label: "BPLO", targetKey: "dailytargetbplo", countKey: "inspectbplocount" },
+  { label: "GOV", targetKey: "dailytargetgov", countKey: "inspectgovcount" },
+  { label: "PEZA", targetKey: "dailytargetpeza", countKey: "inspectpezacount" },
+  { label: "TIEZA", targetKey: "dailytargettieza", countKey: "inspecttiezacount" },
+];
+
+interface AccomplishmentRow {
+  label: string;
+  target: number;
+  compliance: number;
+  variance: number;
+  positive: number;
+  percentage: number;
+}
+
+const SERIES = {
+  target: "var(--color-warning)",
+  compliance: "var(--color-primary)",
+  variance: "var(--color-destructive)",
+  positive: "var(--color-success)",
+} as const;
+
+function Dot({ color }: { color: string }) {
+  return (
+    <span
+      className="mr-1.5 inline-block h-2 w-2 rounded-[2px] align-middle"
+      style={{ background: color }}
+    />
+  );
+}
+
+function InlineAccomplishmentPanel({
+  rows,
+  periodLabel,
+}: {
+  rows: AccomplishmentRow[];
+  periodLabel: string;
+}) {
+  const chartData = rows.map((r) => ({
+    name: r.label,
+    Target: r.target,
+    Compliance: r.compliance,
+  }));
+
+  const totals = rows.reduce(
+    (acc, r) => {
+      acc.target += r.target;
+      acc.compliance += r.compliance;
+      acc.variance += r.variance;
+      acc.positive += r.positive;
+      return acc;
+    },
+    { target: 0, compliance: 0, variance: 0, positive: 0 },
+  );
+  const totalPct = totals.target > 0 ? (totals.compliance / totals.target) * 100 : 0;
+
+  return (
+    <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
+      <div className="flex items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
+            <Target className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold">Monthly Target vs. Compliance</div>
+            <div className="text-[11px] text-muted-foreground">{periodLabel}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-border/50 bg-card/40 p-4">
+        <div className="h-64 w-full">
+          <ResponsiveContainer>
+            <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} allowDecimals={false} />
+              <YAxis {...axisProps} allowDecimals={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="Target" fill={SERIES.target} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Compliance" fill={SERIES.compliance} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-2 text-left">Category</th>
+              <th className="px-4 py-2 text-right">
+                <Dot color={SERIES.target} />Target
+              </th>
+              <th className="px-4 py-2 text-right">
+                <Dot color={SERIES.compliance} />Compliance
+              </th>
+              <th className="px-4 py-2 text-right">
+                <Dot color={SERIES.variance} />Variance
+              </th>
+              <th className="px-4 py-2 text-right">
+                <Dot color={SERIES.positive} />Positive Listing
+              </th>
+              <th className="px-4 py-2 text-right">% Accomplishment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr
+                key={r.label}
+                className={cn("border-t border-border/50", i % 2 === 1 && "bg-muted/20")}
+              >
+                <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
+                <td className="px-4 py-2 text-right tabular-nums" style={{ color: SERIES.target }}>
+                  {r.target.toLocaleString()}
+                </td>
+                <td
+                  className="px-4 py-2 text-right tabular-nums"
+                  style={{ color: SERIES.compliance }}
+                >
+                  {r.compliance.toLocaleString()}
+                </td>
+                <td
+                  className="px-4 py-2 text-right font-medium tabular-nums"
+                  style={r.variance > 0 ? { color: SERIES.variance } : undefined}
+                >
+                  {r.variance.toLocaleString()}
+                </td>
+                <td
+                  className="px-4 py-2 text-right font-medium tabular-nums"
+                  style={r.positive > 0 ? { color: SERIES.positive } : undefined}
+                >
+                  {r.positive.toLocaleString()}
+                </td>
+                <td
+                  className="px-4 py-2 text-right font-medium tabular-nums"
+                  style={{
+                    color: r.percentage >= 100 ? SERIES.positive : SERIES.compliance,
+                  }}
+                >
+                  {r.percentage.toFixed(2)}%
+                </td>
+              </tr>
+            ))}
+            <tr className="border-t-2 border-border bg-primary/5 font-semibold">
+              <td className="px-4 py-2">Total</td>
+              <td className="px-4 py-2 text-right tabular-nums" style={{ color: SERIES.target }}>
+                {totals.target.toLocaleString()}
+              </td>
+              <td
+                className="px-4 py-2 text-right tabular-nums"
+                style={{ color: SERIES.compliance }}
+              >
+                {totals.compliance.toLocaleString()}
+              </td>
+              <td
+                className="px-4 py-2 text-right tabular-nums"
+                style={totals.variance > 0 ? { color: SERIES.variance } : undefined}
+              >
+                {totals.variance.toLocaleString()}
+              </td>
+              <td
+                className="px-4 py-2 text-right tabular-nums"
+                style={totals.positive > 0 ? { color: SERIES.positive } : undefined}
+              >
+                {totals.positive.toLocaleString()}
+              </td>
+              <td
+                className="px-4 py-2 text-right tabular-nums"
+                style={{ color: totalPct >= 100 ? SERIES.positive : SERIES.compliance }}
+              >
+                {totalPct.toFixed(2)}%
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
 }
 
 /**
@@ -358,22 +579,32 @@ function ComplianceViewBody({
     [station, year, selectedMonth],
   );
 
-  const summary = React.useMemo<TargetAccomplishmentModel | null>(() => {
-    if (!station) return null;
-    return {
-      stationno: station.stationno,
-      month: station.month ?? selectedMonth,
-      year: station.year ?? year,
-      totaltargetbplo: num(station.totaltargetbplo),
-      totaltargetgov: num(station.totaltargetgov),
-      totaltargetpeza: num(station.totaltargetpeza),
-      totaltargettieza: num(station.totaltargettieza),
-      totalAccomplishmentbplo: num(station.totalAccomplishmentbplo),
-      totalAccomplishmentgov: num(station.totalAccomplishmentgov),
-      totalAccomplishmentpeza: num(station.totalAccomplishmentpeza),
-      totalAccomplishmenttieza: num(station.totalAccomplishmenttieza),
-    };
-  }, [station, year, selectedMonth]);
+  /**
+   * Target vs. Compliance per category — derived directly from the daily
+   * `dailytarget*` and `inspect*count` values of the loaded month.
+   */
+  const accomplishmentRows = React.useMemo<AccomplishmentRow[]>(
+    () =>
+      ACC_CATEGORIES.map((c) => {
+        const target = slices.reduce(
+          (sum, s) => sum + num(s.inspection[c.targetKey]),
+          0,
+        );
+        const compliance = slices.reduce(
+          (sum, s) => sum + num(s.inspection[c.countKey]),
+          0,
+        );
+        return {
+          label: c.label,
+          target,
+          compliance,
+          variance: Math.max(target - compliance, 0),
+          positive: Math.max(compliance - target, 0),
+          percentage: target > 0 ? (compliance / target) * 100 : 0,
+        };
+      }),
+    [slices],
+  );
 
   const columnTotals = React.useMemo(() => {
     const totals: Record<string, number> = {};
@@ -431,11 +662,9 @@ function ComplianceViewBody({
           </div>
         </div>
 
-        <TargetAccomplishmentPanel
-          stationno={stationno}
-          year={year}
-          month={selectedMonth}
-          data={summary}
+        <InlineAccomplishmentPanel
+          rows={accomplishmentRows}
+          periodLabel={`${MONTHS[selectedMonth - 1]?.name ?? ""} ${year}`}
         />
       </Card>
 
@@ -445,19 +674,19 @@ function ComplianceViewBody({
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`sticky left-0 top-0 z-40 min-w-[120px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
                 >
                   Date
                 </th>
                 <th
-                  colSpan={6}
+                  colSpan={INSPECTION_COLSPAN}
                   className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
                 >
                   Inspection
                 </th>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
                 >
                   Mode of<br />Issuance
@@ -481,13 +710,13 @@ function ComplianceViewBody({
                   Other Notices
                 </th>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
                 >
                   Total
                 </th>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`border-b px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px] ${MONITORING_THEME.headerSoft}`}
                 >
                   Remarks
@@ -495,16 +724,41 @@ function ComplianceViewBody({
               </tr>
               <tr>
                 {DETAIL_FIELDS.map((field) => {
-                  const cat = FIELD_CATEGORY.get(String(field.key)) ?? "INSPECTION";
+                  const key = String(field.key);
+                  const cat = FIELD_CATEGORY.get(key) ?? "INSPECTION";
+                  const split = Boolean(INSP_TARGET_FIELDS[key]);
                   return (
                     <th
-                      key={String(field.key)}
-                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
+                      key={key}
+                      rowSpan={split ? 1 : 2}
+                      colSpan={split ? 2 : 1}
+                      className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
                     >
                       {field.label}
                     </th>
                   );
                 })}
+              </tr>
+              <tr>
+                {DETAIL_FIELDS.filter((f) => INSP_TARGET_FIELDS[String(f.key)]).flatMap(
+                  (field) => {
+                    const key = String(field.key);
+                    return [
+                      <th
+                        key={`${key}__target`}
+                        className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[56px] ${SUB_TONE.INSPECTION}`}
+                      >
+                        Target
+                      </th>,
+                      <th
+                        key={`${key}__compliance`}
+                        className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[70px] ${SUB_TONE.INSPECTION}`}
+                      >
+                        Compliance
+                      </th>,
+                    ];
+                  },
+                )}
               </tr>
             </thead>
             <tbody>
@@ -528,19 +782,35 @@ function ComplianceViewBody({
                       </td>
 
                       {/* Inspection — merged across MANUAL/FSIS rows */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!String(field.key).startsWith("insp_")) return null;
-                        const apiKey = FIELD_TO_API[String(field.key)];
+                      {DETAIL_FIELDS.flatMap((field) => {
+                        const key = String(field.key);
+                        if (!key.startsWith("insp_")) return [];
+                        const apiKey = FIELD_TO_API[key];
                         const v = num((slice.inspection as any)[apiKey]);
-                        return (
+                        const targetKey = INSP_TARGET_FIELDS[key];
+                        const cells = [] as React.ReactNode[];
+                        if (targetKey) {
+                          const t = num(slice.inspection[targetKey]);
+                          cells.push(
+                            <td
+                              key={`${key}__target`}
+                              rowSpan={2}
+                              className="border-b border-r border-grid px-2 py-1.5 text-right align-middle tabular-nums text-muted-foreground"
+                            >
+                              {t.toLocaleString()}
+                            </td>,
+                          );
+                        }
+                        cells.push(
                           <td
-                            key={String(field.key)}
+                            key={key}
                             rowSpan={2}
                             className="border-b border-r border-grid px-2 py-1.5 text-right align-middle tabular-nums"
                           >
                             {v.toLocaleString()}
-                          </td>
+                          </td>,
                         );
+                        return cells;
                       })}
 
                       <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
@@ -671,9 +941,10 @@ function ComplianceViewBody({
                   Total
                 </td>
                 {DETAIL_FIELDS.map((field, idx) => {
-                  const columnTotal = columnTotals[String(field.key)] ?? 0;
+                  const key = String(field.key);
+                  const columnTotal = columnTotals[key] ?? 0;
                   const cells: React.ReactNode[] = [];
-                  // Mode-of-Issuance spacer cell between INSPECTION (6) and FSEC.
+                  // Mode-of-Issuance spacer cell between INSPECTION and FSEC.
                   if (idx === 6) {
                     cells.push(
                       <td
@@ -682,9 +953,24 @@ function ComplianceViewBody({
                       />,
                     );
                   }
+                  const targetKey = INSP_TARGET_FIELDS[key];
+                  if (targetKey) {
+                    const targetTotal = slices.reduce(
+                      (sum, s) => sum + num(s.inspection[targetKey]),
+                      0,
+                    );
+                    cells.push(
+                      <td
+                        key={`${key}__target`}
+                        className="border-r border-t-2 border-grid-strong total-row px-2 py-2 text-center text-[11px] font-bold tabular-nums"
+                      >
+                        {targetTotal.toLocaleString()}
+                      </td>,
+                    );
+                  }
                   cells.push(
                     <td
-                      key={String(field.key)}
+                      key={key}
                       className="border-r border-t-2 border-grid-strong total-row px-2 py-2 text-center text-[11px] font-bold tabular-nums"
                     >
                       {columnTotal.toLocaleString()}

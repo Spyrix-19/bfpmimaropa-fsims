@@ -18,6 +18,13 @@ import { toast } from "@/lib/toast";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 import { Textarea } from "@/components/ui/textarea";
@@ -111,6 +118,11 @@ interface FSISComplianceDetailItem {
   dateinspected: string | Date;
   remarks?: string | null;
 
+  dailytargetbplo?: number | null;
+  dailytargetgov?: number | null;
+  dailytargetpeza?: number | null;
+  dailytargettieza?: number | null;
+
   inspectduringcount?: number | null;
   inspectaftercount?: number | null;
   inspectbplocount?: number | null;
@@ -181,6 +193,23 @@ const FIELD_TO_API: Record<string, keyof FSISComplianceDetailItem> = {
   not_closure: "closurecount",
 };
 
+/**
+ * Inspection fields that render a read-only Target column beside their
+ * editable Compliance column (mirrors the View screen).
+ */
+const INSP_TARGET_FIELDS: Record<string, keyof FSISComplianceDetailItem> = {
+  insp_bplo: "dailytargetbplo",
+  insp_gov: "dailytargetgov",
+  insp_peza: "dailytargetpeza",
+  insp_tieza: "dailytargettieza",
+};
+
+/** Total inspection header columns once Target/Compliance splits are counted. */
+const INSPECTION_COLSPAN = CATEGORY_FIELDS.INSPECTION.reduce(
+  (n, f) => n + (INSP_TARGET_FIELDS[String(f.key)] ? 2 : 1),
+  0,
+);
+
 type DayTotals = Partial<Record<keyof ComplianceDailyCounts, number>>;
 
 interface EditableIssuance {
@@ -240,6 +269,12 @@ function normalizeDateKey(v: string | Date | null | undefined): string | null {
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
+
+/** Selectable reporting years (2 back, 1 ahead of the current year). */
+const YEAR_OPTIONS: number[] = (() => {
+  const current = new Date().getFullYear();
+  return [current - 2, current - 1, current, current + 1];
+})();
 
 function num(v: unknown): number {
   const n = Number(v ?? 0);
@@ -328,6 +363,10 @@ function buildEditableDays(
           fsisno: apiData.fsisno ?? EMPTY_GUID,
           dateinspected: apiData.dateinspected ?? key,
           remarks: apiData.remarks ?? "",
+          dailytargetbplo: num(apiData.dailytargetbplo),
+          dailytargetgov: num(apiData.dailytargetgov),
+          dailytargetpeza: num(apiData.dailytargetpeza),
+          dailytargettieza: num(apiData.dailytargettieza),
           inspectduringcount: num(apiData.inspectduringcount),
           inspectaftercount: num(apiData.inspectaftercount),
           inspectbplocount: num(apiData.inspectbplocount),
@@ -339,6 +378,10 @@ function buildEditableDays(
           fsisno: EMPTY_GUID,
           dateinspected: key,
           remarks: "",
+          dailytargetbplo: 0,
+          dailytargetgov: 0,
+          dailytargetpeza: 0,
+          dailytargettieza: 0,
           inspectduringcount: 0,
           inspectaftercount: 0,
           inspectbplocount: 0,
@@ -427,8 +470,8 @@ function buildEditableDays(
 
 function ComplianceEditBody({
   stationno,
-  year,
-  month,
+  year: initialYear,
+  month: initialMonth,
   onSaved,
   onCancel,
 }: {
@@ -439,6 +482,12 @@ function ComplianceEditBody({
   onCancel: () => void;
 }) {
   const { user, systemAccess } = useAuth();
+
+  // Selected reporting period — editable so the user can switch months here.
+  const [year, setYear] = React.useState<number>(initialYear);
+  const [month, setMonth] = React.useState<number>(initialMonth);
+  React.useEffect(() => setYear(initialYear), [initialYear]);
+  React.useEffect(() => setMonth(initialMonth), [initialMonth]);
 
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? String(month);
 
@@ -682,6 +731,17 @@ function ComplianceEditBody({
     onCancel();
   };
 
+  /** Switch the reporting period (month / year) being edited. */
+  const changePeriod = (nextMonth: number, nextYear: number) => {
+    if (nextMonth === month && nextYear === year) return;
+    if (isDirty) {
+      toast.error("Save or discard your changes before switching the reporting month.");
+      return;
+    }
+    setMonth(nextMonth);
+    setYear(nextYear);
+  };
+
   /* ------------------------------- Handlers ------------------------------ */
 
   const updateDayField = (
@@ -915,87 +975,36 @@ function ComplianceEditBody({
           </div>
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">Reporting Month</span>
-            <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
-              <span className="truncate">
-                {monthName} {year}
-              </span>
-            </div>
+            <Select value={String(month)} onValueChange={(v) => changePeriod(Number(v), year)}>
+              <SelectTrigger className="h-10 w-full">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((mo) => (
+                  <SelectItem key={mo.value} value={String(mo.value)}>
+                    {mo.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Reporting Year</span>
+            <Select value={String(year)} onValueChange={(v) => changePeriod(month, Number(v))}>
+              <SelectTrigger className="h-10 w-full">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {YEAR_OPTIONS.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </Card>
-
-      {/* Revision status banner (mirrors Target Reference) ------------------ */}
-      {(monthLocked || activeReq || (latestReqStatus && latestReqStatus !== "PENDING")) && (
-        <Card className="flex flex-wrap items-center justify-between gap-3 border-border/60 bg-card p-4 shadow-soft">
-          <div className="flex items-center gap-2 text-xs">
-            <Lock className="h-3.5 w-3.5 text-warning" />
-            <span className="font-medium">
-              {revisionUnlocks
-                ? `Revision approved — ${monthName} ${year} is temporarily editable.`
-                : isPending
-                  ? `Revision request pending review for ${monthName} ${year}.`
-                  : `${monthName} ${year} is locked.`}
-            </span>
-            {latestReqStatus && <RevisionStatusBadge status={latestReqStatus} />}
-          </div>
-          <div className="flex items-center gap-2">
-            {isOwnPending && activeReq && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1 border-primary/40 px-2 text-[11px] !text-primary [&_svg]:!text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:[color:white]"
-                  onClick={() => setCancelRequestId(activeReq.requestno)}
-                >
-                  Cancel Request
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1 border-destructive/40 px-2 text-[11px] !text-destructive [&_svg]:!text-destructive hover:!bg-destructive hover:!text-white hover:[&_svg]:[color:white]"
-                  onClick={() => setDeleteRequestId(activeReq.requestno)}
-                  title="Delete Revision Request"
-                  aria-label="Delete Revision Request"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Delete Request
-                </Button>
-              </>
-            )}
-            {!activeReq && monthLocked && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 w-8 rounded-md border-primary/40 text-primary shadow-none [&_svg]:text-current"
-                        onClick={() => setRevisionOpen(true)}
-                        disabled={!stationno}
-                        aria-label={
-                          !stationno
-                            ? "Select a station to request a revision"
-                            : "Request Revision"
-                        }
-                      >
-                        <FilePen className="h-4 w-4" />
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {!stationno
-                      ? "Select a station to request a revision"
-                      : "Request Revision"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
-        </Card>
-      )}
 
       {/* Daily Compliance Details ------------------------------------------- */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
@@ -1041,25 +1050,25 @@ function ComplianceEditBody({
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`sticky left-0 top-0 z-40 min-w-[96px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
                 >
                   Action
                 </th>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`sticky left-[96px] top-0 z-40 min-w-[180px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
                 >
                   Date
                 </th>
                 <th
-                  colSpan={6}
+                  colSpan={INSPECTION_COLSPAN}
                   className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
                 >
                   Inspection
                 </th>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`sticky top-0 z-30 border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
                 >
                   Mode of
@@ -1085,13 +1094,13 @@ function ComplianceEditBody({
                   Other Notices
                 </th>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`sticky top-0 z-30 border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
                 >
                   Total
                 </th>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className={`sticky top-0 z-30 border-b border-l px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px] ${MONITORING_THEME.headerSoft}`}
                 >
                   Remarks
@@ -1099,15 +1108,38 @@ function ComplianceEditBody({
               </tr>
               <tr>
                 {DETAIL_FIELDS.map((field) => {
-                  const cat = FIELD_CATEGORY.get(String(field.key)) ?? "INSPECTION";
+                  const key = String(field.key);
+                  const cat = FIELD_CATEGORY.get(key) ?? "INSPECTION";
+                  const split = Boolean(INSP_TARGET_FIELDS[key]);
                   return (
                     <th
-                      key={String(field.key)}
-                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
+                      key={key}
+                      rowSpan={split ? 1 : 2}
+                      colSpan={split ? 2 : 1}
+                      className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
                     >
                       {field.label}
                     </th>
                   );
+                })}
+              </tr>
+              <tr>
+                {DETAIL_FIELDS.filter((f) => INSP_TARGET_FIELDS[String(f.key)]).flatMap((field) => {
+                  const key = String(field.key);
+                  return [
+                    <th
+                      key={`${key}__target`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[56px] w-[56px] ${SUB_TONE.INSPECTION}`}
+                    >
+                      Target
+                    </th>,
+                    <th
+                      key={`${key}__compliance`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[56px] w-[56px] ${SUB_TONE.INSPECTION}`}
+                    >
+                      Compliance
+                    </th>,
+                  ];
                 })}
               </tr>
             </thead>
@@ -1200,15 +1232,28 @@ function ComplianceEditBody({
                       </td>
 
                       {/* Inspection fields */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!field.key.startsWith("insp_")) return null;
+                      {DETAIL_FIELDS.flatMap((field) => {
+                        if (!field.key.startsWith("insp_")) return [];
                         const apiKey = FIELD_TO_API[String(field.key)];
                         const value = apiKey ? num(dayEntry.inspection[apiKey]) : 0;
-                        return (
+                        const targetKey = INSP_TARGET_FIELDS[String(field.key)];
+                        const cells: React.ReactNode[] = [];
+                        if (targetKey) {
+                          cells.push(
+                            <td
+                              key={`${String(field.key)}__target`}
+                              rowSpan={2}
+                              className="min-w-[56px] w-[56px] border-b border-r px-1.5 py-1.5 text-right align-middle tabular-nums text-muted-foreground"
+                            >
+                              {num(dayEntry.inspection[targetKey]).toLocaleString()}
+                            </td>,
+                          );
+                        }
+                        cells.push(
                           <td
                             key={String(field.key)}
                             rowSpan={2}
-                            className={`border-b border-r px-2 py-1.5 align-middle ${dayEntry.isLocked ? "text-center" : "text-right"}`}
+                            className={`min-w-[56px] w-[56px] border-b border-r px-1.5 py-1.5 align-middle ${dayEntry.isLocked ? "text-center" : "text-right"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1230,11 +1275,12 @@ function ComplianceEditBody({
                                     "inspection",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-right tabular-nums"
+                                className="h-8 w-14 max-w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-right tabular-nums"
                               />
                             )}
-                          </td>
+                          </td>,
                         );
+                        return cells;
                       })}
                       <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
                         MANUAL
@@ -1493,13 +1539,13 @@ function ComplianceEditBody({
                 <td className="sticky left-[96px] z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
                   Total
                 </td>
-                {DETAIL_FIELDS.map((field, idx) => {
+                {DETAIL_FIELDS.flatMap((field, idx) => {
                   const columnTotal = days.reduce(
                     (sum, d) => sum + num(d.totals[field.key as keyof ComplianceDailyCounts]),
                     0,
                   );
                   // Insert Mode-of-Issuance spacer cell between INSPECTION (6 fields) and FSEC
-                  const cells = [];
+                  const cells: React.ReactNode[] = [];
                   if (idx === 6) {
                     cells.push(
                       <td
@@ -1508,10 +1554,25 @@ function ComplianceEditBody({
                       />,
                     );
                   }
+                  const targetKey = INSP_TARGET_FIELDS[String(field.key)];
+                  if (targetKey) {
+                    const targetTotal = days.reduce(
+                      (sum, d) => sum + num(d.inspection[targetKey]),
+                      0,
+                    );
+                    cells.push(
+                      <td
+                        key={`${String(field.key)}__target`}
+                        className="min-w-[56px] w-[56px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums text-muted-foreground"
+                      >
+                        {targetTotal.toLocaleString()}
+                      </td>,
+                    );
+                  }
                   cells.push(
                     <td
                       key={String(field.key)}
-                      className="border-r border-t-2 border-grid-strong total-row px-2 py-2 text-center text-[11px] font-bold tabular-nums"
+                      className="min-w-[56px] w-[56px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
                     >
                       {columnTotal.toLocaleString()}
                     </td>,
