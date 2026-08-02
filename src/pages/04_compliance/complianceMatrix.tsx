@@ -426,15 +426,11 @@ export default function InventoryMatrix({
 
     setExporting(true);
     try {
-      const monthCalls = Array.from({ length: 12 }, (_, i) =>
-        targetinventoryAPI.export({
-          searchkey: "",
-          reportyear: Number(year),
-          reportmonth: i + 1,
-          provinces: provincesPayload,
-        }),
-      );
-      const monthResps = await Promise.all(monthCalls);
+      const exportResp = await complianceAPI.export({
+        searchkey: "",
+        reportyear: Number(year),
+        provinces: provincesPayload,
+      });
 
       const fieldKeyList = COMPLIANCE_FIELDS.map((f) => String(f.key));
       const emptyBucket = () =>
@@ -452,42 +448,51 @@ export default function InventoryMatrix({
         }
       >();
 
-      monthResps.forEach((resp, idx) => {
-        const month = idx + 1;
-        const { ok, data } = unwrap<ExportInventoryStationClassModel[]>(resp);
-        if (!ok || !Array.isArray(data)) return;
+      const { ok, data } = unwrap<
+        ProvinceIssuanceExportModel[] | FSISComplianceModel[]
+      >(exportResp);
+      if (ok && Array.isArray(data)) {
+        // The Export endpoint returns province groups; tolerate a flat station
+        // list as well.
+        const stationList: FSISComplianceModel[] = [];
+        for (const entry of data as (ProvinceIssuanceExportModel & FSISComplianceModel)[]) {
+          if (Array.isArray(entry?.stations)) {
+            for (const st of entry.stations) {
+              stationList.push({
+                ...st,
+                provincename: st.provincename || entry.provincename || "",
+                provinceno: st.provinceno || entry.provinceno || "",
+              });
+            }
+          } else if (entry?.stationno) {
+            stationList.push(entry);
+          }
+        }
 
-        for (const s of data) {
+        for (const s of stationList) {
           const key = s.stationno || `${s.stationcode ?? ""}-${s.stationname ?? ""}`;
-          const entry =
-            stationMap.get(key) ?? {
-              stationno: s.stationno,
-              stationCode: s.stationcode ?? "",
-              stationName: s.stationname ?? "",
-              cityName: s.cityname ?? "",
-              province: s.provincename || s.provinceno || "",
-              months: {},
-            };
+          const entry = stationMap.get(key) ?? {
+            stationno: s.stationno,
+            stationCode: s.stationcode ?? "",
+            stationName: s.stationname ?? "",
+            cityName: (s as unknown as { cityname?: string }).cityname ?? "",
+            province: s.provincename || s.provinceno || "",
+            months: {} as Record<number, Record<string, number>>,
+          };
 
-          const bucket = (entry.months[month] ??= emptyBucket());
-          const inv = Array.isArray(s.inventorylist) ? s.inventorylist : [];
-          for (const row of inv) {
-            // Only aggregate rows that match requested station + year + month —
-            // the backend sometimes echoes rows from other periods/stations.
-            const r = row as unknown as Record<string, unknown>;
-            const ry = Number(r.reportyear ?? 0);
-            const rm = Number(r.reportmonth ?? 0);
-            const rSt = String(r.stationno ?? "");
-            if (ry !== Number(year) || rm !== month) continue;
-            if (rSt && s.stationno && rSt !== s.stationno) continue;
+          for (const rec of Array.isArray(s.compliancelist) ? s.compliancelist : []) {
+            const month = monthOfRecord(rec?.dateinspected);
+            if (!month || month < 1 || month > 12) continue;
+            const bucket = (entry.months[month] ??= emptyBucket());
+            const flat = toDailyRow(rec) as unknown as Record<string, unknown>;
             for (const k of fieldKeyList) {
-              bucket[k] += Number(r[k] ?? 0) || 0;
+              bucket[k] += Number(flat[k] ?? 0) || 0;
             }
           }
 
           stationMap.set(key, entry);
         }
-      });
+      }
 
       const mergedMap = Array.from(stationMap.values())
         .sort((a, b) => (a.stationCode || "").localeCompare(b.stationCode || ""))
