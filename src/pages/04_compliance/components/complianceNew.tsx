@@ -531,7 +531,9 @@ function InspectionsNewBody({
         });
         const isPast = reportingDate.getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
-        setExistingLocked(isPast && !unlocked);
+        const pending = !unlocked && Boolean(record.isrevisionrequest);
+        const locked = !unlocked && (isPast || pending);
+        setExistingLocked(locked);
 
         const key = `${activeStationNo}|${selectedDateKey}`;
         if (promptedDateKeyRef.current !== key) {
@@ -544,7 +546,7 @@ function InspectionsNewBody({
           });
           setDuplicatePrompted(true);
           setDuplicateDialogOpen(true);
-        } else if (isPast && !unlocked) {
+        } else if (locked) {
           plotExistingRecord(record);
         }
       } else {
