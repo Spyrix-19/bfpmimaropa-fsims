@@ -40,7 +40,7 @@ import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField"
 import { NoticeAddModal } from "./components/noticeNew";
 import { NoticeEditModal } from "./components/noticeEdit";
 import { NoticeViewModal } from "./components/noticeView";
-import { NoticeMatrixModal } from "./components/noticeMatrix";
+import { NoticeMatrixModal } from "./noticeMatrix";
 
 import {
   accomplishedNoticesData,

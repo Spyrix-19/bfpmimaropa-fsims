@@ -11,7 +11,7 @@ const Monitoring = lazy(() => import("./pages/04_compliance/Compliance.tsx"));
 const ComplianceViewPage = lazy(() => import("./pages/04_compliance/components/complianceView.tsx"));
 const ComplianceEditPage = lazy(() => import("./pages/04_compliance/components/complianceEdit.tsx"));
 const TargetReference = lazy(() => import("@/pages/06_target-reference/targetreference"));
-const AccomplishedNotice = lazy(() => import("@/pages/05_accomplished_notices/AccomplishedNotice"));
+const AccomplishedNotice = lazy(() => import("@/pages/05_notices/Notice.tsx"));
 
 const Reports = lazy(() => import("@/pages/08_reports/MatrixReports.tsx"));
 const InspectionsNew = lazy(() => import("./pages/04_compliance/components/complianceNew.tsx"));
