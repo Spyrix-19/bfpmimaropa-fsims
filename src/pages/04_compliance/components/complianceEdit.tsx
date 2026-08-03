@@ -874,15 +874,15 @@ function ComplianceEditBody({
       return;
     }
 
-    // Check if entire month is locked (approved revision temporarily unlocks it)
-    if (!revisionUnlocks && isReportMonthLocked(year, month)) {
+    // Month lock only blocks when no day was unlocked by an approved revision.
+    const anyApprovedDay = Array.from(editableDays.values()).some(
+      (d) => Number(d.editablestatus) === 153,
+    );
+    if (!anyApprovedDay && isReportMonthLocked(year, month)) {
       setSaveError("This reporting month is locked and cannot be edited.");
       return;
     }
-    if (isPending) {
-      setSaveError("A revision request is pending review. Editing is disabled until it is approved.");
-      return;
-    }
+
 
     setSaving(true);
     try {
