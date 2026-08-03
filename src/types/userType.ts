@@ -32,6 +32,9 @@ export interface UserModel {
   stationno: string;
   stationcode: string;
   stationname: string;
+  officeno: number;
+  officecode: string;
+  officename: string;
   stationtype: number;
   provincename: string;
   logourl: string;
@@ -42,6 +45,7 @@ export interface UserModel {
   roleno: number;
   rolecode: string;
   rolename: string;
+  designation: string;
 }
 
 export interface UserAccountRoleDTO {
