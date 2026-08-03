@@ -1229,7 +1229,7 @@ function ComplianceEditBody({
                                 ariaLabel="Cancel Revision Request"
                                 icon={<Ban className="h-4 w-4" />}
                                 onClick={() => {
-                                  if (activeReq) setCancelRequestId(activeReq.requestno);
+                                  if (rev.req) setCancelRequestId(rev.req.requestno);
                                   else toast.info("No active revision request to cancel.");
                                 }}
                               />
@@ -1239,7 +1239,7 @@ function ComplianceEditBody({
                                 ariaLabel="Delete Revision Request"
                                 icon={<Trash2 className="h-4 w-4" />}
                                 onClick={() => {
-                                  if (activeReq) setDeleteRequestId(activeReq.requestno);
+                                  if (rev.req) setDeleteRequestId(rev.req.requestno);
                                   else toast.info("No revision request to delete.");
                                 }}
                               />
@@ -1279,13 +1279,7 @@ function ComplianceEditBody({
                           </div>
                           {showRevisionStatus && (
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              {activeReq ? (
-                                <RevisionStatusBadge status={activeReqStatus ?? "PENDING"} />
-                              ) : (
-                                latestReqStatus && latestReqStatus !== "PENDING" ? (
-                                  <RevisionStatusBadge status={latestReqStatus} />
-                                ) : null
-                              )}
+                              {rev.status && <RevisionStatusBadge status={rev.status} />}
                             </div>
                           )}
                         </div>
