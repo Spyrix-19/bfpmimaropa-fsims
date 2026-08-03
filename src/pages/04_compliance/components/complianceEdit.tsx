@@ -55,6 +55,7 @@ import { MONITORING_THEME } from "./complianceTheme";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "@/pages/06_target-reference/revision/RevisionStatusBadge";
+import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
@@ -647,13 +648,17 @@ function ComplianceEditBody({
   const dayRevision = React.useCallback(
     (d: EditableDay) => {
       const req = requestForDay(d.key, d.inspection.fsisno);
-      const status = req?.statuscode?.toUpperCase() ?? null;
+      const raw = req?.statuscode?.toUpperCase() ?? "";
+      const known: RevisionStatus[] = ["PENDING", "APPROVED", "DENIED", "CANCELLED", "COMPLETED", "EXPIRED"];
+      const status: RevisionStatus | null = (known as string[]).includes(raw)
+        ? (raw as RevisionStatus)
+        : null;
       const unlockedByApproval = Number(d.editablestatus) === 153;
       const pending = !unlockedByApproval && (d.isrevisionrequest || status === "PENDING");
       const locked = unlockedByApproval ? false : d.isLocked || pending;
       return {
         req,
-        status: unlockedByApproval ? "APPROVED" : status,
+        status: (unlockedByApproval ? "APPROVED" : status) as RevisionStatus | null,
         unlockedByApproval,
         pending,
         locked,
