@@ -531,7 +531,9 @@ function InspectionsNewBody({
         });
         const isPast = reportingDate.getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
-        setExistingLocked(isPast && !unlocked);
+        const pending = !unlocked && Boolean(record.isrevisionrequest);
+        const locked = !unlocked && (isPast || pending);
+        setExistingLocked(locked);
 
         const key = `${activeStationNo}|${selectedDateKey}`;
         if (promptedDateKeyRef.current !== key) {
@@ -544,7 +546,7 @@ function InspectionsNewBody({
           });
           setDuplicatePrompted(true);
           setDuplicateDialogOpen(true);
-        } else if (isPast && !unlocked) {
+        } else if (locked) {
           plotExistingRecord(record);
         }
       } else {
@@ -624,6 +626,8 @@ function InspectionsNewBody({
   }, [station.no, scope.stationLocked, scope.stationno, province.no, year, reloadNonce]);
 
   /* ── Lock rules for the selected (single) date ───────────────────────────── */
+  /* Driven by the Detail/Date fields `isrevisionrequest` + `editablestatus`
+     (153 = approved / temporarily unlocked), same as complianceEdit.tsx. */
   const isPastSelectedDate = reportingDate.getTime() < startOfToday();
   const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
   const activeRequest = React.useMemo(() => {
@@ -635,10 +639,13 @@ function InspectionsNewBody({
       }) ?? null
     );
   }, [revisionRequests, selectedDateKey, existingFsisno]);
+  // A pending request locks the date even if it is not in the past.
   const hasPendingRevision =
-    isPastSelectedDate && (existingMeta.isrevisionrequest || !!activeRequest) && !unlockedByApproval;
-  const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
-  const fieldsLocked = isPastSelectedDate && !unlockedByApproval;
+    !unlockedByApproval && (existingMeta.isrevisionrequest || !!activeRequest);
+  const needsRevisionRequest =
+    isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
+  const fieldsLocked = !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
+
 
   /* ------------------------- Daily target vs inspected summary ---------------------- */
   const dailySummaryRows = React.useMemo(() => {
