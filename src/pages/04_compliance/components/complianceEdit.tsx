@@ -981,9 +981,8 @@ function ComplianceEditBody({
       }
       toast.success("Fire safety compliance updated successfully.");
       setBaseline(currentSnapshot);
-      if (revisionUnlocks && activeReq) {
-        setRevisionRequestRefreshTick((n) => n + 1);
-      }
+      setRevisionRequestRefreshTick((n) => n + 1);
+
       onSaved();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unexpected error while saving.";
