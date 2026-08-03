@@ -403,3 +403,12 @@
   background-color: var(--tone-neutral-soft);
   color: var(--tone-neutral-soft-foreground);
 }
+
+@utility no-spinner {
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}

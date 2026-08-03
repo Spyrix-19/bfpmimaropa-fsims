@@ -54,7 +54,6 @@ import { CATEGORY_FIELDS } from "@/lib/complianceHelpers";
 import { MONITORING_THEME } from "./complianceTheme";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
-import RevisionStatusBadge from "@/pages/06_target-reference/revision/RevisionStatusBadge";
 import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -1179,7 +1178,7 @@ function ComplianceEditBody({
                       key={key}
                       rowSpan={split ? 1 : 2}
                       colSpan={split ? 2 : 1}
-                      className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
+                      className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[72px] ${SUB_TONE[cat]}`}
                     >
                       {field.label}
                     </th>
@@ -1192,13 +1191,13 @@ function ComplianceEditBody({
                   return [
                     <th
                       key={`${key}__target`}
-                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[56px] w-[56px] ${SUB_TONE.INSPECTION}`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${SUB_TONE.INSPECTION}`}
                     >
                       Target
                     </th>,
                     <th
                       key={`${key}__compliance`}
-                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[56px] w-[56px] ${SUB_TONE.INSPECTION}`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${SUB_TONE.INSPECTION}`}
                     >
                       Compliance
                     </th>,
@@ -1215,7 +1214,6 @@ function ComplianceEditBody({
                 const rev = dayEntry.rev;
                 const hasRevisionRequest = rev.pending;
                 const showRevisionAction = rev.pending || rev.needsRequest;
-                const showRevisionStatus = Boolean(rev.status);
 
                 return (
                   <React.Fragment key={dayEntry.key}>
@@ -1275,18 +1273,11 @@ function ComplianceEditBody({
                         rowSpan={2}
                         className={`sticky left-[96px] z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
                       >
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            {dayEntry.isLocked && <Lock className="h-3 w-3 text-warning" />}
-                            <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""}>
-                              {dayEntry.label}
-                            </span>
-                          </div>
-                          {showRevisionStatus && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {rev.status && <RevisionStatusBadge status={rev.status} />}
-                            </div>
-                          )}
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                          {dayEntry.isLocked && <Lock className="h-3 w-3 shrink-0 text-warning" />}
+                          <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""}>
+                            {dayEntry.label}
+                          </span>
                         </div>
                       </td>
 
@@ -1302,7 +1293,7 @@ function ComplianceEditBody({
                             <td
                               key={`${String(field.key)}__target`}
                               rowSpan={2}
-                              className="min-w-[56px] w-[56px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
+                              className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
                             >
                               {num(dayEntry.inspection[targetKey]).toLocaleString()}
                             </td>,
@@ -1312,7 +1303,7 @@ function ComplianceEditBody({
                           <td
                             key={String(field.key)}
                             rowSpan={2}
-                            className="min-w-[56px] w-[56px] border-b border-r px-1.5 py-1.5 text-center align-middle"
+                            className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle"
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1334,7 +1325,7 @@ function ComplianceEditBody({
                                     "inspection",
                                   )
                                 }
-                                className="h-8 w-14 max-w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
                             )}
                           </td>,
@@ -1374,7 +1365,7 @@ function ComplianceEditBody({
                                     "manual",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
                             )}
                           </td>
@@ -1410,7 +1401,7 @@ function ComplianceEditBody({
                                     "manual",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
                             )}
                           </td>
@@ -1446,7 +1437,7 @@ function ComplianceEditBody({
                                     "manual",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
                             )}
                           </td>
@@ -1518,7 +1509,7 @@ function ComplianceEditBody({
                                     "fsis",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
                             )}
                           </td>
@@ -1554,7 +1545,7 @@ function ComplianceEditBody({
                                     "fsis",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
                             )}
                           </td>
@@ -1590,7 +1581,7 @@ function ComplianceEditBody({
                                     "fsis",
                                   )
                                 }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
                             )}
                           </td>
@@ -1634,7 +1625,7 @@ function ComplianceEditBody({
                     cells.push(
                       <td
                         key={`${String(field.key)}__target`}
-                        className="min-w-[56px] w-[56px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums text-muted-foreground"
+                        className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums text-muted-foreground"
                       >
                         {targetTotal.toLocaleString()}
                       </td>,
@@ -1643,7 +1634,7 @@ function ComplianceEditBody({
                   cells.push(
                     <td
                       key={String(field.key)}
-                      className="min-w-[56px] w-[56px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                      className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
                     >
                       {columnTotal.toLocaleString()}
                     </td>,

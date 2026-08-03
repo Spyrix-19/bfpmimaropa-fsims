@@ -44,3 +44,17 @@ export interface UserModel {
   rolename: string;
 }
 
+export interface UserAccountRoleDTO {
+  memberno: string;
+  accessno: string;
+  accountrole: number;
+  updatedby: string;
+}
+
+export interface UserStationOfficeDTO {
+  memberno: string;
+  stationno: string;
+  officeno: number;
+  designation: string;
+  updatedby: string;
+}

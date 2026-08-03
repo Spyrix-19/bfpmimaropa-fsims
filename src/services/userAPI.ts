@@ -1,5 +1,5 @@
 import { apiPost, apiGet, NO_RETRY, GET_RETRY } from "@/lib/api";
-import { ActivateUserAccessRoleDTO, DeactivateUserAccessRoleDTO, UserModel, UserParams } from "@/types/userType";
+import { ActivateUserAccessRoleDTO, DeactivateUserAccessRoleDTO, UserAccountRoleDTO, UserModel, UserParams, UserStationOfficeDTO } from "@/types/userType";
 
 export const userAPI = {
   async activate(params: ActivateUserAccessRoleDTO) {
@@ -9,6 +9,14 @@ export const userAPI = {
   async deactivate(params: DeactivateUserAccessRoleDTO) {
     return await apiPost("/api/v1/User/AccessRole/Deactivate", params, { ...NO_RETRY });
   }, 
+
+  async updateStation(params: UserStationOfficeDTO) {
+    return await apiPost("/api/v1/User/Station/Update", params, { ...NO_RETRY });
+  },
+
+  async UpdateAccountRole(params: UserAccountRoleDTO) {
+    return await apiPost("/api/v1/User/AccountRole/Update", params, { ...NO_RETRY });
+  },
 
   async getLedger(params?: UserParams, options?: import("@/lib/api").ApiOptions) {
     return await apiGet<UserModel[]>("/api/v1/User/Access/Ledger", {
