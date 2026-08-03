@@ -615,7 +615,7 @@ function ComplianceEditBody({
           reportyear: Number(year),
           reportmonth: Number(month),
           provinceno: provinceno || EMPTY_GUID,
-          requesttype: "ISSUANCE",
+          requesttype: "COMPLIANCE",
           pagenumber: 1,
           pagesize: 20,
         },
@@ -1768,7 +1768,7 @@ function ComplianceEditBody({
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
             stationno: stationno || EMPTY_GUID,
-            requesttype: "ISSUANCE",
+            requesttype: "COMPLIANCE",
             remarks: [reason, remarks].filter(Boolean).join(" — "),
             statusno: 155,
             taggedby: user?.memberno ?? "",

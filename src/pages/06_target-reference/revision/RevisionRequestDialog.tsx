@@ -103,7 +103,7 @@ export default function RevisionRequestDialog({
       stationno: station.stationno,
       reportyear: year,
       reportmonth: month,
-      requesttype: module === "monitoring" ? "ISSUANCE" : "TARGET",
+      requesttype: module === "monitoring" ? "COMPLIANCE" : "TARGET",
       requestremarks: reason,
       statusno: 0,
       requestedby: user?.memberno ?? EMPTY_GUID,

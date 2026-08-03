@@ -1284,7 +1284,7 @@ function InspectionsNewBody({
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
             stationno: station.no || EMPTY_GUID,
-            requesttype: "ISSUANCE",
+            requesttype: "COMPLIANCE",
             remarks: [reason, cancelRemarks].filter(Boolean).join(" — "),
             statusno: 155,
             taggedby: user?.memberno ?? "",
