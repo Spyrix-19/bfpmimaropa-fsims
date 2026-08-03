@@ -1,12 +1,15 @@
 import * as React from "react";
 import {
   AlertCircle,
+  Ban,
   Building2,
+  FilePen,
   Loader2,
   Lock,
   Save,
   Table2,
   Target,
+  Trash2,
 } from "lucide-react";
 import {
   Bar,
@@ -49,6 +52,13 @@ import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceThe
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
 import type { NoticeCategory, NoticeCategoryCounts } from "@/types/noticeType";
+import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
+import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
+import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
+import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+import EditButton from "@/components/edit-button";
+import DeleteButton from "@/components/delete-button";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -99,12 +109,29 @@ function hasPstLockActivated(year: number, month: number, now: Date = new Date()
   return manilaNowMs >= lockActivationMs;
 }
 
+/** Check if a given date (YYYY-MM-DD) has already passed. */
+function isDayPassed(dateStr: string): boolean {
+  try {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (!y || !m || !d) return false;
+    const day = new Date(y, m - 1, d);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return day.getTime() < today.getTime();
+  } catch {
+    return false;
+  }
+}
+
 interface DayRow {
   day: number;
   date: string;
   label: string;
   remarks: string;
   isLocked: boolean;
+  /** 153 = approved revision → day temporarily unlocked. */
+  editablestatus: number;
+  isrevisionrequest: boolean;
   breakdown: Record<NoticeCategory, NoticeCategoryCounts>;
 }
 
@@ -328,13 +355,30 @@ interface NoticeEditModalProps {
 }
 
 export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeEditModalProps) {
-  const { user } = useAuth();
+  const { user, systemAccess } = useAuth();
   const [month, setMonth] = React.useState(1);
   const [year, setYear] = React.useState(new Date().getFullYear());
   const [days, setDays] = React.useState<DayRow[]>([]);
   const [generalRemarks, setGeneralRemarks] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+
+  /* --------------------------- Revision requests -------------------------- */
+  const [revisionOpen, setRevisionOpen] = React.useState(false);
+  const [revisionReferenceKey, setRevisionReferenceKey] = React.useState(EMPTY_GUID);
+  const [revisionDate, setRevisionDate] = React.useState<string>("");
+  const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
+  const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
+  const [revisionRefreshTick, setRevisionRefreshTick] = React.useState(0);
+  const [revisionRequests, setRevisionRequests] = React.useState<
+    {
+      requestno: string;
+      statuscode?: string;
+      statusname?: string;
+      referencekey?: string;
+      dateinspected?: string;
+    }[]
+  >([]);
 
   const buildDays = React.useCallback(
     (src: NoticeRecord, y: number, m: number): DayRow[] => {
@@ -345,6 +389,8 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         const day = i + 1;
         const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         const existing = byDate.get(date);
+        const editablestatus = Number((existing as any)?.editablestatus ?? 0);
+        const isrevisionrequest = Boolean((existing as any)?.isrevisionrequest);
         return {
           day,
           date,
@@ -354,7 +400,9 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             year: "numeric",
           }),
           remarks: existing?.remarks ?? "",
-          isLocked: monthLocked,
+          isLocked: editablestatus === 153 ? false : monthLocked || isDayPassed(date),
+          editablestatus,
+          isrevisionrequest,
           breakdown: existing?.breakdown ?? emptyBreakdown(),
         };
       });
@@ -371,6 +419,86 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     setSaveError(null);
   }, [record, open, buildDays]);
 
+  const stationno = record?.stationno ?? "";
+  const provinceno = record?.provinceno ?? "";
+
+  React.useEffect(() => {
+    if (!open || !stationno || !year || !month) {
+      setRevisionRequests([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const resp = await revisionrequestAPI.getLedger(
+        {
+          stationno,
+          reportyear: Number(year),
+          reportmonth: Number(month),
+          provinceno: provinceno || EMPTY_GUID,
+          requesttype: "NOTICE",
+          pagenumber: 1,
+          pagesize: 100,
+        },
+        { suppressGlobalLoading: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<
+        {
+          requestno: string;
+          statuscode?: string;
+          statusname?: string;
+          referencekey?: string;
+          dateinspected?: string;
+        }[]
+      >(resp);
+      setRevisionRequests(ok && Array.isArray(data) ? data : []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, stationno, provinceno, year, month, revisionRefreshTick]);
+
+  /** Latest revision request matched to a given day. */
+  const requestForDay = React.useCallback(
+    (dayKey: string) =>
+      revisionRequests.find((r) =>
+        r.dateinspected ? String(r.dateinspected).slice(0, 10) === dayKey : false,
+      ) ?? null,
+    [revisionRequests],
+  );
+
+  /** Per-day revision state — mirrors the compliance editor. */
+  const dayRevision = React.useCallback(
+    (d: DayRow) => {
+      const req = requestForDay(d.date);
+      const raw = req?.statuscode?.toUpperCase() ?? "";
+      const known: RevisionStatus[] = [
+        "PENDING",
+        "APPROVED",
+        "DENIED",
+        "CANCELLED",
+        "COMPLETED",
+        "EXPIRED",
+      ];
+      const status: RevisionStatus | null = (known as string[]).includes(raw)
+        ? (raw as RevisionStatus)
+        : null;
+      const unlockedByApproval = Number(d.editablestatus) === 153;
+      const pending = !unlockedByApproval && (d.isrevisionrequest || status === "PENDING");
+      const locked = unlockedByApproval ? false : d.isLocked || pending;
+      return {
+        req,
+        status: (unlockedByApproval ? "APPROVED" : status) as RevisionStatus | null,
+        unlockedByApproval,
+        pending,
+        locked,
+        needsRequest: locked && !pending,
+      };
+    },
+    [requestForDay],
+  );
+
+
   const changePeriod = (nextMonth: number, nextYear: number) => {
     setMonth(nextMonth);
     setYear(nextYear);
@@ -380,7 +508,11 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   if (!record) return null;
 
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
-  const allLocked = days.length > 0 && days.every((d) => d.isLocked);
+  const rows = days.map((d) => {
+    const rev = dayRevision(d);
+    return { ...d, isLocked: rev.locked, rev };
+  });
+  const allLocked = rows.length > 0 && rows.every((d) => d.isLocked);
 
   const updateField = (
     day: number,
@@ -577,6 +709,15 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                       Date
                     </th>
                     <th
+                      rowSpan={2}
+                      className={cn(
+                        "sticky left-[266px] top-0 z-40 min-w-[140px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                        MONITORING_THEME.headerPrimary,
+                      )}
+                    >
+                      Mode of Issuance
+                    </th>
+                    <th
                       colSpan={NOTICE_CATEGORIES.length}
                       className={cn(
                         "border-b border-r px-2 py-2 text-center font-bold uppercase tracking-wider",
@@ -619,42 +760,101 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                   </tr>
                 </thead>
                 <tbody>
-                  {days.map((entry, index) => {
+                  {rows.map((entry, index) => {
                     const zebra = index % 2 === 1;
                     const cellBg = zebra ? MONITORING_THEME.rowOdd : MONITORING_THEME.rowEven;
+                    const rev = entry.rev;
+                    const showRevisionAction = rev.pending || rev.needsRequest;
                     return (
                       <React.Fragment key={entry.day}>
                         {MODE_ROWS.map((mode, modeIndex) => (
                           <tr key={`${entry.day}-${mode.key}`} className={cellBg}>
                             {modeIndex === 0 && (
-                              <>
-                                <td
-                                  rowSpan={2}
-                                  className={cn(
-                                    "sticky left-0 z-20 border-b border-r px-3 py-1.5 text-center align-middle",
-                                    cellBg,
-                                  )}
-                                >
-                                  {entry.isLocked ? (
+                              <td
+                                rowSpan={2}
+                                className={cn(
+                                  "sticky left-0 z-20 min-w-[96px] border-b border-r px-2 py-1.5 text-center align-middle",
+                                  cellBg,
+                                )}
+                              >
+                                {showRevisionAction ? (
+                                  rev.pending ? (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <EditButton
+                                        variant="square"
+                                        tooltip="Cancel Revision Request"
+                                        ariaLabel="Cancel Revision Request"
+                                        icon={<Ban className="h-4 w-4" />}
+                                        onClick={() => {
+                                          if (rev.req) setCancelRequestId(rev.req.requestno);
+                                          else toast.info("No active revision request to cancel.");
+                                        }}
+                                      />
+                                      <DeleteButton
+                                        variant="square"
+                                        tooltip="Delete Revision Request"
+                                        ariaLabel="Delete Revision Request"
+                                        icon={<Trash2 className="h-4 w-4" />}
+                                        onClick={() => {
+                                          if (rev.req) setDeleteRequestId(rev.req.requestno);
+                                          else toast.info("No revision request to delete.");
+                                        }}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <EditButton
+                                        variant="square"
+                                        tooltip={
+                                          !stationno
+                                            ? "Select a station to request a revision"
+                                            : "Request Revision"
+                                        }
+                                        ariaLabel={
+                                          !stationno
+                                            ? "Select a station to request a revision"
+                                            : "Request Revision"
+                                        }
+                                        disabled={!stationno}
+                                        icon={<FilePen className="h-4 w-4" />}
+                                        onClick={() => {
+                                          setRevisionReferenceKey(EMPTY_GUID);
+                                          setRevisionDate(entry.date);
+                                          setRevisionOpen(true);
+                                        }}
+                                      />
+                                    </div>
+                                  )
+                                ) : null}
+                              </td>
+                            )}
+                            {modeIndex === 0 && (
+                              <td
+                                rowSpan={2}
+                                className={cn(
+                                  "sticky left-[96px] z-20 min-w-[170px] border-b border-r px-3 py-1.5 align-middle font-medium",
+                                  cellBg,
+                                )}
+                              >
+                                <span className="flex items-center gap-2 whitespace-nowrap">
+                                  {entry.isLocked && (
                                     <Lock
-                                      className="mx-auto h-3.5 w-3.5 text-warning"
+                                      className="h-3.5 w-3.5 shrink-0 text-warning"
                                       aria-label="Locked day"
                                     />
-                                  ) : (
-                                    <span className="text-muted-foreground">—</span>
                                   )}
-                                </td>
-                                <td
-                                  rowSpan={2}
-                                  className={cn(
-                                    "sticky left-[96px] z-20 border-b border-r px-3 py-1.5 align-middle font-medium",
-                                    cellBg,
-                                  )}
-                                >
                                   {entry.label}
-                                </td>
-                              </>
+                                </span>
+                              </td>
                             )}
+                            <td
+                              className={cn(
+                                "sticky left-[266px] z-20 min-w-[140px] border-b border-r px-3 py-1.5 text-center align-middle font-semibold uppercase tracking-wide text-primary",
+                                cellBg,
+                              )}
+                            >
+                              {mode.label}
+                            </td>
                             {NOTICE_CATEGORIES.map((category) => {
                               const value = entry.breakdown[category][mode.key] ?? 0;
                               return (
@@ -725,6 +925,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                     <td className="sticky left-[96px] z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2 text-left uppercase tracking-wide">
                       Total
                     </td>
+                    <td className="sticky left-[266px] z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2" />
                     {NOTICE_CATEGORIES.map((category) => (
                       <td
                         key={`total-${category}`}
@@ -794,6 +995,81 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             </Button>
           </div>
         </form>
+
+        {revisionOpen && (
+          <RevisionRequestDialog
+            open={revisionOpen}
+            onOpenChange={setRevisionOpen}
+            module="notice"
+            station={{
+              stationno,
+              stationcode: record.stationcode || "",
+              stationname: record.stationname || "",
+              provinceno: provinceno || "",
+              provincename: record.provincename || "",
+              cityname: record.cityname || user?.cityname || "",
+            }}
+            year={year}
+            month={month}
+            referencekey={revisionReferenceKey}
+            dateinspected={revisionDate}
+            onSubmitted={() => setRevisionRefreshTick((n) => n + 1)}
+          />
+        )}
+
+        <ReasonRemarksDialog
+          open={!!cancelRequestId}
+          onOpenChange={(v) => !v && setCancelRequestId(null)}
+          title="Cancel Revision Request"
+          description="Provide the reason for cancelling this pending request."
+          reasonLabel="Cancellation Reason"
+          confirmLabel="Cancel Request"
+          confirmVariant="destructive"
+          onConfirm={async ({ reason, remarks }) => {
+            if (!cancelRequestId) return;
+            const resp = await revisionrequestAPI.status({
+              requestno: cancelRequestId,
+              stationno: stationno || EMPTY_GUID,
+              requesttype: "NOTICE",
+              remarks: [reason, remarks].filter(Boolean).join(" — "),
+              statusno: 155,
+              taggedby: user?.memberno ?? "",
+            });
+            const { ok, error } = unwrap(resp);
+            if (!ok) {
+              toast.error(error || "Unable to cancel revision request.");
+              return;
+            }
+            toast.success("Revision request cancelled.");
+            setCancelRequestId(null);
+            setRevisionRefreshTick((n) => n + 1);
+          }}
+        />
+
+        <ConfirmDialog
+          open={!!deleteRequestId}
+          onOpenChange={(v) => !v && setDeleteRequestId(null)}
+          title="Delete Revision Request?"
+          description="This will permanently delete the selected revision request."
+          confirmLabel="Delete"
+          confirmVariant="destructive"
+          onConfirm={async () => {
+            if (!deleteRequestId) return;
+            const resp = await revisionrequestAPI.delete({
+              requestno: deleteRequestId,
+              deletedby: user?.memberno ?? "",
+              roleno: Number(systemAccess?.roleno ?? 0),
+            });
+            const { ok, error } = unwrap(resp);
+            if (!ok) {
+              toast.error(error || "Unable to delete revision request.");
+              return;
+            }
+            toast.success("Revision request deleted.");
+            setDeleteRequestId(null);
+            setRevisionRefreshTick((n) => n + 1);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
