@@ -601,7 +601,7 @@ function InspectionsNewBody({
           reportyear: Number(year),
           reportmonth: 0,
           provinceno: province.no || EMPTY_GUID,
-          requesttype: "ISSUANCE",
+          requesttype: "COMPLIANCE",
           pagenumber: 1,
           pagesize: 100,
         },
