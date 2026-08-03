@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PencilLine } from "lucide-react";
+import { PencilLine, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,14 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  type AccomplishedNoticeRecord,
-  type CategoryCounts,
-  type DailyNoticeEntry,
-  type NoticeCategory,
-  NOTICE_CATEGORIES,
-  aggregateDailyEntries,
-} from "@/data/05_accomplished_notices";
+import { toast } from "@/lib/toast";
+import { unwrap } from "@/lib/api-envelope";
+import { useAuth } from "@/lib/auth";
+import { noticeAPI } from "@/services/noticeAPI";
+import type { NoticeRecord } from "@/pages/05_notices/Notice";
+import type { NoticeCategory, NoticeCategoryCounts } from "@/types/noticeType";
 
 const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   NOD: "NOD",
@@ -28,80 +26,81 @@ const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   Closure: "Closure",
 };
 
-function emptyBreakdown(): Record<NoticeCategory, CategoryCounts> {
+const NOTICE_CATEGORIES: NoticeCategory[] = ["NOD", "NTC", "NTCV", "Abatement", "Closure"];
+
+function emptyBreakdown(): Record<NoticeCategory, NoticeCategoryCounts> {
   return NOTICE_CATEGORIES.reduce(
     (acc, category) => ({ ...acc, [category]: { pending: 0, accomplished: 0 } }),
-    {} as Record<NoticeCategory, CategoryCounts>,
+    {} as Record<NoticeCategory, NoticeCategoryCounts>,
   );
 }
 
 interface NoticeEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  record: AccomplishedNoticeRecord | null;
-  onSaved: (record: AccomplishedNoticeRecord) => void;
+  record: NoticeRecord | null;
+  onSaved: () => void;
 }
 
 export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeEditModalProps) {
-  const [days, setDays] = React.useState<DailyNoticeEntry[]>([]);
+  const { user } = useAuth();
+  const [days, setDays] = React.useState<Array<{ day: number; date: string; remarks: string; breakdown: Record<NoticeCategory, NoticeCategoryCounts> }>>([]);
+  const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (!record || !open) return;
-    const totalDays = new Date(record.reportYear, record.reportMonth, 0).getDate();
-    const nextEntries = Array.from({ length: totalDays }, (_, index) => {
-      const day = index + 1;
-      const existing = record.dailyEntries.find((entry) => entry.day === day);
-      return {
-        day,
-        remarks: existing?.remarks ?? "",
-        breakdown: existing?.breakdown ?? emptyBreakdown(),
-      } satisfies DailyNoticeEntry;
-    });
-    setDays(nextEntries);
+    const nextDays = record.dailyEntries.map((entry) => ({
+      day: entry.day,
+      date: entry.date,
+      remarks: entry.remarks,
+      breakdown: entry.breakdown,
+    }));
+    setDays(nextDays.length ? nextDays : [{ day: 1, date: `${record.reportYear}-${String(record.reportMonth).padStart(2, "0")}-01`, remarks: "", breakdown: emptyBreakdown() }]);
   }, [record, open]);
 
   if (!record) return null;
 
-  const updateField = (
-    day: number,
-    category: NoticeCategory,
-    field: keyof CategoryCounts,
-    value: string,
-  ) => {
+  const updateField = (day: number, category: NoticeCategory, field: keyof NoticeCategoryCounts, value: string) => {
     const parsed = Number(value) || 0;
-    setDays((prev) =>
-      prev.map((entry) =>
-        entry.day === day
-          ? {
-              ...entry,
-              breakdown: {
-                ...entry.breakdown,
-                [category]: {
-                  ...entry.breakdown[category],
-                  [field]: parsed,
-                },
-              },
-            }
-          : entry,
-      ),
-    );
+    setDays((prev) => prev.map((entry) => (entry.day === day ? { ...entry, breakdown: { ...entry.breakdown, [category]: { ...entry.breakdown[category], [field]: parsed } } } : entry)));
   };
 
   const updateRemarks = (day: number, value: string) => {
-    setDays((prev) =>
-      prev.map((entry) => (entry.day === day ? { ...entry, remarks: value } : entry)),
-    );
+    setDays((prev) => prev.map((entry) => (entry.day === day ? { ...entry, remarks: value } : entry)));
   };
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const nextRecord: AccomplishedNoticeRecord = {
-      ...record,
-      breakdown: aggregateDailyEntries(days, record.breakdown),
-      dailyEntries: days,
-    };
-    onSaved(nextRecord);
-    onOpenChange(false);
+    setSaving(true);
+    try {
+      const payload = {
+        noticeno: "",
+        stationno: record.stationno,
+        dateaccomplish: `${days[0]?.date || `${record.reportYear}-${String(record.reportMonth).padStart(2, "0")}-01`}T00:00:00`,
+        encodedby: user?.memberno ?? "anon",
+        accomnoticeList: days.map((entry) => ({
+          accomplishno: "",
+          noticeno: "",
+          fsicmode: 0,
+          nodcount: entry.breakdown.NOD.pending,
+          ntccount: entry.breakdown.NTC.pending,
+          ntcvcount: entry.breakdown.NTCV.pending,
+          abatementcount: entry.breakdown.Abatement.pending,
+          closurecount: entry.breakdown.Closure.pending,
+        })),
+      };
+      const resp = await noticeAPI.create(payload, { suppressGlobalLoading: true });
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || "Unable to update notice entry.");
+        return;
+      }
+      toast.success("Notice entry updated.");
+      onSaved();
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -111,12 +110,8 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
           <DialogTitle className="flex items-center gap-2">
             <PencilLine className="h-5 w-5 text-primary" /> Edit Notice Ledger
           </DialogTitle>
-          <DialogDescription>
-            Update entries from Day 1 through Day{" "}
-            {new Date(record.reportYear, record.reportMonth, 0).getDate()} for {record.stationName}.
-          </DialogDescription>
+          <DialogDescription>Update the notice entries for {record.stationname} in {record.reportYear}/{record.reportMonth}.</DialogDescription>
         </DialogHeader>
-
         <form className="space-y-4" onSubmit={submit}>
           <div className="overflow-x-auto rounded-lg border border-border/70">
             <table className="min-w-full text-sm">
@@ -125,9 +120,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                   <th className="px-2 py-2">Day</th>
                   <th className="px-2 py-2">Remarks</th>
                   {NOTICE_CATEGORIES.map((category) => (
-                    <th key={category} className="px-2 py-2 text-center">
-                      {CATEGORY_LABEL[category]}
-                    </th>
+                    <th key={category} className="px-2 py-2 text-center">{CATEGORY_LABEL[category]}</th>
                   ))}
                 </tr>
               </thead>
@@ -136,35 +129,15 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                   <tr key={entry.day} className="border-t border-border/60">
                     <td className="px-2 py-2 font-semibold">{entry.day}</td>
                     <td className="px-2 py-2">
-                      <Input
-                        value={entry.remarks}
-                        onChange={(event) => updateRemarks(entry.day, event.target.value)}
-                        className="min-w-[140px]"
-                      />
+                      <Input value={entry.remarks} onChange={(event) => updateRemarks(entry.day, event.target.value)} className="min-w-[140px]" />
                     </td>
                     {NOTICE_CATEGORIES.map((category) => (
                       <td key={`${entry.day}-${category}`} className="px-2 py-2">
                         <div className="grid gap-1">
                           <Label className="text-[10px]">P</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={entry.breakdown[category].pending}
-                            onChange={(event) =>
-                              updateField(entry.day, category, "pending", event.target.value)
-                            }
-                            className="h-8"
-                          />
+                          <Input type="number" min={0} value={entry.breakdown[category].pending} onChange={(event) => updateField(entry.day, category, "pending", event.target.value)} className="h-8" />
                           <Label className="text-[10px]">A</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={entry.breakdown[category].accomplished}
-                            onChange={(event) =>
-                              updateField(entry.day, category, "accomplished", event.target.value)
-                            }
-                            className="h-8"
-                          />
+                          <Input type="number" min={0} value={entry.breakdown[category].accomplished} onChange={(event) => updateField(entry.day, category, "accomplished", event.target.value)} className="h-8" />
                         </div>
                       </td>
                     ))}
@@ -173,12 +146,13 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
               </tbody>
             </table>
           </div>
-
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Save month</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save month"}
+            </Button>
           </div>
         </form>
       </DialogContent>

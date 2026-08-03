@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CalendarPlus2 } from "lucide-react";
+import { CalendarPlus2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,14 +11,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  type AccomplishedNoticeRecord,
-  type CategoryCounts,
-  type NoticeCategory,
-  NOTICE_CATEGORIES,
-  aggregateDailyEntries,
-} from "@/data/05_accomplished_notices";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/lib/toast";
+import { unwrap } from "@/lib/api-envelope";
+import { useAuth } from "@/lib/auth";
+import { noticeAPI } from "@/services/noticeAPI";
+import type { NoticeRecord } from "@/pages/05_notices/Notice";
+import type { NoticeCategory, NoticeCategoryCounts } from "@/types/noticeType";
 
 const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   NOD: "NOD",
@@ -28,49 +33,75 @@ const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   Closure: "Closure",
 };
 
-function emptyBreakdown(): Record<NoticeCategory, CategoryCounts> {
+const NOTICE_CATEGORIES: NoticeCategory[] = ["NOD", "NTC", "NTCV", "Abatement", "Closure"];
+
+function emptyBreakdown(): Record<NoticeCategory, NoticeCategoryCounts> {
   return NOTICE_CATEGORIES.reduce(
     (acc, category) => ({ ...acc, [category]: { pending: 0, accomplished: 0 } }),
-    {} as Record<NoticeCategory, CategoryCounts>,
+    {} as Record<NoticeCategory, NoticeCategoryCounts>,
   );
+}
+
+interface NoticeTypeOption {
+  value: string;
+  label: string;
 }
 
 interface NoticeAddModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  record: AccomplishedNoticeRecord | null;
-  onSaved: (record: AccomplishedNoticeRecord) => void;
+  record: NoticeRecord | null;
+  onSaved: () => void;
 }
 
 export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAddModalProps) {
-  const [day, setDay] = React.useState(1);
+  const { user } = useAuth();
+  const [noticeType, setNoticeType] = React.useState<string>("");
+  const [date, setDate] = React.useState<string>("");
   const [remarks, setRemarks] = React.useState("");
-  const [breakdown, setBreakdown] =
-    React.useState<Record<NoticeCategory, CategoryCounts>>(emptyBreakdown());
+  const [breakdown, setBreakdown] = React.useState<Record<NoticeCategory, NoticeCategoryCounts>>(emptyBreakdown());
+  const [noticeTypes, setNoticeTypes] = React.useState<NoticeTypeOption[]>([]);
+  const [loadingTypes, setLoadingTypes] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (!record || !open) return;
-    const totalDays = new Date(record.reportYear, record.reportMonth, 0).getDate();
-    const existing = record.dailyEntries.find((entry) => entry.day === day);
-    if (existing) {
-      setRemarks(existing.remarks ?? "");
-      setBreakdown(existing.breakdown);
-    } else {
-      setRemarks("");
-      setBreakdown(emptyBreakdown());
-    }
-    if (day > totalDays) setDay(1);
-  }, [record, open, day]);
-
-  React.useEffect(() => {
-    if (!record || !open) return;
-    const totalDays = new Date(record.reportYear, record.reportMonth, 0).getDate();
-    setDay((current) => (current > totalDays ? 1 : current));
+    setDate(record.dailyEntries[0]?.date || `${record.reportYear}-${String(record.reportMonth).padStart(2, "0")}-01`);
+    setRemarks("");
+    setBreakdown(emptyBreakdown());
+    setNoticeType("");
   }, [record, open]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingTypes(true);
+      const resp = await noticeAPI.getNoticeTypes({ suppressGlobalLoading: true });
+      const { ok, data, error } = unwrap<unknown[]>(resp);
+      if (!cancelled) {
+        if (ok) {
+          const list = Array.isArray(data) ? data : [];
+          const normalized = list.map((item: any, index: number) => {
+            const value = item?.noticeTypeNo ?? item?.noticeTypeCode ?? item?.noticeTypeId ?? item?.code ?? item?.id ?? item?.value ?? index + 1;
+            const label = item?.noticeTypeName ?? item?.name ?? item?.description ?? item?.label ?? item?.typeName ?? String(value);
+            return { value: String(value), label: String(label) };
+          });
+          setNoticeTypes(normalized);
+          if (normalized[0]) setNoticeType(normalized[0].value);
+        } else {
+          toast.error(error || "Unable to load notice types.");
+        }
+      }
+      if (!cancelled) setLoadingTypes(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   if (!record) return null;
 
-  const updateField = (category: NoticeCategory, field: keyof CategoryCounts, value: string) => {
+  const updateField = (category: NoticeCategory, field: keyof NoticeCategoryCounts, value: string) => {
     const parsed = Number(value) || 0;
     setBreakdown((prev) => ({
       ...prev,
@@ -81,23 +112,41 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     }));
   };
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const nextEntries = [...record.dailyEntries.filter((entry) => entry.day !== day)];
-    nextEntries.push({ day, remarks, breakdown });
-    nextEntries.sort((a, b) => a.day - b.day);
-
-    const nextRecord: AccomplishedNoticeRecord = {
-      ...record,
-      breakdown: aggregateDailyEntries(nextEntries, record.breakdown),
-      dailyEntries: nextEntries,
-    };
-
-    onSaved(nextRecord);
-    onOpenChange(false);
+    setSaving(true);
+    try {
+      const payload = {
+        noticeno: "",
+        stationno: record.stationno,
+        dateaccomplish: `${date || `${record.reportYear}-${String(record.reportMonth).padStart(2, "0")}-01`}T00:00:00`,
+        encodedby: user?.memberno ?? "anon",
+        accomnoticeList: [
+          {
+            accomplishno: "",
+            noticeno: "",
+            fsicmode: Number(noticeType) || 0,
+            nodcount: breakdown.NOD.pending,
+            ntccount: breakdown.NTC.pending,
+            ntcvcount: breakdown.NTCV.pending,
+            abatementcount: breakdown.Abatement.pending,
+            closurecount: breakdown.Closure.pending,
+          },
+        ],
+      };
+      const resp = await noticeAPI.create(payload, { suppressGlobalLoading: true });
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || "Unable to save notice entry.");
+        return;
+      }
+      toast.success("Notice entry saved.");
+      onSaved();
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
   };
-
-  const totalDays = new Date(record.reportYear, record.reportMonth, 0).getDate();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -106,30 +155,40 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           <DialogTitle className="flex items-center gap-2">
             <CalendarPlus2 className="h-5 w-5 text-primary" /> Add Notice Entry
           </DialogTitle>
-          <DialogDescription>
-            Add a single day entry for {record.stationName} in {record.reportMonth}/
-            {record.reportYear}.
-          </DialogDescription>
+          <DialogDescription>Add a notice entry for {record.stationname} in {record.reportYear}/{record.reportMonth}.</DialogDescription>
         </DialogHeader>
-
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <Label>Day</Label>
-              <Input
-                type="number"
-                min={1}
-                max={totalDays}
-                value={day}
-                onChange={(event) => setDay(Number(event.target.value) || 1)}
-              />
+              <Label>Reporting Date</Label>
+              <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
             </div>
             <div>
-              <Label>Remarks</Label>
-              <Input value={remarks} onChange={(event) => setRemarks(event.target.value)} />
+              <Label>Notice Type</Label>
+              {loadingTypes ? (
+                <div className="flex items-center gap-2 rounded-md border border-border/60 px-3 py-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading types…
+                </div>
+              ) : (
+                <Select value={noticeType} onValueChange={setNoticeType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select notice type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {noticeTypes.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
-
+          <div>
+            <Label>Remarks</Label>
+            <Input value={remarks} onChange={(event) => setRemarks(event.target.value)} />
+          </div>
           <div className="space-y-3 rounded-lg border border-border/70 p-3">
             <div className="text-sm font-semibold">Notice counts</div>
             <div className="grid gap-3 md:grid-cols-2">
@@ -139,35 +198,24 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div>
                       <Label className="text-xs">Pending</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={breakdown[category].pending}
-                        onChange={(event) => updateField(category, "pending", event.target.value)}
-                      />
+                      <Input type="number" min={0} value={breakdown[category].pending} onChange={(event) => updateField(category, "pending", event.target.value)} />
                     </div>
                     <div>
                       <Label className="text-xs">Accomplished</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={breakdown[category].accomplished}
-                        onChange={(event) =>
-                          updateField(category, "accomplished", event.target.value)
-                        }
-                      />
+                      <Input type="number" min={0} value={breakdown[category].accomplished} onChange={(event) => updateField(category, "accomplished", event.target.value)} />
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Save entry</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save entry"}
+            </Button>
           </div>
         </form>
       </DialogContent>

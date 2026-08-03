@@ -8,11 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  type AccomplishedNoticeRecord,
-  type NoticeCategory,
-  NOTICE_CATEGORIES,
-} from "@/data/05_accomplished_notices";
+import type { NoticeRecord } from "@/pages/05_notices/Notice";
+import type { NoticeCategory } from "@/types/noticeType";
 
 const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   NOD: "NOD",
@@ -22,10 +19,12 @@ const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   Closure: "Closure",
 };
 
+const NOTICE_CATEGORIES: NoticeCategory[] = ["NOD", "NTC", "NTCV", "Abatement", "Closure"];
+
 interface NoticeViewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  record: AccomplishedNoticeRecord | null;
+  record: NoticeRecord | null;
 }
 
 export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalProps) {
@@ -38,9 +37,7 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5 text-primary" /> View Notice Ledger
           </DialogTitle>
-          <DialogDescription>
-            Daily breakdown for {record.stationName} · {record.reportMonth}/{record.reportYear}
-          </DialogDescription>
+          <DialogDescription>Daily breakdown for {record.stationname} · {record.reportMonth}/{record.reportYear}</DialogDescription>
         </DialogHeader>
 
         <div className="overflow-x-auto rounded-lg border border-border/70">
@@ -50,9 +47,7 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
                 <th className="px-2 py-2">Day</th>
                 <th className="px-2 py-2">Remarks</th>
                 {NOTICE_CATEGORIES.map((category) => (
-                  <th key={category} className="px-2 py-2 text-center">
-                    {CATEGORY_LABEL[category]}
-                  </th>
+                  <th key={category} className="px-2 py-2 text-center">{CATEGORY_LABEL[category]}</th>
                 ))}
               </tr>
             </thead>
@@ -63,12 +58,8 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
                   <td className="px-2 py-2 text-muted-foreground">{entry.remarks || "—"}</td>
                   {NOTICE_CATEGORIES.map((category) => (
                     <td key={`${entry.day}-${category}`} className="px-2 py-2 text-center">
-                      <div className="text-xs text-muted-foreground">
-                        P {entry.breakdown[category].pending}
-                      </div>
-                      <div className="text-xs font-semibold">
-                        A {entry.breakdown[category].accomplished}
-                      </div>
+                      <div className="text-xs text-muted-foreground">P {entry.breakdown[category].pending}</div>
+                      <div className="text-xs font-semibold">A {entry.breakdown[category].accomplished}</div>
                     </td>
                   ))}
                 </tr>
