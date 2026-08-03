@@ -596,15 +596,13 @@ function ComplianceEditBody({
   );
   const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
 
-  // ------- Revision request state (from the live API) -------
-  const [revisionRequestState, setRevisionRequestState] = React.useState<{
-    requestno: string;
-    statuscode?: string;
-    statusname?: string;
-  } | null>(null);
+  // ------- Revision requests for the month (from the live API) -------
+  const [revisionRequests, setRevisionRequests] = React.useState<
+    { requestno: string; statuscode?: string; statusname?: string; referencekey?: string; dateinspected?: string }[]
+  >([]);
   React.useEffect(() => {
     if (!stationno || !year || !month) {
-      setRevisionRequestState(null);
+      setRevisionRequests([]);
       return;
     }
     let cancelled = false;
@@ -617,39 +615,56 @@ function ComplianceEditBody({
           provinceno: provinceno || EMPTY_GUID,
           requesttype: "COMPLIANCE",
           pagenumber: 1,
-          pagesize: 20,
+          pagesize: 100,
         },
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
-      const { ok, data } = unwrap<[{ requestno: string; statuscode?: string; statusname?: string }]>(resp);
-      if (ok && Array.isArray(data) && data.length > 0) {
-        setRevisionRequestState(data[0]);
-      } else {
-        setRevisionRequestState(null);
-      }
+      const { ok, data } = unwrap<
+        { requestno: string; statuscode?: string; statusname?: string; referencekey?: string; dateinspected?: string }[]
+      >(resp);
+      setRevisionRequests(ok && Array.isArray(data) ? data : []);
     })();
     return () => {
       cancelled = true;
     };
   }, [stationno, year, month, provinceno, revisionRequestRefreshTick]);
-  const latestReq = revisionRequestState;
-  const latestReqStatus = latestReq?.statuscode?.toUpperCase() === "PENDING"
-    ? "PENDING"
-    : latestReq?.statuscode?.toUpperCase() === "APPROVED"
-      ? "APPROVED"
-      : latestReq?.statuscode?.toUpperCase() === "CANCELLED"
-        ? "CANCELLED"
-        : null;
-  const activeReq = latestReqStatus === "PENDING" || latestReqStatus === "APPROVED" ? latestReq : null;
-  const activeReqStatus = activeReq ? latestReqStatus : null;
-  const isApproved = activeReqStatus === "APPROVED";
-  const isPending = activeReqStatus === "PENDING";
-  const isOwnPending = isPending;
+
+  /** Latest request for a given day (matched by referencekey = fsisno, or by date). */
+  const requestForDay = React.useCallback(
+    (dayKey: string, fsisno: string) =>
+      revisionRequests.find((r) => {
+        if (fsisno && fsisno !== EMPTY_GUID && String(r.referencekey) === String(fsisno)) return true;
+        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === dayKey : false;
+      }) ?? null,
+    [revisionRequests],
+  );
+
+  /**
+   * Per-day revision state, driven by the API fields `isrevisionrequest`
+   * and `editablestatus` (153 = approved / temporarily unlocked).
+   */
+  const dayRevision = React.useCallback(
+    (d: EditableDay) => {
+      const req = requestForDay(d.key, d.inspection.fsisno);
+      const status = req?.statuscode?.toUpperCase() ?? null;
+      const unlockedByApproval = Number(d.editablestatus) === 153;
+      const pending = !unlockedByApproval && (d.isrevisionrequest || status === "PENDING");
+      const locked = unlockedByApproval ? false : d.isLocked || pending;
+      return {
+        req,
+        status: unlockedByApproval ? "APPROVED" : status,
+        unlockedByApproval,
+        pending,
+        locked,
+        needsRequest: locked && !pending,
+      };
+    },
+    [requestForDay],
+  );
+
   const monthLocked = isReportMonthLocked(year, month);
-  // When an APPROVED request is active, the whole month is temporarily
-  // unlocked — override per-day locks for rendering and save gating.
-  const revisionUnlocks = isApproved;
+
 
   /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
