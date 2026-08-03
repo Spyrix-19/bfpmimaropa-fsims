@@ -90,7 +90,7 @@ export default function RevisionRequestDialog({
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    if (module === "monitoring" && !dateinspected) {
+    if ((module === "monitoring" || module === "notice") && !dateinspected) {
       toast.error("Inspection date is missing. Please reopen the request from a valid day row.");
       return;
     }
@@ -103,7 +103,8 @@ export default function RevisionRequestDialog({
       stationno: station.stationno,
       reportyear: year,
       reportmonth: month,
-      requesttype: module === "monitoring" ? "COMPLIANCE" : "TARGET",
+      requesttype:
+        module === "monitoring" ? "COMPLIANCE" : module === "notice" ? "NOTICE" : "TARGET",
       requestremarks: reason,
       statusno: 0,
       requestedby: user?.memberno ?? EMPTY_GUID,

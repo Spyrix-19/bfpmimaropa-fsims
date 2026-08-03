@@ -1,6 +1,18 @@
 import * as React from "react";
 import { format } from "date-fns";
-import { Building2, CalendarIcon, FilePlus2, Loader2, Save, Target } from "lucide-react";
+import {
+  AlertTriangle,
+  Ban,
+  Building2,
+  CalendarIcon,
+  FilePen,
+  FilePlus2,
+  Loader2,
+  Lock,
+  Save,
+  Target,
+  Trash2,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -16,6 +28,7 @@ import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -31,8 +44,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { formatLongDate } from "@/lib/date-format";
 import { useAuth } from "@/lib/auth";
 import { noticeAPI } from "@/services/noticeAPI";
+import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
+import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
+import type {
+  FSISNoticeDTO,
+  NoticeAccomClass,
+  NoticeDetailClassModel,
+  NoticeDetailModel,
+} from "@/types/noticeType";
 import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceTheme";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
 
@@ -59,6 +83,23 @@ type NoticeCounts = Record<NoticeFieldSpec["key"], number>;
 
 function emptyCounts(): NoticeCounts {
   return NOTICE_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: 0 }), {} as NoticeCounts);
+}
+
+/** Midnight of the current local day, in ms. */
+function startOfToday(): number {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+}
+
+/** Counts for one Mode of Issuance row of an existing notice record. */
+function countsFromAccom(row?: { [k: string]: unknown }): NoticeCounts {
+  return {
+    nodcount: Number(row?.nodcount ?? 0),
+    ntccount: Number(row?.ntccount ?? 0),
+    ntcvcount: Number(row?.ntcvcount ?? 0),
+    abatementcount: Number(row?.abatementcount ?? 0),
+    closurecount: Number(row?.closurecount ?? 0),
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -113,11 +154,13 @@ function NoticesTable({
   fsisValues,
   setManualValues,
   setFsisValues,
+  locked,
 }: {
   manualValues: NoticeCounts;
   fsisValues: NoticeCounts;
   setManualValues: React.Dispatch<React.SetStateAction<NoticeCounts>>;
   setFsisValues: React.Dispatch<React.SetStateAction<NoticeCounts>>;
+  locked?: boolean;
 }) {
   const makeHandler =
     (setter: React.Dispatch<React.SetStateAction<NoticeCounts>>) =>
@@ -156,12 +199,20 @@ function NoticesTable({
             step={1}
             inputMode="numeric"
             pattern="[0-9]*"
+            readOnly={locked}
+            disabled={locked}
             value={String(values[f.key] ?? 0)}
-            onChange={(e) => onChange(f.key, e.target.value)}
+            onChange={(e) => {
+              if (locked) return;
+              onChange(f.key, e.target.value);
+            }}
             onKeyDown={(e) => {
               if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
             }}
-            className="h-8 w-full min-w-[110px] rounded-sm border-border/70 px-2 py-1 text-center tabular-nums"
+            className={cn(
+              "h-8 w-full min-w-[110px] rounded-sm border-border/70 px-2 py-1 text-center tabular-nums",
+              locked && "cursor-not-allowed bg-muted/60",
+            )}
           />
         </td>
       ))}
@@ -423,7 +474,7 @@ interface NoticeAddModalProps {
 }
 
 export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAddModalProps) {
-  const { user } = useAuth();
+  const { user, systemAccess } = useAuth();
   const [reportingDate, setReportingDate] = React.useState<Date>(new Date());
   const [dateOpen, setDateOpen] = React.useState(false);
   const [remarks, setRemarks] = React.useState("");
@@ -431,65 +482,262 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   const [fsisValues, setFsisValues] = React.useState<NoticeCounts>(emptyCounts());
   const [saving, setSaving] = React.useState(false);
 
+  /* ── Existing-record (per accomplishment date) detection ────────────────── */
+  const [checkingExisting, setCheckingExisting] = React.useState(false);
+  const [existingNoticeNo, setExistingNoticeNo] = React.useState<string | null>(null);
+  const [existingAccomNos, setExistingAccomNos] = React.useState<Record<string, string>>({});
+  const [pendingExistingRecord, setPendingExistingRecord] =
+    React.useState<NoticeDetailClassModel | null>(null);
+  const [existingLocked, setExistingLocked] = React.useState(false);
+  const [existingDialogOpen, setExistingDialogOpen] = React.useState(false);
+  const [existingMeta, setExistingMeta] = React.useState<{
+    isrevisionrequest: boolean;
+    editablestatus: number;
+  }>({ isrevisionrequest: false, editablestatus: 0 });
+  const [issuedFromApi, setIssuedFromApi] = React.useState<NoticeCounts | null>(null);
+  const promptedDateKeyRef = React.useRef<string | null>(null);
+
+  /* ── Revision workflow (requesttype = NOTICE) ───────────────────────────── */
+  const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
+  const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
+  const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
+  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
+  const [reloadNonce, setReloadNonce] = React.useState(0);
+
+  const selectedDateKey = format(reportingDate, "yyyy-MM-dd");
+  const stationno = record?.stationno ?? "";
+
+  /** Reset the form whenever the modal opens — the period defaults to today. */
   React.useEffect(() => {
-    if (!record || !open) return;
-    const first = record.dailyEntries[0]?.date;
-    const fallback = new Date(record.reportYear, Math.max(0, record.reportMonth - 1), 1);
-    setReportingDate(first ? new Date(`${first}T00:00:00`) : fallback);
+    if (!open) return;
+    setReportingDate(new Date());
     setRemarks("");
     setManualValues(emptyCounts());
     setFsisValues(emptyCounts());
-  }, [record, open]);
+    setExistingNoticeNo(null);
+    setExistingAccomNos({});
+    setPendingExistingRecord(null);
+    setExistingLocked(false);
+    setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+    setIssuedFromApi(null);
+    promptedDateKeyRef.current = null;
+  }, [open, record?.key]);
+
+  /** Plots an existing notice record into the MANUAL / FSIS matrix. */
+  const plotExistingRecord = React.useCallback((entry: NoticeDetailClassModel) => {
+    const list = Array.isArray(entry.noticeaccomlist) ? entry.noticeaccomlist : [];
+    let manualRow = list.find((r) => Number(r.fsicmode) === FSIC_MODE.MANUAL);
+    let fsisRow = list.find((r) => Number(r.fsicmode) === FSIC_MODE.FSIS);
+    if (!manualRow && !fsisRow) {
+      manualRow = list[0];
+      fsisRow = list[1];
+    }
+    setManualValues(countsFromAccom(manualRow as unknown as Record<string, unknown>));
+    setFsisValues(countsFromAccom(fsisRow as unknown as Record<string, unknown>));
+    setExistingAccomNos({
+      [FSIC_MODE.MANUAL]: manualRow?.accomplishno ? String(manualRow.accomplishno) : EMPTY_GUID,
+      [FSIC_MODE.FSIS]: fsisRow?.accomplishno ? String(fsisRow.accomplishno) : EMPTY_GUID,
+    });
+    setExistingNoticeNo(String(entry.noticeno));
+  }, []);
+
+  /* Existence check — runs on open and every time the date changes. */
+  React.useEffect(() => {
+    if (!open || !stationno || stationno === EMPTY_GUID) return;
+
+    let cancelled = false;
+    (async () => {
+      setCheckingExisting(true);
+      const resp = await noticeAPI.getDetailBydate(
+        {
+          stationno,
+          // The API expects the non-padded US format, e.g. 8/1/2026.
+          dateaccomplish: format(reportingDate, "M/d/yyyy"),
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      if (cancelled) return;
+      setCheckingExisting(false);
+      const { ok, data } = unwrap<NoticeDetailModel>(resp);
+      const detail = ok && data && typeof data === "object" ? data : null;
+
+      setIssuedFromApi(
+        detail
+          ? {
+              nodcount: Number(detail.totalissuednodcount ?? 0),
+              ntccount: Number(detail.totalissuedntccount ?? 0),
+              ntcvcount: Number(detail.totalissuedntcvcount ?? 0),
+              abatementcount: Number(detail.totalissuedabatementcount ?? 0),
+              closurecount: Number(detail.totalissuedclosurecount ?? 0),
+            }
+          : null,
+      );
+
+      const entry =
+        (Array.isArray(detail?.noticedetallist) ? detail?.noticedetallist : []).find((e) =>
+          String(e.dateaccomplish ?? "").slice(0, 10) === selectedDateKey,
+        ) ?? (detail?.noticedetallist?.[0] || null);
+
+      if (entry) {
+        setPendingExistingRecord(entry);
+        setExistingMeta({
+          isrevisionrequest: Boolean(entry.isrevisionrequest),
+          editablestatus: Number(entry.editablestatus ?? 0),
+        });
+        const isPast = reportingDate.getTime() < startOfToday();
+        const unlocked = Number(entry.editablestatus ?? 0) === 153;
+        const pending = !unlocked && Boolean(entry.isrevisionrequest);
+        const locked = !unlocked && (isPast || pending);
+        setExistingLocked(locked);
+
+        const key = `${stationno}|${selectedDateKey}`;
+        if (promptedDateKeyRef.current !== key) {
+          promptedDateKeyRef.current = key;
+          setExistingDialogOpen(true);
+        } else if (locked) {
+          plotExistingRecord(entry);
+        }
+      } else {
+        promptedDateKeyRef.current = null;
+        setExistingDialogOpen(false);
+        setPendingExistingRecord(null);
+        setExistingNoticeNo(null);
+        setExistingAccomNos({});
+        setExistingLocked(false);
+        setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+        setManualValues(emptyCounts());
+        setFsisValues(emptyCounts());
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, stationno, selectedDateKey, reloadNonce]);
+
+  /* Revision requests ledger for the selected station/year (NOTICE). */
+  React.useEffect(() => {
+    if (!open || !stationno || stationno === EMPTY_GUID) {
+      setRevisionRequests([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const resp = await revisionrequestAPI.getLedger(
+        {
+          stationno,
+          reportyear: reportingDate.getFullYear(),
+          reportmonth: 0,
+          provinceno: record?.provinceno || EMPTY_GUID,
+          requesttype: "NOTICE",
+          pagenumber: 1,
+          pagesize: 100,
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<FSISEditRequestModel[]>(resp);
+      setRevisionRequests(ok && Array.isArray(data) ? data : []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, stationno, record?.provinceno, reportingDate.getFullYear(), reloadNonce]);
+
+  /* ── Lock rules for the selected date ───────────────────────────────────── */
+  const isPastSelectedDate = reportingDate.getTime() < startOfToday();
+  const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
+  const activeRequest = React.useMemo(() => {
+    return (
+      revisionRequests.find((r) => {
+        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
+        if (existingNoticeNo && String(r.referencekey) === String(existingNoticeNo)) return true;
+        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === selectedDateKey : false;
+      }) ?? null
+    );
+  }, [revisionRequests, selectedDateKey, existingNoticeNo]);
+  const hasPendingRevision =
+    !unlockedByApproval && (existingMeta.isrevisionrequest || !!activeRequest);
+  const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
+  const fieldsLocked = !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
 
   if (!record) return null;
 
-  // Issuance = live MANUAL + FSIS entries; Accomplished = station ledger totals.
+
+  // Live MANUAL + FSIS entries = what is being accomplished for the day.
   const issuedTotals = NOTICE_FIELDS.reduce(
     (acc, f) => ({ ...acc, [f.key]: (manualValues[f.key] ?? 0) + (fsisValues[f.key] ?? 0) }),
     {} as NoticeCounts,
   );
-  const accomplishedTotals: NoticeCounts = {
-    nodcount: record.breakdown.NOD?.accomplished ?? 0,
-    ntccount: record.breakdown.NTC?.accomplished ?? 0,
-    ntcvcount: record.breakdown.NTCV?.accomplished ?? 0,
-    abatementcount: record.breakdown.Abatement?.accomplished ?? 0,
-    closurecount: record.breakdown.Closure?.accomplished ?? 0,
+  // Issued counts come from the Detail/Date response when available.
+  const panelIssued: NoticeCounts = issuedFromApi ?? {
+    nodcount: record.breakdown.NOD?.pending ?? 0,
+    ntccount: record.breakdown.NTC?.pending ?? 0,
+    ntcvcount: record.breakdown.NTCV?.pending ?? 0,
+    abatementcount: record.breakdown.Abatement?.pending ?? 0,
+    closurecount: record.breakdown.Closure?.pending ?? 0,
   };
 
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (fieldsLocked) {
+      toast.error("This record is locked. Submit a revision request to enable editing.");
+      return;
+    }
     if (!record.stationno || record.stationno === EMPTY_GUID) {
       toast.error("A station is required before saving.");
       return;
     }
+    const encodedby = user?.memberno ? String(user.memberno) : "";
+    if (!encodedby || encodedby === EMPTY_GUID) {
+      toast.error("Your account could not be identified. Please sign in again.");
+      return;
+    }
+    const grandTotal = NOTICE_FIELDS.reduce((sum, f) => sum + (issuedTotals[f.key] ?? 0), 0);
+    if (grandTotal <= 0) {
+      toast.error("Encode at least one accomplished notice before saving.");
+      return;
+    }
+
     setSaving(true);
     try {
-      const buildAccom = (mode: number, values: NoticeCounts) => ({
-        accomplishno: EMPTY_GUID,
-        noticeno: EMPTY_GUID,
+      const noticeno = existingNoticeNo || EMPTY_GUID;
+      const buildAccom = (mode: number, values: NoticeCounts): NoticeAccomClass => ({
+        accomplishno: existingAccomNos[mode] || EMPTY_GUID,
+        noticeno,
         fsicmode: mode,
-        nodcount: values.nodcount,
-        ntccount: values.ntccount,
-        ntcvcount: values.ntcvcount,
-        abatementcount: values.abatementcount,
-        closurecount: values.closurecount,
+        nodcount: values.nodcount ?? 0,
+        ntccount: values.ntccount ?? 0,
+        ntcvcount: values.ntcvcount ?? 0,
+        abatementcount: values.abatementcount ?? 0,
+        closurecount: values.closurecount ?? 0,
       });
 
-      const payload = {
-        noticeno: EMPTY_GUID,
+      const payload: FSISNoticeDTO = {
+        noticeno,
         stationno: record.stationno,
-        dateaccomplish: `${format(reportingDate, "yyyy-MM-dd")}T00:00:00`,
-        encodedby: user?.memberno ?? "",
-        remarks,
+        dateaccomplish: new Date(
+          reportingDate.getFullYear(),
+          reportingDate.getMonth(),
+          reportingDate.getDate(),
+          12,
+          0,
+          0,
+        ).toISOString(),
+        encodedby,
         accomnoticeList: [
           buildAccom(FSIC_MODE.MANUAL, manualValues),
           buildAccom(FSIC_MODE.FSIS, fsisValues),
         ],
       };
 
+
       const resp = await noticeAPI.create(payload, { suppressGlobalLoading: true });
-      const { ok, error } = unwrap(resp);
+      const { ok, canceled, error } = unwrap(resp);
+      if (canceled) return;
       if (!ok) {
         toast.error(error || "Unable to save notice entry.");
         return;
@@ -501,6 +749,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
       setSaving(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -524,6 +773,17 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           noValidate
           className="max-h-[calc(90vh-6rem)] space-y-6 overflow-y-auto bg-muted/20 px-5 py-5"
         >
+          {fieldsLocked && (
+            <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+              <span>
+                {hasPendingRevision
+                  ? "A revision request for this date is pending approval. Fields stay locked until it is approved."
+                  : "This date has already passed and is locked. Submit a revision request to enable editing."}
+              </span>
+            </div>
+          )}
+
           {/* 1. Reporting Period --------------------------------------------- */}
           <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
             <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
@@ -538,6 +798,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {reportingDate ? format(reportingDate, "PPP") : "Pick a date"}
+                      {checkingExisting && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -575,8 +836,8 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
 
           {/* 3. Issued vs. Accomplished -------------------------------------- */}
           <NoticeAccomplishmentPanel
-            issued={issuedTotals}
-            accomplished={accomplishedTotals}
+            issued={panelIssued}
+            accomplished={issuedTotals}
             periodLabel={format(reportingDate, "PPP")}
           />
 
@@ -593,13 +854,18 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               fsisValues={fsisValues}
               setManualValues={setManualValues}
               setFsisValues={setFsisValues}
+              locked={fieldsLocked}
             />
 
             <Field label="Accomplishment Remarks">
               <Textarea
                 rows={3}
                 value={remarks}
-                onChange={(e) => setRemarks(e.target.value.slice(0, 1000))}
+                readOnly={fieldsLocked}
+                onChange={(e) => {
+                  if (fieldsLocked) return;
+                  setRemarks(e.target.value.slice(0, 1000));
+                }}
                 placeholder="Notes on the notices accomplished (compliance, closure, abatement) for this period…"
               />
             </Field>
@@ -607,23 +873,164 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
 
           {/* Actions ---------------------------------------------------------- */}
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={saving}
-              className="bg-gradient-primary text-primary-foreground shadow-elegant"
-            >
-              {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              {saving ? "Saving…" : "Save Accomplishment"}
-            </Button>
+            {needsRevisionRequest ? (
+              <Button
+                type="button"
+                onClick={() => setAddRevisionOpen(true)}
+                className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
+              >
+                <FilePen className="h-4 w-4" /> Request Revision
+              </Button>
+            ) : hasPendingRevision ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => {
+                    if (activeRequest) setCancelRequestId(activeRequest.requestno);
+                    else toast.info("No active revision request to cancel.");
+                  }}
+                >
+                  <Ban className="h-4 w-4" /> Cancel Request
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="gap-2"
+                  onClick={() => {
+                    if (activeRequest) setDeleteRequestId(activeRequest.requestno);
+                    else toast.info("No revision request to delete.");
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" /> Delete Request
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={saving || checkingExisting}
+                  className="bg-gradient-primary text-primary-foreground shadow-elegant"
+                >
+                  {saving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {saving ? "Saving…" : existingNoticeNo ? "Update Accomplishment" : "Save Accomplishment"}
+                </Button>
+              </>
+            )}
           </div>
         </form>
+
+        <ConfirmDialog
+          open={existingDialogOpen}
+          onOpenChange={(v) => {
+            if (!v) {
+              setExistingDialogOpen(false);
+              if (existingLocked && pendingExistingRecord) plotExistingRecord(pendingExistingRecord);
+            } else {
+              setExistingDialogOpen(true);
+            }
+          }}
+          ContentIcon={AlertTriangle}
+          contentIconBgClass="tone-warning-soft"
+          contentIconColorClass="text-warning"
+          title="Notice Accomplishment Already Exists"
+          description={`A notice accomplishment record already exists for ${
+            record.stationname || "this station"
+          } on ${formatLongDate(reportingDate)}.\n\n${
+            existingLocked
+              ? "This record is already locked — it will be opened as read-only and any change will require a revision request."
+              : "Do you want to open and edit the existing record?"
+          }`}
+          confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
+          showCancel={false}
+          onConfirm={() => {
+            if (pendingExistingRecord) plotExistingRecord(pendingExistingRecord);
+            setExistingDialogOpen(false);
+          }}
+        />
+
+        {addRevisionOpen && (
+          <RevisionRequestDialog
+            open={addRevisionOpen}
+            onOpenChange={setAddRevisionOpen}
+            module="notice"
+            station={{
+              stationno: record.stationno,
+              stationcode: record.stationcode ?? "",
+              stationname: record.stationname ?? "",
+              provinceno: record.provinceno ?? "",
+              provincename: record.provincename ?? "",
+              cityname: record.cityname ?? "",
+            }}
+            year={reportingDate.getFullYear()}
+            month={reportingDate.getMonth() + 1}
+            referencekey={existingNoticeNo || EMPTY_GUID}
+            dateinspected={selectedDateKey}
+            onSubmitted={() => setReloadNonce((n) => n + 1)}
+          />
+        )}
+
+        <ReasonRemarksDialog
+          open={!!cancelRequestId}
+          onOpenChange={(v) => !v && setCancelRequestId(null)}
+          title="Cancel Revision Request"
+          description="Provide the reason for cancelling this pending request."
+          reasonLabel="Cancellation Reason"
+          confirmLabel="Cancel Request"
+          confirmVariant="destructive"
+          onConfirm={async ({ reason, remarks: cancelRemarks }) => {
+            if (!cancelRequestId) return;
+            const resp = await revisionrequestAPI.status({
+              requestno: cancelRequestId,
+              stationno: record.stationno || EMPTY_GUID,
+              requesttype: "NOTICE",
+              remarks: [reason, cancelRemarks].filter(Boolean).join(" — "),
+              statusno: 155,
+              taggedby: user?.memberno ?? "",
+            });
+            const { ok, error } = unwrap(resp);
+            if (!ok) {
+              toast.error(error || "Unable to cancel revision request.");
+              return;
+            }
+            toast.success("Revision request cancelled.");
+            setCancelRequestId(null);
+            setReloadNonce((n) => n + 1);
+          }}
+        />
+
+        <ConfirmDialog
+          open={!!deleteRequestId}
+          onOpenChange={(v) => !v && setDeleteRequestId(null)}
+          title="Delete Revision Request?"
+          description="This will permanently delete the selected revision request."
+          confirmLabel="Delete"
+          confirmVariant="destructive"
+          onConfirm={async () => {
+            if (!deleteRequestId) return;
+            const resp = await revisionrequestAPI.delete({
+              requestno: deleteRequestId,
+              deletedby: user?.memberno ?? "",
+              roleno: Number(systemAccess?.roleno ?? 0),
+            });
+            const { ok, error } = unwrap(resp);
+            if (!ok) {
+              toast.error(error || "Unable to delete revision request.");
+              return;
+            }
+            toast.success("Revision request deleted.");
+            setDeleteRequestId(null);
+            setReloadNonce((n) => n + 1);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

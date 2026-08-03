@@ -34,7 +34,7 @@ export interface NoticeAccomClass {
 //Detail by Date
 export interface FSISNoticeDetailByDateParams {
   stationno: string;
-  dateinspected: string;
+  dateaccomplish: string;
 }
 
 //detail
@@ -65,7 +65,17 @@ export interface NoticeModel {
   provinces: NoticeParamClass[];
 }
 
+/**
+ * `POST /api/v1/FSISNotice/Ledger` returns its rows wrapped in a
+ * `{ total, items }` payload rather than a bare array.
+ */
+export interface NoticeLedgerResultModel {
+  total: number;
+  items: NoticeDetailModel[];
+}
+
 export interface NoticeDetailModel {
+
   stationno: string;
   stationcode: string;
   stationname: string;
@@ -73,6 +83,16 @@ export interface NoticeDetailModel {
   provincename: string;
   cityname?: string;
   logourl: string;
+  totalissuednodcount?: number;
+  totalissuedntccount?: number;
+  totalissuedntcvcount?: number;
+  totalissuedabatementcount?: number;
+  totalissuedclosurecount?: number;
+  totalaccomplishednodcount?: number;
+  totalaccomplishedntccount?: number;
+  totalaccomplishedntcvcount?: number;
+  totalaccomplishedabatementcount?: number;
+  totalaccomplishedclosurecount?: number;
   noticedetallist: NoticeDetailClassModel[];
 }
 

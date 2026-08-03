@@ -19,4 +19,4 @@ export const REVISION_STATUS_LABEL: Record<RevisionStatus, string> = {
   EXPIRED: "Expired",
 };
 
-export type RevisionModule = "target-reference" | "monitoring";
+export type RevisionModule = "target-reference" | "monitoring" | "notice";

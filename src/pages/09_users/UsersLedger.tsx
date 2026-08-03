@@ -170,9 +170,9 @@ export default function UsersLedger({ variant, title, description }: Props) {
     setStationTarget(r);
     setNewStationno(r.stationno || "");
     setNewStationname(r.stationname || "");
-    setNewOfficeno("");
-    setNewOfficename("");
-    setNewDesignation("");
+    setNewOfficeno(r.officeno ? String(r.officeno) : "");
+    setNewOfficename(r.officename || r.officecode || "");
+    setNewDesignation(r.designation || "");
   };
 
   const submitRoleUpdate = async () => {
@@ -933,6 +933,12 @@ export default function UsersLedger({ variant, title, description }: Props) {
                     <div className="mt-1 text-sm text-muted-foreground">
                       {stationTarget.stationcode || "—"}
                       {stationTarget.provincename ? ` · ${stationTarget.provincename}` : ""}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground break-words">
+                      {stationTarget.officename || stationTarget.officecode || "No office assigned"}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground break-words">
+                      {stationTarget.designation || "No designation"}
                     </div>
                   </div>
                 </div>

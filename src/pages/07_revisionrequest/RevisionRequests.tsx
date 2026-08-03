@@ -51,7 +51,9 @@ const STATUS_CANCELLED = 155;
 
 /** Map source module → API RequestType. */
 function requestTypeFor(module: RevisionModule): string {
-  return module === "monitoring" ? "ISSUANCE" : "TARGET";
+  if (module === "monitoring") return "ISSUANCE";
+  if (module === "notice") return "NOTICE";
+  return "TARGET";
 }
 
 function monthYearLabel(year: number, month: number): string {
@@ -155,7 +157,10 @@ export default function TargetRevisionRequests({
   const [approveTarget, setApproveTarget] = React.useState<FSISEditRequestModel | null>(null);
   const [busy, setBusy] = React.useState(false);
 
-  const dateColumnHeader = effectiveModule === "monitoring" ? "Inspected Date" : "Month Year";
+  const dateColumnHeader =
+    effectiveModule === "monitoring" || effectiveModule === "notice"
+      ? "Inspected Date"
+      : "Month Year";
 
   const doStatus = async (r: FSISEditRequestModel, statusno: number, remarks: string) => {
     setBusy(true);
@@ -208,6 +213,7 @@ export default function TargetRevisionRequests({
           {([
             { value: "target-reference", label: "Target Reference" },
             { value: "monitoring", label: "Monitoring (Compliance)" },
+            { value: "notice", label: "Notice" },
           ] as { value: RevisionModule; label: string }[]).map((t) => {
             const active = activeTab === t.value;
             return (
@@ -369,7 +375,7 @@ export default function TargetRevisionRequests({
                   </td>
 
                   <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
-                    {String(r.requesttype ?? "").toUpperCase() === "ISSUANCE"
+                    {["ISSUANCE", "NOTICE"].includes(String(r.requesttype ?? "").toUpperCase())
                       ? formatDate(r.dateinspected, "—")
                       : monthYearLabel(r.reportyear, r.reportmonth)}
                   </td>
