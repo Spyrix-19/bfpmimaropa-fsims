@@ -1000,11 +1000,11 @@ function ComplianceEditBody({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-4 md:space-y-8">
       {/* Station Information ------------------------------------------------- */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
         <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">Station</span>
             <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
@@ -1051,8 +1051,8 @@ function ComplianceEditBody({
       </Card>
 
       {/* Daily Compliance Details ------------------------------------------- */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <SectionTitle
             title="Daily Compliance Details"
             subtitle="Per-day inspection and issuance tracking"
@@ -1087,8 +1087,8 @@ function ComplianceEditBody({
 
         {/* Daily table — spreadsheet-style, scrolls in both axes */}
         <div
-          className="w-full max-w-full overflow-auto rounded-md border border-grid shadow-soft"
-          style={{ maxHeight: "70vh" }}
+          className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
+          style={{ maxHeight: "74vh" }}
         >
           <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
             <thead className="sticky top-0 z-30">
@@ -1655,7 +1655,7 @@ function ComplianceEditBody({
         </div>
 
         {/* Remarks section */}
-        <div className="border-t border-border/60 pt-4">
+        <div className="space-y-2 border-t border-border/60 pt-5">
           <label className="text-xs font-medium text-muted-foreground">
             General Remarks (applies to all days)
           </label>
@@ -1697,7 +1697,7 @@ function ComplianceEditBody({
           </div>
         </div>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2 pt-2">
         <Button variant="outline" onClick={requestCancel} className="gap-2" disabled={saving}>
           <ArrowLeft className="h-4 w-4" /> Cancel
         </Button>
