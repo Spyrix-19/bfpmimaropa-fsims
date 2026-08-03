@@ -158,9 +158,11 @@ export default function TargetRevisionRequests({
   const [busy, setBusy] = React.useState(false);
 
   const dateColumnHeader =
-    effectiveModule === "monitoring" || effectiveModule === "notice"
+    effectiveModule === "monitoring"
       ? "Inspected Date"
-      : "Month Year";
+      : effectiveModule === "notice"
+        ? "Date Accomplished"
+        : "Target Date";
 
   const doStatus = async (r: FSISEditRequestModel, statusno: number, remarks: string) => {
     setBusy(true);
