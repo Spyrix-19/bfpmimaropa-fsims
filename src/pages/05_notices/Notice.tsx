@@ -1,5 +1,5 @@
 import * as React from "react";
-import { BellRing, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Download } from "lucide-react";
+import { BellRing, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Download, ClipboardCheck } from "lucide-react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
@@ -39,6 +39,7 @@ import type {
   NoticeCategoryCounts,
   NoticeCategoryRow,
 } from "@/types/noticeType";
+import type { SearchStationModel } from "@/types/stationTypes";
 import { NoticeAddModal } from "./components/noticeNew";
 import { NoticeEditModal } from "./components/noticeEdit";
 import { NoticeViewModal } from "./components/noticeView";
@@ -546,9 +547,18 @@ export default function AccomplishedNotice() {
     setStationname("ALL");
   };
 
-  const handleStationSelect = (no: string, name: string) => {
+  const handleStationSelect = (
+    no: string,
+    name: string,
+    _province?: string,
+    station?: SearchStationModel,
+  ) => {
     setStationno(no);
     setStationname(name);
+    if (no !== EMPTY_GUID && station?.provinceno && !scope.provinceLocked) {
+      setProvinceno(station.provinceno);
+      setProvincename(station.provincename || provincename);
+    }
   };
 
   const handleResetFilters = () => {
@@ -792,7 +802,7 @@ export default function AccomplishedNotice() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
-            <BellRing className="h-5 w-5 text-primary" />
+            <ClipboardCheck className="h-5 w-5 text-primary" />
             Accomplished Notice
           </h1>
           <p className="text-xs text-muted-foreground">
