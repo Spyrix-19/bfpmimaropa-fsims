@@ -1,5 +1,5 @@
 import * as React from "react";
-import { BellRing, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Download } from "lucide-react";
+import { BellRing, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Download, ClipboardCheck } from "lucide-react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
@@ -66,7 +66,7 @@ function buildBreakdown(source: NoticeAccomDetailClass[] | undefined): Record<No
   source.forEach((entry) => {
     NOTICE_CATEGORIES.forEach((category) => {
       const key = category === "NOD" ? "nodcount" : category === "NTC" ? "ntccount" : category === "NTCV" ? "ntcvcount" : category === "Abatement" ? "abatementcount" : "closurecount";
-      const count = Number((entry as Record<string, number | undefined>)[key] ?? 0) || 0;
+      const count = Number(((entry as unknown) as Record<string, number | undefined>)[key] ?? 0) || 0;
       totals[category].pending += count;
       totals[category].accomplished += count;
     });
@@ -477,7 +477,7 @@ export default function AccomplishedNotice() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
-            <BellRing className="h-5 w-5 text-primary" />
+            <ClipboardCheck className="h-5 w-5 text-primary" />
             Accomplished Notice
           </h1>
           <p className="text-xs text-muted-foreground">Notice accomplishments grouped by station, month, and year.</p>
