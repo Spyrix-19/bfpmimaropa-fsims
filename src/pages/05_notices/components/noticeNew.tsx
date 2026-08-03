@@ -153,18 +153,20 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CalendarPlus2 className="h-5 w-5 text-primary" /> Add Notice Entry
+            <CalendarPlus2 className="h-5 w-5 text-primary" /> Add Notice Ledger Entry
           </DialogTitle>
-          <DialogDescription>Add a notice entry for {record.stationname} in {record.reportYear}/{record.reportMonth}.</DialogDescription>
+          <DialogDescription>
+            Add a notice accomplishment entry for {record.stationname} for {record.reportYear}/{record.reportMonth}.
+          </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <Label>Reporting Date</Label>
+              <Label>Accomplishment Date</Label>
               <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
             </div>
             <div>
-              <Label>Notice Type</Label>
+              <Label>Notice Classification</Label>
               {loadingTypes ? (
                 <div className="flex items-center gap-2 rounded-md border border-border/60 px-3 py-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading types…
@@ -186,11 +188,14 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
             </div>
           </div>
           <div>
-            <Label>Remarks</Label>
-            <Input value={remarks} onChange={(event) => setRemarks(event.target.value)} />
+            <Label>Reference / Remarks</Label>
+            <Input value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Optional note for this notice entry" />
           </div>
           <div className="space-y-3 rounded-lg border border-border/70 p-3">
-            <div className="text-sm font-semibold">Notice counts</div>
+            <div className="text-sm font-semibold">Notice counts by category</div>
+            <p className="text-xs text-muted-foreground">
+              Enter the pending and accomplished counts for this notice submission.
+            </p>
             <div className="grid gap-3 md:grid-cols-2">
               {NOTICE_CATEGORIES.map((category) => (
                 <div key={category} className="rounded-md border border-border/60 p-3">
@@ -214,7 +219,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save entry"}
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save notice entry"}
             </Button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { BellRing, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Download, ClipboardCheck } from "lucide-react";
+import { BellRing, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Download } from "lucide-react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
@@ -157,6 +157,34 @@ function mapDetailToRecord(detail: NoticeDetailModel, year: number, month: numbe
   };
 }
 
+function createDraftNoticeRecord(params: {
+  stationno: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  cityname: string;
+  logourl: string;
+  reportYear: number;
+  reportMonth: number;
+}): NoticeRecord {
+  return {
+    key: `draft|${params.reportYear}|${params.reportMonth}`,
+    stationno: params.stationno,
+    stationcode: params.stationname,
+    stationname: params.stationname,
+    provinceno: params.provinceno,
+    provincename: params.provincename,
+    cityname: params.cityname,
+    logourl: params.logourl,
+    province: params.provincename,
+    municipality: params.cityname,
+    reportYear: params.reportYear,
+    reportMonth: params.reportMonth,
+    breakdown: emptyBreakdown(),
+    dailyEntries: [],
+  };
+}
+
 function DaysRecordedBadge({ encoded, total }: { encoded: number; total: number }) {
   const ratio = total ? encoded / total : 0;
   const tone =
@@ -229,6 +257,7 @@ export default function AccomplishedNotice() {
   const [viewTarget, setViewTarget] = React.useState<NoticeRecord | null>(null);
   const [editTarget, setEditTarget] = React.useState<NoticeRecord | null>(null);
   const [matrixTarget, setMatrixTarget] = React.useState<NoticeRecord | null>(null);
+  const [addTarget, setAddTarget] = React.useState<NoticeRecord | null>(null);
   const [refreshTick, setRefreshTick] = React.useState(0);
   const refresh = () => setRefreshTick((value) => value + 1);
 
@@ -468,7 +497,26 @@ export default function AccomplishedNotice() {
     }
   };
 
-  const addTarget = paged[0] ?? filtered[0] ?? null;
+  const openAdd = () => {
+    const anchor = paged[0] ?? filtered[0] ?? null;
+    if (anchor) {
+      setAddTarget(anchor);
+    } else {
+      setAddTarget(
+        createDraftNoticeRecord({
+          stationno: stationno === EMPTY_GUID ? "" : stationno,
+          stationname: stationname === "ALL" ? "Selected Station" : stationname,
+          provinceno: provinceno === EMPTY_GUID ? "" : provinceno,
+          provincename: provincename === "ALL" ? "Selected Province" : provincename,
+          cityname: "",
+          logourl: "",
+          reportYear: Number(year),
+          reportMonth: Number(selectedMonths[0] ?? new Date().getMonth() + 1),
+        }),
+      );
+    }
+    setAddOpen(true);
+  };
 
   if (!user) return null;
 
@@ -477,7 +525,7 @@ export default function AccomplishedNotice() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
-            <ClipboardCheck className="h-5 w-5 text-primary" />
+            <BellRing className="h-5 w-5 text-primary" />
             Accomplished Notice
           </h1>
           <p className="text-xs text-muted-foreground">Notice accomplishments grouped by station, month, and year.</p>
@@ -491,7 +539,7 @@ export default function AccomplishedNotice() {
             <LayoutGrid className="h-4 w-4" /> Notice Matrix
           </Button>
           {canManage && (
-            <Button onClick={() => setAddOpen(true)} className="w-full justify-center gap-2 sm:w-auto">
+            <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
               <Plus className="h-4 w-4" /> Add Notice
             </Button>
           )}
@@ -524,7 +572,17 @@ export default function AccomplishedNotice() {
 
       <SecureDeleteDialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)} title="Delete Notice Ledger?" subject={deleteTarget ? <>{deleteTarget.stationname} — {MONTHS.find((month) => month.value === deleteTarget.reportMonth)?.name} {deleteTarget.reportYear}</> : null} description="This removes the notice ledger for the selected station and period." confirmLabel="Delete" deleting={deleting} onConfirm={confirmDelete} />
 
-      {addTarget && <NoticeAddModal open={addOpen} onOpenChange={setAddOpen} record={addTarget} onSaved={refresh} />}
+      {addTarget && (
+        <NoticeAddModal
+          open={addOpen}
+          onOpenChange={(open) => {
+            setAddOpen(open);
+            if (!open) setAddTarget(null);
+          }}
+          record={addTarget}
+          onSaved={refresh}
+        />
+      )}
       {matrixTarget && <NoticeMatrixModal open={matrixOpen} onOpenChange={(open) => { setMatrixOpen(open); if (!open) setMatrixTarget(null); }} record={matrixTarget} />}
       {viewTarget && <NoticeViewModal open={!!viewTarget} onOpenChange={(open) => !open && setViewTarget(null)} record={viewTarget} />}
       {editTarget && <NoticeEditModal open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)} record={editTarget} onSaved={refresh} />}
