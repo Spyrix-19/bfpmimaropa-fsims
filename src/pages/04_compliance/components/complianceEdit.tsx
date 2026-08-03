@@ -55,6 +55,7 @@ import { MONITORING_THEME } from "./complianceTheme";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "@/pages/06_target-reference/revision/RevisionStatusBadge";
+import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
@@ -596,15 +597,13 @@ function ComplianceEditBody({
   );
   const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
 
-  // ------- Revision request state (from the live API) -------
-  const [revisionRequestState, setRevisionRequestState] = React.useState<{
-    requestno: string;
-    statuscode?: string;
-    statusname?: string;
-  } | null>(null);
+  // ------- Revision requests for the month (from the live API) -------
+  const [revisionRequests, setRevisionRequests] = React.useState<
+    { requestno: string; statuscode?: string; statusname?: string; referencekey?: string; dateinspected?: string }[]
+  >([]);
   React.useEffect(() => {
     if (!stationno || !year || !month) {
-      setRevisionRequestState(null);
+      setRevisionRequests([]);
       return;
     }
     let cancelled = false;
@@ -617,39 +616,60 @@ function ComplianceEditBody({
           provinceno: provinceno || EMPTY_GUID,
           requesttype: "COMPLIANCE",
           pagenumber: 1,
-          pagesize: 20,
+          pagesize: 100,
         },
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
-      const { ok, data } = unwrap<[{ requestno: string; statuscode?: string; statusname?: string }]>(resp);
-      if (ok && Array.isArray(data) && data.length > 0) {
-        setRevisionRequestState(data[0]);
-      } else {
-        setRevisionRequestState(null);
-      }
+      const { ok, data } = unwrap<
+        { requestno: string; statuscode?: string; statusname?: string; referencekey?: string; dateinspected?: string }[]
+      >(resp);
+      setRevisionRequests(ok && Array.isArray(data) ? data : []);
     })();
     return () => {
       cancelled = true;
     };
   }, [stationno, year, month, provinceno, revisionRequestRefreshTick]);
-  const latestReq = revisionRequestState;
-  const latestReqStatus = latestReq?.statuscode?.toUpperCase() === "PENDING"
-    ? "PENDING"
-    : latestReq?.statuscode?.toUpperCase() === "APPROVED"
-      ? "APPROVED"
-      : latestReq?.statuscode?.toUpperCase() === "CANCELLED"
-        ? "CANCELLED"
+
+  /** Latest request for a given day (matched by referencekey = fsisno, or by date). */
+  const requestForDay = React.useCallback(
+    (dayKey: string, fsisno: string) =>
+      revisionRequests.find((r) => {
+        if (fsisno && fsisno !== EMPTY_GUID && String(r.referencekey) === String(fsisno)) return true;
+        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === dayKey : false;
+      }) ?? null,
+    [revisionRequests],
+  );
+
+  /**
+   * Per-day revision state, driven by the API fields `isrevisionrequest`
+   * and `editablestatus` (153 = approved / temporarily unlocked).
+   */
+  const dayRevision = React.useCallback(
+    (d: EditableDay) => {
+      const req = requestForDay(d.key, d.inspection.fsisno);
+      const raw = req?.statuscode?.toUpperCase() ?? "";
+      const known: RevisionStatus[] = ["PENDING", "APPROVED", "DENIED", "CANCELLED", "COMPLETED", "EXPIRED"];
+      const status: RevisionStatus | null = (known as string[]).includes(raw)
+        ? (raw as RevisionStatus)
         : null;
-  const activeReq = latestReqStatus === "PENDING" || latestReqStatus === "APPROVED" ? latestReq : null;
-  const activeReqStatus = activeReq ? latestReqStatus : null;
-  const isApproved = activeReqStatus === "APPROVED";
-  const isPending = activeReqStatus === "PENDING";
-  const isOwnPending = isPending;
+      const unlockedByApproval = Number(d.editablestatus) === 153;
+      const pending = !unlockedByApproval && (d.isrevisionrequest || status === "PENDING");
+      const locked = unlockedByApproval ? false : d.isLocked || pending;
+      return {
+        req,
+        status: (unlockedByApproval ? "APPROVED" : status) as RevisionStatus | null,
+        unlockedByApproval,
+        pending,
+        locked,
+        needsRequest: locked && !pending,
+      };
+    },
+    [requestForDay],
+  );
+
   const monthLocked = isReportMonthLocked(year, month);
-  // When an APPROVED request is active, the whole month is temporarily
-  // unlocked — override per-day locks for rendering and save gating.
-  const revisionUnlocks = isApproved;
+
 
   /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
@@ -859,15 +879,15 @@ function ComplianceEditBody({
       return;
     }
 
-    // Check if entire month is locked (approved revision temporarily unlocks it)
-    if (!revisionUnlocks && isReportMonthLocked(year, month)) {
+    // Month lock only blocks when no day was unlocked by an approved revision.
+    const anyApprovedDay = Array.from(editableDays.values()).some(
+      (d) => Number(d.editablestatus) === 153,
+    );
+    if (!anyApprovedDay && isReportMonthLocked(year, month)) {
       setSaveError("This reporting month is locked and cannot be edited.");
       return;
     }
-    if (isPending) {
-      setSaveError("A revision request is pending review. Editing is disabled until it is approved.");
-      return;
-    }
+
 
     setSaving(true);
     try {
@@ -966,9 +986,8 @@ function ComplianceEditBody({
       }
       toast.success("Fire safety compliance updated successfully.");
       setBaseline(currentSnapshot);
-      if (revisionUnlocks && activeReq) {
-        setRevisionRequestRefreshTick((n) => n + 1);
-      }
+      setRevisionRequestRefreshTick((n) => n + 1);
+
       onSaved();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unexpected error while saving.";
@@ -981,15 +1000,15 @@ function ComplianceEditBody({
 
   /* ---------------------------------- UI --------------------------------- */
 
-  // When an APPROVED revision is active, treat all days as unlocked;
-  // when PENDING, force every day locked so no edits happen.
+  // Per-day locking: `editablestatus === 153` unlocks that day, a pending
+  // revision request keeps it locked.
   const rawDays = Array.from(editableDays.values());
   const days = rawDays.map((d) => {
-    if (revisionUnlocks) return { ...d, isLocked: false };
-    if (isPending) return { ...d, isLocked: true };
-    return d;
+    const rev = dayRevision(d);
+    return { ...d, isLocked: rev.locked, rev };
   });
   const allLocked = days.length > 0 && days.every((d) => d.isLocked);
+
 
   if (loading) {
     return (
@@ -1193,9 +1212,11 @@ function ComplianceEditBody({
                   (sum, f) => sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
                   0,
                 );
-                const hasRevisionRequest = dayEntry.isrevisionrequest || Boolean(activeReq);
-                const showRevisionAction = dayEntry.isLocked || hasRevisionRequest;
-                const showRevisionStatus = showRevisionAction || Boolean(latestReqStatus);
+                const rev = dayEntry.rev;
+                const hasRevisionRequest = rev.pending;
+                const showRevisionAction = rev.pending || rev.needsRequest;
+                const showRevisionStatus = Boolean(rev.status);
+
                 return (
                   <React.Fragment key={dayEntry.key}>
                     {/* MANUAL row */}
@@ -1213,7 +1234,7 @@ function ComplianceEditBody({
                                 ariaLabel="Cancel Revision Request"
                                 icon={<Ban className="h-4 w-4" />}
                                 onClick={() => {
-                                  if (activeReq) setCancelRequestId(activeReq.requestno);
+                                  if (rev.req) setCancelRequestId(rev.req.requestno);
                                   else toast.info("No active revision request to cancel.");
                                 }}
                               />
@@ -1223,7 +1244,7 @@ function ComplianceEditBody({
                                 ariaLabel="Delete Revision Request"
                                 icon={<Trash2 className="h-4 w-4" />}
                                 onClick={() => {
-                                  if (activeReq) setDeleteRequestId(activeReq.requestno);
+                                  if (rev.req) setDeleteRequestId(rev.req.requestno);
                                   else toast.info("No revision request to delete.");
                                 }}
                               />
@@ -1263,13 +1284,7 @@ function ComplianceEditBody({
                           </div>
                           {showRevisionStatus && (
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              {activeReq ? (
-                                <RevisionStatusBadge status={activeReqStatus ?? "PENDING"} />
-                              ) : (
-                                latestReqStatus && latestReqStatus !== "PENDING" ? (
-                                  <RevisionStatusBadge status={latestReqStatus} />
-                                ) : null
-                              )}
+                              {rev.status && <RevisionStatusBadge status={rev.status} />}
                             </div>
                           )}
                         </div>
