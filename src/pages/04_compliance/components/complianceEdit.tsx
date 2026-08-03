@@ -1207,9 +1207,11 @@ function ComplianceEditBody({
                   (sum, f) => sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
                   0,
                 );
-                const hasRevisionRequest = dayEntry.isrevisionrequest || Boolean(activeReq);
-                const showRevisionAction = dayEntry.isLocked || hasRevisionRequest;
-                const showRevisionStatus = showRevisionAction || Boolean(latestReqStatus);
+                const rev = dayEntry.rev;
+                const hasRevisionRequest = rev.pending;
+                const showRevisionAction = rev.pending || rev.needsRequest;
+                const showRevisionStatus = Boolean(rev.status);
+
                 return (
                   <React.Fragment key={dayEntry.key}>
                     {/* MANUAL row */}
