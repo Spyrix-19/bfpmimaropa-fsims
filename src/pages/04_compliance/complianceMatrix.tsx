@@ -68,13 +68,18 @@ const QUARTERS = [
 // ---------------------------------------------------------------------------
 type ComplianceCategory = "INSPECTION" | "FSEC" | "FSIC" | "NOTICES";
 
-const COMPLIANCE_FIELDS: { key: keyof FSISComplianceLedgerClass; label: string; category: ComplianceCategory }[] = [
-  { key: "inspectduringcount", label: "During",     category: "INSPECTION" },
-  { key: "inspectaftercount",  label: "After",      category: "INSPECTION" },
-  { key: "inspectbplocount",   label: "1st BPLO",   category: "INSPECTION" },
-  { key: "inspectgovcount",    label: "1st GOV",    category: "INSPECTION" },
-  { key: "inspectpezacount",   label: "1st PEZA",   category: "INSPECTION" },
-  { key: "inspecttiezacount",  label: "1st TIEZA",  category: "INSPECTION" },
+const COMPLIANCE_FIELDS: { key: string; label: string; category: ComplianceCategory }[] = [
+  { key: "inspectduringcount",  label: "During",            category: "INSPECTION" },
+  { key: "inspectaftercount",   label: "After",             category: "INSPECTION" },
+  { key: "monthlytargetbplo",   label: "1st BPLO Target",   category: "INSPECTION" },
+  { key: "inspectbplocount",    label: "1st BPLO Issuance", category: "INSPECTION" },
+  { key: "monthlytargetgov",    label: "1st GOV Target",    category: "INSPECTION" },
+  { key: "inspectgovcount",     label: "1st GOV Issuance",  category: "INSPECTION" },
+  { key: "monthlytargetpeza",   label: "1st PEZA Target",   category: "INSPECTION" },
+  { key: "inspectpezacount",    label: "1st PEZA Issuance", category: "INSPECTION" },
+  { key: "monthlytargettieza",  label: "1st TIEZA Target",  category: "INSPECTION" },
+  { key: "inspecttiezacount",   label: "1st TIEZA Issuance",category: "INSPECTION" },
+
   { key: "fsecbuildingcount",  label: "Building",   category: "FSEC" },
   { key: "fsecgovcount",       label: "Gov",        category: "FSEC" },
   { key: "fsecpezacount",      label: "PEZA",       category: "FSEC" },
@@ -121,6 +126,24 @@ function computeCategoryRuns() {
 // Client-side aggregation of the real ledger response into the province →
 // station → month → { fieldKey → number } shape the matrix + export consume.
 // ---------------------------------------------------------------------------
+/** Issuance modes — the API identifies each issuance record by `fsicmode`. */
+type IssuanceMode = "MANUAL" | "FSIS";
+const ISSUANCE_MODES: { key: IssuanceMode; label: string; fsicmode: number }[] = [
+  { key: "MANUAL", label: "MANUAL", fsicmode: 96 },
+  { key: "FSIS", label: "FSIS", fsicmode: 97 },
+];
+
+/** Inspection fields live on the compliance (month) record, not on issuances. */
+const INSPECTION_KEYS = COMPLIANCE_FIELDS.filter((f) => f.category === "INSPECTION").map(
+  (f) => String(f.key),
+);
+/** Every other field comes from an issuance record inside `issuancelist`. */
+const ISSUANCE_KEYS = COMPLIANCE_FIELDS.filter((f) => f.category !== "INSPECTION").map((f) =>
+  String(f.key),
+);
+
+type MonthBuckets = Record<number, Record<string, number>>;
+
 interface StationRow {
   stationno: string;
   stationcode: string;
@@ -129,7 +152,10 @@ interface StationRow {
   province: string;
   cityname: string;
   logoUrl: string;
-  months: Record<number, Record<string, number>>;
+  /** Combined (MANUAL + FSIS) values — used for provincial totals. */
+  months: MonthBuckets;
+  /** Per issuance mode values — one matrix row per mode. */
+  modeMonths: Record<IssuanceMode, MonthBuckets>;
 }
 interface ProvinceGroup {
   province: string;
@@ -145,8 +171,83 @@ function monthOf(d: string | Date): number {
   return Number.isFinite(m) ? m : 0;
 }
 
+const ALL_FIELD_KEYS = COMPLIANCE_FIELDS.map((f) => String(f.key));
+
+function emptyFieldBucket(): Record<string, number> {
+  return Object.fromEntries(ALL_FIELD_KEYS.map((k) => [k, 0]));
+}
+
+function bucketAt(months: MonthBuckets, month: number): Record<string, number> {
+  return (months[month] ??= emptyFieldBucket());
+}
+
+function num(v: unknown): number {
+  return Number(v ?? 0) || 0;
+}
+
+/**
+ * Resolve the month of a compliance record. The Export endpoint returns
+ * `reportmonth` directly; the Ledger endpoint returns a `dateinspected`.
+ */
+function complianceMonth(rec: unknown): number {
+  const r = rec as { reportmonth?: number; dateinspected?: string | Date };
+  const rm = Number(r?.reportmonth ?? 0);
+  if (rm >= 1 && rm <= 12) return rm;
+  return monthOf(r?.dateinspected ?? "");
+}
+
+/**
+ * Plot a single compliance (month) record into the per-mode + combined buckets.
+ *
+ * Inspection counts belong to the month itself, so they are plotted on the
+ * MANUAL row. Issuance counts are always located by `fsicmode` — never by
+ * array index — so a missing MANUAL or FSIS record simply yields zeros while
+ * the row itself is preserved.
+ */
+function plotComplianceRecord(
+  rec: unknown,
+  combined: MonthBuckets,
+  modeMonths: Record<IssuanceMode, MonthBuckets>,
+) {
+  const month = complianceMonth(rec);
+  if (month < 1 || month > 12) return;
+
+  const source = rec as Record<string, unknown> & { issuancelist?: unknown[] };
+
+  // Ensure the buckets exist for every mode so both rows always render.
+  const combinedBucket = bucketAt(combined, month);
+  const modeBuckets = ISSUANCE_MODES.map((m) => ({
+    mode: m,
+    bucket: bucketAt(modeMonths[m.key], month),
+  }));
+
+  // Inspection counts — month level, plotted on the MANUAL row.
+  const manualBucket = modeBuckets[0].bucket;
+  for (const k of INSPECTION_KEYS) {
+    const v = num(source[k]);
+    manualBucket[k] += v;
+    combinedBucket[k] += v;
+  }
+
+  const issuances = Array.isArray(source.issuancelist) ? source.issuancelist : [];
+  for (const { mode, bucket } of modeBuckets) {
+    const issuance = issuances.find(
+      (x) => Number((x as { fsicmode?: number })?.fsicmode ?? 0) === mode.fsicmode,
+    ) as Record<string, unknown> | undefined;
+    for (const k of ISSUANCE_KEYS) {
+      const v = issuance ? num(issuance[k]) : 0;
+      bucket[k] += v;
+      combinedBucket[k] += v;
+    }
+  }
+}
+
+function emptyModeMonths(): Record<IssuanceMode, MonthBuckets> {
+  return { MANUAL: {}, FSIS: {} };
+}
+
 function buildGroupsFromLedger(rows: FSISComplianceModel[]): ProvinceGroup[] {
-  const keys = COMPLIANCE_FIELDS.map((f) => f.key as string);
+  const keys = ALL_FIELD_KEYS;
   const groups: ProvinceGroup[] = [];
   const byProv = new Map<string, ProvinceGroup>();
   for (const st of rows ?? []) {
@@ -162,47 +263,10 @@ function buildGroupsFromLedger(rows: FSISComplianceModel[]): ProvinceGroup[] {
       byProv.set(provkey, g);
       groups.push(g);
     }
-    const months: Record<number, Record<string, number>> = {};
+    const months: MonthBuckets = {};
+    const modeMonths = emptyModeMonths();
     for (const rec of st.compliancelist ?? []) {
-      const r = {
-        fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
-        inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
-        inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
-        inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
-        inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
-        inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
-        inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
-        dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
-        dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
-        dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
-        dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
-        isrevisionrequest: Boolean((rec as { isrevisionrequest?: boolean }).isrevisionrequest),
-        editablestatus: Number((rec as { editablestatus?: number }).editablestatus ?? 0) || 0,
-        remarks: String((rec as { remarks?: string }).remarks ?? ""),
-        dateinspected: (rec as { dateinspected?: string }).dateinspected ?? "",
-        issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist) ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[]) : [],
-        fsecbuildingcount: Number((rec as { fsecbuildingcount?: number }).fsecbuildingcount ?? 0) || 0,
-        fsecgovcount: Number((rec as { fsecgovcount?: number }).fsecgovcount ?? 0) || 0,
-        fsecpezacount: Number((rec as { fsecpezacount?: number }).fsecpezacount ?? 0) || 0,
-        fsectiezacount: Number((rec as { fsectiezacount?: number }).fsectiezacount ?? 0) || 0,
-        fsicoccupancycount: Number((rec as { fsicoccupancycount?: number }).fsicoccupancycount ?? 0) || 0,
-        fsicbplonewcount: Number((rec as { fsicbplonewcount?: number }).fsicbplonewcount ?? 0) || 0,
-        fsicbplorenewcount: Number((rec as { fsicbplorenewcount?: number }).fsicbplorenewcount ?? 0) || 0,
-        fsicgovcount: Number((rec as { fsicgovcount?: number }).fsicgovcount ?? 0) || 0,
-        fsicpezacount: Number((rec as { fsicpezacount?: number }).fsicpezacount ?? 0) || 0,
-        fsictiezacount: Number((rec as { fsictiezacount?: number }).fsictiezacount ?? 0) || 0,
-        nodcount: Number((rec as { nodcount?: number }).nodcount ?? 0) || 0,
-        ntccount: Number((rec as { ntccount?: number }).ntccount ?? 0) || 0,
-        ntcvcount: Number((rec as { ntcvcount?: number }).ntcvcount ?? 0) || 0,
-        abatementcount: Number((rec as { abatementcount?: number }).abatementcount ?? 0) || 0,
-        closurecount: Number((rec as { closurecount?: number }).closurecount ?? 0) || 0,
-      };
-      const m = monthOf(rec.dateinspected);
-      if (m < 1 || m > 12) continue;
-      const bucket = (months[m] ??= Object.fromEntries(keys.map((k) => [k, 0])));
-      for (const k of keys) {
-        bucket[k] += Number((r as unknown as Record<string, unknown>)[k] ?? 0) || 0;
-      }
+      plotComplianceRecord(rec, months, modeMonths);
     }
     g.stations.push({
       stationno: st.stationno,
@@ -213,6 +277,7 @@ function buildGroupsFromLedger(rows: FSISComplianceModel[]): ProvinceGroup[] {
       cityname: (st as unknown as { cityname?: string }).cityname ?? "",
       logoUrl: st.logourl ?? "",
       months,
+      modeMonths,
     });
     // Accumulate provincial totals.
     for (const mn of Object.keys(months)) {
@@ -228,6 +293,7 @@ function buildGroupsFromLedger(rows: FSISComplianceModel[]): ProvinceGroup[] {
   groups.sort((a, b) => (a.province || "").localeCompare(b.province || ""));
   return groups;
 }
+
 
 export interface MatrixInitialFilters {
   year?: number;
@@ -463,10 +529,6 @@ export default function ComplianceMatrixTable({
         provinces: provincesPayload,
       });
 
-      const fieldKeyList = COMPLIANCE_FIELDS.map((f) => String(f.key));
-      const emptyBucket = () =>
-        Object.fromEntries(fieldKeyList.map((k) => [k, 0])) as Record<string, number>;
-
       const stationMap = new Map<
         string,
         {
@@ -475,7 +537,7 @@ export default function ComplianceMatrixTable({
           stationName: string;
           cityName: string;
           province: string;
-          months: Record<number, Record<string, number>>;
+          modeMonths: Record<IssuanceMode, MonthBuckets>;
         }
       >();
 
@@ -508,79 +570,40 @@ export default function ComplianceMatrixTable({
             stationName: s.stationname ?? "",
             cityName: (s as unknown as { cityname?: string }).cityname ?? "",
             province: s.provincename || s.provinceno || "",
-            months: {} as Record<number, Record<string, number>>,
+            modeMonths: emptyModeMonths(),
           };
 
+          // station → compliancelist (12 months, keyed by `reportmonth`)
+          //         → issuancelist (located by `fsicmode`, never by index)
+          const combined: MonthBuckets = {};
           for (const rec of Array.isArray(s.compliancelist) ? s.compliancelist : []) {
-            const month = (() => {
-              const raw = String((rec as { dateinspected?: string }).dateinspected ?? "").trim();
-              if (!raw) return null;
-              const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(raw);
-              if (iso) return Number(iso[2]) || null;
-              const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(raw);
-              if (slash) return Number(slash[1]) || null;
-              const parsed = new Date(raw);
-              return Number.isNaN(parsed.getTime()) ? null : parsed.getMonth() + 1;
-            })();
-            if (!month || month < 1 || month > 12) continue;
-            const bucket = (entry.months[month] ??= emptyBucket());
-            const flat = {
-              fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
-              inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
-              inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
-              inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
-              inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
-              inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
-              inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
-              dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
-              dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
-              dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
-              dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
-              isrevisionrequest: Boolean((rec as { isrevisionrequest?: boolean }).isrevisionrequest),
-              editablestatus: Number((rec as { editablestatus?: number }).editablestatus ?? 0) || 0,
-              remarks: String((rec as { remarks?: string }).remarks ?? ""),
-              dateinspected: (rec as { dateinspected?: string }).dateinspected ?? "",
-              fsecbuildingcount: Number((rec as { fsecbuildingcount?: number }).fsecbuildingcount ?? 0) || 0,
-              fsecgovcount: Number((rec as { fsecgovcount?: number }).fsecgovcount ?? 0) || 0,
-              fsecpezacount: Number((rec as { fsecpezacount?: number }).fsecpezacount ?? 0) || 0,
-              fsectiezacount: Number((rec as { fsectiezacount?: number }).fsectiezacount ?? 0) || 0,
-              fsicoccupancycount: Number((rec as { fsicoccupancycount?: number }).fsicoccupancycount ?? 0) || 0,
-              fsicbplonewcount: Number((rec as { fsicbplonewcount?: number }).fsicbplonewcount ?? 0) || 0,
-              fsicbplorenewcount: Number((rec as { fsicbplorenewcount?: number }).fsicbplorenewcount ?? 0) || 0,
-              fsicgovcount: Number((rec as { fsicgovcount?: number }).fsicgovcount ?? 0) || 0,
-              fsicpezacount: Number((rec as { fsicpezacount?: number }).fsicpezacount ?? 0) || 0,
-              fsictiezacount: Number((rec as { fsictiezacount?: number }).fsictiezacount ?? 0) || 0,
-              nodcount: Number((rec as { nodcount?: number }).nodcount ?? 0) || 0,
-              ntccount: Number((rec as { ntccount?: number }).ntccount ?? 0) || 0,
-              ntcvcount: Number((rec as { ntcvcount?: number }).ntcvcount ?? 0) || 0,
-              abatementcount: Number((rec as { abatementcount?: number }).abatementcount ?? 0) || 0,
-              closurecount: Number((rec as { closurecount?: number }).closurecount ?? 0) || 0,
-            } as unknown as Record<string, unknown>;
-            for (const k of fieldKeyList) {
-              bucket[k] += Number(flat[k] ?? 0) || 0;
-            }
+            plotComplianceRecord(rec, combined, entry.modeMonths);
           }
 
           stationMap.set(key, entry);
         }
       }
 
+      // One worksheet row per issuance mode, always MANUAL then FSIS.
       const mergedMap = Array.from(stationMap.values())
         .sort((a, b) => (a.stationCode || "").localeCompare(b.stationCode || ""))
         .reduce<Map<string, Array<{ stationno: string; stationCode: string; stationName: string; cityName: string; months: Record<number, Record<string, number>> }>>>((groupsByProvince, station) => {
           const provinceName = station.province || "Unknown Province";
           const bucket = groupsByProvince.get(provinceName) ?? [];
-          bucket.push({
-            stationno: station.stationno,
-            stationCode: station.stationCode,
-            stationName: station.stationName,
-            cityName: station.cityName,
-            months: station.months,
+          ISSUANCE_MODES.forEach((mode, i) => {
+            bucket.push({
+              stationno: `${station.stationno}-${mode.key}`,
+              stationCode: i === 0 ? station.stationCode : "",
+              stationName: `${station.stationName} — ${mode.label}`,
+              cityName: i === 0 ? station.cityName : "",
+              months: station.modeMonths[mode.key],
+            });
           });
           groupsByProvince.set(provinceName, bucket);
           return groupsByProvince;
         }, new Map());
       const merged = Array.from(mergedMap.entries()).map(([province, stations]) => ({ province, stations }));
+
 
       const flatFields = COMPLIANCE_FIELDS.map((f) => ({
         key: String(f.key),
@@ -608,7 +631,7 @@ export default function ComplianceMatrixTable({
     }
   };
 
-  const totalCols = 1 + 12 * catSpan + 4 * catSpan + catSpan + catSpan + catSpan;
+  const totalCols = 2 + 12 * catSpan + 4 * catSpan + catSpan + catSpan + catSpan;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -856,6 +879,13 @@ function MatrixHeader({
         >
           Station
         </th>
+        <th
+          rowSpan={4}
+          className={`sticky left-[240px] top-0 z-40 min-w-[120px] border-b border-r px-3 py-2 text-center uppercase tracking-wider ${STYLE.stationHead}`}
+        >
+          Mode of Issuance
+        </th>
+
         {QUARTERS.map((q) => (
           <th
             key={q.label}
@@ -999,15 +1029,17 @@ function ProvinceBlock({
     <>
       <tr>
         <td
+          colSpan={2}
           className={`sticky left-0 z-10 border-b border-t-2 border-t-slate-400/60 px-3 py-1.5 text-[12px] uppercase tracking-[0.2em] ${STYLE.provHeaderRow}`}
         >
           {group.province}
         </td>
         <td
-          colSpan={totalCols - 1}
+          colSpan={totalCols - 2}
           aria-hidden="true"
           className="border-b border-t-2 border-grid-strong group-row"
         />
+
       </tr>
       {group.stations.map((s, idx) => (
         <StationDataRow
@@ -1083,50 +1115,74 @@ function StationDataRow({
   year: number;
   onDrill: (stationno: string, year: number, month: number) => void;
 }) {
-  const agg = computeAgg(station.months, fieldKeys);
   const rowBg = zebra ? "bg-muted" : "bg-card";
+  // Two rows per station — always MANUAL (fsicmode 96) first, FSIS (97) second.
   return (
-    <tr className={rowBg}>
-      <td className={`sticky left-0 z-10 border-b border-r px-3 py-2 ${rowBg}`}>
-        <div className="flex items-center gap-2">
-          <AvatarWithFallback
-            entity={{ name: station.stationname }}
-            name={station.stationname}
-            className="h-8 w-8 shrink-0 rounded-full ring-1 ring-primary/20"
-          />
-          <div className="min-w-0">
-            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
-              {station.stationcode}
-            </span>
-            <div className="truncate text-[11px] font-semibold">{station.stationname}</div>
-          </div>
-        </div>
-      </td>
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mv) => {
-        const bucket = station.months[mv];
-        const quarterEnd = mv === 3 || mv === 6 || mv === 9 || mv === 12;
-        return fieldKeys.map((k, i) => (
-          <DrillCell
-            key={`${station.stationno}-${mv}-${k}`}
-            value={bucket?.[k] ?? 0}
-            boundary={i === fieldKeys.length - 1 && quarterEnd}
-          />
+    <>
+      {ISSUANCE_MODES.map((mode, mi) => {
+        const months = station.modeMonths[mode.key] ?? {};
+        const agg = computeAgg(months, fieldKeys);
+        return (
+          <tr key={`${station.stationno}-${mode.key}`} className={rowBg}>
+            <td className={`sticky left-0 z-10 border-b border-r px-3 py-2 ${rowBg}`}>
+              <div className="flex items-center gap-2">
+                {mi === 0 ? (
+                  <AvatarWithFallback
+                    entity={{ name: station.stationname }}
+                    name={station.stationname}
+                    className="h-8 w-8 shrink-0 rounded-full ring-1 ring-primary/20"
+                  />
+                ) : (
+                  <div className="h-8 w-8 shrink-0" aria-hidden="true" />
+                )}
+                <div className="min-w-0">
+                  {mi === 0 ? (
+                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                      {station.stationcode}
+                    </span>
+                  ) : null}
+                  {mi === 0 ? (
+                    <div className="truncate text-[11px] font-semibold">
+                      {station.stationname}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </td>
+            <td
+              className={`sticky left-[240px] z-10 border-b border-r px-3 py-2 text-center text-[11px] font-semibold uppercase ${rowBg}`}
+            >
+              {mode.label}
+            </td>
 
-        ));
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mv) => {
+              const bucket = months[mv];
+              const quarterEnd = mv === 3 || mv === 6 || mv === 9 || mv === 12;
+              return fieldKeys.map((k, i) => (
+                <DrillCell
+                  key={`${station.stationno}-${mode.key}-${mv}-${k}`}
+                  value={bucket?.[k] ?? 0}
+                  boundary={i === fieldKeys.length - 1 && quarterEnd}
+                />
+              ));
+            })}
+            {(["q1", "q2", "q3", "q4", "sem1", "sem2", "annual"] as const).map((grp) =>
+              fieldKeys.map((k, i) => (
+                <DrillCell
+                  key={`${station.stationno}-${mode.key}-${grp}-${k}`}
+                  value={agg[grp][k] ?? 0}
+                  bold
+                  boundary={i === fieldKeys.length - 1}
+                />
+              )),
+            )}
+          </tr>
+        );
       })}
-      {(["q1", "q2", "q3", "q4", "sem1", "sem2", "annual"] as const).map((grp) =>
-        fieldKeys.map((k, i) => (
-          <DrillCell
-            key={`${station.stationno}-${grp}-${k}`}
-            value={agg[grp][k] ?? 0}
-            bold
-            boundary={i === fieldKeys.length - 1}
-          />
-        )),
-      )}
-    </tr>
+    </>
   );
 }
+
 
 function ProvincialTotalRow({
   months,
@@ -1141,6 +1197,7 @@ function ProvincialTotalRow({
   return (
     <tr>
       <td
+        colSpan={2}
         className={`sticky left-0 z-10 border-b border-r px-3 py-2 text-[11px] uppercase tracking-wider ${STYLE.provTotalRow}`}
       >
         Provincial Total — {province}
