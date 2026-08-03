@@ -14,12 +14,12 @@ const OptionButton = React.forwardRef<HTMLButtonElement, OptionButtonProps>(
   ({ variant = "square", disabled = false, className = "", tooltip, ...rest }, ref) => {
     // add `group` so children (icon) can react to hover via `group-hover` classes
     const baseSquare =
-      "group rounded-md p-2 bg-transparent text-emerald-500 transition-colors hover:bg-emerald-500 hover:text-white cursor-pointer";
+      "group rounded-md p-2 bg-transparent text-primary transition-colors hover:bg-primary hover:text-primary-foreground cursor-pointer";
     const baseCircle =
-      "group inline-flex items-center justify-center h-8 w-8 rounded-full bg-transparent shadow-sm text-emerald-500 hover:bg-emerald-500 hover:text-white transition-colors cursor-pointer";
+      "group inline-flex items-center justify-center h-8 w-8 rounded-full bg-transparent shadow-sm text-primary hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer";
 
     const disabledClass =
-      "opacity-50 cursor-not-allowed hover:!bg-transparent hover:!text-emerald-500";
+      "opacity-50 cursor-not-allowed hover:!bg-transparent hover:!text-primary";
 
     const classes = `${variant === "circle" ? baseCircle : baseSquare} ${
       disabled ? disabledClass : ""
@@ -33,7 +33,7 @@ const OptionButton = React.forwardRef<HTMLButtonElement, OptionButtonProps>(
         {...(rest as any)}
       >
         {/* ensure icon color responds to parent hover using group-hover */}
-        <MoreVertical className="h-4 w-3 text-current transition-colors group-hover:text-white" />
+        <MoreVertical className="h-4 w-3 text-current transition-colors" />
       </button>
     );
 

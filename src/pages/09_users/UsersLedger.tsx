@@ -3,7 +3,16 @@ import { usePagination } from "@/hooks/usePagination";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
-import { Loader2, Users, ShieldCheck, ShieldOff, Slash, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Users,
+  ShieldCheck,
+  ShieldOff,
+  Slash,
+  AlertTriangle,
+  UserCog,
+  Building2,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +22,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import GentableSearchSelect from "@/components/gentable-search-select";
+import OptionButton from "@/components/option-button";
+import OfficeSearchSelect from "@/components/office-search-select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import SearchKey from "@/components/search-key";
 import PaginationControls from "@/components/pagination";
 import LocationSearchSelect from "@/components/location-search-select";
@@ -86,28 +107,122 @@ export default function UsersLedger({ variant, title, description }: Props) {
   const [selectedRole, setSelectedRole] = React.useState<string>("");
   const [selectedRoleName, setSelectedRoleName] = React.useState<string>("");
   const [activateConfirmOpen, setActivateConfirmOpen] = React.useState(false);
-  const canShowSuperRole = React.useMemo(() => {
-    const currentRole = systemAccess?.roleno ?? 0;
-    const selectedStationType = activateTarget?.stationtype ?? 0;
-    const restrictedStationTypes = [27, 28, 29, 30, 31];
-    if (restrictedStationTypes.includes(selectedStationType)) return false;
-    return currentRole === 1;
-  }, [activateTarget?.stationtype, systemAccess?.roleno]);
-  const filterAccountRoleRows = React.useCallback(
-    (rows: import("@/types/gentableType").SearchGentableModel[]) =>
-      rows.filter((row) => {
-        const code = String(row.recordcode ?? "").trim().toUpperCase();
-        const desc = String(row.description ?? "").trim().toUpperCase();
-        const isSuperRow =
-          code === "SUPER" ||
-          desc === "SUPER ADMINISTRATOR" ||
-          desc === "SUPER ADMIN" ||
-          desc.includes("SUPER ADMINISTRATOR") ||
-          desc.includes("SUPER ADMIN");
-        return isSuperRow ? canShowSuperRole : true;
-      }),
-    [canShowSuperRole],
+
+  // Role-update dialog (active users only)
+  const [roleTarget, setRoleTarget] = React.useState<UserModel | null>(null);
+  const [newRole, setNewRole] = React.useState<string>("");
+  const [newRoleName, setNewRoleName] = React.useState<string>("");
+
+  // Station-assignment dialog (active users only)
+  const [stationTarget, setStationTarget] = React.useState<UserModel | null>(null);
+  const [newStationno, setNewStationno] = React.useState<string>("");
+  const [newStationname, setNewStationname] = React.useState<string>("");
+  const [newOfficeno, setNewOfficeno] = React.useState<string>("");
+  const [newOfficename, setNewOfficename] = React.useState<string>("");
+  const [newDesignation, setNewDesignation] = React.useState<string>("");
+
+  const currentRoleNo = systemAccess?.roleno ?? 0;
+
+  /**
+   * Account-role options follow the authorization matrix:
+   * - SUPER (1)     → all roles (SUPER hidden for restricted station types)
+   * - ADMIN (2)     → everything except SUPER
+   * - PERSONNEL (3) → PERSONNEL only
+   */
+  const makeRoleFilter = React.useCallback(
+    (stationtype: number | undefined) =>
+      (rows: import("@/types/gentableType").SearchGentableModel[]) =>
+        rows.filter((row) => {
+          const code = String(row.recordcode ?? "").trim().toUpperCase();
+          const desc = String(row.description ?? "").trim().toUpperCase();
+          const isSuperRow =
+            code === "SUPER" || desc.includes("SUPER ADMIN");
+          const isPersonnelRow =
+            code === "PERSONNEL" || desc.includes("PERSONNEL");
+
+          if (currentRoleNo === 3) return isPersonnelRow;
+          if (isSuperRow) {
+            if (currentRoleNo !== 1) return false;
+            const restricted = [27, 28, 29, 30, 31];
+            return !restricted.includes(Number(stationtype ?? 0));
+          }
+          return true;
+        }),
+    [currentRoleNo],
   );
+
+  const filterAccountRoleRows = React.useMemo(
+    () => makeRoleFilter(activateTarget?.stationtype),
+    [makeRoleFilter, activateTarget?.stationtype],
+  );
+  const filterUpdateRoleRows = React.useMemo(
+    () => makeRoleFilter(roleTarget?.stationtype),
+    [makeRoleFilter, roleTarget?.stationtype],
+  );
+
+  const openRoleDialog = (r: UserModel) => {
+    setRoleTarget(r);
+    setNewRole(r.roleno ? String(r.roleno) : "");
+    setNewRoleName(r.rolename || "");
+  };
+
+  const openStationDialog = (r: UserModel) => {
+    setStationTarget(r);
+    setNewStationno(r.stationno || "");
+    setNewStationname(r.stationname || "");
+    setNewOfficeno("");
+    setNewOfficename("");
+    setNewDesignation("");
+  };
+
+  const submitRoleUpdate = async () => {
+    if (!roleTarget || !user || !newRole) return;
+    setBusy(true);
+    try {
+      const resp = await userAPI.UpdateAccountRole({
+        memberno: roleTarget.memberno,
+        accessno: roleTarget.accessno,
+        accountrole: Number(newRole),
+        updatedby: user.memberno,
+      });
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || "Unable to update account role.");
+        return;
+      }
+      toast.success(`${roleTarget.fullname}'s role updated to ${newRoleName}.`);
+      setRoleTarget(null);
+      refresh();
+      emitUsersChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitStationUpdate = async () => {
+    if (!stationTarget || !user || !newStationno) return;
+    setBusy(true);
+    try {
+      const resp = await userAPI.updateStation({
+        memberno: stationTarget.memberno,
+        stationno: newStationno,
+        officeno: Number(newOfficeno) || 0,
+        designation: newDesignation,
+        updatedby: user.memberno,
+      });
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || "Unable to update station assignment.");
+        return;
+      }
+      toast.success(`${stationTarget.fullname} reassigned to ${newStationname}.`);
+      setStationTarget(null);
+      refresh();
+      emitUsersChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   React.useEffect(() => subscribeUsers(refresh), [refresh]);
 
@@ -247,6 +362,26 @@ export default function UsersLedger({ variant, title, description }: Props) {
     setStationname(stationEditable ? "" : user?.stationname || "");
     setPage(1);
   };
+
+  const RowOptions = ({ r }: { r: UserModel }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <OptionButton variant="circle" tooltip="More options" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuLabel className="text-xs">Manage user</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => openRoleDialog(r)} className="gap-2">
+          <UserCog className="h-4 w-4" />
+          Update Account Role
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => openStationDialog(r)} className="gap-2">
+          <Building2 className="h-4 w-4" />
+          Update Station Assignment
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <div className="space-y-6">
@@ -413,6 +548,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
                         {actionLabel}
                       </Button>
                     )}
+                    {variant === "active" ? <RowOptions r={r} /> : null}
                   </div>
                 </Card>
               );
@@ -441,22 +577,25 @@ export default function UsersLedger({ variant, title, description }: Props) {
                       className="border-t border-border/60 hover:bg-muted/30"
                     >
                       <td className="px-3 py-2">
-                        {variant === "active" && isAdministrator() && r.roleno === 1 ? (
-                          <Button size="sm" disabled className="gap-1.5">
-                            <Slash className="h-4 w-4" />
-                            {actionLabel}
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant={variant === "available" ? "default" : "destructive"}
-                            onClick={() => askConfirm(r)}
-                            className="gap-1.5"
-                          >
-                            <ActionIcon className="h-4 w-4" />
-                            {actionLabel}
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {variant === "active" && isAdministrator() && r.roleno === 1 ? (
+                            <Button size="sm" disabled className="gap-1.5">
+                              <Slash className="h-4 w-4" />
+                              {actionLabel}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant={variant === "available" ? "default" : "destructive"}
+                              onClick={() => askConfirm(r)}
+                              className="gap-1.5"
+                            >
+                              <ActionIcon className="h-4 w-4" />
+                              {actionLabel}
+                            </Button>
+                          )}
+                          {variant === "active" ? <RowOptions r={r} /> : null}
+                        </div>
                       </td>
 
                       <td className="px-3 py-2">
@@ -552,17 +691,17 @@ export default function UsersLedger({ variant, title, description }: Props) {
 
       {/* Activation modal: select role before activating */}
       <Dialog open={!!activateTarget} onOpenChange={(o) => !o && setActivateTarget(null)}>
-        <DialogContent className="flex max-h-[calc(100vh-1rem)] w-full max-w-[min(100vw-1rem,640px)] min-w-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
-          <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 sm:px-5 sm:py-4">
+        <DialogContent className="flex max-h-[calc(100vh-1rem)] w-full max-w-[min(100vw-1rem,680px)] min-w-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-lg">
+          <DialogHeader className="shrink-0 border-b border-border bg-muted/40 px-5 py-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm sm:h-11 sm:w-11">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <DialogTitle className="truncate text-base font-semibold text-foreground sm:text-lg">
+                <DialogTitle className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
                   Activate User
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground/90 sm:text-sm">
+                <DialogDescription className="text-sm text-muted-foreground">
                   Assign a role to the user before activation.
                 </DialogDescription>
               </div>
@@ -571,10 +710,10 @@ export default function UsersLedger({ variant, title, description }: Props) {
 
           {activateTarget ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              <div className="space-y-3 p-4 sm:space-y-4 sm:p-5">
-                <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-                  <Card className="min-w-0 rounded-2xl border border-border/70 bg-background p-3 shadow-sm sm:p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:text-xs">
+              <div className="space-y-4 p-5">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-none">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
                       Personnel Information
                     </div>
                     <div className="mt-3 flex items-center gap-3">
@@ -582,46 +721,50 @@ export default function UsersLedger({ variant, title, description }: Props) {
                         entity={activateTarget}
                         src={activateTarget.profileurl || undefined}
                         name={activateTarget.fullname}
-                        className="h-12 w-12 shrink-0 sm:h-14 sm:w-14"
+                        className="h-12 w-12 shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-foreground sm:text-base">
+                        <div className="text-sm font-semibold leading-snug text-foreground break-words">
                           {activateTarget.rankcode ? `${activateTarget.rankcode} ` : ""}
                           {activateTarget.fullname}
                         </div>
-                        <div className="mt-1 truncate text-xs text-muted-foreground tabular-nums sm:text-sm">
-                          {activateTarget.badgeno || "—"}
+                        <div className="mt-1 text-sm text-muted-foreground tabular-nums">
+                          Badge {activateTarget.badgeno || "—"}
                         </div>
                       </div>
                     </div>
                   </Card>
 
-                  <Card className="min-w-0 rounded-2xl border border-border/70 bg-background p-3 shadow-sm sm:p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:text-xs">
+                  <Card className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-none">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
                       Station Information
                     </div>
                     <div className="mt-3 flex items-center gap-3">
                       <AvatarWithFallback
                         src={activateTarget.logourl || undefined}
                         name={activateTarget.stationname}
-                        className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
+                        className="h-12 w-12 shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-foreground sm:text-base">
+                        <div className="text-sm font-semibold leading-snug text-foreground break-words">
                           {activateTarget.stationname || "—"}
                         </div>
-                        <div className="mt-1 truncate text-xs text-muted-foreground tabular-nums sm:text-sm">
+                        <div className="mt-1 text-sm text-muted-foreground">
                           {activateTarget.stationcode || "—"}
+                          {activateTarget.provincename ? ` · ${activateTarget.provincename}` : ""}
                         </div>
                       </div>
                     </div>
                   </Card>
                 </div>
 
-                <Card className="min-w-0 rounded-2xl border border-border/70 bg-background p-3 shadow-sm sm:p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:text-xs">
+                <Card className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-none">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
                     Role Selection
                   </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Determines what this member can access in FSIMS.
+                  </p>
                   <div className="mt-3">
                     <GentableSearchSelect
                       tablename="ACCOUNT ROLE"
@@ -639,7 +782,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
                 </Card>
               </div>
 
-              <DialogFooter className="shrink-0 flex flex-col-reverse gap-2 border-t border-border/70 bg-muted/20 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-5 sm:py-4">
+              <DialogFooter className="shrink-0 flex flex-col-reverse gap-2 border-t border-border bg-muted/30 px-5 py-4 sm:flex-row sm:justify-end sm:gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setActivateTarget(null)}
@@ -674,6 +817,189 @@ export default function UsersLedger({ variant, title, description }: Props) {
         confirmVariant="success"
         onConfirm={activateConfirmed}
       />
+
+      {/* Update Account Role */}
+      <Dialog open={!!roleTarget} onOpenChange={(o) => !o && setRoleTarget(null)}>
+        <DialogContent className="w-full max-w-[min(100vw-1rem,560px)] gap-0 overflow-hidden p-0 sm:rounded-lg">
+          <DialogHeader className="border-b border-border bg-muted/40 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <UserCog className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-base font-semibold tracking-tight sm:text-lg">
+                  Update Account Role
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Change the FSIMS access level for this member.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          {roleTarget ? (
+            <div className="space-y-4 p-5">
+              <Card className="rounded-lg border border-border bg-card p-4 shadow-none">
+                <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
+                  Personnel Information
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <AvatarWithFallback
+                    entity={roleTarget}
+                    src={roleTarget.profileurl || undefined}
+                    name={roleTarget.fullname}
+                    className="h-12 w-12 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold leading-snug break-words">
+                      {roleTarget.rankcode ? `${roleTarget.rankcode} ` : ""}
+                      {roleTarget.fullname}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      Current role: {roleTarget.rolename || "—"}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <Card className="rounded-lg border border-border bg-card p-4 shadow-none">
+                <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
+                  New Account Role
+                </div>
+                <div className="mt-3">
+                  <GentableSearchSelect
+                    tablename="ACCOUNT ROLE"
+                    value={newRole}
+                    valueName={newRoleName}
+                    onChange={(detno, description) => {
+                      setNewRole(detno);
+                      setNewRoleName(description);
+                    }}
+                    placeholder="Select role"
+                    hideCode
+                    rowFilter={filterUpdateRoleRows}
+                  />
+                </div>
+              </Card>
+            </div>
+          ) : null}
+          <DialogFooter className="flex flex-col-reverse gap-2 border-t border-border bg-muted/30 px-5 py-4 sm:flex-row sm:justify-end sm:gap-3">
+            <Button variant="outline" onClick={() => setRoleTarget(null)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button
+              disabled={!newRole || busy}
+              onClick={submitRoleUpdate}
+              className="w-full sm:w-auto"
+            >
+              {busy ? "Saving…" : "Save Role"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Station Assignment */}
+      <Dialog open={!!stationTarget} onOpenChange={(o) => !o && setStationTarget(null)}>
+        <DialogContent className="flex max-h-[calc(100vh-1rem)] w-full max-w-[min(100vw-1rem,620px)] flex-col gap-0 overflow-hidden p-0 sm:rounded-lg">
+          <DialogHeader className="shrink-0 border-b border-border bg-muted/40 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-base font-semibold tracking-tight sm:text-lg">
+                  Update Station Assignment
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Reassign this member to another station or office.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          {stationTarget ? (
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+              <Card className="rounded-lg border border-border bg-card p-4 shadow-none">
+                <div className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
+                  Current Assignment
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <AvatarWithFallback
+                    src={stationTarget.logourl || undefined}
+                    name={stationTarget.stationname}
+                    className="h-12 w-12 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold leading-snug break-words">
+                      {stationTarget.stationname || "—"}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {stationTarget.stationcode || "—"}
+                      {stationTarget.provincename ? ` · ${stationTarget.provincename}` : ""}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-none">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
+                    Station
+                  </label>
+                  <div className="mt-2">
+                    <StationSearchSelect
+                      value={newStationno}
+                      valueName={newStationname}
+                      onChange={(no, name) => {
+                        setNewStationno(no);
+                        setNewStationname(name);
+                      }}
+                      placeholder="Select station"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
+                    Office
+                  </label>
+                  <div className="mt-2">
+                    <OfficeSearchSelect
+                      value={newOfficeno || undefined}
+                      valueName={newOfficename}
+                      onChange={(detno, name) => {
+                        setNewOfficeno(detno);
+                        setNewOfficename(name);
+                      }}
+                      placeholder="Select office"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-foreground/70">
+                    Designation
+                  </label>
+                  <Textarea
+                    className="mt-2 min-h-[6.5rem] resize-y"
+                    rows={4}
+                    value={newDesignation}
+                    onChange={(e) => setNewDesignation(e.target.value)}
+                    placeholder="e.g. Fire Safety Inspector"
+                  />
+                </div>
+              </Card>
+            </div>
+          ) : null}
+          <DialogFooter className="shrink-0 flex flex-col-reverse gap-2 border-t border-border bg-muted/30 px-5 py-4 sm:flex-row sm:justify-end sm:gap-3">
+            <Button variant="outline" onClick={() => setStationTarget(null)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button
+              disabled={!newStationno || busy}
+              onClick={submitStationUpdate}
+              className="w-full sm:w-auto"
+            >
+              {busy ? "Saving…" : "Save Assignment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
