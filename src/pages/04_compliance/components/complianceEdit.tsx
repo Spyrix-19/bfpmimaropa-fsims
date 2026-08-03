@@ -995,15 +995,15 @@ function ComplianceEditBody({
 
   /* ---------------------------------- UI --------------------------------- */
 
-  // When an APPROVED revision is active, treat all days as unlocked;
-  // when PENDING, force every day locked so no edits happen.
+  // Per-day locking: `editablestatus === 153` unlocks that day, a pending
+  // revision request keeps it locked.
   const rawDays = Array.from(editableDays.values());
   const days = rawDays.map((d) => {
-    if (revisionUnlocks) return { ...d, isLocked: false };
-    if (isPending) return { ...d, isLocked: true };
-    return d;
+    const rev = dayRevision(d);
+    return { ...d, isLocked: rev.locked, rev };
   });
   const allLocked = days.length > 0 && days.every((d) => d.isLocked);
+
 
   if (loading) {
     return (
