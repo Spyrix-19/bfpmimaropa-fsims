@@ -1,5 +1,5 @@
 import { ShieldCheck } from "lucide-react";
-import LogisticsBoard from "../07_logistics/components/LogisticsBoard";
+import LogisticsBoard from "../08_bwc/components/LogisticsBoard";
 import {
   MOCK_FIRE_SAFETY_INSPECTORS,
   totalInspectors,
