@@ -6,6 +6,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -39,7 +41,25 @@ import ReadOnlyField from "./ReadOnlyField";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 
 import StationSearchSelect from "@/components/station-search-select";
-import StationInfoCard from "@/components/station-info-card";
+import StationInfoCard, { StationSectionTitle } from "@/components/station-info-card";
+import { Card } from "@/components/ui/card";
+
+/** "2026-08-04" -> "August 4th, 2026" */
+function formatLongOrdinalDate(value: string): string {
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return value;
+  const monthName = new Date(y, m - 1, d).toLocaleString("en-US", { month: "long" });
+  const suffix =
+    d % 10 === 1 && d !== 11
+      ? "st"
+      : d % 10 === 2 && d !== 12
+        ? "nd"
+        : d % 10 === 3 && d !== 13
+          ? "rd"
+          : "th";
+  return `${monthName} ${d}${suffix}, ${y}`;
+}
+import { useStationDetails } from "@/hooks/useStationDetails";
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/auth";
@@ -205,7 +225,7 @@ export default function TargetReferenceForm({
   );
 
   const [station, setStation] = React.useState<SearchStationModel | null>(null);
-  const [stationLoading, setStationLoading] = React.useState(false);
+  
   const [selectedStationLabel, setSelectedStationLabel] = React.useState<string>("");
   const [initializedForOpen, setInitializedForOpen] = React.useState(false);
 
@@ -254,50 +274,16 @@ export default function TargetReferenceForm({
     user?.stationno,
   ]);
 
-  React.useEffect(() => {
-    if (!open || !stationNo || stationNo === EMPTY_GUID) {
-      setStation(null);
-      return;
-    }
-    if (station?.stationno === stationNo) return;
+  // Station code / city / province / logo for the Station Information card.
+  // Uses the picker-provided model when present, otherwise resolves it from the
+  // station search (with the login's own scope as fallback).
+  const stationDetails = useStationDetails({
+    stationno: stationNo,
+    preloaded: station,
+    provinceno: scope.provinceLocked ? scope.provinceno : provinceno,
+    enabled: open,
+  });
 
-    let cancelled = false;
-    (async () => {
-      setStationLoading(true);
-      // Backend search is text-based (stationcode/name), not GUID.
-      // Query with the login's stationcode, then pick the row whose stationno
-      // matches — the dropdown becomes the single source of truth.
-      const searchKey = user?.stationcode || user?.stationname || "";
-      const resp = await stationAPI.search(
-        {
-          searchKey,
-          provinceno: scope.provinceLocked ? scope.provinceno || undefined : undefined,
-          pageNumber: 1,
-          pageSize: 20,
-        },
-        { suppressGlobalLoading: true },
-      );
-      const { ok, data } = unwrap<SearchStationModel[]>(resp);
-      if (cancelled) return;
-      const list = ok && Array.isArray(data) ? data : [];
-      const nextStation =
-        list.find((s) => String(s.stationno) === String(stationNo)) ?? list[0] ?? null;
-      setStation(nextStation);
-      setStationLoading(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    open,
-    stationNo,
-    station,
-    scope.provinceLocked,
-    scope.provinceno,
-    user?.stationcode,
-    user?.stationname,
-  ]);
 
   // Fixed sector constants live in @/lib/fsims-constants (SECTORS).
   // 111=BPLO, 112=GOV, 113=PEZA, 114=TIEZA (OGA=115 intentionally excluded).
@@ -587,10 +573,12 @@ export default function TargetReferenceForm({
     return Object.keys(next).length === 0;
   };
 
-  const stationCode = station?.stationcode ?? "";
-  const stationName = station?.stationname ?? "";
-  const logoUrl = station?.logourl ?? "";
-  const completeAddress = station?.provincename ?? "";
+  const stationCode = stationDetails.stationCode;
+  const stationName = stationDetails.stationName;
+  const logoUrl = stationDetails.logoUrl;
+  const cityName = stationDetails.cityName;
+  const provinceLabel = stationDetails.provinceName;
+
 
   const selectedYear = Number(selectedDate.slice(0, 4));
   const selectedMonth = Number(selectedDate.slice(5, 7));
@@ -1121,11 +1109,15 @@ export default function TargetReferenceForm({
           </DialogHeader>
 
           <div className="flex flex-col gap-4 px-5 py-4">
-            {/* Year */}
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1.5">
+            {/* Reporting Period card */}
+            <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
+              <StationSectionTitle
+                icon={<Calendar className="h-4 w-4" />}
+                title="Reporting Period"
+              />
+              <div className="space-y-1.5 sm:max-w-sm">
                 <Label className="text-xs font-semibold">
-                  {isEdit ? "Period" : "Date"} <span className="text-destructive">*</span>
+                  Reporting Period As Of <span className="text-destructive">*</span>
                 </Label>
                 {isEdit ? (
                   <ReadOnlyField
@@ -1133,34 +1125,65 @@ export default function TargetReferenceForm({
                     title="Editing every day of this month"
                   />
                 ) : (
-                  <input
-                    id="target-reference-date"
-                    type="date"
-                    value={selectedDate}
-                    onChange={(event) => {
-                      setSelectedDate(event.target.value);
-                      if (errors.date) {
-                        setErrors((e) => {
-                          const n = { ...e };
-                          delete n.date;
-                          return n;
-                        });
-                      }
-                    }}
+                  <label
+                    htmlFor="target-reference-date"
                     className={cn(
-                      "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                      errors.date &&
-                        "border-destructive focus:border-destructive focus:ring-destructive",
+                      "relative flex h-11 cursor-pointer items-center gap-3 rounded-lg border bg-background px-3 text-sm transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary",
+                      errors.date ? "border-destructive" : "border-primary/60",
                     )}
-                    title="Select target reference date"
-                    aria-invalid={Boolean(errors.date)}
-                  />
+                  >
+                    <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className={cn("font-medium", !selectedDate && "text-muted-foreground")}>
+                      {selectedDate ? formatLongOrdinalDate(selectedDate) : "Select date"}
+                    </span>
+                    <input
+                      id="target-reference-date"
+                      type="date"
+                      value={selectedDate}
+                      onChange={(event) => {
+                        setSelectedDate(event.target.value);
+                        if (errors.date) {
+                          setErrors((e) => {
+                            const n = { ...e };
+                            delete n.date;
+                            return n;
+                          });
+                        }
+                      }}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      title="Select target reference date"
+                      aria-invalid={Boolean(errors.date)}
+                    />
+                  </label>
                 )}
+                <PastDatesLockedNote className="pt-0.5" />
               </div>
+            </Card>
 
-              <div className="space-y-1.5 md:col-span-2">
-                <Label>Station</Label>
-                <StationSearchSelect
+            {/* Station Information card */}
+            <StationInfoCard
+              stationName={stationName || (stationDetails.loading ? "Loading…" : "")}
+              unitCode={stationCode || ""}
+              logoUrl={logoUrl || null}
+              fields={[
+                {
+                  label: "Station Code",
+                  value: stationCode || (stationDetails.loading ? "Loading…" : ""),
+                },
+                {
+                  label: "City / Municipality",
+                  value: cityName || (stationDetails.loading ? "Loading…" : ""),
+                },
+                {
+                  label: "Province",
+                  value: provinceLabel || (stationDetails.loading ? "Loading…" : ""),
+                },
+              ]}
+            >
+              {!(isEdit || scope.stationLocked) && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Station</Label>
+                  <StationSearchSelect
                   value={stationNo}
                   valueName={selectedStationLabel}
                   provinceno={scope.provinceLocked ? scope.provinceno : provinceno || undefined}
@@ -1181,23 +1204,10 @@ export default function TargetReferenceForm({
                     scope.stationLocked ? "Restricted to your assigned station" : "Select station"
                   }
                 />
-              </div>
-            </div>
+                </div>
+              )}
+            </StationInfoCard>
 
-            {/* Station Information card */}
-            <StationInfoCard
-              stationName={stationName || (stationLoading ? "Loading…" : "")}
-              unitCode={stationCode || ""}
-              logoUrl={logoUrl || null}
-              fields={[
-                { label: "Station Code", value: stationCode || (stationLoading ? "Loading…" : "") },
-                { label: "City / Municipality", value: station?.cityname ?? "" },
-                {
-                  label: "Province",
-                  value: completeAddress || (stationLoading ? "Loading…" : ""),
-                },
-              ]}
-            />
 
             <div className="flex flex-col rounded-lg border border-border/60 overflow-hidden">
               <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">

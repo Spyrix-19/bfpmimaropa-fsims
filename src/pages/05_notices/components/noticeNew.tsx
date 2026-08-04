@@ -25,10 +25,12 @@ import {
 } from "recharts";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 
+import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import StationInfoCard from "@/components/station-info-card";
+import { useStationDetails } from "@/hooks/useStationDetails";
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
@@ -513,6 +515,15 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   const selectedDateKey = format(reportingDate, "yyyy-MM-dd");
   const stationno = record?.stationno ?? "";
 
+  // Resolves station code / city / province / logo for the Station Information card.
+  const stationDetails = useStationDetails({
+    stationno,
+    searchKey: record?.stationcode || record?.stationname || "",
+    provinceno: record?.provinceno,
+    enabled: open,
+  });
+
+
   /** Reset the form whenever the modal opens — the period defaults to today. */
   React.useEffect(() => {
     if (!open) return;
@@ -770,6 +781,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                 Select a reporting period and station, then encode the notices accomplished
                 (complied/closed) for the day.
               </DialogDescription>
+              <PastDatesLockedNote className="mt-1" />
             </div>
           </div>
         </DialogHeader>
@@ -825,18 +837,35 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                 </Popover>
               </Field>
             </div>
+
           </Card>
 
           {/* 2. Station Information ------------------------------------------ */}
           <StationInfoCard
-            stationName={record.stationname || ""}
-            unitCode={record.stationcode || ""}
-            logoUrl={record.logourl || null}
+            stationName={stationDetails.stationName || record.stationname || ""}
+            unitCode={stationDetails.stationCode || record.stationcode || ""}
+            logoUrl={stationDetails.logoUrl || record.logourl || null}
             fields={[
-              { label: "Station Code", value: record.stationcode ?? "" },
-              { label: "City / Municipality", value: record.cityname ?? "" },
-              { label: "Province", value: record.provincename || record.province || "" },
+              {
+                label: "Station Code",
+                value: stationDetails.stationCode || record.stationcode || "",
+              },
+              {
+                label: "City / Municipality",
+                value:
+                  record.cityname || stationDetails.cityName ||
+                  (stationDetails.loading ? "Loading…" : ""),
+              },
+              {
+                label: "Province",
+                value:
+                  record.provincename ||
+                  record.province ||
+                  stationDetails.provinceName ||
+                  (stationDetails.loading ? "Loading…" : ""),
+              },
             ]}
+
           />
 
           {/* 3. Issued vs. Accomplished -------------------------------------- */}

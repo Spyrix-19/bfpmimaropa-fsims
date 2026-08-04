@@ -39,7 +39,8 @@ import ReadOnlyField from "./ReadOnlyField";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 
 import StationSearchSelect from "@/components/station-search-select";
-import StationInfoCard from "@/components/station-info-card";
+import StationInfoCard, { StationSectionTitle } from "@/components/station-info-card";
+import { Card } from "@/components/ui/card";
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/auth";
@@ -156,6 +157,25 @@ export default function TargetReferenceForm({
 
   const [year, setYear] = React.useState<number>(currentYear);
   const [month, setMonth] = React.useState<number>(currentMonth);
+  const currentDay = today.getDate();
+  /**
+   * Duplicate/existence checks are DATE-based, not month-based: only the
+   * specific target date being encoded (today, within the selected period)
+   * counts as an existing record.
+   */
+  const checkDayKey = React.useMemo(
+    () => (year === currentYear && month === currentMonth ? String(currentDay) : null),
+    [year, month, currentYear, currentMonth, currentDay],
+  );
+  const checkDateLabel = React.useMemo(
+    () =>
+      new Date(year, month - 1, checkDayKey ? Number(checkDayKey) : 1).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [year, month, checkDayKey],
+  );
   const years = React.useMemo(() => buildYears(), []);
   const days = React.useMemo(() => buildDays(year, month), [year, month]);
   const [cells, setCells] = React.useState<CellMap>({});
@@ -451,7 +471,6 @@ export default function TargetReferenceForm({
       const nextIds: Record<string, string> = {};
       const nextEditableStatus: Record<string, number> = {};
       const nextIsRevReq: Record<string, boolean> = {};
-      let hasAny = false;
       if (ok && data) {
         (data.targetreferencelist ?? []).forEach((it) => {
           // Daily mapping — API returns `targetdate` per day of the month.
@@ -466,14 +485,14 @@ export default function TargetReferenceForm({
           nextIsRevReq[dayKey] = Boolean(it.isrevisionrequest);
           if (it.targetno && it.targetno !== EMPTY_GUID) {
             nextIds[dayKey] = it.targetno;
-            hasAny = true;
           }
         });
       }
 
-      // Duplicate detection during Add: if any target already exists for the
-      // selected station + year, prompt the user to switch into Edit mode.
-      if (!isEditProp && hasAny && !duplicatePrompted) {
+      // Duplicate detection during Add: DATE-based — only prompt when a target
+      // already exists for the exact date being encoded (not anywhere in the month).
+      const dateHasSaved = Boolean(checkDayKey && nextIds[checkDayKey]);
+      if (!isEditProp && dateHasSaved && !duplicatePrompted) {
         setDuplicatePrompted(true);
         setPendingDuplicateData({
           cells: nextCells,
@@ -506,6 +525,7 @@ export default function TargetReferenceForm({
     duplicatePrompted,
     onOpenChange,
     reloadNonce,
+    checkDayKey,
   ]);
 
   const setCell = (day: number, sectorNo: number, raw: string) => {
@@ -563,7 +583,8 @@ export default function TargetReferenceForm({
     };
   };
 
-  const checkExistingTargetReference = async (stationNumber: string, reportYear: number) => {
+  /** Fetches and maps the saved period data (no date gating). */
+  const fetchExistingTargetData = async (stationNumber: string, reportYear: number) => {
     const resp = await targetreferenceAPI.getDetail(
       { stationno: stationNumber, reportyear: reportYear, reportmonth: Number(month) },
       { suppressGlobalLoading: true },
@@ -580,9 +601,14 @@ export default function TargetReferenceForm({
       return null;
     }
     if (!data) return null;
-    const built = buildExistingTargetData(data);
-    // No real saved month -> nothing to duplicate.
-    if (Object.keys(built.ids).length === 0) return null;
+    return buildExistingTargetData(data);
+  };
+
+  const checkExistingTargetReference = async (stationNumber: string, reportYear: number) => {
+    const built = await fetchExistingTargetData(stationNumber, reportYear);
+    if (!built) return null;
+    // Date-based: nothing to duplicate unless the exact target date is saved.
+    if (!checkDayKey || !built.ids[checkDayKey]) return null;
     return built;
   };
 
@@ -631,7 +657,7 @@ export default function TargetReferenceForm({
 
     let resolvedExistingTargetNos = existingTargetNos;
     if (isEdit) {
-      const existingLookup = await checkExistingTargetReference(submitStationNo, Number(year));
+      const existingLookup = await fetchExistingTargetData(submitStationNo, Number(year));
       if (existingLookup?.ids && Object.keys(existingLookup.ids).length > 0) {
         resolvedExistingTargetNos = { ...existingTargetNos, ...existingLookup.ids };
         setExistingTargetNos(resolvedExistingTargetNos);
@@ -962,11 +988,15 @@ export default function TargetReferenceForm({
           </DialogHeader>
 
           <div className="flex flex-col gap-4 px-5 py-4">
-            {/* Year */}
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1.5">
+            {/* Reporting Period card */}
+            <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
+              <StationSectionTitle
+                icon={<Calendar className="h-4 w-4" />}
+                title="Reporting Period"
+              />
+              <div className="space-y-1.5 sm:max-w-sm">
                 <Label className="text-xs font-semibold">
-                  {isEdit ? "Period" : "Date"} <span className="text-destructive">*</span>
+                  Reporting Period As Of <span className="text-destructive">*</span>
                 </Label>
                 {isEdit ? (
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -1016,32 +1046,7 @@ export default function TargetReferenceForm({
                   />
                 )}
               </div>
-
-              <div className="space-y-1.5 md:col-span-2">
-                <Label>Station</Label>
-                <StationSearchSelect
-                  value={stationNo}
-                  valueName={selectedStationLabel}
-                  provinceno={scope.provinceLocked ? scope.provinceno : provinceno || undefined}
-                  onChange={(stationno, stationname, province, station) => {
-                    setStationNo(stationno);
-                    setStation(station ?? null);
-                    if (station?.provinceno) {
-                      setProvinceno(station.provinceno);
-                      setProvincename(station.provincename || province || "");
-                    }
-                    setSelectedStationLabel(
-                      province ? `${stationname} — ${province}` : stationname,
-                    );
-                  }}
-                  readOnly={isEdit || scope.stationLocked}
-                  showAllOption={canShowAllStationOption}
-                  placeholder={
-                    scope.stationLocked ? "Restricted to your assigned station" : "Select station"
-                  }
-                />
-              </div>
-            </div>
+            </Card>
 
             {/* Station Information card */}
             <StationInfoCard
@@ -1056,7 +1061,34 @@ export default function TargetReferenceForm({
                   value: completeAddress || (stationLoading ? "Loading…" : ""),
                 },
               ]}
-            />
+            >
+              {!(isEdit || scope.stationLocked) && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Station</Label>
+                  <StationSearchSelect
+                    value={stationNo}
+                    valueName={selectedStationLabel}
+                    provinceno={scope.provinceLocked ? scope.provinceno : provinceno || undefined}
+                    onChange={(stationno, stationname, province, station) => {
+                      setStationNo(stationno);
+                      setStation(station ?? null);
+                      if (station?.provinceno) {
+                        setProvinceno(station.provinceno);
+                        setProvincename(station.provincename || province || "");
+                      }
+                      setSelectedStationLabel(
+                        province ? `${stationname} — ${province}` : stationname,
+                      );
+                    }}
+                    readOnly={isEdit || scope.stationLocked}
+                    showAllOption={canShowAllStationOption}
+                    placeholder={
+                      scope.stationLocked ? "Restricted to your assigned station" : "Select station"
+                    }
+                  />
+                </div>
+              )}
+            </StationInfoCard>
 
             {/* Monthly Target Reference table */}
             <div className="flex flex-col rounded-lg border border-border/60 overflow-hidden">
@@ -1100,7 +1132,7 @@ export default function TargetReferenceForm({
         contentIconBgClass="tone-warning-soft"
         contentIconColorClass="text-warning"
         title="Target Reference Already Exists"
-        description={`A Target Reference already exists for this station and period (${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}).\n\nOpening the existing record for editing.`}
+        description={`A Target Reference already exists for this station on ${checkDateLabel}.\n\nOpening the existing record for editing.`}
         confirmLabel="Edit Existing"
         showCancel={false}
         onConfirm={handleDuplicateConfirm}

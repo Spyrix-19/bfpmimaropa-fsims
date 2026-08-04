@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/lib/toast";
 
+import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import StationInfoCard, { StationReadOnlyField } from "@/components/station-info-card";
+import { useStationDetails } from "@/hooks/useStationDetails";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MONITORING_THEME } from "./complianceTheme";
@@ -370,7 +372,16 @@ function InspectionsNewBody({
     scope.stationname,
   ]);
 
+  // Resolves station code / city / province / logo for the Station Information card.
+  const stationDetails = useStationDetails({
+    stationno: station.no,
+    preloaded: station.model,
+    searchKey: station.model?.stationcode || station.name || "",
+    provinceno: province.no,
+  });
+
   const [numeric, setNumeric] = React.useState<Record<string, number>>(defaultNumeric);
+
   const [manualIssuance, setManualIssuance] =
     React.useState<Record<string, number>>(defaultIssuance);
   const [fsisIssuance, setFsisIssuance] = React.useState<Record<string, number>>(defaultIssuance);
@@ -894,13 +905,14 @@ function InspectionsNewBody({
             </Popover>
           </Field>
         </div>
+
       </Card>
 
       {/* 2. Station Information -------------------------------------------- */}
       <StationInfoCard
-        stationName={station.name || station.model?.stationname || ""}
-        unitCode={station.model?.stationcode || ""}
-        logoUrl={station.model?.logourl || null}
+        stationName={stationDetails.stationName || station.name || ""}
+        unitCode={stationDetails.stationCode || ""}
+        logoUrl={stationDetails.logoUrl || null}
         fields={[]}
       >
         {!(scope.provinceLocked && scope.stationLocked) && (
@@ -956,22 +968,27 @@ function InspectionsNewBody({
           </div>
         )}
 
-        {station.model && (
+        {(station.no || stationDetails.stationName) && (
           <div className="grid gap-4 sm:grid-cols-3">
             <StationReadOnlyField
               label="Station Code"
-              value={station.model.stationcode ?? ""}
+              value={stationDetails.stationCode || (stationDetails.loading ? "Loading…" : "")}
             />
             <StationReadOnlyField
               label="City / Municipality"
-              value={station.model.cityname ?? ""}
+              value={stationDetails.cityName || (stationDetails.loading ? "Loading…" : "")}
             />
             <StationReadOnlyField
               label="Province"
-              value={station.model.provincename ?? province.name ?? ""}
+              value={
+                stationDetails.provinceName ||
+                province.name ||
+                (stationDetails.loading ? "Loading…" : "")
+              }
             />
           </div>
         )}
+
       </StationInfoCard>
 
 
@@ -1425,6 +1442,7 @@ export function InspectionsNewModal({
               <DialogDescription>
                 Select a reporting period and station, then encode daily accomplishments.
               </DialogDescription>
+              <PastDatesLockedNote className="mt-1" />
             </div>
           </div>
         </DialogHeader>
