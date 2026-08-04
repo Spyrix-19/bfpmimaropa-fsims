@@ -712,7 +712,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <SectionTitle
                 title="Daily Notice Details"
-                subtitle="Issuance and accomplishment per day"
+                subtitle="Notice accomplishment per day"
               />
               <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {monthName} {year}
