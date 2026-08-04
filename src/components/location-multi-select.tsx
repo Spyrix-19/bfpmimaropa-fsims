@@ -6,6 +6,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Search, Loader2, Check } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { locationAPI } from "@/services/locationAPI";
+import { stationAPI } from "@/services/stationAPI";
 import { unwrap } from "@/lib/api-envelope";
 import type { SearchLocationModel } from "@/types/locationType";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ export type LocationMultiSelectProps = {
   parentcode?: string;
   onChange: (selected: SelectedLocation[]) => void;
   hideCode?: boolean;
+  useStationApi?: boolean;
 };
 
 export function LocationMultiSelect(props: LocationMultiSelectProps) {
@@ -40,6 +42,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
     disabled,
     className,
     hideCode = false,
+    useStationApi = false,
   } = props;
 
   const [open, setOpen] = React.useState(false);
@@ -58,6 +61,37 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      if (useStationApi) {
+        const resp = await stationAPI.searchStationMultiple(
+          {
+            searchkey: debounced || "",
+            reportyear: 0,
+            provinces: [],
+          },
+          { Pagenumber: page, Pagesize: PAGE_SIZE },
+          { suppressGlobalLoading: true },
+        );
+        const { ok, data } = unwrap<unknown[]>(resp);
+        if (cancelled) return;
+        const provinceRows = Array.isArray(data)
+          ? Array.from(
+              new Map(
+                (data as Array<{ provinceno?: string; provincename?: string }>).map((item) => [
+                  item.provinceno ?? item.provincename ?? "",
+                  {
+                    locationno: item.provinceno ?? "",
+                    locationcode: item.provinceno ?? "",
+                    locationname: item.provincename ?? "",
+                  } satisfies SearchLocationModel,
+                ]),
+              ).values(),
+            )
+          : [];
+        setRows(provinceRows);
+        setLoading(false);
+        return;
+      }
+
       const resp = await locationAPI.search(
         {
           searchkey: debounced || "",
@@ -76,7 +110,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
     return () => {
       cancelled = true;
     };
-  }, [open, debounced, page, parentcode, locationtype]);
+  }, [open, debounced, page, parentcode, locationtype, useStationApi]);
 
   const isSelected = (no: string) => value.some((v) => v.locationno === no);
 

@@ -257,6 +257,7 @@ export default function BwcLedger({
                 onChange={handleProvincesChange}
                 placeholder="All provinces"
                 hideCode
+                useStationApi
                 className="w-full"
               />
             )}
