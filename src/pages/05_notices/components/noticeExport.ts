@@ -1,7 +1,20 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import { toNumber as num } from "@/lib/utils";
 import { MONTHS } from "@/lib/fsims-constants";
 import type { NoticeDetailClassModel } from "@/types/noticeType";
+import {
+  border,
+  categoryHeaderStyle,
+  crownHeaderStyle,
+  dataCellStyle,
+  dataRowStyle,
+  fill,
+  formatMilitaryTimestamp,
+  modeHeaderStyle,
+  provinceRowStyle,
+  titleStyle,
+} from "@/lib/excel-style";
 
 /* ------------------------------------------------------------------ *
  * Notice export — mirrors the Fire Safety Compliance workbook layout.
@@ -77,8 +90,6 @@ export const addModeBucket = (a: NoticeModeBucket, b: NoticeModeBucket): NoticeM
   fsis: addBucket(a.fsis, b.fsis),
 });
 
-const num = (v: unknown) => Number(v ?? 0) || 0;
-
 const bucketValues = (bucket: NoticeBucket) => [
   bucket.nod,
   bucket.ntc,
@@ -128,94 +139,6 @@ interface PeriodDef {
   key: string;
   label: string;
   getBucket: (list: NoticeExportRecord[]) => NoticeModeBucket;
-}
-
-function fill(color: string): ExcelJS.Fill {
-  return {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: color },
-  };
-}
-
-function border(style: ExcelJS.BorderStyle = "thin", color = "FF64748B"): ExcelJS.Borders {
-  const b: Partial<ExcelJS.Border> = { style, color: { argb: color } };
-  return {
-    top: b as ExcelJS.Border,
-    left: b as ExcelJS.Border,
-    right: b as ExcelJS.Border,
-    bottom: b as ExcelJS.Border,
-    diagonal: {} as ExcelJS.Border,
-  };
-}
-
-function titleStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, color: { argb: "FF0F172A" }, size: 16 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border("medium", "FF0F172A"),
-  };
-}
-
-function formatMilitaryTimestamp(value: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hour12: true,
-  }).format(value);
-}
-
-function crownHeaderStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, color: { argb: "FFFFFFFF" }, size: 10 },
-    alignment: { horizontal: "center", vertical: "middle", wrapText: true },
-    border: border("thin", "FF334155"),
-  };
-}
-
-function modeHeaderStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 9, color: { argb: "FF0F172A" } },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border("thin", "FF334155"),
-  };
-}
-
-function categoryHeaderStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 9, color: { argb: "FF064E3B" } },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-  };
-}
-
-function dataCellStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { size: 10 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-  };
-}
-
-function dataRowStyle(isAlternate: boolean): Partial<ExcelJS.Style> {
-  return {
-    font: { size: 10 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-    fill: isAlternate ? fill("FFF8FAFC") : undefined,
-  };
-}
-
-function provinceRowStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 10, color: { argb: "FF713F12" } },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border("medium", "FF334155"),
-  };
 }
 
 function buildPeriodDefs(

@@ -2,7 +2,15 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { z } from "zod";
-import { AlertTriangle, CalendarIcon, FilePlus2, Loader2, Save, Building2, Target } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarIcon,
+  FilePlus2,
+  Loader2,
+  Save,
+  Building2,
+  Target,
+} from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -25,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
+import StationInfoCard, { StationReadOnlyField } from "@/components/station-info-card";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MONITORING_THEME } from "./complianceTheme";
@@ -86,9 +95,7 @@ function pickComplianceRow(data: unknown): ComplianceRow | null {
     rows.push(obj as unknown as ComplianceRow);
   };
   walk(data);
-  return (
-    rows.find((r) => r && r.fsisno && String(r.fsisno) !== EMPTY_GUID && !r.isdeleted) ?? null
-  );
+  return rows.find((r) => r && r.fsisno && String(r.fsisno) !== EMPTY_GUID && !r.isdeleted) ?? null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -310,7 +317,8 @@ function InspectionsNewBody({
   const [reportingDate, setReportingDate] = React.useState<Date>(() => {
     const now = new Date();
     const y = initialYear && initialYear > 1900 ? initialYear : now.getFullYear();
-    const m = initialMonth && initialMonth >= 1 && initialMonth <= 12 ? initialMonth : now.getMonth() + 1;
+    const m =
+      initialMonth && initialMonth >= 1 && initialMonth <= 12 ? initialMonth : now.getMonth() + 1;
     const lastDay = new Date(y, m, 0).getDate();
     return new Date(y, m - 1, Math.min(now.getDate(), lastDay));
   });
@@ -571,7 +579,6 @@ function InspectionsNewBody({
           totalAccomplishmenttieza: 0,
         });
       }
-
     })();
 
     return () => {
@@ -642,10 +649,8 @@ function InspectionsNewBody({
   // A pending request locks the date even if it is not in the past.
   const hasPendingRevision =
     !unlockedByApproval && (existingMeta.isrevisionrequest || !!activeRequest);
-  const needsRevisionRequest =
-    isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
+  const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
   const fieldsLocked = !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
-
 
   /* ------------------------- Daily target vs inspected summary ---------------------- */
   const dailySummaryRows = React.useMemo(() => {
@@ -741,10 +746,7 @@ function InspectionsNewBody({
         return;
       }
 
-      const buildIssuance = (
-        mode: number,
-        vals: Record<string, number>,
-      ): FSISIssuanceClassDTO => {
+      const buildIssuance = (mode: number, vals: Record<string, number>): FSISIssuanceClassDTO => {
         return {
           // Always reuse the database issuance id when editing an existing row.
           issuanceno: existingIssuanceNos[String(mode)] || EMPTY_GUID,
@@ -839,7 +841,6 @@ function InspectionsNewBody({
     setDuplicateDialogOpen(newOpen);
   };
 
-
   /* ---------------------------------- UI ---------------------------------- */
 
   return (
@@ -896,59 +897,83 @@ function InspectionsNewBody({
       </Card>
 
       {/* 2. Station Information -------------------------------------------- */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-        <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Province" required error={errors.provinceno}>
-            <LocationSearchSelect
-              locationtype="PROVINCE"
-              parentcode={MIMAROPA_REGION_CODE}
-              value={province.no || undefined}
-              valueName={province.name}
-              placeholder="Select province"
-              hideCode
-              disabled={scope.provinceLocked}
-              onChange={(no, name, item) => {
-                if (scope.provinceLocked) return;
-                setProvince({ no, name, code: item?.locationcode ?? "" });
-                setStation({ no: "", name: "", model: null });
-                if (errors.provinceno) setErrors((e) => ({ ...e, provinceno: "" }));
-              }}
-            />
-          </Field>
-
-          <Field label="Station" required error={errors.stationno}>
-            <StationSearchSelect
-              value={station.no || undefined}
-              valueName={station.name}
-              provinceno={province.no || undefined}
-              disabled={scope.stationLocked}
-              placeholder={
-                scope.stationLocked ? station.name || "Assigned station" : "Select station"
-              }
-              onChange={(no, name, _prov, model) => {
-                if (scope.stationLocked) return;
-                setStation({ no, name, model: model ?? null });
-                if (errors.stationno) setErrors((e) => ({ ...e, stationno: "" }));
-                // Auto-sync province from the selected station so the two
-                // pickers stay in lockstep (bi-directional cross-filter).
-                if (
-                  !scope.provinceLocked &&
-                  model?.provinceno &&
-                  model.provinceno !== province.no
-                ) {
-                  setProvince({
-                    no: model.provinceno,
-                    name: model.provincename ?? "",
-                    code: "",
-                  });
+      <StationInfoCard
+        stationName={station.name || station.model?.stationname || ""}
+        unitCode={station.model?.stationcode || ""}
+        logoUrl={station.model?.logourl || null}
+        fields={[]}
+      >
+        {!(scope.provinceLocked && scope.stationLocked) && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Province" required error={errors.provinceno}>
+              <LocationSearchSelect
+                locationtype="PROVINCE"
+                parentcode={MIMAROPA_REGION_CODE}
+                value={province.no || undefined}
+                valueName={province.name}
+                placeholder="Select province"
+                hideCode
+                disabled={scope.provinceLocked}
+                onChange={(no, name, item) => {
+                  if (scope.provinceLocked) return;
+                  setProvince({ no, name, code: item?.locationcode ?? "" });
+                  setStation({ no: "", name: "", model: null });
                   if (errors.provinceno) setErrors((e) => ({ ...e, provinceno: "" }));
+                }}
+              />
+            </Field>
+
+            <Field label="Station" required error={errors.stationno}>
+              <StationSearchSelect
+                value={station.no || undefined}
+                valueName={station.name}
+                provinceno={province.no || undefined}
+                disabled={scope.stationLocked}
+                placeholder={
+                  scope.stationLocked ? station.name || "Assigned station" : "Select station"
                 }
-              }}
+                onChange={(no, name, _prov, model) => {
+                  if (scope.stationLocked) return;
+                  setStation({ no, name, model: model ?? null });
+                  if (errors.stationno) setErrors((e) => ({ ...e, stationno: "" }));
+                  // Auto-sync province from the selected station so the two
+                  // pickers stay in lockstep (bi-directional cross-filter).
+                  if (
+                    !scope.provinceLocked &&
+                    model?.provinceno &&
+                    model.provinceno !== province.no
+                  ) {
+                    setProvince({
+                      no: model.provinceno,
+                      name: model.provincename ?? "",
+                      code: "",
+                    });
+                    if (errors.provinceno) setErrors((e) => ({ ...e, provinceno: "" }));
+                  }
+                }}
+              />
+            </Field>
+          </div>
+        )}
+
+        {station.model && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StationReadOnlyField
+              label="Station Code"
+              value={station.model.stationcode ?? ""}
             />
-          </Field>
-        </div>
-      </Card>
+            <StationReadOnlyField
+              label="City / Municipality"
+              value={station.model.cityname ?? ""}
+            />
+            <StationReadOnlyField
+              label="Province"
+              value={station.model.provincename ?? province.name ?? ""}
+            />
+          </div>
+        )}
+      </StationInfoCard>
+
 
       {/* 3. Daily Inspection Activities ------------------------------------ */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
@@ -966,9 +991,7 @@ function InspectionsNewBody({
               <div>
                 <div className="text-sm font-semibold">Daily Target vs. Inspected</div>
                 <div className="text-[11px] text-muted-foreground">
-                  {station.no
-                    ? format(reportingDate, "PPP")
-                    : "Select a station to load"}
+                  {station.no ? format(reportingDate, "PPP") : "Select a station to load"}
                 </div>
               </div>
             </div>
@@ -1026,10 +1049,7 @@ function InspectionsNewBody({
                     {dailySummaryRows.rows.map((r, i) => (
                       <tr
                         key={r.key}
-                        className={cn(
-                          "border-t border-border/50",
-                          i % 2 === 1 && "bg-muted/20",
-                        )}
+                        className={cn("border-t border-border/50", i % 2 === 1 && "bg-muted/20")}
                       >
                         <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
                         <td
@@ -1060,9 +1080,7 @@ function InspectionsNewBody({
                           className="px-4 py-2 text-center tabular-nums font-medium"
                           style={{
                             color:
-                              r.percentage >= 100
-                                ? DAILY_SERIES.positive
-                                : DAILY_SERIES.inspected,
+                              r.percentage >= 100 ? DAILY_SERIES.positive : DAILY_SERIES.inspected,
                           }}
                         >
                           {`${r.percentage.toFixed(2)}%`}
@@ -1126,7 +1144,6 @@ function InspectionsNewBody({
           )}
         </Card>
 
-
         <div className="space-y-4">
           <InspectionMatrix
             constructionFields={DAILY_INSPECTION_CONSTRUCTION_FIELDS}
@@ -1168,7 +1185,6 @@ function InspectionsNewBody({
             placeholder="Additional notes about the inspection…"
           />
         </Field>
-
       </Card>
 
       {/* Actions ----------------------------------------------------------- */}
@@ -1331,7 +1347,6 @@ function InspectionsNewBody({
           setReloadNonce((n) => n + 1);
         }}
       />
-
     </form>
   );
 }

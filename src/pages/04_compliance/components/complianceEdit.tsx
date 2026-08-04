@@ -5,6 +5,7 @@ import {
   AlertCircle,
   ArrowLeft,
   Building2,
+  CalendarDays,
   Loader2,
   FilePen,
   Save,
@@ -16,6 +17,8 @@ import {
 import { toast } from "@/lib/toast";
 
 import { Card } from "@/components/ui/card";
+import StationInfoCard, { StationSectionTitle } from "@/components/station-info-card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -72,7 +75,7 @@ import type {
   FSISComplianceDetailModel,
   FSISComplianceDTO,
   FSISComplianceClass,
-  } from "@/types/complianceType";
+} from "@/types/complianceType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 
@@ -284,7 +287,11 @@ function num(v: unknown): number {
  * PST lock activation — mirrors Target Reference.
  * A month locks on day 4 of the following calendar month at 00:00 PST.
  */
-function hasPstLockActivated(reportyear: number, reportmonth: number, now: Date = new Date()): boolean {
+function hasPstLockActivated(
+  reportyear: number,
+  reportmonth: number,
+  now: Date = new Date(),
+): boolean {
   const y = Number(reportyear);
   const m = Number(reportmonth);
   if (!y || !m || m < 1 || m > 12) return false;
@@ -441,9 +448,7 @@ function buildEditableDays(
     const editablestatus = num((apiData as any)?.editablestatus);
     const isrevisionrequest = Boolean((apiData as any)?.isrevisionrequest);
     const locked =
-      editablestatus === 153
-        ? false
-        : hasPstLockActivated(year, month) || isDayPassed(key);
+      editablestatus === 153 ? false : hasPstLockActivated(year, month) || isDayPassed(key);
 
     const entry: EditableDay = {
       day: d,
@@ -598,7 +603,13 @@ function ComplianceEditBody({
 
   // ------- Revision requests for the month (from the live API) -------
   const [revisionRequests, setRevisionRequests] = React.useState<
-    { requestno: string; statuscode?: string; statusname?: string; referencekey?: string; dateinspected?: string }[]
+    {
+      requestno: string;
+      statuscode?: string;
+      statusname?: string;
+      referencekey?: string;
+      dateinspected?: string;
+    }[]
   >([]);
   React.useEffect(() => {
     if (!stationno || !year || !month) {
@@ -621,7 +632,13 @@ function ComplianceEditBody({
       );
       if (cancelled) return;
       const { ok, data } = unwrap<
-        { requestno: string; statuscode?: string; statusname?: string; referencekey?: string; dateinspected?: string }[]
+        {
+          requestno: string;
+          statuscode?: string;
+          statusname?: string;
+          referencekey?: string;
+          dateinspected?: string;
+        }[]
       >(resp);
       setRevisionRequests(ok && Array.isArray(data) ? data : []);
     })();
@@ -634,7 +651,8 @@ function ComplianceEditBody({
   const requestForDay = React.useCallback(
     (dayKey: string, fsisno: string) =>
       revisionRequests.find((r) => {
-        if (fsisno && fsisno !== EMPTY_GUID && String(r.referencekey) === String(fsisno)) return true;
+        if (fsisno && fsisno !== EMPTY_GUID && String(r.referencekey) === String(fsisno))
+          return true;
         return r.dateinspected ? String(r.dateinspected).slice(0, 10) === dayKey : false;
       }) ?? null,
     [revisionRequests],
@@ -648,7 +666,14 @@ function ComplianceEditBody({
     (d: EditableDay) => {
       const req = requestForDay(d.key, d.inspection.fsisno);
       const raw = req?.statuscode?.toUpperCase() ?? "";
-      const known: RevisionStatus[] = ["PENDING", "APPROVED", "DENIED", "CANCELLED", "COMPLETED", "EXPIRED"];
+      const known: RevisionStatus[] = [
+        "PENDING",
+        "APPROVED",
+        "DENIED",
+        "CANCELLED",
+        "COMPLETED",
+        "EXPIRED",
+      ];
       const status: RevisionStatus | null = (known as string[]).includes(raw)
         ? (raw as RevisionStatus)
         : null;
@@ -668,7 +693,6 @@ function ComplianceEditBody({
   );
 
   const monthLocked = isReportMonthLocked(year, month);
-
 
   /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
@@ -706,57 +730,73 @@ function ComplianceEditBody({
       );
       if (cancelled) return;
 
-      const { ok, data, error } = unwrap<FSISComplianceDetailModel | FSISComplianceDetailModel[]>(resp);
+      const { ok, data, error } = unwrap<FSISComplianceDetailModel | FSISComplianceDetailModel[]>(
+        resp,
+      );
       if (!ok) toast.error(error || "Failed to load monthly data.");
-      const station = ok
-        ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null))
+      const station = ok ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null)) : null;
+      const first = station
+        ? {
+            stationno: String(station?.stationno ?? ""),
+            stationcode: String(station?.stationcode ?? ""),
+            stationname: String(station?.stationname ?? ""),
+            regionno: "",
+            regioncode: "",
+            regionname: "",
+            provinceno: String(station?.provinceno ?? ""),
+            provincename: String(station?.provincename ?? ""),
+            cityno: "",
+            zipcode: "",
+            cityname: String(station?.cityname ?? ""),
+            barangayno: "",
+            barangayname: "",
+            streetaddress: "",
+            logourl: String(station?.logourl ?? ""),
+            month,
+            year,
+            totaltargetbplo: 0,
+            totaltargetgov: 0,
+            totaltargetpeza: 0,
+            totaltargettieza: 0,
+            totalAccomplishmentbplo: 0,
+            totalAccomplishmentgov: 0,
+            totalAccomplishmentpeza: 0,
+            totalAccomplishmenttieza: 0,
+            updatedby: "",
+            encodedby: "",
+            complianceLedgerList: (Array.isArray(station?.compliancelist)
+              ? station.compliancelist
+              : []
+            ).map((rec) => ({
+              ...rec,
+              fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
+              dailytargetbplo:
+                Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
+              dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
+              dailytargetpeza:
+                Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
+              dailytargettieza:
+                Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
+              inspectduringcount:
+                Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
+              inspectaftercount:
+                Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
+              inspectbplocount:
+                Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
+              inspectgovcount:
+                Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
+              inspectpezacount:
+                Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
+              inspecttiezacount:
+                Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
+              remarks: String((rec as { remarks?: string }).remarks ?? ""),
+              dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
+              issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist)
+                ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[])
+                : [],
+            })) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"],
+          }
         : null;
-      const first = station ? {
-        stationno: String(station?.stationno ?? ""),
-        stationcode: String(station?.stationcode ?? ""),
-        stationname: String(station?.stationname ?? ""),
-        regionno: "",
-        regioncode: "",
-        regionname: "",
-        provinceno: String(station?.provinceno ?? ""),
-        provincename: String(station?.provincename ?? ""),
-        cityno: "",
-        zipcode: "",
-        cityname: String(station?.cityname ?? ""),
-        barangayno: "",
-        barangayname: "",
-        streetaddress: "",
-        logourl: String(station?.logourl ?? ""),
-        month,
-        year,
-        totaltargetbplo: 0,
-        totaltargetgov: 0,
-        totaltargetpeza: 0,
-        totaltargettieza: 0,
-        totalAccomplishmentbplo: 0,
-        totalAccomplishmentgov: 0,
-        totalAccomplishmentpeza: 0,
-        totalAccomplishmenttieza: 0,
-        updatedby: "",
-        encodedby: "",
-        complianceLedgerList: (Array.isArray(station?.compliancelist) ? station.compliancelist : []).map((rec) => ({
-          ...rec,
-          fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
-          dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
-          dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
-          dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
-          dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
-          inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
-          inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
-          inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
-          inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
-          inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
-          inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
-          remarks: String((rec as { remarks?: string }).remarks ?? ""),
-          dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
-          issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist) ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[]) : [],
-        })) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"],
-      } : null;
 
       setStation(first);
 
@@ -764,9 +804,7 @@ function ComplianceEditBody({
       setEditableDays(days);
       setBaseline(JSON.stringify(Array.from(days.entries())));
       setBaselineMap(
-        new Map(
-          Array.from(days.entries()).map(([dayKey, day]) => [dayKey, serializeDay(day)]),
-        ),
+        new Map(Array.from(days.entries()).map(([dayKey, day]) => [dayKey, serializeDay(day)])),
       );
       setLoading(false);
     })();
@@ -886,7 +924,6 @@ function ComplianceEditBody({
       setSaveError("This reporting month is locked and cannot be edited.");
       return;
     }
-
 
     setSaving(true);
     try {
@@ -1008,7 +1045,6 @@ function ComplianceEditBody({
   });
   const allLocked = days.length > 0 && days.every((d) => d.isLocked);
 
-
   if (loading) {
     return (
       <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
@@ -1019,26 +1055,20 @@ function ComplianceEditBody({
 
   return (
     <div className="space-y-8 pb-4 md:space-y-8">
-      {/* Station Information ------------------------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-        <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
+      {/* Reporting Period ---------------------------------------------------- */}
+      <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
+        <StationSectionTitle
+          icon={<CalendarDays className="h-4 w-4" />}
+          title="Reporting Period"
+        />
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Station</span>
-            <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
-              <span className="truncate">{station?.stationname || "—"}</span>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Province</span>
-            <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
-              <span className="truncate">{station?.provincename || "—"}</span>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Reporting Month</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Reporting Month <span className="text-destructive">*</span>
+            </span>
             <Select value={String(month)} onValueChange={(v) => changePeriod(Number(v), year)}>
               <SelectTrigger className="h-10 w-full">
+                <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <SelectValue placeholder="Select month" />
               </SelectTrigger>
               <SelectContent>
@@ -1051,9 +1081,12 @@ function ComplianceEditBody({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Reporting Year</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Reporting Year <span className="text-destructive">*</span>
+            </span>
             <Select value={String(year)} onValueChange={(v) => changePeriod(month, Number(v))}>
               <SelectTrigger className="h-10 w-full">
+                <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>
               <SelectContent>
@@ -1067,6 +1100,18 @@ function ComplianceEditBody({
           </div>
         </div>
       </Card>
+
+      {/* Station Information ------------------------------------------------- */}
+      <StationInfoCard
+        stationName={station?.stationname || ""}
+        unitCode={station?.stationcode || ""}
+        logoUrl={station?.logourl || null}
+        fields={[
+          { label: "Station Code", value: station?.stationcode ?? "" },
+          { label: "City / Municipality", value: station?.cityname ?? "" },
+          { label: "Province", value: station?.provincename ?? "" },
+        ]}
+      />
 
       {/* Daily Compliance Details ------------------------------------------- */}
       <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
@@ -1218,7 +1263,11 @@ function ComplianceEditBody({
                 return (
                   <React.Fragment key={dayEntry.key}>
                     {/* MANUAL row */}
-                    <tr className={dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}>
+                    <tr
+                      className={
+                        dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd
+                      }
+                    >
                       <td
                         rowSpan={2}
                         className={`sticky left-0 z-20 min-w-[96px] border-b border-r px-2 py-1.5 align-middle text-center ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
@@ -1251,17 +1300,29 @@ function ComplianceEditBody({
                             <div className="flex items-center justify-center gap-1.5">
                               <EditButton
                                 variant="square"
-                                tooltip={!stationno ? "Select a station to request a revision" : "Request Revision"}
-                                ariaLabel={!stationno ? "Select a station to request a revision" : "Request Revision"}
+                                tooltip={
+                                  !stationno
+                                    ? "Select a station to request a revision"
+                                    : "Request Revision"
+                                }
+                                ariaLabel={
+                                  !stationno
+                                    ? "Select a station to request a revision"
+                                    : "Request Revision"
+                                }
                                 disabled={!stationno}
                                 icon={<FilePen className="h-4 w-4" />}
                                 onClick={() => {
                                   setRevisionReferenceKey(
-                                    dayEntry.inspection.fsisno && dayEntry.inspection.fsisno !== EMPTY_GUID
+                                    dayEntry.inspection.fsisno &&
+                                      dayEntry.inspection.fsisno !== EMPTY_GUID
                                       ? dayEntry.inspection.fsisno
                                       : EMPTY_GUID,
                                   );
-                                  setRevisionDate(normalizeDateKey(dayEntry.inspection.dateinspected) || dayEntry.key);
+                                  setRevisionDate(
+                                    normalizeDateKey(dayEntry.inspection.dateinspected) ||
+                                      dayEntry.key,
+                                  );
                                   setRevisionOpen(true);
                                 }}
                               />
@@ -1275,7 +1336,13 @@ function ComplianceEditBody({
                       >
                         <div className="flex items-center gap-2 whitespace-nowrap">
                           {dayEntry.isLocked && <Lock className="h-3 w-3 shrink-0 text-warning" />}
-                          <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""}>
+                          <span
+                            className={
+                              rowTotal > 0
+                                ? "text-primary-700 dark:text-primary-300 font-semibold"
+                                : ""
+                            }
+                          >
                             {dayEntry.label}
                           </span>
                         </div>
@@ -1332,7 +1399,9 @@ function ComplianceEditBody({
                         );
                         return cells;
                       })}
-                      <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
+                      <td
+                        className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                      >
                         MANUAL
                       </td>
                       {/* FSEC fields */}
@@ -1448,7 +1517,8 @@ function ComplianceEditBody({
                         className="border-b border-r px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
                       >
                         {DETAIL_FIELDS.reduce(
-                          (sum, f) => sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
+                          (sum, f) =>
+                            sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
                           0,
                         ).toLocaleString()}
                       </td>
@@ -1473,10 +1543,16 @@ function ComplianceEditBody({
                     </tr>
 
                     {/* FSIS row */}
-                    <tr className={dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}>
+                    <tr
+                      className={
+                        dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd
+                      }
+                    >
                       {/* Inspection fields are merged with the MANUAL row above (rowSpan=2) */}
 
-                      <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
+                      <td
+                        className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                      >
                         FSIS
                       </td>
                       {/* FSEC fields */}
@@ -1595,9 +1671,7 @@ function ComplianceEditBody({
             </tbody>
             <tfoot className="sticky bottom-0 z-20">
               <tr className="total-row font-bold text-foreground">
-                <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
-                  
-                </td>
+                <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide"></td>
                 <td className="sticky left-[96px] z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
                   Total
                 </td>
@@ -1647,7 +1721,8 @@ function ComplianceEditBody({
                       (sum, d) =>
                         sum +
                         DETAIL_FIELDS.reduce(
-                          (rowSum, f) => rowSum + num(d.totals[f.key as keyof ComplianceDailyCounts]),
+                          (rowSum, f) =>
+                            rowSum + num(d.totals[f.key as keyof ComplianceDailyCounts]),
                           0,
                         ),
                       0,
@@ -1815,7 +1890,6 @@ function ComplianceEditBody({
         }}
       />
     </div>
-
   );
 }
 
@@ -1922,7 +1996,12 @@ export function ComplianceEditModal({
               </DialogDescription>
               <p className="mt-1 text-[11px] text-muted-foreground/90">
                 <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
-                Each month locks on the <span className="font-semibold">4th day of the following month at 12:00 AM (PST)</span>. The current and next month remain editable — past months require a revision request once locked.
+                Each month locks on the{" "}
+                <span className="font-semibold">
+                  4th day of the following month at 12:00 AM (PST)
+                </span>
+                . The current and next month remain editable — past months require a revision
+                request once locked.
               </p>
             </div>
           </div>

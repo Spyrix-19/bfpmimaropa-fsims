@@ -53,58 +53,59 @@ export default function ChangePasswordDialog({ open, onOpenChange, onRequestConf
       }}
     >
       <DialogContent className="flex max-h-[92vh] w-full max-w-md min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
-          <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full bg-primary/10 p-2">
-                <KeyRound className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-base font-bold">Change Password</DialogTitle>
-                <DialogDescription>
-                  Enter a new password. Must be 8+ chars with uppercase, number, and special character.
-                </DialogDescription>
-              </div>
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-primary/10 p-2">
+              <KeyRound className="h-5 w-5 text-primary" />
             </div>
-          </DialogHeader>
+            <div>
+              <DialogTitle className="text-base font-bold">Change Password</DialogTitle>
+              <DialogDescription>
+                Enter a new password. Must be 8+ chars with uppercase, number, and special
+                character.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
 
-          <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden px-5 py-4">
-            <div className="mt-2 space-y-3">
-          <div>
-            <Label>New password</Label>
-            <div className="relative">
-              <Input
-                type={showNewPwd ? "text" : "password"}
-                value={newPwd}
-                onChange={(e) => setNewPwd(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowNewPwd((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
-                aria-label={showNewPwd ? "Hide password" : "Show password"}
-              >
-                {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden px-5 py-4">
+          <div className="mt-2 space-y-3">
+            <div>
+              <Label>New password</Label>
+              <div className="relative">
+                <Input
+                  type={showNewPwd ? "text" : "password"}
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPwd((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  aria-label={showNewPwd ? "Hide password" : "Show password"}
+                >
+                  {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-          </div>
-          <div>
-            <Label>Confirm password</Label>
-            <div className="relative">
-              <Input
-                type={showConfirmPwd ? "text" : "password"}
-                value={confirmPwd}
-                onChange={(e) => setConfirmPwd(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPwd((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
-                aria-label={showConfirmPwd ? "Hide password" : "Show password"}
-              >
-                {showConfirmPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+            <div>
+              <Label>Confirm password</Label>
+              <div className="relative">
+                <Input
+                  type={showConfirmPwd ? "text" : "password"}
+                  value={confirmPwd}
+                  onChange={(e) => setConfirmPwd(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPwd((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  aria-label={showConfirmPwd ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-          </div>
           </div>
         </div>
 

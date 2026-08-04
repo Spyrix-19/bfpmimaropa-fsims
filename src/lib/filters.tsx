@@ -57,7 +57,6 @@ export const DEFAULT_FILTERS: DashFilters = {
   category: empty,
 };
 
-
 /** Expands the interval/period selection into the concrete list of months. */
 export function resolveReportMonths(interval: DashInterval, period: string): number[] {
   const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -79,18 +78,26 @@ export function resolveReportMonths(interval: DashInterval, period: string): num
   }
   if (interval === "QUARTERLY") {
     switch (period) {
-      case "q1": return [1, 2, 3];
-      case "q2": return [4, 5, 6];
-      case "q3": return [7, 8, 9];
-      case "q4": return [10, 11, 12];
-      default: return ALL;
+      case "q1":
+        return [1, 2, 3];
+      case "q2":
+        return [4, 5, 6];
+      case "q3":
+        return [7, 8, 9];
+      case "q4":
+        return [10, 11, 12];
+      default:
+        return ALL;
     }
   }
   if (interval === "SEMESTER") {
     switch (period) {
-      case "s1": return [1, 2, 3, 4, 5, 6];
-      case "s2": return [7, 8, 9, 10, 11, 12];
-      default: return ALL;
+      case "s1":
+        return [1, 2, 3, 4, 5, 6];
+      case "s2":
+        return [7, 8, 9, 10, 11, 12];
+      default:
+        return ALL;
     }
   }
   return ALL;

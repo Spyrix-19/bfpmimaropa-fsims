@@ -105,7 +105,10 @@ export interface TargetScope {
 }
 
 export function resolveTargetScope(
-  user: Pick<AuthUser, "provinceno" | "provincename" | "stationno" | "stationname" | "stationtype"> | null | undefined,
+  user:
+    | Pick<AuthUser, "provinceno" | "provincename" | "stationno" | "stationname" | "stationtype">
+    | null
+    | undefined,
   roleno: number | null | undefined,
 ): TargetScope {
   const scope = resolveLocationScope(user as AuthUser | null | undefined, roleno);
@@ -125,7 +128,11 @@ export function resolveTargetScope(
  * Month-locking helper (Edit only).
  * Returns true when the given report month should be non-editable.
  * ------------------------------------------------------------------ */
-export function isReportMonthLocked(reportYear: number, reportMonth: number, now: Date = new Date()) {
+export function isReportMonthLocked(
+  reportYear: number,
+  reportMonth: number,
+  now: Date = new Date(),
+) {
   const cy = now.getFullYear();
   const cm = now.getMonth() + 1;
   const y = Number(reportYear) || 0;
@@ -169,7 +176,6 @@ export const PERIOD_OPTIONS: { value: TargetPeriod; label: string }[] = [
   { value: "SEMI-ANNUAL", label: "Semi-Annual" },
   { value: "ANNUAL", label: "Annual" },
 ];
-
 
 export interface TargetBucket {
   bplo: number;

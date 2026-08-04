@@ -82,8 +82,18 @@ interface ColumnGroup {
 }
 
 const COLUMN_GROUPS: ColumnGroup[] = [
-  { category: "INSPECTION", label: "During", grouped: false, keys: [{ key: "inspectduringcount", label: "During" }] },
-  { category: "INSPECTION", label: "After", grouped: false, keys: [{ key: "inspectaftercount", label: "After" }] },
+  {
+    category: "INSPECTION",
+    label: "During",
+    grouped: false,
+    keys: [{ key: "inspectduringcount", label: "During" }],
+  },
+  {
+    category: "INSPECTION",
+    label: "After",
+    grouped: false,
+    keys: [{ key: "inspectaftercount", label: "After" }],
+  },
   {
     category: "INSPECTION",
     label: "1st BPLO",
@@ -121,23 +131,78 @@ const COLUMN_GROUPS: ColumnGroup[] = [
     ],
   },
 
-  { category: "FSEC", label: "Building", grouped: false, keys: [{ key: "fsecbuildingcount", label: "Building" }] },
+  {
+    category: "FSEC",
+    label: "Building",
+    grouped: false,
+    keys: [{ key: "fsecbuildingcount", label: "Building" }],
+  },
   { category: "FSEC", label: "Gov", grouped: false, keys: [{ key: "fsecgovcount", label: "Gov" }] },
-  { category: "FSEC", label: "PEZA", grouped: false, keys: [{ key: "fsecpezacount", label: "PEZA" }] },
-  { category: "FSEC", label: "TIEZA", grouped: false, keys: [{ key: "fsectiezacount", label: "TIEZA" }] },
+  {
+    category: "FSEC",
+    label: "PEZA",
+    grouped: false,
+    keys: [{ key: "fsecpezacount", label: "PEZA" }],
+  },
+  {
+    category: "FSEC",
+    label: "TIEZA",
+    grouped: false,
+    keys: [{ key: "fsectiezacount", label: "TIEZA" }],
+  },
 
-  { category: "FSIC", label: "Occupancy", grouped: false, keys: [{ key: "fsicoccupancycount", label: "Occupancy" }] },
-  { category: "FSIC", label: "BPLO New", grouped: false, keys: [{ key: "fsicbplonewcount", label: "BPLO New" }] },
-  { category: "FSIC", label: "BPLO Renew", grouped: false, keys: [{ key: "fsicbplorenewcount", label: "BPLO Renew" }] },
+  {
+    category: "FSIC",
+    label: "Occupancy",
+    grouped: false,
+    keys: [{ key: "fsicoccupancycount", label: "Occupancy" }],
+  },
+  {
+    category: "FSIC",
+    label: "BPLO New",
+    grouped: false,
+    keys: [{ key: "fsicbplonewcount", label: "BPLO New" }],
+  },
+  {
+    category: "FSIC",
+    label: "BPLO Renew",
+    grouped: false,
+    keys: [{ key: "fsicbplorenewcount", label: "BPLO Renew" }],
+  },
   { category: "FSIC", label: "Gov", grouped: false, keys: [{ key: "fsicgovcount", label: "Gov" }] },
-  { category: "FSIC", label: "PEZA", grouped: false, keys: [{ key: "fsicpezacount", label: "PEZA" }] },
-  { category: "FSIC", label: "TIEZA", grouped: false, keys: [{ key: "fsictiezacount", label: "TIEZA" }] },
+  {
+    category: "FSIC",
+    label: "PEZA",
+    grouped: false,
+    keys: [{ key: "fsicpezacount", label: "PEZA" }],
+  },
+  {
+    category: "FSIC",
+    label: "TIEZA",
+    grouped: false,
+    keys: [{ key: "fsictiezacount", label: "TIEZA" }],
+  },
 
   { category: "NOTICES", label: "NOD", grouped: false, keys: [{ key: "nodcount", label: "NOD" }] },
   { category: "NOTICES", label: "NTC", grouped: false, keys: [{ key: "ntccount", label: "NTC" }] },
-  { category: "NOTICES", label: "NTCV", grouped: false, keys: [{ key: "ntcvcount", label: "NTCV" }] },
-  { category: "NOTICES", label: "Abatement", grouped: false, keys: [{ key: "abatementcount", label: "Abatement" }] },
-  { category: "NOTICES", label: "Closure", grouped: false, keys: [{ key: "closurecount", label: "Closure" }] },
+  {
+    category: "NOTICES",
+    label: "NTCV",
+    grouped: false,
+    keys: [{ key: "ntcvcount", label: "NTCV" }],
+  },
+  {
+    category: "NOTICES",
+    label: "Abatement",
+    grouped: false,
+    keys: [{ key: "abatementcount", label: "Abatement" }],
+  },
+  {
+    category: "NOTICES",
+    label: "Closure",
+    grouped: false,
+    keys: [{ key: "closurecount", label: "Closure" }],
+  },
 ];
 
 const COMPLIANCE_FIELDS: {
@@ -155,8 +220,6 @@ const COMPLIANCE_FIELDS: {
     leafLabel: g.grouped ? k.label : undefined,
   })),
 );
-
-
 
 const CATEGORY_STYLE: Record<ComplianceCategory, string> = {
   INSPECTION: STYLE.catInsp,
@@ -195,8 +258,8 @@ const ISSUANCE_MODES: { key: IssuanceMode; label: string; fsicmode: number }[] =
 ];
 
 /** Inspection fields live on the compliance (month) record, not on issuances. */
-const INSPECTION_KEYS = COMPLIANCE_FIELDS.filter((f) => f.category === "INSPECTION").map(
-  (f) => String(f.key),
+const INSPECTION_KEYS = COMPLIANCE_FIELDS.filter((f) => f.category === "INSPECTION").map((f) =>
+  String(f.key),
 );
 /** Every other field comes from an issuance record inside `issuancelist`. */
 const ISSUANCE_KEYS = COMPLIANCE_FIELDS.filter((f) => f.category !== "INSPECTION").map((f) =>
@@ -227,7 +290,6 @@ interface ProvinceGroup {
   /** Provincial totals split per issuance mode — one total row per mode. */
   provincialModeTotal: Record<IssuanceMode, MonthBuckets>;
 }
-
 
 function monthOf(d: string | Date): number {
   if (!d) return 0;
@@ -371,7 +433,6 @@ function buildGroupsFromLedger(rows: FSISComplianceModel[]): ProvinceGroup[] {
   return groups;
 }
 
-
 export interface MatrixInitialFilters {
   year?: number;
   stationno?: string;
@@ -393,7 +454,6 @@ export default function ComplianceMatrixTable({
   initialFilters,
   readOnly = false,
 }: Props) {
-  
   const { user, systemAccess } = useAuth();
   const scope = React.useMemo(
     () => resolveTargetScope(user, systemAccess?.roleno ?? 0),
@@ -407,7 +467,12 @@ export default function ComplianceMatrixTable({
     scope.provinceLocked
       ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
       : initialFilters?.provinceno
-        ? [{ locationno: initialFilters.provinceno, locationname: initialFilters.provinceName ?? "" }]
+        ? [
+            {
+              locationno: initialFilters.provinceno,
+              locationname: initialFilters.provinceName ?? "",
+            },
+          ]
         : [],
   );
   const [stationFilters, setStationFilters] = React.useState<SelectedStation[]>(
@@ -439,7 +504,12 @@ export default function ComplianceMatrixTable({
       scope.provinceLocked
         ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
         : initialFilters?.provinceno
-          ? [{ locationno: initialFilters.provinceno, locationname: initialFilters.provinceName ?? "" }]
+          ? [
+              {
+                locationno: initialFilters.provinceno,
+                locationname: initialFilters.provinceName ?? "",
+              },
+            ]
           : [],
     );
     setStationFilters(
@@ -453,23 +523,18 @@ export default function ComplianceMatrixTable({
             },
           ]
         : initialFilters?.stationno
-        ? [
-            {
-              stationno: initialFilters.stationno,
-              stationname: initialFilters.stationName ?? "",
-              provinceno: initialFilters?.provinceno ?? "",
-              provincename: initialFilters?.provinceName ?? "",
-            },
-          ]
-        : [],
+          ? [
+              {
+                stationno: initialFilters.stationno,
+                stationname: initialFilters.stationName ?? "",
+                provinceno: initialFilters?.provinceno ?? "",
+                provincename: initialFilters?.provinceName ?? "",
+              },
+            ]
+          : [],
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    open,
-    initialFilters?.year,
-    initialFilters?.provinceno,
-    initialFilters?.stationno,
-  ]);
+  }, [open, initialFilters?.year, initialFilters?.provinceno, initialFilters?.stationno]);
 
   const [groups, setGroups] = React.useState<ProvinceGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -584,8 +649,10 @@ export default function ComplianceMatrixTable({
     const provinceMap = new Map<string, { provinceno: string; stationnos: Set<string> }>();
     for (const g of sourceGroups) {
       const key = g.provinceno || g.province;
-      const entry =
-        provinceMap.get(key) ?? { provinceno: g.provinceno, stationnos: new Set<string>() };
+      const entry = provinceMap.get(key) ?? {
+        provinceno: g.provinceno,
+        stationnos: new Set<string>(),
+      };
       for (const s of g.stations) entry.stationnos.add(s.stationno);
       provinceMap.set(key, entry);
     }
@@ -619,9 +686,9 @@ export default function ComplianceMatrixTable({
         }
       >();
 
-      const { ok, data } = unwrap<
-        ProvinceIssuanceExportModel[] | FSISComplianceModel[]
-      >(exportResp);
+      const { ok, data } = unwrap<ProvinceIssuanceExportModel[] | FSISComplianceModel[]>(
+        exportResp,
+      );
       if (ok && Array.isArray(data)) {
         // The Export endpoint returns province groups; tolerate a flat station
         // list as well.
@@ -682,8 +749,10 @@ export default function ComplianceMatrixTable({
           groupsByProvince.set(provinceName, bucket);
           return groupsByProvince;
         }, new Map());
-      const merged = Array.from(mergedMap.entries()).map(([province, stations]) => ({ province, stations }));
-
+      const merged = Array.from(mergedMap.entries()).map(([province, stations]) => ({
+        province,
+        stations,
+      }));
 
       const flatFields = COMPLIANCE_FIELDS.map((f) => ({
         key: String(f.key),
@@ -693,13 +762,15 @@ export default function ComplianceMatrixTable({
         leafLabel: f.leafLabel,
       }));
 
-
       await exportComplianceMatrix({
         year,
         groups: merged,
         fields: flatFields,
         signatory: {
-          rank: (user as unknown as { rankcode?: string; rankname?: string })?.rankcode ?? (user as unknown as { rankname?: string })?.rankname ?? "",
+          rank:
+            (user as unknown as { rankcode?: string; rankname?: string })?.rankcode ??
+            (user as unknown as { rankname?: string })?.rankname ??
+            "",
           fullname: user?.fullname ?? user?.name ?? "",
           designation: (user as unknown as { designation?: string })?.designation ?? "",
         },
@@ -756,7 +827,12 @@ export default function ComplianceMatrixTable({
               )}
               {exporting ? "Exporting…" : "Export"}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="gap-2"
+            >
               Close
             </Button>
           </div>
@@ -769,7 +845,11 @@ export default function ComplianceMatrixTable({
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Year
               </div>
-              <Select value={String(year)} onValueChange={(v) => setYear(Number(v))} disabled={readOnly}>
+              <Select
+                value={String(year)}
+                onValueChange={(v) => setYear(Number(v))}
+                disabled={readOnly}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -892,7 +972,6 @@ export default function ComplianceMatrixTable({
           </div>
         </div>
 
-
         <div className="relative flex-1 overflow-auto">
           <table className="w-max min-w-full border-separate border-spacing-0 text-[11px]">
             <MatrixHeader fields={fields} catSpan={catSpan} />
@@ -921,7 +1000,6 @@ export default function ComplianceMatrixTable({
               )}
               {!loading &&
                 filteredGroups.map((g) => (
-
                   <ProvinceBlock
                     key={g.province}
                     group={g}
@@ -938,8 +1016,6 @@ export default function ComplianceMatrixTable({
     </Dialog>
   );
 }
-
-
 
 function MatrixHeader({
   fields,
@@ -968,7 +1044,6 @@ function MatrixHeader({
         >
           Mode of Issuance
         </th>
-
 
         {QUARTERS.map((q) => (
           <th
@@ -1126,7 +1201,6 @@ function MatrixHeader({
           ),
         )}
       </tr>
-
     </thead>
   );
 }
@@ -1158,7 +1232,6 @@ function ProvinceBlock({
           aria-hidden="true"
           className="border-b border-t-2 border-grid-strong group-row"
         />
-
       </tr>
       {group.stations.map((s, idx) => (
         <StationDataRow
@@ -1176,7 +1249,6 @@ function ProvinceBlock({
         province={group.province}
         fieldKeys={fieldKeys}
       />
-
     </>
   );
 }
@@ -1229,7 +1301,6 @@ function DrillCell({
     </td>
   );
 }
-
 
 function StationDataRow({
   station,
@@ -1335,8 +1406,6 @@ function StationDataRow({
   );
 }
 
-
-
 function ProvincialTotalRow({
   months,
   modeMonths,
@@ -1430,7 +1499,6 @@ function ProvincialTotalRow({
     </>
   );
 }
-
 
 // keep imports referenced when strict TS is on
 void MIMAROPA_REGION_CODE;

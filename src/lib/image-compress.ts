@@ -22,10 +22,7 @@ const loadImage = (file: File): Promise<HTMLImageElement> =>
     img.src = url;
   });
 
-export async function compressImage(
-  file: File,
-  opts: CompressOptions = {},
-): Promise<File> {
+export async function compressImage(file: File, opts: CompressOptions = {}): Promise<File> {
   try {
     if (!file.type.startsWith("image/")) return file;
     // Never re-encode SVG or GIF (animation) — just return as-is.

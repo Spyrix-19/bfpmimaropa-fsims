@@ -21,7 +21,6 @@ export interface UserParams {
   pageSize: number;
 }
 
-
 export interface UserModel {
   accessno: string;
   memberno: string;

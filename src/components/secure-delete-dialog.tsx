@@ -113,9 +113,7 @@ export default function SecureDeleteDialog({
             </div>
           ) : null}
 
-          {description ? (
-            <p className="text-sm text-muted-foreground">{description}</p>
-          ) : null}
+          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
 
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -175,9 +173,7 @@ export default function SecureDeleteDialog({
                 Your profile is missing Badge No. or Last Name — please update it before deleting.
               </p>
             ) : input.length > 0 && !matches ? (
-              <p className="text-[11px] font-medium text-destructive">
-                Phrase does not match.
-              </p>
+              <p className="text-[11px] font-medium text-destructive">Phrase does not match.</p>
             ) : null}
           </div>
         </div>

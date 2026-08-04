@@ -19,8 +19,7 @@ export default function ReadOnlyField({
   className?: string;
   title?: string;
 }) {
-  const text =
-    value === null || value === undefined || value === "" ? placeholder : String(value);
+  const text = value === null || value === undefined || value === "" ? placeholder : String(value);
   const isPlaceholder = text === placeholder;
   return (
     <div

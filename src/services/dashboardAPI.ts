@@ -1,13 +1,17 @@
 import { apiGet, apiPost, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
-import { DashboardDTO, DashboardComplianceModel, DashboardInspectionAccomplishModel, 
-  DashboardIssuanceGapModel, DashboardTargetAccomplishModel, DashboardMonthlyTargetAccomplishModel,
-  DashboardMonthlySectorInspectionModel, DashboardYearlyInspectionModel } from "@/types/dashboardType";
+import {
+  DashboardDTO,
+  DashboardComplianceModel,
+  DashboardInspectionAccomplishModel,
+  DashboardIssuanceGapModel,
+  DashboardTargetAccomplishModel,
+  DashboardMonthlyTargetAccomplishModel,
+  DashboardMonthlySectorInspectionModel,
+  DashboardYearlyInspectionModel,
+} from "@/types/dashboardType";
 
 export const dashboardAPI = {
-  async getComplianceSummary(
-    body: DashboardDTO,
-    options?: import("@/lib/api").ApiOptions,
-  ) {
+  async getComplianceSummary(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardComplianceModel>(
       "/api/v1/Dashboard/FSIMS/Compliance/Summary",
       body,
@@ -18,24 +22,14 @@ export const dashboardAPI = {
     );
   },
 
-  async getGapSummary(
-    body: DashboardDTO,
-    options?: import("@/lib/api").ApiOptions,
-  ) {
-    return await apiPost<DashboardIssuanceGapModel>(
-      "/api/v1/Dashboard/FSIMS/Gap/Summary",
-      body,
-      {
-        ...MUTATION_RETRY_LIGHT,
-        ...options,
-      },
-    );
+  async getGapSummary(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
+    return await apiPost<DashboardIssuanceGapModel>("/api/v1/Dashboard/FSIMS/Gap/Summary", body, {
+      ...MUTATION_RETRY_LIGHT,
+      ...options,
+    });
   },
 
-  async getInspectionSummary(
-    body: DashboardDTO,
-    options?: import("@/lib/api").ApiOptions,
-  ) {
+  async getInspectionSummary(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardInspectionAccomplishModel>(
       "/api/v1/Dashboard/FSIMS/Inspection/Summary",
       body,
@@ -46,10 +40,7 @@ export const dashboardAPI = {
     );
   },
 
-  async getTargetVSInspection(
-    body: DashboardDTO,
-    options?: import("@/lib/api").ApiOptions,
-  ) {
+  async getTargetVSInspection(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardTargetAccomplishModel>(
       "/api/v1/Dashboard/FSIMS/TargetVSInspection/Summary",
       body,
@@ -60,10 +51,7 @@ export const dashboardAPI = {
     );
   },
 
-  async getMonthlyTargetVSInspection(
-    body: DashboardDTO,
-    options?: import("@/lib/api").ApiOptions,
-  ) {
+  async getMonthlyTargetVSInspection(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardMonthlyTargetAccomplishModel>(
       "/api/v1/Dashboard/FSIMS/MonthlyTargetVSInspection/Summary",
       body,
@@ -74,10 +62,7 @@ export const dashboardAPI = {
     );
   },
 
-  async getMonthlySectorInspection(
-    body: DashboardDTO,
-    options?: import("@/lib/api").ApiOptions,
-  ) {
+  async getMonthlySectorInspection(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardMonthlySectorInspectionModel>(
       "/api/v1/Dashboard/FSIMS/MonthlySectorInspection/Summary",
       body,
@@ -88,10 +73,7 @@ export const dashboardAPI = {
     );
   },
 
-  async getYearlyInspection(
-    body: DashboardDTO,
-    options?: import("@/lib/api").ApiOptions,
-  ) {
+  async getYearlyInspection(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardYearlyInspectionModel>(
       "/api/v1/Dashboard/FSIMS/YearlyInspection/Summary",
       body,
@@ -101,6 +83,4 @@ export const dashboardAPI = {
       },
     );
   },
-
-
 };

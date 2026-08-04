@@ -7,7 +7,7 @@ export interface SearchOfficeParams {
 export interface SearchOfficeModel {
   detno: number;
   recordcode: string;
-  description: string;  
+  description: string;
   tablename: string;
   sortorder: number;
 }

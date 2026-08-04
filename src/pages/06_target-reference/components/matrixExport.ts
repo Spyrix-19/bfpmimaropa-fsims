@@ -9,6 +9,13 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MONTHS } from "@/lib/fsims-constants";
+import {
+  NUMBER_FMT,
+  border,
+  centerBoldWhite,
+  fill,
+  formatMilitaryTimestamp,
+} from "@/lib/excel-style";
 
 export interface ExportBucket {
   bplo: number;
@@ -59,8 +66,7 @@ const COL = {
 
 const monthCatCol = (monthIdx0: number, catIdx: number) =>
   COL.MONTHS_START + monthIdx0 * 4 + catIdx;
-const qtotalCol = (qIdx0: number, catIdx: number) =>
-  COL.QTOTAL_START + qIdx0 * 4 + catIdx;
+const qtotalCol = (qIdx0: number, catIdx: number) => COL.QTOTAL_START + qIdx0 * 4 + catIdx;
 
 // Palette mirrors the centralized web theme tokens (see src/lib/theme.ts).
 const FILL = {
@@ -74,50 +80,6 @@ const FILL = {
   provTotal: "FFFEF08A", // yellow-200
   numberCol: "FFEFF6FF", // very light blue
 };
-
-function fill(color: string): ExcelJS.Fill {
-  return {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: color },
-  };
-}
-
-function formatMilitaryTimestamp(value: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hour12: true,
-  }).format(value);
-}
-
-function border(
-  style: ExcelJS.BorderStyle = "thin",
-  color = "FF64748B",
-): ExcelJS.Borders {
-  const b: Partial<ExcelJS.Border> = { style, color: { argb: color } };
-  return {
-    top: b as ExcelJS.Border,
-    left: b as ExcelJS.Border,
-    right: b as ExcelJS.Border,
-    bottom: b as ExcelJS.Border,
-    diagonal: {} as ExcelJS.Border,
-  };
-}
-
-function centerBoldWhite(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, color: { argb: "FFFFFFFF" }, size: 10 },
-    alignment: { horizontal: "center", vertical: "middle", wrapText: true },
-    border: border("thin", "FF334155"),
-  };
-}
-
-const NUMBER_FMT = "#,##0;(#,##0);-";
 
 export async function exportTargetMatrix(opts: {
   year: number;
@@ -258,11 +220,7 @@ export async function exportTargetMatrix(opts: {
   // --------------------------------------------------------- Body rows
   let cursor = HR3 + 1;
 
-  const writeStationRow = (
-    station: ExportStation,
-    seq: number,
-    provinceName: string,
-  ) => {
+  const writeStationRow = (station: ExportStation, seq: number, provinceName: string) => {
     const row = ws.getRow(cursor);
     row.getCell(COL.NO).value = seq;
     row.getCell(COL.PROV).value = provinceName;
@@ -399,10 +357,7 @@ export async function exportTargetMatrix(opts: {
   const nameRow = cursor;
   ws.mergeCells(nameRow, 1, nameRow, 6);
   const nameCell = ws.getCell(nameRow, 1);
-  const rankFullName = [signatory?.rank, signatory?.fullname]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
+  const rankFullName = [signatory?.rank, signatory?.fullname].filter(Boolean).join(" ").trim();
   nameCell.value = rankFullName || "____________________________";
   nameCell.font = { bold: true, size: 11, underline: true };
   nameCell.alignment = { horizontal: "left", vertical: "middle" };

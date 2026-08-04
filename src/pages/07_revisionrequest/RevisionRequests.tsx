@@ -28,9 +28,7 @@ import DeleteButton from "@/components/delete-button";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
-import {
-  type RevisionModule,
-} from "@/pages/06_target-reference/revision/types";
+import { type RevisionModule } from "@/pages/06_target-reference/revision/types";
 
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
@@ -101,10 +99,8 @@ export default function TargetRevisionRequests({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const stationno =
-        stations.length === 1 ? stations[0].stationno : EMPTY_GUID;
-      const provinceno =
-        provinces.length === 1 ? provinces[0].locationno : EMPTY_GUID;
+      const stationno = stations.length === 1 ? stations[0].stationno : EMPTY_GUID;
+      const provinceno = provinces.length === 1 ? provinces[0].locationno : EMPTY_GUID;
       const resp = await revisionrequestAPI.getLedger(
         {
           stationno,
@@ -133,7 +129,9 @@ export default function TargetRevisionRequests({
         }
         if (stations.length > 1) {
           const allow = new Set(stations.map((s) => s.stationno));
-          list = list.filter((r) => allow.has((r as unknown as { stationno?: string }).stationno ?? ""));
+          list = list.filter((r) =>
+            allow.has((r as unknown as { stationno?: string }).stationno ?? ""),
+          );
         }
         setRows(list);
         setTotal(t || list.length);
@@ -212,11 +210,13 @@ export default function TargetRevisionRequests({
 
       {!moduleFilter && (
         <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-1">
-          {([
-            { value: "target-reference", label: "Target Reference" },
-            { value: "monitoring", label: "Monitoring (Compliance)" },
-            { value: "notice", label: "AccomplishedNotice" },
-          ] as { value: RevisionModule; label: string }[]).map((t) => {
+          {(
+            [
+              { value: "target-reference", label: "Target Reference" },
+              { value: "monitoring", label: "Monitoring (Compliance)" },
+              { value: "notice", label: "AccomplishedNotice" },
+            ] as { value: RevisionModule; label: string }[]
+          ).map((t) => {
             const active = activeTab === t.value;
             return (
               <button
@@ -240,22 +240,30 @@ export default function TargetRevisionRequests({
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <FilterField label="Year">
             <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All years</SelectItem>
                 {YEARS.map((y) => (
-                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </FilterField>
           <FilterField label="Month">
             <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All months</SelectItem>
                 {MONTHS_CONST.map((m) => (
-                  <SelectItem key={m.value} value={String(m.value)}>{m.name}</SelectItem>
+                  <SelectItem key={m.value} value={String(m.value)}>
+                    {m.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -301,18 +309,16 @@ export default function TargetRevisionRequests({
         <table className="min-w-full border-collapse text-xs">
           <thead className="bg-muted/50 uppercase tracking-wider text-[10px] text-primary">
             <tr>
-              {[
-                "Action",
-                "Station",
-                dateColumnHeader,
-                "Status",
-                "Requested",
-                "Remarks",
-              ].map((h) => (
-                <th key={h} className="whitespace-nowrap border-b border-border/60 px-3 py-2 text-left font-semibold">
-                  {h}
-                </th>
-              ))}
+              {["Action", "Station", dateColumnHeader, "Status", "Requested", "Remarks"].map(
+                (h) => (
+                  <th
+                    key={h}
+                    className="whitespace-nowrap border-b border-border/60 px-3 py-2 text-left font-semibold"
+                  >
+                    {h}
+                  </th>
+                ),
+              )}
             </tr>
           </thead>
           <tbody>
@@ -332,75 +338,81 @@ export default function TargetRevisionRequests({
                 </td>
               </tr>
             )}
-            {!loading && rows.map((r) => {
-              const isPending = String(r.statuscode ?? "").toUpperCase() === "PENDING";
-              const isApproved = String(r.statuscode ?? "").toUpperCase() === "APPROVED";
-              return (
-                <tr key={r.requestno} className="border-b border-border/40 hover:bg-muted/30 align-top">
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1.5">
-                      {isAuthorizedAdmin && isPending && (
-                        <>
-                          <EditButton
-                            variant="square"
-                            tooltip="Approve Request"
-                            ariaLabel="Approve Request"
-                            icon={<Check className="h-4 w-4" />}
-                            onClick={() => setApproveTarget(r)}
-                          />
-                          <DeleteButton
-                            variant="square"
-                            tooltip="Reject Request"
-                            ariaLabel="Reject Request"
-                            icon={<XIcon className="h-4 w-4" />}
-                            onClick={() => setRejectTarget(r)}
-                          />
-                        </>
-                      )}
-                    </div>
-                  </td>
+            {!loading &&
+              rows.map((r) => {
+                const isPending = String(r.statuscode ?? "").toUpperCase() === "PENDING";
+                const isApproved = String(r.statuscode ?? "").toUpperCase() === "APPROVED";
+                return (
+                  <tr
+                    key={r.requestno}
+                    className="border-b border-border/40 hover:bg-muted/30 align-top"
+                  >
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        {isAuthorizedAdmin && isPending && (
+                          <>
+                            <EditButton
+                              variant="square"
+                              tooltip="Approve Request"
+                              ariaLabel="Approve Request"
+                              icon={<Check className="h-4 w-4" />}
+                              onClick={() => setApproveTarget(r)}
+                            />
+                            <DeleteButton
+                              variant="square"
+                              tooltip="Reject Request"
+                              ariaLabel="Reject Request"
+                              icon={<XIcon className="h-4 w-4" />}
+                              onClick={() => setRejectTarget(r)}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </td>
 
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <AvatarWithFallback
-                        src={r.logourl || undefined}
-                        name={r.stationname}
-                        className="h-8 w-8 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <div className="truncate">{r.stationname || "—"}</div>
-                        <div className="truncate text-[11px] text-muted-foreground">
-                          {r.stationcode || "—"}
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <AvatarWithFallback
+                          src={r.logourl || undefined}
+                          name={r.stationname}
+                          className="h-8 w-8 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate">{r.stationname || "—"}</div>
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {r.stationcode || "—"}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
-                    {["ISSUANCE", "NOTICE"].includes(String(r.requesttype ?? "").toUpperCase())
-                      ? formatDate(r.dateinspected, "—")
-                      : monthYearLabel(r.reportyear, r.reportmonth)}
-                  </td>
+                    <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
+                      {["ISSUANCE", "NOTICE"].includes(String(r.requesttype ?? "").toUpperCase())
+                        ? formatDate(r.dateinspected, "—")
+                        : monthYearLabel(r.reportyear, r.reportmonth)}
+                    </td>
 
-                  <td className="px-3 py-2">
-                    <span className={cn(STATUS_PILL_BASE, statusTone(r.statuscode || r.statusname))}>
-                      {r.statusname || r.statuscode || "—"}
-                    </span>
-                  </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={cn(STATUS_PILL_BASE, statusTone(r.statuscode || r.statusname))}
+                      >
+                        {r.statusname || r.statuscode || "—"}
+                      </span>
+                    </td>
 
-                  <td className="px-3 py-2">
-                    <div className="font-medium">{r.fullname || "—"}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {formatDateTime(r.daterequested, "—")}
-                    </div>
-                  </td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{r.fullname || "—"}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {formatDateTime(r.daterequested, "—")}
+                      </div>
+                    </td>
 
-                  <td className="px-3 py-2 whitespace-pre-wrap break-words max-w-[320px]">
-                    {r.remarks || "—"}
-                  </td>
-                </tr>
-              );
-            })}
+                    <td className="px-3 py-2 whitespace-pre-wrap break-words max-w-[320px]">
+                      {r.remarks || "—"}
+                    </td>
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>
@@ -456,7 +468,6 @@ export default function TargetRevisionRequests({
           if (ok) setRejectTarget(null);
         }}
       />
-
     </div>
   );
 }

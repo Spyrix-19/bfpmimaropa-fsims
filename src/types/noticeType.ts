@@ -75,7 +75,6 @@ export interface NoticeLedgerResultModel {
 }
 
 export interface NoticeDetailModel {
-
   stationno: string;
   stationcode: string;
   stationname: string;

@@ -1,13 +1,20 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 
-import { FSISTargetReferenceDTO, TargetReferenceDetailParams, TargetReferenceDetailModel, 
-  GetFSISTargetReferenceRequestLedgerParams, TargetReferenceModel, TargetReferenceDeleteParams, 
-  ExportTargetReferenceRequestDTO, TargetReferenceByDateModel} from "@/types/targetreferenceType";
+import {
+  FSISTargetReferenceDTO,
+  TargetReferenceDetailParams,
+  TargetReferenceDetailModel,
+  GetFSISTargetReferenceRequestLedgerParams,
+  TargetReferenceModel,
+  TargetReferenceDeleteParams,
+  ExportTargetReferenceRequestDTO,
+  TargetReferenceByDateModel,
+} from "@/types/targetreferenceType";
 
 export const targetreferenceAPI = {
   async create(params: FSISTargetReferenceDTO) {
     return await apiPost("/api/v1/FSISTargetReference/Create", params, { ...NO_RETRY });
-  },  
+  },
 
   async getDetail(params?: TargetReferenceDetailParams, options?: import("@/lib/api").ApiOptions) {
     return await apiGet<TargetReferenceDetailModel>("/api/v1/FSISTargetReference/Detail", {
@@ -20,17 +27,17 @@ export const targetreferenceAPI = {
   /** Existence check for a station + specific target date (MM/DD/YYYY). */
   async getDetailByTargetdate(
     params: { Stationno: string; Targetdate: string },
-    options?: import("@/lib/api").ApiOptions
+    options?: import("@/lib/api").ApiOptions,
   ) {
     return await apiGet<TargetReferenceByDateModel[]>(
       "/api/v1/FSISTargetReference/Detail/Targetdate",
-      { params, ...GET_RETRY, ...options }
+      { params, ...GET_RETRY, ...options },
     );
   },
 
   async getLedger(
     request: GetFSISTargetReferenceRequestLedgerParams,
-    options?: import("@/lib/api").ApiOptions
+    options?: import("@/lib/api").ApiOptions,
   ) {
     return await apiPost<TargetReferenceModel[]>(
       "/api/v1/FSISTargetReference/Ledger",
@@ -41,7 +48,7 @@ export const targetreferenceAPI = {
           Pagesize: request.pagesize ?? 10,
         },
         ...options,
-      }
+      },
     );
   },
 
@@ -52,15 +59,10 @@ export const targetreferenceAPI = {
     });
   },
 
-  async export(
-    body: ExportTargetReferenceRequestDTO,
-    options?: import("@/lib/api").ApiOptions
-  ) {
+  async export(body: ExportTargetReferenceRequestDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost("/api/v1/FSISTargetReference/Export", body, {
       ...GET_RETRY,
       ...options,
     });
-  }
-
-  
+  },
 };

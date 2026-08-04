@@ -27,51 +27,48 @@ export function useRecentActivity() {
   const loadedOnce = React.useRef(false);
   const signatureRef = React.useRef<string>("");
 
-  const fetchLatest = React.useCallback(
-    async (signal: AbortSignal, background = false) => {
-      // Background polls never flip the loading flag, so the card keeps
-      // rendering its current content untouched.
-      if (!background && !loadedOnce.current) setLoading(true);
+  const fetchLatest = React.useCallback(async (signal: AbortSignal, background = false) => {
+    // Background polls never flip the loading flag, so the card keeps
+    // rendering its current content untouched.
+    if (!background && !loadedOnce.current) setLoading(true);
 
-      const resp = await journalAPI.getLedger(
-        { searchkey: "", modulename: "", pagenumber: 1, pagesize: PAGE_SIZE },
-        {
-          suppressGlobalLoading: true,
-          // The card renders its own inline error banner, so no toast here —
-          // otherwise the same message would be shown twice.
-          suppressErrorToast: true,
-          signal,
-          retries: 3,
-          retryDelayMs: 800,
-        },
-      );
+    const resp = await journalAPI.getLedger(
+      { searchkey: "", modulename: "", pagenumber: 1, pagesize: PAGE_SIZE },
+      {
+        suppressGlobalLoading: true,
+        // The card renders its own inline error banner, so no toast here —
+        // otherwise the same message would be shown twice.
+        suppressErrorToast: true,
+        signal,
+        retries: 3,
+        retryDelayMs: 800,
+      },
+    );
 
-      const { ok, data, canceled } = unwrap<JournalModel[]>(resp);
-      if (canceled || signal.aborted) return;
+    const { ok, data, canceled } = unwrap<JournalModel[]>(resp);
+    if (canceled || signal.aborted) return;
 
-      if (!ok) {
-        if (background && loadedOnce.current) {
-          // Silent failure: keep showing the last known entry.
-          return;
-        }
-        setError("Unable to load recent activity.");
-      } else {
-        setError(null);
-
-        const next = Array.isArray(data) ? data.slice(0, PAGE_SIZE) : [];
-        const signature = JSON.stringify(next);
-        // Skip the state write (and the re-render) when nothing changed.
-        if (signature !== signatureRef.current) {
-          signatureRef.current = signature;
-          setItems(next);
-        }
+    if (!ok) {
+      if (background && loadedOnce.current) {
+        // Silent failure: keep showing the last known entry.
+        return;
       }
+      setError("Unable to load recent activity.");
+    } else {
+      setError(null);
 
-      loadedOnce.current = true;
-      if (!background) setLoading(false);
-    },
-    [],
-  );
+      const next = Array.isArray(data) ? data.slice(0, PAGE_SIZE) : [];
+      const signature = JSON.stringify(next);
+      // Skip the state write (and the re-render) when nothing changed.
+      if (signature !== signatureRef.current) {
+        signatureRef.current = signature;
+        setItems(next);
+      }
+    }
+
+    loadedOnce.current = true;
+    if (!background) setLoading(false);
+  }, []);
 
   const [refreshKey, setRefreshKey] = React.useState(0);
   const refresh = React.useCallback(() => setRefreshKey((k) => k + 1), []);

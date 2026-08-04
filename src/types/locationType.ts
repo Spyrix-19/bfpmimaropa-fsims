@@ -6,7 +6,6 @@ export interface SearchLedgerParams {
   pagesize: number;
 }
 
-
 export interface SearchLocationModel {
   locationno: string; // Guid
   locationcode: string;

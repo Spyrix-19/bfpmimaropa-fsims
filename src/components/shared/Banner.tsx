@@ -49,9 +49,7 @@ export function Banner({
     <Card className={cn("max-w-md p-8 text-center", className)}>
       <Icon className={cn("mx-auto mb-3 h-10 w-10", iconClass)} />
       <h2 className="text-xl font-semibold">{title}</h2>
-      {description && (
-        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-      )}
+      {description && <p className="mt-2 text-sm text-muted-foreground">{description}</p>}
       {actions && <div className="mt-4 flex justify-center gap-2">{actions}</div>}
     </Card>
   );

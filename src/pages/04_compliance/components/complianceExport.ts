@@ -1,7 +1,20 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import { toNumber as num } from "@/lib/utils";
 import { MONTHS } from "@/lib/fsims-constants";
 import type { FSISComplianceClassModel, FSISIssuanceClassModel } from "@/types/complianceType";
+import {
+  border,
+  categoryHeaderStyle,
+  crownHeaderStyle,
+  dataCellStyle,
+  dataRowStyle,
+  fill,
+  formatMilitaryTimestamp,
+  modeHeaderStyle,
+  provinceRowStyle,
+  titleStyle,
+} from "@/lib/excel-style";
 
 /* ------------------------------------------------------------------ *
  * Compliance export — mirrors the Target Reference workbook layout.
@@ -11,8 +24,9 @@ import type { FSISComplianceClassModel, FSISIssuanceClassModel } from "@/types/c
 
 export type CompliancePeriod = "DAILY" | "MONTHLY" | "QUARTERLY" | "SEMI-ANNUAL" | "ANNUAL";
 
-export interface ComplianceExportRecord
-  extends Partial<Omit<FSISComplianceClassModel, "dateinspected" | "issuancelist">> {
+export interface ComplianceExportRecord extends Partial<
+  Omit<FSISComplianceClassModel, "dateinspected" | "issuancelist">
+> {
   dateinspected?: string | Date;
   issuancelist?: Partial<FSISIssuanceClassModel>[];
 }
@@ -81,9 +95,6 @@ export const addModeBucket = (
 
 const issuanceValues = (bucket: ComplianceBucket) => [bucket.fsec, bucket.fsic, bucket.notices];
 
-
-const num = (v: unknown) => Number(v ?? 0) || 0;
-
 const INSPECTION_KEYS = [
   "inspectduringcount",
   "inspectaftercount",
@@ -110,7 +121,9 @@ const NOTICE_KEYS = [
 ] as const;
 
 /** ISO date parts of a compliance record; nulls out the 1900 sentinel. */
-function recordDate(rec: ComplianceExportRecord): { year: number; month: number; day: number } | null {
+function recordDate(
+  rec: ComplianceExportRecord,
+): { year: number; month: number; day: number } | null {
   const iso = String(rec?.dateinspected ?? "").slice(0, 10);
   if (!iso || iso.startsWith("1900")) return null;
   const y = Number(iso.slice(0, 4));
@@ -156,95 +169,6 @@ interface PeriodDef {
   key: string;
   label: string;
   getBucket: (list: ComplianceExportRecord[]) => ComplianceModeBucket;
-
-}
-
-function fill(color: string): ExcelJS.Fill {
-  return {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: color },
-  };
-}
-
-function border(style: ExcelJS.BorderStyle = "thin", color = "FF64748B"): ExcelJS.Borders {
-  const b: Partial<ExcelJS.Border> = { style, color: { argb: color } };
-  return {
-    top: b as ExcelJS.Border,
-    left: b as ExcelJS.Border,
-    right: b as ExcelJS.Border,
-    bottom: b as ExcelJS.Border,
-    diagonal: {} as ExcelJS.Border,
-  };
-}
-
-function titleStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, color: { argb: "FF0F172A" }, size: 16 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border("medium", "FF0F172A"),
-  };
-}
-
-function formatMilitaryTimestamp(value: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hour12: true,
-  }).format(value);
-}
-
-function crownHeaderStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, color: { argb: "FFFFFFFF" }, size: 10 },
-    alignment: { horizontal: "center", vertical: "middle", wrapText: true },
-    border: border("thin", "FF334155"),
-  };
-}
-
-function modeHeaderStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 9, color: { argb: "FF0F172A" } },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border("thin", "FF334155"),
-  };
-}
-
-function categoryHeaderStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 9, color: { argb: "FF064E3B" } },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-  };
-}
-
-function dataCellStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { size: 10 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-  };
-}
-
-function dataRowStyle(isAlternate: boolean): Partial<ExcelJS.Style> {
-  return {
-    font: { size: 10 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-    fill: isAlternate ? fill("FFF8FAFC") : undefined,
-  };
-}
-
-function provinceRowStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 10, color: { argb: "FF713F12" } },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border("medium", "FF334155"),
-  };
 }
 
 function buildPeriodDefs(
@@ -260,8 +184,7 @@ function buildPeriodDefs(
       return MONTHS.filter((m) => selectedMonths.includes(m.value)).map((m) => ({
         key: `m${m.value}`,
         label: m.name,
-        getBucket: (list) =>
-          sumWhere(list, (p) => p.year === year && p.month === m.value),
+        getBucket: (list) => sumWhere(list, (p) => p.year === year && p.month === m.value),
       }));
     }
     case "QUARTERLY": {
@@ -274,8 +197,7 @@ function buildPeriodDefs(
           {
             key: q,
             label: QUARTER_LABELS[idx],
-            getBucket: (list) =>
-              sumWhere(list, (p) => p.year === year && months.includes(p.month)),
+            getBucket: (list) => sumWhere(list, (p) => p.year === year && months.includes(p.month)),
           },
         ];
       });
@@ -290,8 +212,7 @@ function buildPeriodDefs(
           {
             key: s,
             label: SEMESTER_LABELS[idx],
-            getBucket: (list) =>
-              sumWhere(list, (p) => p.year === year && months.includes(p.month)),
+            getBucket: (list) => sumWhere(list, (p) => p.year === year && months.includes(p.month)),
           },
         ];
       });
@@ -442,7 +363,6 @@ export async function exportComplianceWorkbook(opts: {
   ws.getRow(2).height = 26;
   ws.getRow(3).height = 20;
   ws.getRow(4).height = 22;
-
 
   ws.getColumn(1).width = 5;
   ws.getColumn(2).width = 24;

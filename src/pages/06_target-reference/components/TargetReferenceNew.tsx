@@ -1,10 +1,33 @@
 import * as React from "react";
-import {  Dialog,  DialogContent,  DialogHeader,  DialogTitle,  DialogFooter,} from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {  Select,  SelectContent,  SelectItem,  SelectTrigger,  SelectValue,} from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { Building2, Calendar, Loader2, Lock, FilePen, Save, X, AlertTriangle, Trash2, Ban } from "lucide-react";
+import {
+  Building2,
+  Calendar,
+  Loader2,
+  Lock,
+  FilePen,
+  Save,
+  X,
+  AlertTriangle,
+  Trash2,
+  Ban,
+} from "lucide-react";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
@@ -16,6 +39,8 @@ import ReadOnlyField from "./ReadOnlyField";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 
 import StationSearchSelect from "@/components/station-search-select";
+import StationInfoCard from "@/components/station-info-card";
+
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/auth";
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
@@ -23,7 +48,11 @@ import { stationAPI } from "@/services/stationAPI";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
 
-import type {  TargetReferenceClass,  TargetReferenceDetailModel,  TargetReferenceByDateModel,} from "@/types/targetreferenceType";
+import type {
+  TargetReferenceClass,
+  TargetReferenceDetailModel,
+  TargetReferenceByDateModel,
+} from "@/types/targetreferenceType";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import { resolveTargetScope, buildDays, formatDayLabel } from "../helpers";
 import RevisionRequestDialog from "../revision/RevisionRequestDialog";
@@ -65,7 +94,11 @@ function toTargetDate(year: number, month: number, day: number): string {
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0)).toISOString();
 }
 
-function hasPstLockActivated(reportyear: number, reportmonth: number, now: Date = new Date()): boolean {
+function hasPstLockActivated(
+  reportyear: number,
+  reportmonth: number,
+  now: Date = new Date(),
+): boolean {
   const y = Number(reportyear);
   const m = Number(reportmonth);
   if (!y || !m || m < 1 || m > 12) return false;
@@ -91,7 +124,6 @@ function startOfToday(): number {
   const n = new Date();
   return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
 }
-
 
 export default function TargetReferenceForm({
   open,
@@ -151,8 +183,6 @@ export default function TargetReferenceForm({
   }>({ isrevisionrequest: false, editablestatus: 0 });
   const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
 
-
-
   const setField = (field: string, raw: string) => {
     setCells((prev) => ({ ...prev, [field]: toWhole(raw) }));
     if (errors[field]) {
@@ -188,8 +218,12 @@ export default function TargetReferenceForm({
 
     let nextStationNo = "";
     let nextStationLabel = "";
-    let nextProvinceNo = scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID;
-    let nextProvinceName = scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL";
+    const nextProvinceNo = scope.provinceLocked
+      ? scope.provinceno || user?.provinceno || ""
+      : EMPTY_GUID;
+    const nextProvinceName = scope.provinceLocked
+      ? scope.provincename || user?.provincename || ""
+      : "ALL";
 
     if (scope.stationLocked) {
       nextStationNo = scope.stationno || user?.stationno || "";
@@ -209,7 +243,16 @@ export default function TargetReferenceForm({
     setProvinceno(nextProvinceNo);
     setProvincename(nextProvinceName);
     setInitializedForOpen(true);
-  }, [open, initializedForOpen, scope.stationLocked, scope.stationno, editing?.stationno, user?.provincename, user?.stationname, user?.stationno]);
+  }, [
+    open,
+    initializedForOpen,
+    scope.stationLocked,
+    scope.stationno,
+    editing?.stationno,
+    user?.provincename,
+    user?.stationname,
+    user?.stationno,
+  ]);
 
   React.useEffect(() => {
     if (!open || !stationNo || stationNo === EMPTY_GUID) {
@@ -246,7 +289,15 @@ export default function TargetReferenceForm({
     return () => {
       cancelled = true;
     };
-  }, [open, stationNo, station, scope.provinceLocked, scope.provinceno, user?.stationcode, user?.stationname]);
+  }, [
+    open,
+    stationNo,
+    station,
+    scope.provinceLocked,
+    scope.provinceno,
+    user?.stationcode,
+    user?.stationname,
+  ]);
 
   // Fixed sector constants live in @/lib/fsims-constants (SECTORS).
   // 111=BPLO, 112=GOV, 113=PEZA, 114=TIEZA (OGA=115 intentionally excluded).
@@ -255,9 +306,13 @@ export default function TargetReferenceForm({
 
   const [existingLoading, setExistingLoading] = React.useState(false);
   const [existingTargetNos, setExistingTargetNos] = React.useState<Record<string, string>>({});
-  
-  const [existingEditableStatus, setExistingEditableStatus] = React.useState<Record<string, number>>({});
-  const [existingIsRevisionRequest, setExistingIsRevisionRequest] = React.useState<Record<string, boolean>>({});
+
+  const [existingEditableStatus, setExistingEditableStatus] = React.useState<
+    Record<string, number>
+  >({});
+  const [existingIsRevisionRequest, setExistingIsRevisionRequest] = React.useState<
+    Record<string, boolean>
+  >({});
   const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
   const [revisionRequestsLoading, setRevisionRequestsLoading] = React.useState(false);
   const [reloadNonce, setReloadNonce] = React.useState(0);
@@ -283,7 +338,15 @@ export default function TargetReferenceForm({
     if (!stationNo) {
       setSelectedStationLabel("");
     }
-  }, [open, station, stationNo, scope.stationLocked, scope.provinceLocked, user?.stationname, user?.provincename]);
+  }, [
+    open,
+    station,
+    stationNo,
+    scope.stationLocked,
+    scope.provinceLocked,
+    user?.stationname,
+    user?.provincename,
+  ]);
 
   React.useEffect(() => {
     if (!open || !stationNo || stationNo === EMPTY_GUID) {
@@ -352,7 +415,17 @@ export default function TargetReferenceForm({
     setMonth(editing?.month ?? initialMonth ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
-  }, [open, editing, currentYear, currentMonth, initialYear, initialMonth, scope.provinceLocked, scope.provinceno, user?.provinceno]);
+  }, [
+    open,
+    editing,
+    currentYear,
+    currentMonth,
+    initialYear,
+    initialMonth,
+    scope.provinceLocked,
+    scope.provinceno,
+    user?.provinceno,
+  ]);
 
   /**
    * Existence check for the selected station + date.
@@ -383,8 +456,7 @@ export default function TargetReferenceForm({
       );
       if (cancelled) return;
       const { ok, data } = unwrap<TargetReferenceByDateModel[]>(resp);
-      const record =
-        ok && Array.isArray(data) ? data.find((r) => !r.isdeleted) ?? null : null;
+      const record = ok && Array.isArray(data) ? (data.find((r) => !r.isdeleted) ?? null) : null;
       setCheckingExisting(false);
 
       if (record && record.targetno && record.targetno !== EMPTY_GUID) {
@@ -408,7 +480,6 @@ export default function TargetReferenceForm({
           plotExistingRecord(record);
         }
       } else {
-
         // No record for this date → back to a clean CREATE.
         setExistingTargetno(null);
         setPendingExistingRecord(null);
@@ -431,8 +502,16 @@ export default function TargetReferenceForm({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, isEditProp, selectedDate, stationNo, scope.stationLocked, scope.stationno, user?.stationno, reloadNonce]);
+  }, [
+    open,
+    isEditProp,
+    selectedDate,
+    stationNo,
+    scope.stationLocked,
+    scope.stationno,
+    user?.stationno,
+    reloadNonce,
+  ]);
 
   /** Plots a record's totals/remarks into the form and enables update mode. */
   function plotExistingRecord(rec: TargetReferenceByDateModel) {
@@ -467,8 +546,6 @@ export default function TargetReferenceForm({
     setPendingExistingRecord(null);
     setExistingTargetno(null);
   };
-
-
 
   const setCell = (day: number, sectorNo: number, raw: string) => {
     const key = `${day}-${sectorNo}`;
@@ -535,12 +612,14 @@ export default function TargetReferenceForm({
     );
   }, [revisionRequests, selectedDate, existingTargetno]);
   const hasPendingRevision =
-    !isEdit && isPastSelectedDate && (existingMeta.isrevisionrequest || !!activeAddRequest) && !unlockedByApproval;
+    !isEdit &&
+    isPastSelectedDate &&
+    (existingMeta.isrevisionrequest || !!activeAddRequest) &&
+    !unlockedByApproval;
   /** Locked past date with no approval and no pending request → request revision. */
   const needsRevisionRequest =
     !isEdit && isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
   const addFieldsLocked = !isEdit && isPastSelectedDate && !unlockedByApproval;
-
 
   const handleSave = async () => {
     const submitStationNo = scope.stationLocked
@@ -552,7 +631,12 @@ export default function TargetReferenceForm({
       return;
     }
 
-    if (scope.provinceLocked && scope.provinceno && station?.provinceno && String(station.provinceno) !== String(scope.provinceno)) {
+    if (
+      scope.provinceLocked &&
+      scope.provinceno &&
+      station?.provinceno &&
+      String(station.provinceno) !== String(scope.provinceno)
+    ) {
       toast.error("Selected station is outside your assigned province.");
       return;
     }
@@ -621,7 +705,9 @@ export default function TargetReferenceForm({
         toast.error(error || "Unable to save target reference.");
         return;
       }
-      toast.success(isEdit || existingTargetno ? "Target reference updated." : "Target reference added.");
+      toast.success(
+        isEdit || existingTargetno ? "Target reference updated." : "Target reference added.",
+      );
       onSaved();
       onOpenChange(false);
     } finally {
@@ -631,8 +717,7 @@ export default function TargetReferenceForm({
 
   // Totals (whole-number sums)
   const dayTotal = React.useCallback(
-    (d: number) =>
-      sectors.reduce((sum, s) => sum + (Number(cells[`${d}-${s.detno}`]) || 0), 0),
+    (d: number) => sectors.reduce((sum, s) => sum + (Number(cells[`${d}-${s.detno}`]) || 0), 0),
     [sectors, cells],
   );
   const sectorTotal = React.useCallback(
@@ -793,14 +878,14 @@ export default function TargetReferenceForm({
               }}
               className={cn(
                 "h-12 w-full rounded-xl border bg-background px-3 text-center text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
-                errors.tieza && "border-destructive focus:border-destructive focus:ring-destructive",
+                errors.tieza &&
+                  "border-destructive focus:border-destructive focus:ring-destructive",
                 addFieldsLocked && lockedFieldClass,
               )}
               aria-invalid={Boolean(errors.tieza)}
             />
           </div>
         </div>
-
       </div>
 
       <div className="space-y-1.5">
@@ -820,7 +905,6 @@ export default function TargetReferenceForm({
           placeholder="Add remarks here..."
         />
       </div>
-
     </div>
   );
 
@@ -829,16 +913,17 @@ export default function TargetReferenceForm({
       <Loader2 className="h-4 w-4 animate-spin" /> Loading…
     </div>
   ) : sectors.length === 0 ? (
-    <div className="py-10 text-center text-sm text-muted-foreground">No government sectors available.</div>
+    <div className="py-10 text-center text-sm text-muted-foreground">
+      No government sectors available.
+    </div>
   ) : (
-    <div
-      className="w-full max-w-full overflow-auto"
-      style={{ maxHeight: "70vh" }}
-    >
+    <div className="w-full max-w-full overflow-auto" style={{ maxHeight: "70vh" }}>
       <table className="min-w-full border-collapse text-xs">
         <thead className="sticky top-0 z-10 bg-card">
           <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
-            <th className="min-w-[96px] border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">ACTION</th>
+            <th className="min-w-[96px] border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">
+              ACTION
+            </th>
             <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Date</th>
             {sectors.map((s) => (
               <th
@@ -849,7 +934,9 @@ export default function TargetReferenceForm({
                 {s.recordcode || s.description}
               </th>
             ))}
-            <th className="border-b border-l border-border/60 bg-card px-3 py-2 text-center font-semibold">TOTAL</th>
+            <th className="border-b border-l border-border/60 bg-card px-3 py-2 text-center font-semibold">
+              TOTAL
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -919,7 +1006,9 @@ export default function TargetReferenceForm({
                 </td>
                 <td className="whitespace-nowrap px-3 py-1.5 font-medium">
                   <div className="flex items-center gap-2">
-                    {!isEditable && <Lock className="h-3 w-3 text-warning" aria-label="Locked day" />}
+                    {!isEditable && (
+                      <Lock className="h-3 w-3 text-warning" aria-label="Locked day" />
+                    )}
                     <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
                     {activeReq ? (
                       <RevisionStatusBadge
@@ -927,8 +1016,8 @@ export default function TargetReferenceForm({
                           activeReq.statuscode?.toUpperCase() === "PENDING"
                             ? "PENDING"
                             : activeReq.statuscode?.toUpperCase() === "APPROVED"
-                            ? "APPROVED"
-                            : "CANCELLED"
+                              ? "APPROVED"
+                              : "CANCELLED"
                         }
                       />
                     ) : null}
@@ -963,8 +1052,10 @@ export default function TargetReferenceForm({
                         title={locked ? "This row is not editable." : undefined}
                         className={cn(
                           "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-center text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                          hasErr && "border-destructive focus:border-destructive focus:ring-destructive",
-                          locked && "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
+                          hasErr &&
+                            "border-destructive focus:border-destructive focus:ring-destructive",
+                          locked &&
+                            "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
                         )}
                       />
                     </td>
@@ -980,13 +1071,20 @@ export default function TargetReferenceForm({
         <tfoot className="sticky bottom-0 bg-card">
           <tr className="text-primary bg-card">
             <td className="border-r border-t border-border/60 bg-card px-3 py-2" />
-            <td className="border-t border-border/60 px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] bg-card">TOTAL</td>
+            <td className="border-t border-border/60 px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] bg-card">
+              TOTAL
+            </td>
             {sectors.map((s) => (
-              <td key={s.detno} className="border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">
+              <td
+                key={s.detno}
+                className="border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums"
+              >
                 {sectorTotal(Number(s.detno)).toLocaleString()}
               </td>
             ))}
-            <td className="border-l border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">{grandTotal.toLocaleString()}</td>
+            <td className="border-l border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">
+              {grandTotal.toLocaleString()}
+            </td>
           </tr>
         </tfoot>
       </table>
@@ -1008,338 +1106,314 @@ export default function TargetReferenceForm({
               {isEdit ? "Edit Target Reference" : "Add Target Reference"}
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
-              Encode daily targets — monthly, quarterly, semi-annual, and annual totals are auto-computed.
+              Encode daily targets — monthly, quarterly, semi-annual, and annual totals are
+              auto-computed.
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground/90">
               <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
-              Each month locks on the <span className="font-semibold">4th day of the following month at 12:00 AM (PST)</span>. The current and next month remain editable — past months require a revision request once locked.
+              Each month locks on the{" "}
+              <span className="font-semibold">
+                4th day of the following month at 12:00 AM (PST)
+              </span>
+              . The current and next month remain editable — past months require a revision request
+              once locked.
             </p>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 px-5 py-4">
             {/* Year */}
             <div className="grid gap-3 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">
-                {isEdit ? "Period" : "Date"} <span className="text-destructive">*</span>
-              </Label>
-              {isEdit ? (
-                <ReadOnlyField
-                  value={`${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}`}
-                  title="Editing every day of this month"
-                />
-              ) : (
-                <input
-                  id="target-reference-date"
-                  type="date"
-                  value={selectedDate}
-                  onChange={(event) => {
-                    setSelectedDate(event.target.value);
-                    if (errors.date) {
-                      setErrors((e) => {
-                        const n = { ...e };
-                        delete n.date;
-                        return n;
-                      });
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">
+                  {isEdit ? "Period" : "Date"} <span className="text-destructive">*</span>
+                </Label>
+                {isEdit ? (
+                  <ReadOnlyField
+                    value={`${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}`}
+                    title="Editing every day of this month"
+                  />
+                ) : (
+                  <input
+                    id="target-reference-date"
+                    type="date"
+                    value={selectedDate}
+                    onChange={(event) => {
+                      setSelectedDate(event.target.value);
+                      if (errors.date) {
+                        setErrors((e) => {
+                          const n = { ...e };
+                          delete n.date;
+                          return n;
+                        });
+                      }
+                    }}
+                    className={cn(
+                      "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                      errors.date &&
+                        "border-destructive focus:border-destructive focus:ring-destructive",
+                    )}
+                    title="Select target reference date"
+                    aria-invalid={Boolean(errors.date)}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Station</Label>
+                <StationSearchSelect
+                  value={stationNo}
+                  valueName={selectedStationLabel}
+                  provinceno={scope.provinceLocked ? scope.provinceno : provinceno || undefined}
+                  onChange={(stationno, stationname, province, station) => {
+                    setStationNo(stationno);
+                    setStation(station ?? null);
+                    if (station?.provinceno) {
+                      setProvinceno(station.provinceno);
+                      setProvincename(station.provincename || province || "");
                     }
+                    setSelectedStationLabel(
+                      province ? `${stationname} — ${province}` : stationname,
+                    );
                   }}
-                  className={cn(
-                    "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                    errors.date && "border-destructive focus:border-destructive focus:ring-destructive",
-                  )}
-                  title="Select target reference date"
-                  aria-invalid={Boolean(errors.date)}
-                />
-              )}
-            </div>
-
-            <div className="space-y-1.5 md:col-span-2">
-              <Label>Station</Label>
-              <StationSearchSelect
-                value={stationNo}
-                valueName={selectedStationLabel}
-                provinceno={scope.provinceLocked ? scope.provinceno : provinceno || undefined}
-                onChange={(stationno, stationname, province, station) => {
-                  setStationNo(stationno);
-                  setStation(station ?? null);
-                  if (station?.provinceno) {
-                    setProvinceno(station.provinceno);
-                    setProvincename(station.provincename || province || "");
+                  readOnly={isEdit || scope.stationLocked}
+                  showAllOption={canShowAllStationOption}
+                  placeholder={
+                    scope.stationLocked ? "Restricted to your assigned station" : "Select station"
                   }
-                  setSelectedStationLabel(
-                    province ? `${stationname} — ${province}` : stationname,
-                  );
-                }}
-                readOnly={isEdit || scope.stationLocked}
-                showAllOption={canShowAllStationOption}
-                placeholder={scope.stationLocked ? "Restricted to your assigned station" : "Select station"}
-              />
-            </div>
-
-          </div>
-
-          {/* Station Information card */}
-          <div className="rounded-lg border border-border/60">
-            <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
-              <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
-                <Building2 className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
-                Station Information
-              </span>
-            </div>
-            <div className="flex items-start gap-4 p-4">
-              <AvatarWithFallback
-                entity={{ name: stationName || "Station" }}
-                src={logoUrl || undefined}
-                name={stationName || "?"}
-                className="h-16 w-16 shrink-0 rounded-full ring-2 ring-primary/20"
-              />
-              <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Station Code
-                  </div>
-                  <div className="text-sm font-semibold">
-                    {stationCode || (stationLoading ? "Loading…" : "—")}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Station Name
-                  </div>
-                  <div className="truncate text-sm font-semibold">
-                    {stationName || (stationLoading ? "Loading…" : "—")}
-                  </div>
-                </div>
-                <div className="sm:col-span-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Province
-                  </div>
-                  <div className="text-sm">
-                    {completeAddress || (stationLoading ? "Loading…" : "—")}
-                  </div>
-                </div>
+                />
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-col rounded-lg border border-border/60 overflow-hidden">
-            <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
-              <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
-                <Calendar className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
-                Daily Target Reference
-              </span>
+            {/* Station Information card */}
+            <StationInfoCard
+              stationName={stationName || (stationLoading ? "Loading…" : "")}
+              unitCode={stationCode || ""}
+              logoUrl={logoUrl || null}
+              fields={[
+                { label: "Station Code", value: stationCode || (stationLoading ? "Loading…" : "") },
+                { label: "City / Municipality", value: station?.cityname ?? "" },
+                {
+                  label: "Province",
+                  value: completeAddress || (stationLoading ? "Loading…" : ""),
+                },
+              ]}
+            />
+
+            <div className="flex flex-col rounded-lg border border-border/60 overflow-hidden">
+              <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+                <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
+                  <Calendar className="h-3.5 w-3.5" />
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
+                  Daily Target Reference
+                </span>
+              </div>
+
+              {formBody}
             </div>
-
-            {formBody}
           </div>
-        </div>
 
-        <DialogFooter className="border-t bg-muted/30 px-5 py-3">
-          {needsRevisionRequest ? (
-            <Button
-              onClick={() => {
-                if (!stationNo || stationNo === EMPTY_GUID) {
-                  toast.error("Please select a station first.");
-                  return;
-                }
-                setAddRevisionOpen(true);
-              }}
-              className="gap-2 bg-primary text-white hover:bg-primary/90"
-            >
-              <FilePen className="h-4 w-4" /> Request Revision
-            </Button>
-          ) : hasPendingRevision ? (
-            <>
+          <DialogFooter className="border-t bg-muted/30 px-5 py-3">
+            {needsRevisionRequest ? (
               <Button
-                variant="outline"
                 onClick={() => {
-                  if (activeAddRequest) setCancelRequestId(activeAddRequest.requestno);
-                  else toast.info("No active revision request to cancel.");
+                  if (!stationNo || stationNo === EMPTY_GUID) {
+                    toast.error("Please select a station first.");
+                    return;
+                  }
+                  setAddRevisionOpen(true);
                 }}
-                className="gap-2"
-              >
-                <Ban className="h-4 w-4" /> Cancel Request
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (activeAddRequest) setDeleteRequestId(activeAddRequest.requestno);
-                  else toast.info("No revision request to delete.");
-                }}
-                className="gap-2"
-              >
-                <Trash2 className="h-4 w-4" /> Delete Request
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="gap-2"
-                disabled={saving}
-              >
-                <X className="h-4 w-4" /> Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={
-                  saving ||
-                  loadingGrid ||
-                  checkingExisting ||
-                  sectors.length === 0 ||
-                  // In add mode with an existing record loaded, Save always updates
-                  // — even when nothing changed.
-                  (isEdit ? !isDirty : !existingTargetno && !isDirty)
-                }
                 className="gap-2 bg-primary text-white hover:bg-primary/90"
               >
-                <Save className="h-4 w-4" />{" "}
-                {saving ? "Saving…" : existingTargetno && !isEdit ? "Update" : "Save"}
+                <FilePen className="h-4 w-4" /> Request Revision
               </Button>
-            </>
-          )}
-        </DialogFooter>
+            ) : hasPendingRevision ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (activeAddRequest) setCancelRequestId(activeAddRequest.requestno);
+                    else toast.info("No active revision request to cancel.");
+                  }}
+                  className="gap-2"
+                >
+                  <Ban className="h-4 w-4" /> Cancel Request
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (activeAddRequest) setDeleteRequestId(activeAddRequest.requestno);
+                    else toast.info("No revision request to delete.");
+                  }}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" /> Delete Request
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="gap-2"
+                  disabled={saving}
+                >
+                  <X className="h-4 w-4" /> Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={
+                    saving ||
+                    loadingGrid ||
+                    checkingExisting ||
+                    sectors.length === 0 ||
+                    // In add mode with an existing record loaded, Save always updates
+                    // — even when nothing changed.
+                    (isEdit ? !isDirty : !existingTargetno && !isDirty)
+                  }
+                  className="gap-2 bg-primary text-white hover:bg-primary/90"
+                >
+                  <Save className="h-4 w-4" />{" "}
+                  {saving ? "Saving…" : existingTargetno && !isEdit ? "Update" : "Save"}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      </DialogContent>
-    </Dialog>
-
-    <ConfirmDialog
-      open={duplicateDialogOpen}
-      onOpenChange={handleDuplicateDialogOpenChange}
-      ContentIcon={AlertTriangle}
-      contentIconBgClass="tone-warning-soft"
-      contentIconColorClass="text-warning"
-      title="Target Reference Already Exists"
-      description={`A Target Reference already exists for this station and period (${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}).\n\nOpening the existing record for editing.`}
-      confirmLabel="Edit Existing"
-      showCancel={false}
-      onConfirm={handleDuplicateConfirm}
-    />
-
-    <ConfirmDialog
-      open={dateDuplicateOpen}
-      onOpenChange={(v) => {
-        if (!v) handleExistingCancel();
-        else setDateDuplicateOpen(true);
-      }}
-      ContentIcon={AlertTriangle}
-      contentIconBgClass="tone-warning-soft"
-      contentIconColorClass="text-warning"
-      title="Target Reference Already Exists"
-      description={`A Target Reference already exists for ${
-        pendingExistingRecord?.stationname || stationName || "this station"
-      } on ${formatLongDate(selectedDate)}.\n\n${
-        existingLocked
-          ? "This record is already locked — it will be opened as read-only and any change will require a revision request."
-          : "Do you want to load and edit the existing record?"
-      }`}
-      confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
-      showCancel={false}
-      onConfirm={handleExistingConfirm}
-    />
-
-    {addRevisionOpen && (
-      <RevisionRequestDialog
-        open={addRevisionOpen}
-        onOpenChange={(v) => setAddRevisionOpen(v)}
-        station={{
-          stationno: stationNo,
-          stationcode: stationCode || "",
-          stationname: stationName || "",
-          provinceno: provinceno,
-          provincename: provincename,
-          cityname: station?.cityname ?? user?.cityname ?? "",
-        }}
-        year={selectedYear}
-        month={selectedMonth}
-        referencekey={existingTargetno || EMPTY_GUID}
-        dateinspected={selectedDate}
-        onSubmitted={() => setReloadNonce((n) => n + 1)}
+      <ConfirmDialog
+        open={duplicateDialogOpen}
+        onOpenChange={handleDuplicateDialogOpenChange}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
+        title="Target Reference Already Exists"
+        description={`A Target Reference already exists for this station and period (${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}).\n\nOpening the existing record for editing.`}
+        confirmLabel="Edit Existing"
+        showCancel={false}
+        onConfirm={handleDuplicateConfirm}
       />
-    )}
 
-    {revisionDay !== null && (
-      <RevisionRequestDialog
-        open={revisionDay !== null}
-        onOpenChange={(v) => !v && setRevisionDay(null)}
-        station={{
-          stationno: stationNo,
-          stationcode: stationCode || "",
-          stationname: stationName || "",
-          provinceno: provinceno,
-          provincename: provincename,
-          cityname: station?.cityname ?? user?.cityname ?? "",
+      <ConfirmDialog
+        open={dateDuplicateOpen}
+        onOpenChange={(v) => {
+          if (!v) handleExistingCancel();
+          else setDateDuplicateOpen(true);
         }}
-        year={Number(year)}
-        month={Number(month)}
-        referencekey={
-          existingTargetNos[String(revisionDay)] &&
-          existingTargetNos[String(revisionDay)] !== EMPTY_GUID
-            ? existingTargetNos[String(revisionDay)]
-            : EMPTY_GUID
-        }
-        onSubmitted={() => setReloadNonce((n) => n + 1)}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
+        title="Target Reference Already Exists"
+        description={`A Target Reference already exists for ${
+          pendingExistingRecord?.stationname || stationName || "this station"
+        } on ${formatLongDate(selectedDate)}.\n\n${
+          existingLocked
+            ? "This record is already locked — it will be opened as read-only and any change will require a revision request."
+            : "Do you want to load and edit the existing record?"
+        }`}
+        confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
+        showCancel={false}
+        onConfirm={handleExistingConfirm}
       />
-    )}
 
-    <ReasonRemarksDialog
-      open={!!cancelRequestId}
-      onOpenChange={(v) => !v && setCancelRequestId(null)}
-      title="Cancel Revision Request"
-      description="Provide the reason for cancelling this pending request."
-      reasonLabel="Cancellation Reason"
-      confirmLabel="Cancel Request"
-      confirmVariant="destructive"
-      onConfirm={async ({ reason, remarks }) => {
-        if (!cancelRequestId) return;
-        const resp = await revisionrequestAPI.status({
-          requestno: cancelRequestId,
-          stationno: stationNo || EMPTY_GUID,
-          requesttype: "TARGET",
-          remarks: [reason, remarks].filter(Boolean).join(" — "),
-          statusno: 155,
-          taggedby: user?.memberno ?? "",
-        });
-        const { ok, error } = unwrap(resp);
-        if (!ok) {
-          toast.error(error || "Unable to cancel revision request.");
-          return;
-        }
-        toast.success("Revision request cancelled.");
-        setCancelRequestId(null);
-        setReloadNonce((n) => n + 1);
-      }}
-    />
+      {addRevisionOpen && (
+        <RevisionRequestDialog
+          open={addRevisionOpen}
+          onOpenChange={(v) => setAddRevisionOpen(v)}
+          station={{
+            stationno: stationNo,
+            stationcode: stationCode || "",
+            stationname: stationName || "",
+            provinceno: provinceno,
+            provincename: provincename,
+            cityname: station?.cityname ?? user?.cityname ?? "",
+          }}
+          year={selectedYear}
+          month={selectedMonth}
+          referencekey={existingTargetno || EMPTY_GUID}
+          dateinspected={selectedDate}
+          onSubmitted={() => setReloadNonce((n) => n + 1)}
+        />
+      )}
 
-    <ConfirmDialog
-      open={!!deleteRequestId}
-      onOpenChange={(v) => !v && setDeleteRequestId(null)}
-      title="Delete Revision Request?"
-      description="This will permanently delete the selected revision request."
-      confirmLabel="Delete"
-      confirmVariant="destructive"
-      onConfirm={async () => {
-        if (!deleteRequestId) return;
-        const resp = await revisionrequestAPI.delete({
-          requestno: deleteRequestId,
-          deletedby: user?.memberno ?? "",
-          roleno: Number(systemAccess?.roleno ?? 0),
-        });
-        const { ok, error } = unwrap(resp);
-        if (!ok) {
-          toast.error(error || "Unable to delete revision request.");
-          return;
-        }
-        toast.success("Revision request deleted.");
-        setDeleteRequestId(null);
-        setReloadNonce((n) => n + 1);
-      }}
-    />
+      {revisionDay !== null && (
+        <RevisionRequestDialog
+          open={revisionDay !== null}
+          onOpenChange={(v) => !v && setRevisionDay(null)}
+          station={{
+            stationno: stationNo,
+            stationcode: stationCode || "",
+            stationname: stationName || "",
+            provinceno: provinceno,
+            provincename: provincename,
+            cityname: station?.cityname ?? user?.cityname ?? "",
+          }}
+          year={Number(year)}
+          month={Number(month)}
+          referencekey={
+            existingTargetNos[String(revisionDay)] &&
+            existingTargetNos[String(revisionDay)] !== EMPTY_GUID
+              ? existingTargetNos[String(revisionDay)]
+              : EMPTY_GUID
+          }
+          onSubmitted={() => setReloadNonce((n) => n + 1)}
+        />
+      )}
+
+      <ReasonRemarksDialog
+        open={!!cancelRequestId}
+        onOpenChange={(v) => !v && setCancelRequestId(null)}
+        title="Cancel Revision Request"
+        description="Provide the reason for cancelling this pending request."
+        reasonLabel="Cancellation Reason"
+        confirmLabel="Cancel Request"
+        confirmVariant="destructive"
+        onConfirm={async ({ reason, remarks }) => {
+          if (!cancelRequestId) return;
+          const resp = await revisionrequestAPI.status({
+            requestno: cancelRequestId,
+            stationno: stationNo || EMPTY_GUID,
+            requesttype: "TARGET",
+            remarks: [reason, remarks].filter(Boolean).join(" — "),
+            statusno: 155,
+            taggedby: user?.memberno ?? "",
+          });
+          const { ok, error } = unwrap(resp);
+          if (!ok) {
+            toast.error(error || "Unable to cancel revision request.");
+            return;
+          }
+          toast.success("Revision request cancelled.");
+          setCancelRequestId(null);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteRequestId}
+        onOpenChange={(v) => !v && setDeleteRequestId(null)}
+        title="Delete Revision Request?"
+        description="This will permanently delete the selected revision request."
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        onConfirm={async () => {
+          if (!deleteRequestId) return;
+          const resp = await revisionrequestAPI.delete({
+            requestno: deleteRequestId,
+            deletedby: user?.memberno ?? "",
+            roleno: Number(systemAccess?.roleno ?? 0),
+          });
+          const { ok, error } = unwrap(resp);
+          if (!ok) {
+            toast.error(error || "Unable to delete revision request.");
+            return;
+          }
+          toast.success("Revision request deleted.");
+          setDeleteRequestId(null);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
     </>
   );
 }

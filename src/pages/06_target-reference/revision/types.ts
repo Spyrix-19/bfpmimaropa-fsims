@@ -3,12 +3,7 @@
  */
 
 export type RevisionStatus =
-  | "PENDING"
-  | "APPROVED"
-  | "DENIED"
-  | "CANCELLED"
-  | "COMPLETED"
-  | "EXPIRED";
+  "PENDING" | "APPROVED" | "DENIED" | "CANCELLED" | "COMPLETED" | "EXPIRED";
 
 export const REVISION_STATUS_LABEL: Record<RevisionStatus, string> = {
   PENDING: "Pending Review",

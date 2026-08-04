@@ -89,4 +89,3 @@ export function useInspectionSummary() {
 
   return { rows, loading };
 }
-

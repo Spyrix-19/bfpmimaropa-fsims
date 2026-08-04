@@ -13,6 +13,13 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MONTHS } from "@/lib/fsims-constants";
 import { MONTH_COLORS } from "./monthColors";
+import {
+  NUMBER_FMT,
+  border,
+  centerBoldWhite,
+  fill,
+  formatMilitaryTimestamp,
+} from "@/lib/excel-style";
 
 export interface ComplianceField {
   key: string;
@@ -77,43 +84,6 @@ function catStyle(cat?: string) {
   return CATEGORY_FILL[cat ?? "DEFAULT"] ?? CATEGORY_FILL.DEFAULT;
 }
 
-const NUMBER_FMT = "#,##0;(#,##0);-";
-
-function fill(color: string): ExcelJS.Fill {
-  return { type: "pattern", pattern: "solid", fgColor: { argb: color } };
-}
-
-function formatMilitaryTimestamp(value: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hour12: true,
-  }).format(value);
-}
-
-function border(style: ExcelJS.BorderStyle = "thin", color = "FF64748B"): ExcelJS.Borders {
-  const b: Partial<ExcelJS.Border> = { style, color: { argb: color } };
-  return {
-    top: b as ExcelJS.Border,
-    left: b as ExcelJS.Border,
-    right: b as ExcelJS.Border,
-    bottom: b as ExcelJS.Border,
-    diagonal: {} as ExcelJS.Border,
-  };
-}
-
-function centerBoldWhite(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, color: { argb: "FFFFFFFF" }, size: 10 },
-    alignment: { horizontal: "center", vertical: "middle", wrapText: true },
-    border: border("thin", "FF334155"),
-  };
-}
-
 export async function exportComplianceMatrix(opts: {
   year: number;
   groups: ComplianceExportGroup[];
@@ -142,7 +112,13 @@ export async function exportComplianceMatrix(opts: {
   const groupRuns: GroupRun[] = [];
   fields.forEach((f, idx) => {
     const last = groupRuns[groupRuns.length - 1];
-    if (f.group && last && last.grouped && last.label === f.group && last.category === (f.category ?? "")) {
+    if (
+      f.group &&
+      last &&
+      last.grouped &&
+      last.label === f.group &&
+      last.category === (f.category ?? "")
+    ) {
       last.end = idx;
     } else {
       groupRuns.push({
@@ -349,8 +325,12 @@ export async function exportComplianceMatrix(opts: {
       const q2 = ws.getCell(rowNumber, qtotalCol(1, ci)).address;
       const q3 = ws.getCell(rowNumber, qtotalCol(2, ci)).address;
       const q4 = ws.getCell(rowNumber, qtotalCol(3, ci)).address;
-      row.getCell(SEM1_START + ci).value = { formula: `SUM(${q1},${q2})` } as ExcelJS.CellFormulaValue;
-      row.getCell(SEM2_START + ci).value = { formula: `SUM(${q3},${q4})` } as ExcelJS.CellFormulaValue;
+      row.getCell(SEM1_START + ci).value = {
+        formula: `SUM(${q1},${q2})`,
+      } as ExcelJS.CellFormulaValue;
+      row.getCell(SEM2_START + ci).value = {
+        formula: `SUM(${q3},${q4})`,
+      } as ExcelJS.CellFormulaValue;
       row.getCell(ANN_START + ci).value = {
         formula: `SUM(${q1},${q2},${q3},${q4})`,
       } as ExcelJS.CellFormulaValue;
@@ -444,11 +424,7 @@ export async function exportComplianceMatrix(opts: {
     return anchor;
   };
 
-  const writeProvinceTotals = (
-    province: string,
-    anchors: number[],
-    modeLabels: string[],
-  ) => {
+  const writeProvinceTotals = (province: string, anchors: number[], modeLabels: string[]) => {
     const start = cursor;
     const last = start + modeLabels.length - 1;
 
@@ -509,8 +485,7 @@ export async function exportComplianceMatrix(opts: {
 
   groups.forEach((g) => {
     const anchors: number[] = [];
-    const modeLabels =
-      g.stations[0]?.modes.map((m) => m.label) ?? ["MANUAL", "FSIS"];
+    const modeLabels = g.stations[0]?.modes.map((m) => m.label) ?? ["MANUAL", "FSIS"];
     g.stations.forEach((s, i) => {
       anchors.push(writeStationRows(s, i + 1, g.province));
     });

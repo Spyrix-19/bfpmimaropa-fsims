@@ -86,7 +86,12 @@ export default function OfficeSearchSelect({
         aria-readonly
         aria-disabled={disabled || undefined}
       >
-        <span className={cn("min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis", !label && "text-muted-foreground")}>
+        <span
+          className={cn(
+            "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis",
+            !label && "text-muted-foreground",
+          )}
+        >
           {label || placeholder}
         </span>
       </div>

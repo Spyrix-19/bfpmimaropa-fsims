@@ -26,8 +26,20 @@ export function YoYChart({ data, prevYear, currentYear, colors }: YoYChartProps)
         <YAxis {...axisProps} />
         <Tooltip contentStyle={tooltipStyle} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Line type="monotone" dataKey={String(prevYear)} stroke={colors.warning} strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey={String(currentYear)} stroke={colors.primary} strokeWidth={3} dot={{ r: 3 }} />
+        <Line
+          type="monotone"
+          dataKey={String(prevYear)}
+          stroke={colors.warning}
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          type="monotone"
+          dataKey={String(currentYear)}
+          stroke={colors.primary}
+          strokeWidth={3}
+          dot={{ r: 3 }}
+        />
       </LineChart>
     </ResponsiveContainer>
   );

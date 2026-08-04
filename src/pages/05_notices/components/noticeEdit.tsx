@@ -25,6 +25,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import StationInfoCard from "@/components/station-info-card";
+
 import {
   Dialog,
   DialogContent,
@@ -181,7 +183,6 @@ function ReadOnlyField({
   );
 }
 
-
 function Dot({ color }: { color: string }) {
   return (
     <span
@@ -195,13 +196,7 @@ function Dot({ color }: { color: string }) {
 /*  Issued vs. Accomplished panel                                              */
 /* -------------------------------------------------------------------------- */
 
-function NoticeAccomplishmentPanel({
-  days,
-  periodLabel,
-}: {
-  days: DayRow[];
-  periodLabel: string;
-}) {
+function NoticeAccomplishmentPanel({ days, periodLabel }: { days: DayRow[]; periodLabel: string }) {
   const rows = NOTICE_CATEGORIES.map((category) => {
     const issued = days.reduce((s, d) => s + (d.breakdown[category]?.pending ?? 0), 0);
     const accomplished = days.reduce((s, d) => s + (d.breakdown[category]?.accomplished ?? 0), 0);
@@ -392,35 +387,32 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     }[]
   >([]);
 
-  const buildDays = React.useCallback(
-    (src: NoticeRecord, y: number, m: number): DayRow[] => {
-      const monthLocked = hasPstLockActivated(y, m);
-      const byDate = new Map(src.dailyEntries.map((e) => [e.date.slice(0, 10), e]));
-      const total = calendarDaysInMonth(y, m);
-      return Array.from({ length: total }, (_, i) => {
-        const day = i + 1;
-        const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        const existing = byDate.get(date);
-        const editablestatus = Number((existing as any)?.editablestatus ?? 0);
-        const isrevisionrequest = Boolean((existing as any)?.isrevisionrequest);
-        return {
-          day,
-          date,
-          label: new Date(y, m - 1, day).toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          }),
-          remarks: existing?.remarks ?? "",
-          isLocked: editablestatus === 153 ? false : monthLocked || isDayPassed(date),
-          editablestatus,
-          isrevisionrequest,
-          breakdown: existing?.breakdown ?? emptyBreakdown(),
-        };
-      });
-    },
-    [],
-  );
+  const buildDays = React.useCallback((src: NoticeRecord, y: number, m: number): DayRow[] => {
+    const monthLocked = hasPstLockActivated(y, m);
+    const byDate = new Map(src.dailyEntries.map((e) => [e.date.slice(0, 10), e]));
+    const total = calendarDaysInMonth(y, m);
+    return Array.from({ length: total }, (_, i) => {
+      const day = i + 1;
+      const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const existing = byDate.get(date);
+      const editablestatus = Number((existing as any)?.editablestatus ?? 0);
+      const isrevisionrequest = Boolean((existing as any)?.isrevisionrequest);
+      return {
+        day,
+        date,
+        label: new Date(y, m - 1, day).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }),
+        remarks: existing?.remarks ?? "",
+        isLocked: editablestatus === 153 ? false : monthLocked || isDayPassed(date),
+        editablestatus,
+        isrevisionrequest,
+        breakdown: existing?.breakdown ?? emptyBreakdown(),
+      };
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!record || !open) return;
@@ -510,7 +502,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     [requestForDay],
   );
 
-
   const changePeriod = (nextMonth: number, nextYear: number) => {
     setMonth(nextMonth);
     setYear(nextYear);
@@ -563,7 +554,8 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
 
   const columnTotal = (category: NoticeCategory) =>
     days.reduce(
-      (sum, d) => sum + (d.breakdown[category].pending ?? 0) + (d.breakdown[category].accomplished ?? 0),
+      (sum, d) =>
+        sum + (d.breakdown[category].pending ?? 0) + (d.breakdown[category].accomplished ?? 0),
       0,
     );
 
@@ -628,9 +620,11 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
               <p className="mt-1 text-[11px] text-muted-foreground/90">
                 <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
                 Each month locks on the{" "}
-                <span className="font-semibold">4th day of the following month at 12:00 AM (PST)</span>.
-                The current and next month remain editable — past months require a revision request
-                once locked.
+                <span className="font-semibold">
+                  4th day of the following month at 12:00 AM (PST)
+                </span>
+                . The current and next month remain editable — past months require a revision
+                request once locked.
               </p>
             </div>
           </div>
@@ -685,18 +679,16 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
           </Card>
 
           {/* Station Information ------------------------------------------- */}
-          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <ReadOnlyField
-                label="Province"
-                required
-                value={record.provincename || record.province}
-              />
-              <ReadOnlyField label="Station" required value={record.stationname} />
-            </div>
-          </Card>
-
+          <StationInfoCard
+            stationName={record.stationname || ""}
+            unitCode={record.stationcode || ""}
+            logoUrl={record.logourl || null}
+            fields={[
+              { label: "Station Code", value: record.stationcode ?? "" },
+              { label: "City / Municipality", value: record.cityname ?? "" },
+              { label: "Province", value: record.provincename || record.province || "" },
+            ]}
+          />
 
           {/* Issued vs. Accomplished ---------------------------------------- */}
           <NoticeAccomplishmentPanel days={days} periodLabel={`${monthName} ${year}`} />

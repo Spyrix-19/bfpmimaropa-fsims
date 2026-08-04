@@ -7,7 +7,6 @@ import type {
 } from "@/types/stationTypes";
 
 export const stationAPI = {
-  
   async search(params?: SearchStationParams, options?: import("@/lib/api").ApiOptions) {
     return await apiGet<SearchStationModel[]>("/api/v1/Station/Search", {
       params,
@@ -16,17 +15,17 @@ export const stationAPI = {
     });
   },
 
-   async searchMultiple(
-      body: ExportTargetReferenceRequest,
-      pagination: { Pagenumber?: number; Pagesize?: number },
-      options?: import("@/lib/api").ApiOptions
-    ) {
-      return await apiPost("/api/v1/User/Multiple/Search", body, {
-        params: pagination,
-        ...GET_RETRY,
-        ...options,
-      });
-    },
+  async searchMultiple(
+    body: ExportTargetReferenceRequest,
+    pagination: { Pagenumber?: number; Pagesize?: number },
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiPost("/api/v1/User/Multiple/Search", body, {
+      params: pagination,
+      ...GET_RETRY,
+      ...options,
+    });
+  },
 
   async searchStationMultiple(
     body: StationMultipleSearchRequest,
@@ -39,5 +38,4 @@ export const stationAPI = {
       ...options,
     });
   },
-
 };

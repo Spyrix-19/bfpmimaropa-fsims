@@ -8,7 +8,9 @@ import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { AnnouncementsPopover } from "@/components/AnnouncementsPopover";
 import bfpLogo from "@/assets/bfp-mimaropa.svg";
 
-const AppSidebar = lazy(() => import("./AppSidebar").then((module) => ({ default: module.AppSidebar })));
+const AppSidebar = lazy(() =>
+  import("./AppSidebar").then((module) => ({ default: module.AppSidebar })),
+);
 const LoginModal = lazy(() =>
   import("../pages/01_index/LoginModal").then((module) => ({ default: module.LoginModal })),
 );
@@ -96,16 +98,16 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
               />
             </div>
             <div className="flex min-w-0 flex-col gap-1">
-              <div className="truncate text-sm font-semibold">
-                BFP - FSI Monitoring System
-              </div>
-              <span className="text-xs font-medium text-foreground/80 sm:hidden" aria-label="Current date and time">
+              <div className="truncate text-sm font-semibold">BFP - FSI Monitoring System</div>
+              <span
+                className="text-xs font-medium text-foreground/80 sm:hidden"
+                aria-label="Current date and time"
+              >
                 {dateLabel} · {timeLabel}
               </span>
             </div>
           </div>
         </div>
-
 
         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
           {!user ? (
@@ -133,16 +135,41 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="Settings">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Settings"
+            >
               <SettingsIcon className="h-4 w-4" />
             </Button>
           </div>
-          {user && <div className="sm:hidden"><AnnouncementsPopover /></div>}
-          {user && <div className="sm:hidden"><NotificationsPopover /></div>}
-          <Button className="sm:hidden" variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+          {user && (
+            <div className="sm:hidden">
+              <AnnouncementsPopover />
+            </div>
+          )}
+          {user && (
+            <div className="sm:hidden">
+              <NotificationsPopover />
+            </div>
+          )}
+          <Button
+            className="sm:hidden"
+            variant="ghost"
+            size="icon"
+            onClick={toggle}
+            aria-label="Toggle theme"
+          >
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          <Button className="sm:hidden" variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="Settings">
+          <Button
+            className="sm:hidden"
+            variant="ghost"
+            size="icon"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+          >
             <SettingsIcon className="h-4 w-4" />
           </Button>
         </div>
@@ -174,7 +201,10 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
           <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
         </Suspense>
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogContent hideCloseButton className="w-full max-w-[min(100vw-1rem,48rem)] max-h-[calc(100vh-1rem)] overflow-y-auto">
+          <DialogContent
+            hideCloseButton
+            className="w-full max-w-[min(100vw-1rem,48rem)] max-h-[calc(100vh-1rem)] overflow-y-auto"
+          >
             <Suspense fallback={null}>
               <SettingsPage onClose={() => setSettingsOpen(false)} />
             </Suspense>

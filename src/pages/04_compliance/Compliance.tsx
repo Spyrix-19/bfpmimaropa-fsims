@@ -50,8 +50,6 @@ import {
   type ComplianceExportRecord,
 } from "./components/complianceExport";
 
-
-
 import FilterField from "@/components/filter-field";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
@@ -227,7 +225,6 @@ function mapMonthlyItemToRow(
 /* The FSISCompliance Ledger returns the dailytarget* fields inline, so no
  * secondary target enrichment pass is needed. */
 
-
 export default function FireSafetyCompliancePage() {
   const { user, systemAccess } = useAuth();
   const navigate = useNavigate();
@@ -266,9 +263,7 @@ export default function FireSafetyCompliancePage() {
    */
   const selectedMonths = React.useMemo(
     () =>
-      isAggregated
-        ? resolveModuleMonths(filterState)
-        : [Number(selectedDateISO.slice(5, 7)) || 1],
+      isAggregated ? resolveModuleMonths(filterState) : [Number(selectedDateISO.slice(5, 7)) || 1],
     [isAggregated, filterState, selectedDateISO],
   );
   const monthsKey = selectedMonths.join(",");
@@ -279,8 +274,6 @@ export default function FireSafetyCompliancePage() {
     filterState.interval === "SEMESTER"
       ? "SEMI-ANNUAL"
       : (filterState.interval as CompliancePeriod);
-
-
 
   /** Backend interval code: 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual. */
   const intervalCode = React.useMemo(() => {
@@ -318,7 +311,14 @@ export default function FireSafetyCompliancePage() {
           ? `All Months ${year}`
           : `${selectedMonths.map(name).join(", ")} ${year}`;
     }
-  }, [isAggregated, filterState.interval, filterState.quarter, filterState.semester, selectedMonths, year]);
+  }, [
+    isAggregated,
+    filterState.interval,
+    filterState.quarter,
+    filterState.semester,
+    selectedMonths,
+    year,
+  ]);
 
   const ledgerGranularity: LedgerGranularity = React.useMemo(() => {
     switch (filterState.interval) {
@@ -335,10 +335,14 @@ export default function FireSafetyCompliancePage() {
     }
   }, [filterState.interval]);
 
-
   const locationSel = useScopedLocationMulti(scope);
-  const { provinceno, provincename, stationno, stationname, paramsKey: locationParamsKey } =
-    locationSel;
+  const {
+    provinceno,
+    provincename,
+    stationno,
+    stationname,
+    paramsKey: locationParamsKey,
+  } = locationSel;
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
 
   const [rows, setRows] = React.useState<LedgerRow[]>([]);
@@ -388,7 +392,6 @@ export default function FireSafetyCompliancePage() {
     setPage(1);
   };
 
-
   // Fetch ledger from server-side endpoint. Ensure empty/ALL filters
   // are sent as `EMPTY_GUID` so the backend receives explicit GUIDs.
   React.useEffect(() => {
@@ -419,13 +422,7 @@ export default function FireSafetyCompliancePage() {
         { suppressGlobalLoading: true, signal: controller.signal },
       );
 
-      const {
-        ok,
-        data,
-        total: apiTotal,
-        error,
-        canceled,
-      } = unwrap<FSISComplianceModel[]>(resp);
+      const { ok, data, total: apiTotal, error, canceled } = unwrap<FSISComplianceModel[]>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
         toast.error(error || "Unable to load monthly compliance ledger.");
@@ -500,7 +497,9 @@ export default function FireSafetyCompliancePage() {
               const m = Number(iso.slice(5, 7)) || 0;
               if (!m || !monthSet.has(m)) continue;
               item.complianceLedgerList.push(
-                normalizeRec(rec) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"][number],
+                normalizeRec(
+                  rec,
+                ) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"][number],
               );
             }
             items.push(item);
@@ -512,7 +511,8 @@ export default function FireSafetyCompliancePage() {
             const item = baseItem(st, Number(month));
             item.complianceLedgerList = (Array.isArray(st?.compliancelist) ? st.compliancelist : [])
               .filter(
-                (rec) => allDates || String(rec?.dateinspected ?? "").slice(0, 10) === selectedDateISO,
+                (rec) =>
+                  allDates || String(rec?.dateinspected ?? "").slice(0, 10) === selectedDateISO,
               )
               .map(normalizeRec) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"];
             items.push(item);
@@ -558,8 +558,16 @@ export default function FireSafetyCompliancePage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [year, monthsKey, isAggregated, selectedDateISO, allDates, locationParamsKey, pageSize, setPage]);
-
+  }, [
+    year,
+    monthsKey,
+    isAggregated,
+    selectedDateISO,
+    allDates,
+    locationParamsKey,
+    pageSize,
+    setPage,
+  ]);
 
   // Server-side ledger returns a single page — use `rows` directly and
   // rely on `total` for pagination controls.
@@ -602,7 +610,6 @@ export default function FireSafetyCompliancePage() {
       cancelled = true;
     };
   }, [showTargetPanel, panelStationNo, selectedDateISO, refreshTick]);
-
 
   const askDelete = (r: ComplianceMonthlyRow) => setDeleteTarget(r);
   const confirmDelete = async () => {
@@ -716,7 +723,11 @@ export default function FireSafetyCompliancePage() {
             disabled={exporting || paged.length === 0}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
             Export
           </Button>
           <Button
@@ -768,7 +779,6 @@ export default function FireSafetyCompliancePage() {
         />
       )}
 
-
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />{" "}
@@ -800,7 +810,6 @@ export default function FireSafetyCompliancePage() {
             />
           ))}
         </div>
-
       )}
 
       <div className="border-t border-border/60 pt-3">
@@ -955,7 +964,6 @@ const INSPECTION_TARGET_COLS: (LedgerCol & { targetKey: string })[] = [
   { key: "inspecttiezacount", label: "1st TIEZA", targetKey: "dailytargettieza" },
 ];
 
-
 const ISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
   {
     title: "FSEC",
@@ -1013,7 +1021,6 @@ interface DayLine {
 }
 
 type LedgerGranularity = "day" | "month" | "quarter" | "semester" | "annual";
-
 
 const emptyMode = (): ModeCounts =>
   Object.fromEntries(ISSUANCE_COLS.map((c) => [c.key, 0])) as ModeCounts;
@@ -1107,14 +1114,11 @@ function buildDayLines(
   return [...byKey.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, l]) => l);
 }
 
-
-
 const headCell =
   "border border-border/50 bg-blue-50 dark:bg-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300 whitespace-nowrap text-center";
 const bodyCell = "border border-border/40 px-2 py-1.5 text-xs tabular-nums text-center";
 const footCell =
   "border border-border/50 bg-blue-100 dark:bg-slate-800 px-2 py-1.5 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
-
 
 function ComplianceLedgerCard({
   row,
@@ -1148,11 +1152,8 @@ function ComplianceLedgerCard({
     [row.daily, dateISO, groupBy],
   );
 
-
   const totals = React.useMemo(() => {
-    const insp: Record<string, number> = Object.fromEntries(
-      INSPECTION_COLS.map((c) => [c.key, 0]),
-    );
+    const insp: Record<string, number> = Object.fromEntries(INSPECTION_COLS.map((c) => [c.key, 0]));
     const tgt: Record<string, number> = Object.fromEntries(
       INSPECTION_TARGET_COLS.map((c) => [c.key, 0]),
     );
@@ -1168,7 +1169,6 @@ function ComplianceLedgerCard({
     }
     return { insp, tgt, manual, fsis };
   }, [lines]);
-
 
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
@@ -1210,7 +1210,9 @@ function ComplianceLedgerCard({
       <div className="p-3">
         {lines.length === 0 ? (
           <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
-            {groupBy === "day" ? "No daily entries for this period." : "No entries for this period."}
+            {groupBy === "day"
+              ? "No daily entries for this period."
+              : "No entries for this period."}
           </div>
         ) : (
           <div className="max-h-[24rem] overflow-auto rounded-xl border border-border/40">
@@ -1221,11 +1223,7 @@ function ComplianceLedgerCard({
                     rowSpan={3}
                     className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r-2 border-r-border/60 text-left`}
                   >
-                    {groupBy === "day"
-                      ? "Date"
-                      : groupBy === "month"
-                        ? "Month"
-                        : "Period"}
+                    {groupBy === "day" ? "Date" : groupBy === "month" ? "Month" : "Period"}
                   </th>
                   <th
                     colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 2}
@@ -1233,7 +1231,10 @@ function ComplianceLedgerCard({
                   >
                     Inspection
                   </th>
-                  <th rowSpan={3} className={`${headCell} sticky top-0 z-30 border-r-2 border-r-border/60`}>
+                  <th
+                    rowSpan={3}
+                    className={`${headCell} sticky top-0 z-30 border-r-2 border-r-border/60`}
+                  >
                     Mode of Issuance
                   </th>
                   {ISSUANCE_GROUPS.map((g, idx) => (
@@ -1278,15 +1279,20 @@ function ComplianceLedgerCard({
                 <tr>
                   {INSPECTION_TARGET_COLS.map((c, idx) => (
                     <React.Fragment key={c.key}>
-                      <th className={`${headCell} sticky top-[60px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}>Target</th>
-                      <th className={`${headCell} sticky top-[60px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}>
+                      <th
+                        className={`${headCell} sticky top-[60px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
+                      >
+                        Target
+                      </th>
+                      <th
+                        className={`${headCell} sticky top-[60px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
+                      >
                         Issuance
                       </th>
                     </React.Fragment>
                   ))}
                 </tr>
               </thead>
-
 
               <tbody>
                 {lines.map((l) => (
@@ -1300,36 +1306,56 @@ function ComplianceLedgerCard({
                         {l.label}
                       </th>
                       {INSPECTION_PLAIN_COLS.map((c) => (
-                        <td key={c.key} rowSpan={2} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                        <td
+                          key={c.key}
+                          rowSpan={2}
+                          className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                        >
                           {(l.inspection[c.key] ?? 0).toLocaleString()}
                         </td>
                       ))}
                       {INSPECTION_TARGET_COLS.map((c) => (
                         <React.Fragment key={c.key}>
-                          <td rowSpan={2} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                          <td
+                            rowSpan={2}
+                            className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                          >
                             {(l.target[c.key] ?? 0).toLocaleString()}
                           </td>
-                          <td rowSpan={2} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                          <td
+                            rowSpan={2}
+                            className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                          >
                             {(l.inspection[c.key] ?? 0).toLocaleString()}
                           </td>
                         </React.Fragment>
                       ))}
 
-                      <td className={`${bodyCell} border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}>
+                      <td
+                        className={`${bodyCell} border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}
+                      >
                         MANUAL
                       </td>
                       {ISSUANCE_COLS.map((c) => (
-                        <td key={c.key} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                        <td
+                          key={c.key}
+                          className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                        >
                           {(l.manual[c.key] ?? 0).toLocaleString()}
                         </td>
                       ))}
                     </tr>
                     <tr className="bg-blue-50 dark:bg-slate-700">
-                      <td className={`${bodyCell} border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}>
+                      <td
+                        className={`${bodyCell} border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}
+                      >
                         FSIS
                       </td>
                       {ISSUANCE_COLS.map((c) => (
-                        <td key={c.key} className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                        <td
+                          key={c.key}
+                          className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                        >
                           {(l.fsis[c.key] ?? 0).toLocaleString()}
                         </td>
                       ))}
@@ -1347,38 +1373,59 @@ function ComplianceLedgerCard({
                     Total
                   </th>
                   {INSPECTION_PLAIN_COLS.map((c) => (
-                    <td key={c.key} rowSpan={2} className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                    <td
+                      key={c.key}
+                      rowSpan={2}
+                      className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                    >
                       {totals.insp[c.key].toLocaleString()}
                     </td>
                   ))}
                   {INSPECTION_TARGET_COLS.map((c) => (
                     <React.Fragment key={c.key}>
-                      <td rowSpan={2} className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                      <td
+                        rowSpan={2}
+                        className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                      >
                         {totals.tgt[c.key].toLocaleString()}
                       </td>
-                      <td rowSpan={2} className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                      <td
+                        rowSpan={2}
+                        className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                      >
                         {totals.insp[c.key].toLocaleString()}
                       </td>
                     </React.Fragment>
                   ))}
 
-                  <td className={`${footCell} sticky bottom-[30px] z-30 border-r-2 border-r-border/60`}>MANUAL</td>
+                  <td
+                    className={`${footCell} sticky bottom-[30px] z-30 border-r-2 border-r-border/60`}
+                  >
+                    MANUAL
+                  </td>
                   {ISSUANCE_COLS.map((c) => (
-                    <td key={c.key} className={`${footCell} sticky bottom-[30px] z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                    <td
+                      key={c.key}
+                      className={`${footCell} sticky bottom-[30px] z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                    >
                       {totals.manual[c.key].toLocaleString()}
                     </td>
                   ))}
                 </tr>
                 <tr>
-                  <td className={`${footCell} sticky bottom-0 z-30 border-r-2 border-r-border/60`}>FSIS</td>
+                  <td className={`${footCell} sticky bottom-0 z-30 border-r-2 border-r-border/60`}>
+                    FSIS
+                  </td>
                   {ISSUANCE_COLS.map((c) => (
-                    <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}>
+                    <td
+                      key={c.key}
+                      className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                    >
                       {totals.fsis[c.key].toLocaleString()}
                     </td>
                   ))}
                 </tr>
               </tfoot>
-
             </table>
           </div>
         )}

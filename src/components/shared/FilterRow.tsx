@@ -27,9 +27,7 @@ export function FilterRow({
       )}
     >
       {children}
-      {onReset && (
-        <ResetFiltersButton onReset={onReset} className="ml-auto" />
-      )}
+      {onReset && <ResetFiltersButton onReset={onReset} className="ml-auto" />}
     </div>
   );
 }

@@ -1,24 +1,34 @@
 import { ShieldCheck } from "lucide-react";
-import LogisticsBoard from "../08_bwc/components/LogisticsBoard";
-import {
-  MOCK_FIRE_SAFETY_INSPECTORS,
-  totalInspectors,
-  type InspectorRow,
-} from "@/mock/logistics.mock";
+import InspectorLedger from "./components/InspectorLedger";
+import { MOCK_FIRE_SAFETY_INSPECTORS } from "@/mock/logistics.mock";
 
 export default function FireSafetyInspectorPage() {
   return (
-    <LogisticsBoard<InspectorRow>
+    <InspectorLedger
       title="Fire Safety Inspector"
       description="Station-level Fire Safety Inspector training capability."
       icon={<ShieldCheck className="h-5 w-5 text-primary" />}
+      entityLabel="Inspector"
       addLabel="Add Inspector"
       matrixLabel="Inspector Matrix"
+      matrixTitle="Fire Safety Inspector Matrix"
+      totalLabel="Total Inspectors"
       rows={MOCK_FIRE_SAFETY_INSPECTORS}
-      stats={[
-        { label: "With Training", get: (r) => r.withTraining, tone: "success" },
-        { label: "Without Training", get: (r) => r.withoutTraining, tone: "destructive" },
-        { label: "Total Inspectors", get: totalInspectors, tone: "primary" },
+      fields={[
+        {
+          key: "withTraining",
+          label: "With Training",
+          shortLabel: "W/ Training",
+          tone: "success",
+          hint: "Inspectors with completed FSIC training.",
+        },
+        {
+          key: "withoutTraining",
+          label: "Without Training",
+          shortLabel: "W/O Training",
+          tone: "destructive",
+          hint: "Inspectors pending training.",
+        },
       ]}
     />
   );

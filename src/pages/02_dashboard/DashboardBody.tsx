@@ -27,11 +27,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  SECTORS,
-  SECTOR_COLORS,
-  CHART_COLORS as C,
-} from "@/lib/chart-constants";
+import { SECTORS, SECTOR_COLORS, CHART_COLORS as C } from "@/lib/chart-constants";
 import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
@@ -54,7 +50,6 @@ import type { DashboardComplianceModel } from "@/types/dashboardType";
  * Every number, chart series and activity row is served by the API — there is
  * no mock/sample data left in this page.
  */
-
 
 function SectorProgressCard({ compliance }: { compliance: DashboardComplianceModel | null }) {
   const sectorProgress: Array<{
@@ -461,7 +456,6 @@ function ActivityCard({
           No recent activity recorded.
         </div>
       ) : (
-
         <div className="space-y-3">
           {items.map((item) => {
             const action = (item.actiontype ?? "").trim();
@@ -516,8 +510,6 @@ function ActivityCard({
 /* Announcements moved to the top-nav notifications popover
    (see src/components/NotificationsPopover.tsx). */
 
-
-
 const tooltipStyle = {
   background: "var(--color-popover)",
   border: "1px solid var(--color-border)",
@@ -530,14 +522,7 @@ const axisProps = {
   stroke: "var(--color-muted-foreground)",
 };
 
-const PROVINCE_LINE_COLORS = [
-  C.primary,
-  C.success,
-  C.warning,
-  C.danger,
-  C.purple,
-  C.teal,
-];
+const PROVINCE_LINE_COLORS = [C.primary, C.success, C.warning, C.danger, C.purple, C.teal];
 
 type GapRow = { name: string; BPLO: number; GOVT: number; PEZA: number; TIEZA: number };
 
@@ -547,7 +532,10 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
   const { data, series } = useMemo(() => {
     if (groupBy === "province") {
       return {
-        data: rows.map((r) => ({ name: r.name, ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])) })),
+        data: rows.map((r) => ({
+          name: r.name,
+          ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
+        })),
         series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
       };
     }
@@ -627,7 +615,10 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
   const { data, series } = useMemo(() => {
     if (groupBy === "province") {
       return {
-        data: rows.map((r) => ({ name: r.name, ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])) })),
+        data: rows.map((r) => ({
+          name: r.name,
+          ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
+        })),
         series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
       };
     }
@@ -715,10 +706,6 @@ export function DashboardBody() {
     error: recentActivityError,
     refresh: refreshRecentActivity,
   } = useRecentActivity();
-
-
-
-
 
   const inspectionBreakdown = [
     { label: "During", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
@@ -814,22 +801,25 @@ export function DashboardBody() {
 
       {/* Supplementary row: Target vs Actual by Province */}
       <div className="grid grid-cols-1 gap-6">
-
-
         <ChartCard
           title="Target vs Actual by Province"
           subtitle="Provincial accomplishment"
           height="h-72"
         >
           {targetVsActualLoading ? (
-            <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+            <div className="grid h-full place-items-center text-sm text-muted-foreground">
+              Loading…
+            </div>
           ) : targetVsActualRows.length === 0 ? (
             <div className="grid h-full place-items-center text-sm text-muted-foreground">
               No data for the selected year.
             </div>
           ) : (
             <ResponsiveContainer>
-              <BarChart data={targetVsActualRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <BarChart
+                data={targetVsActualRows}
+                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="name" {...axisProps} />
                 <YAxis {...axisProps} />
@@ -850,7 +840,9 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
       >
         {monthlyTrendLoading ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            Loading…
+          </div>
         ) : monthlyTrendRows.length === 0 ? (
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
             No data for the selected year.
@@ -891,7 +883,9 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
       >
         {monthlySectorLoading ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            Loading…
+          </div>
         ) : monthlySectorRows.length === 0 ? (
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
             No data for the selected year.
@@ -930,7 +924,9 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
       >
         {yoYLoading ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground">Loading…</div>
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            Loading…
+          </div>
         ) : yoYYears.length === 0 ? (
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
             No data for the selected period.
@@ -963,7 +959,6 @@ export function DashboardBody() {
         )}
       </ChartCard>
 
-
       {/* Row 6: Recent Dashboard Activity (100%) */}
       <ActivityCard
         title="Recent Dashboard Activity"
@@ -975,9 +970,6 @@ export function DashboardBody() {
       />
 
       {/* Announcements now live in the top-nav notifications popover. */}
-
-
-
     </div>
   );
 }

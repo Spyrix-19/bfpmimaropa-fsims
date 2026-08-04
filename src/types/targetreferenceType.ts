@@ -117,9 +117,6 @@ export interface TargetReferenceDeleteParams {
   roleno: number;
 }
 
-
-
-
 export interface TargetReferenceClassModel {
   targetno: string;
   targetdate?: string;
@@ -138,27 +135,6 @@ export interface ProvinceExportModel {
   provincename: string;
   stations: TargetReferenceModel[];
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /** Row returned by /FSISTargetReference/Detail/Targetdate (existence check). */
 export interface TargetReferenceByDateModel {

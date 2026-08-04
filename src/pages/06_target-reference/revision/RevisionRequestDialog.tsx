@@ -73,8 +73,7 @@ export default function RevisionRequestDialog({
     }
   }, [open]);
 
-  const requestedBy =
-    user?.fullname || user?.name || user?.badgeno || "Current user";
+  const requestedBy = user?.fullname || user?.name || user?.badgeno || "Current user";
   const monthName = MONTHS.find((m) => m.value === month)?.name ?? String(month);
   const periodLabel = React.useMemo(() => {
     if (dateinspected) {
@@ -132,7 +131,9 @@ export default function RevisionRequestDialog({
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <DialogTitle className="text-base font-bold">Request Revision</DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Requesting revision for <span className="font-semibold text-foreground">{periodLabel}</span>. Submission does not unlock the record.
+            Requesting revision for{" "}
+            <span className="font-semibold text-foreground">{periodLabel}</span>. Submission does
+            not unlock the record.
           </p>
         </DialogHeader>
 

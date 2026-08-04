@@ -81,7 +81,6 @@ export function useComplianceSummary() {
   return { compliance: data, loading };
 }
 
-
 /** Case-insensitive notice lookup with a zeroed fallback. */
 export function getNotice(
   compliance: DashboardComplianceModel | null,

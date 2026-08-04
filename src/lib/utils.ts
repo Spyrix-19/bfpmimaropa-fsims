@@ -17,7 +17,10 @@ export function getInitials(name?: string, size = 2, upper = true): string {
     return upper ? raw.toUpperCase() : raw;
   }
 
-  const raw = words.slice(0, 4).map((word) => word[0] ?? "").join("");
+  const raw = words
+    .slice(0, 4)
+    .map((word) => word[0] ?? "")
+    .join("");
   return upper ? raw.toUpperCase() : raw;
 }
 
@@ -127,4 +130,9 @@ export function downloadCsv(filename: string, csv: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Coerce any value to a finite number, defaulting to 0. */
+export function toNumber(v: unknown): number {
+  return Number(v ?? 0) || 0;
 }

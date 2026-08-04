@@ -24,7 +24,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 import { useAuth, FSIMS_SYSTEMNO } from "@/lib/auth";
@@ -33,22 +39,13 @@ import { gentableAPI } from "@/services/gentableAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { compressImage } from "@/lib/image-compress";
 import { getConfirmVisuals } from "@/lib/confirm-visuals";
-import {
-  formatLongDate,
-  toDateInput,
-  imageDataToDataUrl,
-  unwrapOne,
-} from "@/lib/utils";
+import { formatLongDate, toDateInput, imageDataToDataUrl, unwrapOne } from "@/lib/utils";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import GentableSelect, { type Option } from "@/components/gentable-select";
 
 import OfficeSearchSelect from "@/components/office-search-select";
 import StationSearchSelect from "@/components/station-search-select";
-import type {
-  MemberDetailModel,
-  MemberInfoDTO,
-  MemberEmploymentDTO,
-} from "@/types/personnelType";
+import type { MemberDetailModel, MemberInfoDTO, MemberEmploymentDTO } from "@/types/personnelType";
 import type { SearchGentableModel } from "@/types/gentableType";
 import ChangePasswordDialog from "@/pages/03_profile/change-password-modal";
 import ChangeExpiryDialog from "@/pages/03_profile/change-expiry-modal";
@@ -141,7 +138,9 @@ export default function Profile() {
       "Activate Account",
       "Deactivate Account",
     ]);
-    const actionText = title ? `Are you sure you want to ${title.toLowerCase()}?` : "Please confirm to proceed.";
+    const actionText = title
+      ? `Are you sure you want to ${title.toLowerCase()}?`
+      : "Please confirm to proceed.";
     if (title && securityActions.has(title)) {
       return `${actionText} Changes made here apply throughout the entire BFP MIMAROPA system.`;
     }
@@ -196,11 +195,7 @@ export default function Profile() {
         return toOptions(unwrap<SearchGentableModel[]>(resp).data);
       };
       try {
-        const [r, g, c] = await Promise.all([
-          load("RANK"),
-          load("GENDER"),
-          load("CIVIL STATUS"),
-        ]);
+        const [r, g, c] = await Promise.all([load("RANK"), load("GENDER"), load("CIVIL STATUS")]);
         if (cancelled) return;
         setRanks(r);
         setGenders(g);
@@ -506,9 +501,7 @@ export default function Profile() {
     (member?.systemaccess ?? []).find(
       (s) => (s.systemno || "").toLowerCase() === FSIMS_SYSTEMNO.toLowerCase(),
     ) ??
-    (member?.systemaccess ?? []).find(
-      (s) => (s.systemcode || "").toUpperCase() === "FSIMS",
-    ) ??
+    (member?.systemaccess ?? []).find((s) => (s.systemcode || "").toUpperCase() === "FSIMS") ??
     null;
   const fsimsRoleName = fsimsAccess?.rolename ?? "";
 
@@ -520,7 +513,9 @@ export default function Profile() {
             <UserCircle2 className="h-5 w-5 text-primary" />
             My Profile
           </h1>
-          <p className="text-xs text-muted-foreground">Your account information and system access.</p>
+          <p className="text-xs text-muted-foreground">
+            Your account information and system access.
+          </p>
         </div>
       </div>
 
@@ -547,7 +542,11 @@ export default function Profile() {
                       disabled={uploading || removing}
                       className="absolute -right-2 -top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border bg-white text-destructive shadow-sm transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                      >
                         <path
                           stroke="currentColor"
                           strokeWidth="2"
@@ -1155,13 +1154,29 @@ export default function Profile() {
             <div className="flex items-start gap-3">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <svg className="h-7 w-7 animate-spin" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" strokeWidth="3" stroke="currentColor" strokeOpacity="0.25" fill="none" />
-                  <path d="M22 12a10 10 0 00-10-10" strokeWidth="3" stroke="currentColor" strokeLinecap="round" fill="none" />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    strokeWidth="3"
+                    stroke="currentColor"
+                    strokeOpacity="0.25"
+                    fill="none"
+                  />
+                  <path
+                    d="M22 12a10 10 0 00-10-10"
+                    strokeWidth="3"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
                 </svg>
               </div>
               <div className="flex flex-col items-start text-left">
                 <DialogTitle className="text-lg font-semibold">Processing</DialogTitle>
-                <DialogDescription className="mt-2 max-w-[28rem] text-sm text-muted-foreground">Please wait while we update your profile picture...</DialogDescription>
+                <DialogDescription className="mt-2 max-w-[28rem] text-sm text-muted-foreground">
+                  Please wait while we update your profile picture...
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>

@@ -47,25 +47,31 @@ function toDailyCounts(stations: FSISComplianceModel[]): ComplianceDailyCounts[]
     for (const rec of list) {
       const flat = {
         fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
-        inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
-        inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
+        inspectduringcount:
+          Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
+        inspectaftercount:
+          Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
         inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
         inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
         inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
-        inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
+        inspecttiezacount:
+          Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
         dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
         dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
         dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
         dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
         remarks: String((rec as { remarks?: string }).remarks ?? ""),
         dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
-        fsecbuildingcount: Number((rec as { fsecbuildingcount?: number }).fsecbuildingcount ?? 0) || 0,
+        fsecbuildingcount:
+          Number((rec as { fsecbuildingcount?: number }).fsecbuildingcount ?? 0) || 0,
         fsecgovcount: Number((rec as { fsecgovcount?: number }).fsecgovcount ?? 0) || 0,
         fsecpezacount: Number((rec as { fsecpezacount?: number }).fsecpezacount ?? 0) || 0,
         fsectiezacount: Number((rec as { fsectiezacount?: number }).fsectiezacount ?? 0) || 0,
-        fsicoccupancycount: Number((rec as { fsicoccupancycount?: number }).fsicoccupancycount ?? 0) || 0,
+        fsicoccupancycount:
+          Number((rec as { fsicoccupancycount?: number }).fsicoccupancycount ?? 0) || 0,
         fsicbplonewcount: Number((rec as { fsicbplonewcount?: number }).fsicbplonewcount ?? 0) || 0,
-        fsicbplorenewcount: Number((rec as { fsicbplorenewcount?: number }).fsicbplorenewcount ?? 0) || 0,
+        fsicbplorenewcount:
+          Number((rec as { fsicbplorenewcount?: number }).fsicbplorenewcount ?? 0) || 0,
         fsicgovcount: Number((rec as { fsicgovcount?: number }).fsicgovcount ?? 0) || 0,
         fsicpezacount: Number((rec as { fsicpezacount?: number }).fsicpezacount ?? 0) || 0,
         fsictiezacount: Number((rec as { fsictiezacount?: number }).fsictiezacount ?? 0) || 0,
@@ -200,7 +206,8 @@ export default function Reports() {
       const list = buildReportMatrix(toDailyCounts(stations), category);
       setProvinceOptions(Array.from(new Set(list.map((g) => g.province))).sort());
       const effectiveProvince = scope.provinceLocked ? scope.provincename : province;
-      const filtered = effectiveProvince === "ALL" ? list : list.filter((g) => g.province === effectiveProvince);
+      const filtered =
+        effectiveProvince === "ALL" ? list : list.filter((g) => g.province === effectiveProvince);
       setGroups(filtered);
       setLoading(false);
     })();
@@ -371,7 +378,9 @@ function MatrixHeader({
             className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.quarter}`}
           >
             <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Quarter</span>
+              <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">
+                Quarter
+              </span>
               <span className="text-[10px] font-semibold leading-none">{q.label}</span>
             </div>
           </th>
@@ -384,7 +393,9 @@ function MatrixHeader({
             className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.quarter}`}
           >
             <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Quarter</span>
+              <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">
+                Quarter
+              </span>
               <span className="text-[10px] font-semibold leading-none">{q.label} Total</span>
             </div>
           </th>
@@ -395,7 +406,9 @@ function MatrixHeader({
           className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.semester}`}
         >
           <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Semester</span>
+            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">
+              Semester
+            </span>
             <span className="text-[10px] font-semibold leading-none">1st</span>
           </div>
         </th>
@@ -405,7 +418,9 @@ function MatrixHeader({
           className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.semester}`}
         >
           <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Semester</span>
+            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">
+              Semester
+            </span>
             <span className="text-[10px] font-semibold leading-none">2nd</span>
           </div>
         </th>
@@ -415,7 +430,9 @@ function MatrixHeader({
           className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${STYLE.annual}`}
         >
           <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Annual</span>
+            <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">
+              Annual
+            </span>
             <span className="text-[10px] font-semibold leading-none">Total</span>
           </div>
         </th>
@@ -431,8 +448,12 @@ function MatrixHeader({
               } ${STYLE.month}`}
             >
               <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">Month</span>
-                <span className="text-[10px] font-semibold leading-none">{MONTH_NAMES[mv - 1]}</span>
+                <span className="text-[8px] font-semibold uppercase tracking-[0.2em] opacity-80">
+                  Month
+                </span>
+                <span className="text-[10px] font-semibold leading-none">
+                  {MONTH_NAMES[mv - 1]}
+                </span>
               </div>
             </th>
           )),
@@ -554,15 +575,7 @@ function TgtActCell({
       <span className="inline-flex items-center gap-1">
         <span className="text-foreground">{cell.target.toLocaleString()}</span>
         <span className="text-muted-foreground/60">|</span>
-        <span
-          className={
-            meetOrOver
-              ? "text-success"
-              : under
-                ? "text-destructive"
-                : ""
-          }
-        >
+        <span className={meetOrOver ? "text-success" : under ? "text-destructive" : ""}>
           {cell.actual.toLocaleString()}
         </span>
       </span>

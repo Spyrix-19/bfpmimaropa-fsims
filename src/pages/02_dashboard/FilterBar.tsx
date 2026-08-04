@@ -13,10 +13,7 @@ import { LocationMultiSelect, type SelectedLocation } from "@/components/locatio
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
-import {
-  ModuleFilterBar,
-  type ModuleFilterState,
-} from "@/components/shared/ModuleFilterBar";
+import { ModuleFilterBar, type ModuleFilterState } from "@/components/shared/ModuleFilterBar";
 
 /**
  * Dashboard filter bar. Uses the shared `ModuleFilterBar` so the Dashboard
@@ -40,14 +37,22 @@ export function FilterBar() {
 
   const filterState: ModuleFilterState = React.useMemo(() => {
     const p = filters.period ?? "";
-    const months = (p === "all" ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : p
-      .split(",")
-      .map((v) => Number(v.trim()))
-      .filter((m) => m >= 1 && m <= 12));
+    const months =
+      p === "all"
+        ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        : p
+            .split(",")
+            .map((v) => Number(v.trim()))
+            .filter((m) => m >= 1 && m <= 12);
     return {
       year: filters.year,
       interval: filters.interval,
-      date: filters.interval === "DAILY" ? (p && p !== "all" ? p : `all:${toISODate(today)}`) : `all:${toISODate(today)}`,
+      date:
+        filters.interval === "DAILY"
+          ? p && p !== "all"
+            ? p
+            : `all:${toISODate(today)}`
+          : `all:${toISODate(today)}`,
       months: filters.interval === "MONTHLY" ? (months.length ? months : []) : [],
       quarter: /^q[1-4]$/.test(p) ? p : p === "all" ? "all" : "all",
       semester: /^s[12]$/.test(p) ? p : p === "all" ? "all" : "all",
@@ -66,7 +71,8 @@ export function FilterBar() {
         period = next.date;
         break;
       case "MONTHLY":
-        period = next.months.length === 0 || next.months.length === 12 ? "all" : next.months.join(",");
+        period =
+          next.months.length === 0 || next.months.length === 12 ? "all" : next.months.join(",");
         break;
       case "QUARTERLY":
         period = next.quarter === "all" ? "all" : next.quarter;
@@ -91,8 +97,7 @@ export function FilterBar() {
         locationname: scope.provincename,
       };
       const same =
-        filters.provinces.length === 1 &&
-        filters.provinces[0].locationno === locked.locationno;
+        filters.provinces.length === 1 && filters.provinces[0].locationno === locked.locationno;
       if (!same) patch.provinces = [locked];
     }
     if (scope.stationLocked && scope.stationno) {
@@ -103,8 +108,7 @@ export function FilterBar() {
         provincename: scope.provincename,
       };
       const same =
-        filters.stations.length === 1 &&
-        filters.stations[0].stationno === locked.stationno;
+        filters.stations.length === 1 && filters.stations[0].stationno === locked.stationno;
       if (!same) patch.stations = [locked];
     }
     if (Object.keys(patch).length) setFilters({ ...filters, ...patch });

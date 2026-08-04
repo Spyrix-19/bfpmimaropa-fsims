@@ -1,10 +1,24 @@
 import * as React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,} from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Building2, Loader2, X } from "lucide-react";
 import { MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
+import StationInfoCard from "@/components/station-info-card";
+
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { buildYears } from "@/lib/utils";
@@ -58,12 +72,22 @@ function Row({
   );
 }
 
-export default function TargetReferenceDetails({ open, onOpenChange, target, period, month }: Props) {
+export default function TargetReferenceDetails({
+  open,
+  onOpenChange,
+  target,
+  period,
+  month,
+}: Props) {
   const YEARS = React.useMemo(buildYears, []);
   const [loading, setLoading] = React.useState(false);
   const [detail, setDetail] = React.useState<TargetReferenceDetailModel | null>(null);
-  const [selectedYear, setSelectedYear] = React.useState<number>(target?.reportyear ?? new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = React.useState<number>(month || new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = React.useState<number>(
+    target?.reportyear ?? new Date().getFullYear(),
+  );
+  const [selectedMonth, setSelectedMonth] = React.useState<number>(
+    month || new Date().getMonth() + 1,
+  );
 
   React.useEffect(() => {
     if (!target) return;
@@ -141,36 +165,17 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
         ) : detail && derived ? (
           <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
             <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-              <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
-                <div className="flex flex-col gap-4 sm:flex-row">
-                  <AvatarWithFallback
-                    entity={{ name: detail.stationname }}
-                    src={detail.logourl || undefined}
-                    name={detail.stationname}
-                    className="h-20 w-20 rounded-full ring-2 ring-primary/20"
-                  />
-                  <div className="grid flex-1 gap-2 sm:grid-cols-3">
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                        Station Code
-                      </div>
-                      <div className="text-sm font-semibold">{detail.stationcode}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                        Station Name
-                      </div>
-                      <div className="text-sm font-semibold">{detail.stationname}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                        Province
-                      </div>
-                      <div className="text-sm">{detail.provincename}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <StationInfoCard
+                className="rounded-xl"
+                stationName={detail.stationname}
+                unitCode={detail.stationcode}
+                logoUrl={detail.logourl || null}
+                fields={[
+                  { label: "Station Code", value: detail.stationcode },
+                  { label: "Station Name", value: detail.stationname },
+                  { label: "Province", value: detail.provincename },
+                ]}
+              />
 
               <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
                 <div className="text-sm font-semibold uppercase tracking-[0.15em] text-muted-foreground">
@@ -237,12 +242,12 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                         {period === "DAILY"
                           ? "Date"
                           : period === "MONTHLY"
-                          ? "Month"
-                          : period === "QUARTERLY"
-                          ? "Quarter"
-                          : period === "SEMI-ANNUAL"
-                          ? "Period"
-                          : "Annual Total"}
+                            ? "Month"
+                            : period === "QUARTERLY"
+                              ? "Quarter"
+                              : period === "SEMI-ANNUAL"
+                                ? "Period"
+                                : "Annual Total"}
                       </th>
                       <th className="px-3 py-2 text-center font-semibold bg-card">BPLO</th>
                       <th className="px-3 py-2 text-center font-semibold bg-card">Government</th>
@@ -278,7 +283,10 @@ export default function TargetReferenceDetails({ open, onOpenChange, target, per
                       <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
                         <td className="border-t px-3 py-2 bg-card">TOTAL</td>
                         {(["bplo", "gov", "peza", "tieza"] as const).map((k) => (
-                          <td key={k} className="border-t px-3 py-2 text-center bg-card tabular-nums">
+                          <td
+                            key={k}
+                            className="border-t px-3 py-2 text-center bg-card tabular-nums"
+                          >
                             {dailyDerived.total[k].toLocaleString()}
                           </td>
                         ))}

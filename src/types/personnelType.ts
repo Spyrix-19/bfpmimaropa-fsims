@@ -141,7 +141,7 @@ export interface MemberDetailModel {
   ipaddress: string;
   lastaccess: string;
   passwordexpiry?: string;
-  
+
   profileurl: string;
   filetype: string;
   imagedata: string; // Base64 (byte[])

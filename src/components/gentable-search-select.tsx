@@ -128,7 +128,12 @@ export default function GentableSearchSelect({
             className,
           )}
         >
-          <span className={cn("min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis", !label && "text-muted-foreground")}>
+          <span
+            className={cn(
+              "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis",
+              !label && "text-muted-foreground",
+            )}
+          >
             {label || placeholder}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-primary" />

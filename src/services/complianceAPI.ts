@@ -1,31 +1,43 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 
-import { FSISComplianceDTO, FSISComplianceDetailModel, FSISComplianceDetailByDateModel, FSISComplianceDetailParams, 
-  FSISComplianceLedgerParams, FSISComplianceModel, FSISComplianceDeleteParams, 
-  ExportFSISComplianceRequestDTO, FSISComplianceTargetAccomParams, TargetAccomplishmentModel,
-  FSISComplianceDetailByDateParams} from "@/types/complianceType";
+import {
+  FSISComplianceDTO,
+  FSISComplianceDetailModel,
+  FSISComplianceDetailByDateModel,
+  FSISComplianceDetailParams,
+  FSISComplianceLedgerParams,
+  FSISComplianceModel,
+  FSISComplianceDeleteParams,
+  ExportFSISComplianceRequestDTO,
+  FSISComplianceTargetAccomParams,
+  TargetAccomplishmentModel,
+  FSISComplianceDetailByDateParams,
+} from "@/types/complianceType";
 
 export const complianceAPI = {
   async getTargetAccomplishment(
-    params?: FSISComplianceTargetAccomParams, options?: import("@/lib/api").ApiOptions ) {
-    return await apiGet<TargetAccomplishmentModel>("/api/v1/FSISCompliance/TargetAccomplishment", { 
-      params, 
-      ...GET_RETRY, 
-      ...options 
+    params?: FSISComplianceTargetAccomParams,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiGet<TargetAccomplishmentModel>("/api/v1/FSISCompliance/TargetAccomplishment", {
+      params,
+      ...GET_RETRY,
+      ...options,
     });
   },
 
-
   async create(params: FSISComplianceDTO) {
     return await apiPost("/api/v1/FSISCompliance/Create", params, { ...NO_RETRY });
-  },  
+  },
 
-async getDetailBydate(
-    params?: FSISComplianceDetailByDateParams, options?: import("@/lib/api").ApiOptions ) {
-    return await apiGet<FSISComplianceDetailByDateModel>("/api/v1/FSISCompliance/Detail/Date", { 
-      params, 
-      ...GET_RETRY, 
-      ...options 
+  async getDetailBydate(
+    params?: FSISComplianceDetailByDateParams,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiGet<FSISComplianceDetailByDateModel>("/api/v1/FSISCompliance/Detail/Date", {
+      params,
+      ...GET_RETRY,
+      ...options,
     });
   },
 
@@ -37,10 +49,7 @@ async getDetailBydate(
     });
   },
 
-  async getLedger(
-    request: FSISComplianceLedgerParams,
-    options?: import("@/lib/api").ApiOptions
-  ) {
+  async getLedger(request: FSISComplianceLedgerParams, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<FSISComplianceModel[]>(
       "/api/v1/FSISCompliance/Ledger",
       request.parameters,
@@ -50,7 +59,7 @@ async getDetailBydate(
           Pagesize: request.pagesize ?? 10,
         },
         ...options,
-      }
+      },
     );
   },
 
@@ -61,15 +70,10 @@ async getDetailBydate(
     });
   },
 
-  async export(
-    body: ExportFSISComplianceRequestDTO,
-    options?: import("@/lib/api").ApiOptions
-  ) {
+  async export(body: ExportFSISComplianceRequestDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost("/api/v1/FSISCompliance/Export", body, {
       ...GET_RETRY,
       ...options,
     });
-  }
-
-  
+  },
 };

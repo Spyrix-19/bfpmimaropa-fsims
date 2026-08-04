@@ -1,12 +1,23 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
-import type { ExportNoticeDTO, FSISNoticeDeleteParams, FSISNoticeDetailByDateParams, FSISNoticeDetailParams, FSISNoticeDTO, NoticeDetailModel, NoticeLedgerParams } from "@/types/noticeType";
+import type {
+  ExportNoticeDTO,
+  FSISNoticeDeleteParams,
+  FSISNoticeDetailByDateParams,
+  FSISNoticeDetailParams,
+  FSISNoticeDTO,
+  NoticeDetailModel,
+  NoticeLedgerParams,
+} from "@/types/noticeType";
 
 export const noticeAPI = {
   async create(params: FSISNoticeDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost("/api/v1/FSISNotice/Create", params, { ...NO_RETRY, ...options });
   },
 
-  async getDetailBydate(params?: FSISNoticeDetailByDateParams, options?: import("@/lib/api").ApiOptions) {
+  async getDetailBydate(
+    params?: FSISNoticeDetailByDateParams,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     return await apiGet<NoticeDetailModel>("/api/v1/FSISNotice/Detail/Date", {
       params,
       ...GET_RETRY,
@@ -48,7 +59,12 @@ export const noticeAPI = {
   },
 
   async getNoticeTypes(options?: import("@/lib/api").ApiOptions) {
-    const endpoints = ["/api/v1/NoticeType/Search", "/api/v1/FSISNoticeType/Search", "/api/v1/NoticeType/List", "/api/v1/FSISNoticeType/List"];
+    const endpoints = [
+      "/api/v1/NoticeType/Search",
+      "/api/v1/FSISNoticeType/Search",
+      "/api/v1/NoticeType/List",
+      "/api/v1/FSISNoticeType/List",
+    ];
     const errors: string[] = [];
     for (const endpoint of endpoints) {
       try {

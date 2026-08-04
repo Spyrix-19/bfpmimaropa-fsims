@@ -18,8 +18,7 @@ const OptionButton = React.forwardRef<HTMLButtonElement, OptionButtonProps>(
     const baseCircle =
       "group inline-flex items-center justify-center h-8 w-8 rounded-full bg-transparent shadow-sm text-primary hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer";
 
-    const disabledClass =
-      "opacity-50 cursor-not-allowed hover:!bg-transparent hover:!text-primary";
+    const disabledClass = "opacity-50 cursor-not-allowed hover:!bg-transparent hover:!text-primary";
 
     const classes = `${variant === "circle" ? baseCircle : baseSquare} ${
       disabled ? disabledClass : ""

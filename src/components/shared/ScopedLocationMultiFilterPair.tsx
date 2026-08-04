@@ -58,13 +58,7 @@ export function useScopedLocationMulti(scope: LocationScopeInfo): ScopedLocation
             },
           ]
         : [],
-    [
-      scope.stationLocked,
-      scope.stationno,
-      scope.stationname,
-      scope.provinceno,
-      scope.provincename,
-    ],
+    [scope.stationLocked, scope.stationno, scope.stationname, scope.provinceno, scope.provincename],
   );
 
   const [provinces, setProvincesState] = React.useState<SelectedLocation[]>(lockedProvinces);

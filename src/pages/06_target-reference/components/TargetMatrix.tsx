@@ -118,7 +118,12 @@ function buildStationRow(m: TargetReferenceModel): StationRow {
     stationno: m.stationno,
     stationCode: m.stationcode ?? (m as any).stationCode ?? "",
     stationName: m.stationname ?? (m as any).stationName ?? "",
-    cityName: (m as any).cityname ?? (m as any).cityName ?? (m as any).cityname ?? (m as any).cityName ?? "",
+    cityName:
+      (m as any).cityname ??
+      (m as any).cityName ??
+      (m as any).cityname ??
+      (m as any).cityName ??
+      "",
     province: m.provincename ?? (m as any).province ?? (m as any).province ?? "—",
     logoUrl: m.logourl ?? (m as any).logoUrl ?? (m as any).logoUrl ?? "",
     months,
@@ -133,7 +138,14 @@ function normalizeTargetReferenceRow(item: any): TargetReferenceClassModel | nul
   const pezatotal = Number(item.pezatotal ?? item.PEZAtotal ?? item.pezaTotal ?? 0);
   const tiezatotal = Number(item.tiezatotal ?? item.TIEZAtotal ?? item.tiezaTotal ?? 0);
 
-  if (targetdate == null && reportmonth == null && bplototal === 0 && govtotal === 0 && pezatotal === 0 && tiezatotal === 0) {
+  if (
+    targetdate == null &&
+    reportmonth == null &&
+    bplototal === 0 &&
+    govtotal === 0 &&
+    pezatotal === 0 &&
+    tiezatotal === 0
+  ) {
     return null;
   }
 
@@ -155,10 +167,10 @@ function normalizeExportStation(item: any): TargetReferenceModel {
   const targetreferencelist = Array.isArray(item.targetreferencelist)
     ? item.targetreferencelist
     : Array.isArray(item.targetreferenceList)
-    ? item.targetreferenceList
-    : Array.isArray(item.TargetReferenceList)
-    ? item.TargetReferenceList
-    : null;
+      ? item.targetreferenceList
+      : Array.isArray(item.TargetReferenceList)
+        ? item.TargetReferenceList
+        : null;
 
   const rows = Array.isArray(targetreferencelist)
     ? targetreferencelist
@@ -186,7 +198,7 @@ function buildGroupsFromExport(provinces: unknown): ProvinceGroup[] {
   const normalizedProvinces: ProvinceExportModel[] = [];
   const payload = Array.isArray(provinces)
     ? provinces
-    : (provinces as any)?.data ?? (provinces as any)?.provinces ?? [];
+    : ((provinces as any)?.data ?? (provinces as any)?.provinces ?? []);
 
   if (!Array.isArray(payload) || payload.length === 0) {
     return [];
@@ -198,12 +210,16 @@ function buildGroupsFromExport(provinces: unknown): ProvinceGroup[] {
       const stations = Array.isArray(rawProv.stations)
         ? rawProv.stations
         : Array.isArray(rawProv.stationlist)
-        ? rawProv.stationlist
-        : [];
+          ? rawProv.stationlist
+          : [];
       normalizedProvinces.push({
         provinceno: String(rawProv.provinceno ?? rawProv.provinceNo ?? rawProv.Provinceno ?? ""),
         provincename: String(
-          rawProv.provincename ?? rawProv.province ?? rawProv.provinceName ?? rawProv.Provincename ?? "—",
+          rawProv.provincename ??
+            rawProv.province ??
+            rawProv.provinceName ??
+            rawProv.Provincename ??
+            "—",
         ),
         stations: stations.map(normalizeExportStation),
       });
@@ -475,8 +491,14 @@ export default function TargetMatrixModal({
     const derived = Array.from(seen.values());
     setProvinceFilters((prev) => {
       if (prev.length === derived.length) {
-        const prevKey = prev.map((p) => p.locationno).sort().join(",");
-        const nextKey = derived.map((p) => p.locationno).sort().join(",");
+        const prevKey = prev
+          .map((p) => p.locationno)
+          .sort()
+          .join(",");
+        const nextKey = derived
+          .map((p) => p.locationno)
+          .sort()
+          .join(",");
         if (prevKey === nextKey) return prev;
       }
       return derived;
@@ -655,7 +677,6 @@ export default function TargetMatrixModal({
             )}
           </div>
         </div>
-
 
         <div className="relative flex-1 overflow-auto">
           <table className="w-max min-w-full border-separate border-spacing-0 text-[11px]">

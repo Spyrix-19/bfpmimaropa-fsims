@@ -70,7 +70,6 @@ export function ScopedLocationFilterPair({
   return (
     <>
       <Field label="Province">
-
         {scope.provinceLocked ? (
           <ReadOnlyField
             value={provinceLabel || scope.provincename}

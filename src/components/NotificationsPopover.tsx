@@ -101,7 +101,13 @@ export function NotificationsPopover() {
   };
 
   return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (v) void load(); }}>
+    <Popover
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) void load();
+      }}
+    >
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Notifications" className="relative">
           <Bell className="h-4 w-4" />
@@ -199,7 +205,9 @@ export function NotificationsPopover() {
                   >
                     <span
                       className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted"
-                      style={n.color ? { color: n.color, backgroundColor: `${n.color}1a` } : undefined}
+                      style={
+                        n.color ? { color: n.color, backgroundColor: `${n.color}1a` } : undefined
+                      }
                     >
                       <Bell className="h-4 w-4" />
                     </span>
@@ -213,9 +221,13 @@ export function NotificationsPopover() {
                         >
                           {n.title}
                         </p>
-                        {!n.isread && <Circle className="h-2 w-2 shrink-0 fill-primary text-primary" />}
+                        {!n.isread && (
+                          <Circle className="h-2 w-2 shrink-0 fill-primary text-primary" />
+                        )}
                       </div>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                        {n.message}
+                      </p>
                       <p className="mt-1 text-[11px] text-muted-foreground/80">
                         {formatDateTime(n.dateencoded)}
                       </p>

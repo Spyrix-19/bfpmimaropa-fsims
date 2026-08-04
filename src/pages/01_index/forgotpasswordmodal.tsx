@@ -58,14 +58,25 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
           <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
             <div className="flex items-start gap-3">
               <div className="rounded-full bg-primary/10 p-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-primary"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
                   <rect x="3" y="11" width="18" height="11" rx="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
               </div>
               <div>
                 <h3 className="text-lg font-semibold">Reset your password</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Enter your badge number or email address and we'll route your request to the system administrator.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Enter your badge number or email address and we'll route your request to the
+                  system administrator.
+                </p>
               </div>
             </div>
           </DialogHeader>
@@ -73,12 +84,21 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
           <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden px-5 py-4">
             <div>
               <Label className="mb-2">Badge number or email</Label>
-              <Input ref={inputRef} value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. 10001 or you@fsims.gov" />
+              <Input
+                ref={inputRef}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="e.g. 10001 or you@fsims.gov"
+              />
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button onClick={handleSend} disabled={sending}>{sending ? "Sending…" : "Send"}</Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSend} disabled={sending}>
+                {sending ? "Sending…" : "Send"}
+              </Button>
             </div>
           </div>
         </DialogContent>

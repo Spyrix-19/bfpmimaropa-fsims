@@ -107,7 +107,8 @@ export default function LocationSearchSelect({
     setOpen(false);
   };
 
-  const allSelected = showAllOption && (value === EMPTY_GUID || value === "" || value === undefined);
+  const allSelected =
+    showAllOption && (value === EMPTY_GUID || value === "" || value === undefined);
 
   const showPrev = page > 1;
   const showNext = rows.length === PAGE_SIZE;
@@ -142,7 +143,12 @@ export default function LocationSearchSelect({
             className,
           )}
         >
-          <span className={cn("min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis", !label && "text-muted-foreground")}>
+          <span
+            className={cn(
+              "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis",
+              !label && "text-muted-foreground",
+            )}
+          >
             {label || placeholder}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
@@ -188,26 +194,28 @@ export default function LocationSearchSelect({
                 </button>
               ) : null}
               {rows.map((r) => {
-              const isSelected = r.locationno === value;
-              return (
-                <button
-                  key={r.locationno}
-                  type="button"
-                  onClick={() => select(r)}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
-                    isSelected && "bg-muted",
-                  )}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{r.locationname}</div>
-                    {!hideCode && r.locationcode ? (
-                      <div className="truncate text-xs text-muted-foreground">{r.locationcode}</div>
-                    ) : null}
-                  </div>
-                  {isSelected ? <Check className="h-4 w-4 text-primary" /> : null}
-                </button>
-              );
+                const isSelected = r.locationno === value;
+                return (
+                  <button
+                    key={r.locationno}
+                    type="button"
+                    onClick={() => select(r)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                      isSelected && "bg-muted",
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{r.locationname}</div>
+                      {!hideCode && r.locationcode ? (
+                        <div className="truncate text-xs text-muted-foreground">
+                          {r.locationcode}
+                        </div>
+                      ) : null}
+                    </div>
+                    {isSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+                  </button>
+                );
               })}
             </>
           )}

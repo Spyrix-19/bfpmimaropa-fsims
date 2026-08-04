@@ -40,7 +40,13 @@ const GENERIC_ERROR_MESSAGE = ApiMessages.UNKNOWN;
 
 export function unwrap<T>(
   resp:
-    | { data: unknown; canceled?: boolean; isSuccess?: boolean; errorMessages?: string; statusCode?: number }
+    | {
+        data: unknown;
+        canceled?: boolean;
+        isSuccess?: boolean;
+        errorMessages?: string;
+        statusCode?: number;
+      }
     | null
     | undefined,
 ): {

@@ -5,7 +5,9 @@ const FilterBar = lazy(() =>
   import("@/pages/02_dashboard/FilterBar").then((module) => ({ default: module.FilterBar })),
 );
 const DashboardBody = lazy(() =>
-  import("@/pages/02_dashboard/DashboardBody").then((module) => ({ default: module.DashboardBody })),
+  import("@/pages/02_dashboard/DashboardBody").then((module) => ({
+    default: module.DashboardBody,
+  })),
 );
 
 function FilterBarFallback() {

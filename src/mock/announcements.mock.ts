@@ -106,7 +106,10 @@ const store = {
   getSnapshot() {
     return records;
   },
-  create(input: AnnouncementInput, author: { memberno: string; name: string; stationname: string }) {
+  create(
+    input: AnnouncementInput,
+    author: { memberno: string; name: string; stationname: string },
+  ) {
     const now = new Date().toISOString();
     records = sorted([
       {

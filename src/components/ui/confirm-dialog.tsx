@@ -24,13 +24,7 @@ type ConfirmDialogProps = {
   onConfirm: () => void | Promise<void>;
   // Customization
   confirmVariant?:
-    | "default"
-    | "destructive"
-    | "outline"
-    | "secondary"
-    | "ghost"
-    | "link"
-    | "success";
+    "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | "success";
   cancelVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   confirmClassName?: string;
   cancelClassName?: string;
@@ -94,7 +88,14 @@ export default function ConfirmDialog({
 
           <div className="grid grid-cols-[64px_1fr] items-start gap-4">
             {ContentIcon ? (
-              <div className={"flex h-14 w-14 items-center justify-center rounded-full shadow-sm " + contentIconBgClass + " " + contentIconColorClass}>
+              <div
+                className={
+                  "flex h-14 w-14 items-center justify-center rounded-full shadow-sm " +
+                  contentIconBgClass +
+                  " " +
+                  contentIconColorClass
+                }
+              >
                 <ContentIcon className="h-7 w-7" />
               </div>
             ) : (

@@ -102,7 +102,6 @@ const GROUPS: NavGroup[] = [
         icon: <History className="h-4 w-4" />,
         module: "target-revisions",
       },
-
     ],
   },
   {
@@ -172,7 +171,7 @@ export function AppSidebar() {
     ? [user.rankcode, user.fullname].filter(Boolean).join(" ") || user.fullname || user.name
     : "";
   const roleName = systemAccess?.rolename ?? "";
-  
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
@@ -308,36 +307,38 @@ export function AppSidebar() {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                      onClick={() => setSignoutOpen(true)}
+                    onClick={() => setSignoutOpen(true)}
                     aria-label="Sign out"
                     className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-destructive transition-colors hover:bg-destructive/10 cursor-pointer"
                   >
                     <LogOut className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-destructive text-destructive-foreground">Sign out</TooltipContent>
+                <TooltipContent className="bg-destructive text-destructive-foreground">
+                  Sign out
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
         )}
       </SidebarFooter>
-        <ConfirmDialog
-          open={signoutOpen}
-          onOpenChange={(v) => setSignoutOpen(v)}
-          title="Sign out"
-          description="Are you sure you want to sign out?"
-          ContentIcon={LogOut}
-          contentIconBgClass="bg-destructive/10"
-          contentIconColorClass="text-destructive"
-          confirmLabel="Sign out"
-          confirmVariant="destructive"
-          onConfirm={() => {
-            setSignoutOpen(false);
-            logout();
-            closeOnMobile();
-            navigate("/");
-          }}
-        />
+      <ConfirmDialog
+        open={signoutOpen}
+        onOpenChange={(v) => setSignoutOpen(v)}
+        title="Sign out"
+        description="Are you sure you want to sign out?"
+        ContentIcon={LogOut}
+        contentIconBgClass="bg-destructive/10"
+        contentIconColorClass="text-destructive"
+        confirmLabel="Sign out"
+        confirmVariant="destructive"
+        onConfirm={() => {
+          setSignoutOpen(false);
+          logout();
+          closeOnMobile();
+          navigate("/");
+        }}
+      />
     </Sidebar>
   );
 }

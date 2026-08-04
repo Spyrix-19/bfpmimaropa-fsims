@@ -78,10 +78,7 @@ export function isSystemLeakMessage(msg: string): boolean {
  * Otherwise return the original — those are custom, business messages the
  * backend intentionally exposes (e.g. "Duplicate badge number").
  */
-export function sanitizeEnvelopeMessage(
-  msg: string | null | undefined,
-  status = 0,
-): string {
+export function sanitizeEnvelopeMessage(msg: string | null | undefined, status = 0): string {
   const trimmed = (msg ?? "").trim();
   if (!trimmed) return fallbackMessageForStatus(status);
 
@@ -110,5 +107,9 @@ export function getSafeErrorMessage(
  */
 export function isGenericError(message?: string | null): boolean {
   if (!message) return true;
-  return message === ApiMessages.UNKNOWN || message === ApiMessages.API_JSON || message === ApiMessages.API_ERR;
+  return (
+    message === ApiMessages.UNKNOWN ||
+    message === ApiMessages.API_JSON ||
+    message === ApiMessages.API_ERR
+  );
 }

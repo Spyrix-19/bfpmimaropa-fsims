@@ -1,0 +1,53 @@
+import { toast } from "@/lib/toast";
+import type { BwcField, BwcRow } from "./bwcTypes";
+import { num, rowTotal } from "./bwcTypes";
+
+const csvCell = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
+
+const download = (filename: string, lines: string[]) => {
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+/** Exports the Issued BWC ledger (card list) as it is currently filtered. */
+export function exportBwcLedger(
+  rows: BwcRow[],
+  fields: BwcField[],
+  totalLabel: string,
+  title = "Issued BWC",
+) {
+  if (rows.length === 0) {
+    toast.info("Nothing to export — no stations match the current filters.");
+    return;
+  }
+  const header = [
+    "Station",
+    "Unit Code",
+    "City / Municipality",
+    "Province",
+    ...fields.map((f) => f.label),
+    totalLabel,
+  ];
+  const lines = [header.map(csvCell).join(",")];
+  rows.forEach((r) => {
+    lines.push(
+      [
+        r.stationname,
+        r.unitcode,
+        r.cityname,
+        r.provincename,
+        ...fields.map((f) => num(r, f.key)),
+        rowTotal(r, fields),
+      ]
+        .map(csvCell)
+        .join(","),
+    );
+  });
+  download(`${title.replace(/\s+/g, "-").toLowerCase()}.csv`, lines);
+  toast.success("Issued BWC ledger exported.");
+}

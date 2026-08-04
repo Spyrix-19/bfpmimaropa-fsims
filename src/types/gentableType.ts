@@ -8,7 +8,7 @@ export interface SearchGentableLedgerParams {
 export interface SearchGentableModel {
   detno: number;
   recordcode: string;
-  description: string;  
+  description: string;
   tablename: string;
   sortorder: number;
 }

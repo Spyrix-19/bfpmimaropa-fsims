@@ -37,7 +37,7 @@ const PERSONNEL = "PERSONNEL";
 
 /** Modules a user may be authorized against. Drives sidebar + route guards. */
 export type AppModule =
-  "dashboard"
+  | "dashboard"
   | "profile"
   | "inspections"
   | "monitoring"

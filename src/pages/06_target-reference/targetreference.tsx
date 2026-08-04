@@ -51,10 +51,7 @@ import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { stationAPI } from "@/services/stationAPI";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
-import type {
-  TargetReferenceModel,
-  TargetReferenceParamClass,
-} from "@/types/targetreferenceType";
+import type { TargetReferenceModel, TargetReferenceParamClass } from "@/types/targetreferenceType";
 
 import TargetReferenceEdit from "./components/TargetReferenceEdit";
 import TargetReferenceDetails from "./components/TargetReferenceDetails";
@@ -166,8 +163,6 @@ export default function TargetReferenceIndexPage() {
   } = locationSel;
   const YEARS = React.useMemo(buildYears, []);
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
-
-
 
   const [rows, setRows] = React.useState<TargetReferenceModel[]>([]);
   const [total, setTotal] = React.useState(0);
@@ -300,13 +295,7 @@ export default function TargetReferenceIndexPage() {
     return () => {
       cancelled = true;
     };
-  }, [
-    filterState,
-    provincePayload,
-    refreshTick,
-    page,
-    pageSize,
-  ]);
+  }, [filterState, provincePayload, refreshTick, page, pageSize]);
 
   const groups: GroupItem[] = React.useMemo(
     () => rows.map((r) => toGroup(r, Number(year))),
@@ -337,7 +326,6 @@ export default function TargetReferenceIndexPage() {
     locationSel.reset();
     setPage(1);
   };
-
 
   const handleEdit = (g: GroupItem) => {
     setEditingGroup({ year: g.year, stationno: g.stationno });
@@ -450,7 +438,11 @@ export default function TargetReferenceIndexPage() {
             disabled={exporting || pageGroups.length === 0}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
             Export
           </Button>
           <Button
@@ -469,7 +461,6 @@ export default function TargetReferenceIndexPage() {
       </div>
 
       <CurrentMonthNote canManage={canManage} />
-
 
       {/* Filters */}
       <ModuleFilterBar
@@ -668,10 +659,7 @@ function TargetCard({
   const monthSet = React.useMemo(() => new Set(months), [months]);
   const monthlyTotal = React.useMemo(
     () =>
-      months.reduce(
-        (acc, m) => addBucket(acc, derived.monthly[m] ?? emptyBucket()),
-        emptyBucket(),
-      ),
+      months.reduce((acc, m) => addBucket(acc, derived.monthly[m] ?? emptyBucket()), emptyBucket()),
     [months, derived],
   );
   const quarterlyTotal = React.useMemo(
@@ -710,13 +698,20 @@ function TargetCard({
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
               {MONTHS.find((m) => m.value === month)?.name ?? ""} {group.year}
             </span>
-            <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums tone-warning-soft" title="Days with target entries / calendar days">
+            <span
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums tone-warning-soft"
+              title="Days with target entries / calendar days"
+            >
               <CalendarDays className="h-3 w-3" />
               {daysWithData} / {monthTotalDays}
             </span>
           </div>
-          <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">{group.stationName}</div>
-          <div className="text-[11px] text-muted-foreground dark:text-slate-400">{group.province}</div>
+          <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
+            {group.stationName}
+          </div>
+          <div className="text-[11px] text-muted-foreground dark:text-slate-400">
+            {group.province}
+          </div>
         </div>
         <div
           className="grid h-10 w-14 place-items-center rounded-lg bg-blue-100 text-center text-blue-700 dark:bg-slate-600 dark:text-blue-300"
@@ -849,17 +844,17 @@ function TargetCard({
                     {QUARTERS.map((q, idx) => ({ q, idx }))
                       .filter(({ idx }) => monthSet.has(idx * 3 + 1))
                       .map(({ q, idx }, i) => {
-                      const b = derived.quarters[idx];
-                      return (
-                        <tr key={q} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-                          <td className="px-2 py-1.5 font-medium">{q}</td>
-                          <BucketCell b={b} k="bplo" />
-                          <BucketCell b={b} k="gov" />
-                          <BucketCell b={b} k="peza" />
-                          <BucketCell b={b} k="tieza" />
-                        </tr>
-                      );
-                    })}
+                        const b = derived.quarters[idx];
+                        return (
+                          <tr key={q} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                            <td className="px-2 py-1.5 font-medium">{q}</td>
+                            <BucketCell b={b} k="bplo" />
+                            <BucketCell b={b} k="gov" />
+                            <BucketCell b={b} k="peza" />
+                            <BucketCell b={b} k="tieza" />
+                          </tr>
+                        );
+                      })}
                   </tbody>
                   <tfoot className="sticky bottom-0 z-20">
                     <tr className="font-semibold">
@@ -906,17 +901,17 @@ function TargetCard({
                     {HALVES.map((h, idx) => ({ h, idx }))
                       .filter(({ idx }) => monthSet.has(idx * 6 + 1))
                       .map(({ h, idx }, i) => {
-                      const b = derived.halves[idx];
-                      return (
-                        <tr key={h} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-                          <td className="px-2 py-1.5 font-medium">{h}</td>
-                          <BucketCell b={b} k="bplo" />
-                          <BucketCell b={b} k="gov" />
-                          <BucketCell b={b} k="peza" />
-                          <BucketCell b={b} k="tieza" />
-                        </tr>
-                      );
-                    })}
+                        const b = derived.halves[idx];
+                        return (
+                          <tr key={h} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                            <td className="px-2 py-1.5 font-medium">{h}</td>
+                            <BucketCell b={b} k="bplo" />
+                            <BucketCell b={b} k="gov" />
+                            <BucketCell b={b} k="peza" />
+                            <BucketCell b={b} k="tieza" />
+                          </tr>
+                        );
+                      })}
                   </tbody>
                   <tfoot className="sticky bottom-0 z-20">
                     <tr className="font-semibold">

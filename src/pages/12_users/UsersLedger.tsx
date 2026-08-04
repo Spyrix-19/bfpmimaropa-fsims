@@ -133,12 +133,14 @@ export default function UsersLedger({ variant, title, description }: Props) {
     (stationtype: number | undefined) =>
       (rows: import("@/types/gentableType").SearchGentableModel[]) =>
         rows.filter((row) => {
-          const code = String(row.recordcode ?? "").trim().toUpperCase();
-          const desc = String(row.description ?? "").trim().toUpperCase();
-          const isSuperRow =
-            code === "SUPER" || desc.includes("SUPER ADMIN");
-          const isPersonnelRow =
-            code === "PERSONNEL" || desc.includes("PERSONNEL");
+          const code = String(row.recordcode ?? "")
+            .trim()
+            .toUpperCase();
+          const desc = String(row.description ?? "")
+            .trim()
+            .toUpperCase();
+          const isSuperRow = code === "SUPER" || desc.includes("SUPER ADMIN");
+          const isPersonnelRow = code === "PERSONNEL" || desc.includes("PERSONNEL");
 
           if (currentRoleNo === 3) return isPersonnelRow;
           if (isSuperRow) {
@@ -303,9 +305,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
       if (!ok) {
         toast.error(
           error ||
-            (variant === "available"
-              ? "Unable to activate user."
-              : "Unable to deactivate user."),
+            (variant === "available" ? "Unable to activate user." : "Unable to deactivate user."),
         );
         return;
       }
@@ -432,9 +432,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
               provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
               showAllOption
               readOnly={!stationEditable}
-              disabled={
-                stationEditable && (!provinceno || provinceno === EMPTY_GUID)
-              }
+              disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}
               onChange={(no, name) => {
                 setStationno(no);
                 setStationname(name);
@@ -555,7 +553,6 @@ export default function UsersLedger({ variant, title, description }: Props) {
             })}
           </div>
 
-
           <Card className="overflow-hidden border-border/60 shadow-soft hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[960px] text-sm">
@@ -613,7 +610,9 @@ export default function UsersLedger({ variant, title, description }: Props) {
                                 {r.fullname}
                               </div>
                             </div>
-                            <div className="text-[12px] text-muted-foreground tabular-nums">{r.badgeno || "—"}</div>
+                            <div className="text-[12px] text-muted-foreground tabular-nums">
+                              {r.badgeno || "—"}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -639,7 +638,9 @@ export default function UsersLedger({ variant, title, description }: Props) {
                           />
                           <div className="min-w-0">
                             <div className="truncate">{r.stationname || "—"}</div>
-                            <div className="truncate text-[11px] text-muted-foreground">{r.stationcode || "—"}</div>
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              {r.stationcode || "—"}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -679,11 +680,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
             : ""
         }
         confirmLabel={
-          busy
-            ? variant === "available"
-              ? "Activating…"
-              : "Deactivating…"
-            : actionLabel
+          busy ? (variant === "available" ? "Activating…" : "Deactivating…") : actionLabel
         }
         confirmVariant={variant === "available" ? "success" : "destructive"}
         onConfirm={confirm}
@@ -882,7 +879,11 @@ export default function UsersLedger({ variant, title, description }: Props) {
             </div>
           ) : null}
           <DialogFooter className="flex flex-col-reverse gap-2 border-t border-border bg-muted/30 px-5 py-4 sm:flex-row sm:justify-end sm:gap-3">
-            <Button variant="outline" onClick={() => setRoleTarget(null)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setRoleTarget(null)}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
             <Button
@@ -993,7 +994,11 @@ export default function UsersLedger({ variant, title, description }: Props) {
             </div>
           ) : null}
           <DialogFooter className="shrink-0 flex flex-col-reverse gap-2 border-t border-border bg-muted/30 px-5 py-4 sm:flex-row sm:justify-end sm:gap-3">
-            <Button variant="outline" onClick={() => setStationTarget(null)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setStationTarget(null)}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
             <Button
@@ -1009,4 +1014,3 @@ export default function UsersLedger({ variant, title, description }: Props) {
     </div>
   );
 }
-

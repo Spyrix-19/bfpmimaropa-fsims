@@ -66,10 +66,38 @@ export interface SectorConstant {
 
 /** Sectors shown in Target Reference Add/Edit (OGA excluded). */
 export const SECTORS: SectorConstant[] = [
-  { detno: SECTOR_NO.BPLO,  recordcode: "BPLO",  description: "BPLO",  key: "bplo",  tablename: "GOVERNMENT SECTOR", sortorder: 1 },
-  { detno: SECTOR_NO.GOV,   recordcode: "GOV",   description: "GOVT",  key: "gov",   tablename: "GOVERNMENT SECTOR", sortorder: 2 },
-  { detno: SECTOR_NO.PEZA,  recordcode: "PEZA",  description: "PEZA",  key: "peza",  tablename: "GOVERNMENT SECTOR", sortorder: 3 },
-  { detno: SECTOR_NO.TIEZA, recordcode: "TIEZA", description: "TIEZA", key: "tieza", tablename: "GOVERNMENT SECTOR", sortorder: 4 },
+  {
+    detno: SECTOR_NO.BPLO,
+    recordcode: "BPLO",
+    description: "BPLO",
+    key: "bplo",
+    tablename: "GOVERNMENT SECTOR",
+    sortorder: 1,
+  },
+  {
+    detno: SECTOR_NO.GOV,
+    recordcode: "GOV",
+    description: "GOVT",
+    key: "gov",
+    tablename: "GOVERNMENT SECTOR",
+    sortorder: 2,
+  },
+  {
+    detno: SECTOR_NO.PEZA,
+    recordcode: "PEZA",
+    description: "PEZA",
+    key: "peza",
+    tablename: "GOVERNMENT SECTOR",
+    sortorder: 3,
+  },
+  {
+    detno: SECTOR_NO.TIEZA,
+    recordcode: "TIEZA",
+    description: "TIEZA",
+    key: "tieza",
+    tablename: "GOVERNMENT SECTOR",
+    sortorder: 4,
+  },
 ];
 
 /** Map backend `sectorcode` -> UI bucket key. Unknown codes return null. */
@@ -85,12 +113,15 @@ export function sectorKeyFromCode(code: string | undefined | null): SectorKey | 
 /** Map backend `sectorno` -> UI bucket key. Unknown numbers return null. */
 export function sectorKeyFromNo(no: number | undefined | null): SectorKey | null {
   switch (Number(no)) {
-    case SECTOR_NO.BPLO:  return "bplo";
-    case SECTOR_NO.GOV:   return "gov";
-    case SECTOR_NO.PEZA:  return "peza";
-    case SECTOR_NO.TIEZA: return "tieza";
-    default: return null;
+    case SECTOR_NO.BPLO:
+      return "bplo";
+    case SECTOR_NO.GOV:
+      return "gov";
+    case SECTOR_NO.PEZA:
+      return "peza";
+    case SECTOR_NO.TIEZA:
+      return "tieza";
+    default:
+      return null;
   }
 }
-
-

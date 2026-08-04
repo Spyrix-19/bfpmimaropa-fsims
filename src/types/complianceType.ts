@@ -20,7 +20,6 @@ export interface TargetAccomplishmentModel {
   totalAccomplishmenttieza: number;
 }
 
-
 // Create/Update
 export interface FSISComplianceDTO {
   stationno: string;
@@ -61,7 +60,6 @@ export interface FSISIssuanceClassDTO {
   abatementcount: number;
   closurecount: number;
 }
-
 
 // Detail Models
 export interface FSISComplianceDetailParams {

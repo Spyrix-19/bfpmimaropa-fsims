@@ -30,6 +30,7 @@ import {
 import { toast } from "@/lib/toast";
 
 import { stationAPI } from "@/services/stationAPI";
+import StationInfoCard from "@/components/station-info-card";
 import { complianceAPI } from "@/services/complianceAPI";
 import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
@@ -71,9 +72,7 @@ const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
-  FIELD_GROUPS.flatMap((g) =>
-    g.fields.map((f) => [String(f.key), g.category] as const),
-  ),
+  FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [String(f.key), g.category] as const)),
 );
 
 /** Flat inspection record extracted from a Monthly ledger row. */
@@ -209,17 +208,11 @@ const emptyIssuance = (): IssuanceCounts => ({
 });
 
 function buildSlices(
-  list:
-    | Array<FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>>
-    | null
-    | undefined,
+  list: Array<FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>> | null | undefined,
   year: number,
   month: number,
 ): DaySlice[] {
-  const byDate = new Map<
-    string,
-    FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>
-  >();
+  const byDate = new Map<string, FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>>();
   if (Array.isArray(list)) {
     for (const item of list) {
       const key = normalizeDateKey(item?.dateinspected);
@@ -283,9 +276,7 @@ function buildSlices(
       const apiKey = FIELD_TO_API[String(field.key)];
       if (!apiKey) continue;
       if (String(field.key).startsWith("insp_")) {
-        totals[field.key as keyof ComplianceDailyCounts] = num(
-          (inspection as any)[apiKey],
-        );
+        totals[field.key as keyof ComplianceDailyCounts] = num((inspection as any)[apiKey]);
       } else {
         totals[field.key as keyof ComplianceDailyCounts] =
           num((manual as any)[apiKey]) + num((fsis as any)[apiKey]);
@@ -408,16 +399,20 @@ function InlineAccomplishmentPanel({
             <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-2 text-left">Category</th>
               <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.target} />Target
+                <Dot color={SERIES.target} />
+                Target
               </th>
               <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.compliance} />Compliance
+                <Dot color={SERIES.compliance} />
+                Compliance
               </th>
               <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.variance} />Variance
+                <Dot color={SERIES.variance} />
+                Variance
               </th>
               <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.positive} />Positive Listing
+                <Dot color={SERIES.positive} />
+                Positive Listing
               </th>
               <th className="px-4 py-2 text-center">% Accomplishment</th>
             </tr>
@@ -518,9 +513,7 @@ function ComplianceViewBody({
     return new Date().getMonth() + 1;
   });
   const [loading, setLoading] = React.useState(true);
-  const [station, setStation] = React.useState<FSISComplianceMonthlyLedgerModel | null>(
-    null,
-  );
+  const [station, setStation] = React.useState<FSISComplianceMonthlyLedgerModel | null>(null);
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -556,15 +549,11 @@ function ComplianceViewBody({
       );
       if (cancelled) return;
 
-      const { ok, data, error } = unwrap<
-        FSISComplianceDetailModel | FSISComplianceDetailModel[]
-      >(resp);
+      const { ok, data, error } = unwrap<FSISComplianceDetailModel | FSISComplianceDetailModel[]>(
+        resp,
+      );
       if (!ok) toast.error(error || "Failed to load daily details.");
-      const first = ok
-        ? Array.isArray(data)
-          ? (data[0] ?? null)
-          : (data ?? null)
-        : null;
+      const first = ok ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null)) : null;
       setStation(
         first
           ? ({
@@ -595,19 +584,32 @@ function ComplianceViewBody({
               totalAccomplishmenttieza: 0,
               updatedby: "",
               encodedby: "",
-              complianceLedgerList: (Array.isArray(first?.compliancelist) ? first.compliancelist : []).map((rec) => ({
+              complianceLedgerList: (Array.isArray(first?.compliancelist)
+                ? first.compliancelist
+                : []
+              ).map((rec) => ({
                 ...rec,
                 fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
-                dailytargetbplo: Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
-                dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
-                dailytargetpeza: Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
-                dailytargettieza: Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
-                inspectduringcount: Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
-                inspectaftercount: Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
-                inspectbplocount: Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
-                inspectgovcount: Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
-                inspectpezacount: Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
-                inspecttiezacount: Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
+                dailytargetbplo:
+                  Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
+                dailytargetgov:
+                  Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
+                dailytargetpeza:
+                  Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
+                dailytargettieza:
+                  Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
+                inspectduringcount:
+                  Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
+                inspectaftercount:
+                  Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
+                inspectbplocount:
+                  Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
+                inspectgovcount:
+                  Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
+                inspectpezacount:
+                  Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
+                inspecttiezacount:
+                  Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
                 remarks: String((rec as { remarks?: string }).remarks ?? ""),
                 dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
                 issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist)
@@ -636,14 +638,8 @@ function ComplianceViewBody({
   const accomplishmentRows = React.useMemo<AccomplishmentRow[]>(
     () =>
       ACC_CATEGORIES.map((c) => {
-        const target = slices.reduce(
-          (sum, s) => sum + num(s.inspection[c.targetKey]),
-          0,
-        );
-        const compliance = slices.reduce(
-          (sum, s) => sum + num(s.inspection[c.countKey]),
-          0,
-        );
+        const target = slices.reduce((sum, s) => sum + num(s.inspection[c.targetKey]), 0);
+        const compliance = slices.reduce((sum, s) => sum + num(s.inspection[c.countKey]), 0);
         return {
           label: c.label,
           target,
@@ -682,6 +678,14 @@ function ComplianceViewBody({
 
   return (
     <div className="space-y-4">
+      <StationInfoCard
+        stationName={station?.stationname}
+        unitCode={station?.stationcode}
+        logoUrl={station?.logourl}
+        cityName={station?.cityname}
+        provinceName={station?.provincename}
+      />
+
       <Card className="border-border/60 p-4 shadow-soft">
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
@@ -739,7 +743,9 @@ function ComplianceViewBody({
                   rowSpan={3}
                   className={`border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
                 >
-                  Mode of<br />Issuance
+                  Mode of
+                  <br />
+                  Issuance
                 </th>
                 <th
                   colSpan={4}
@@ -790,30 +796,29 @@ function ComplianceViewBody({
                 })}
               </tr>
               <tr>
-                {DETAIL_FIELDS.filter((f) => INSP_TARGET_FIELDS[String(f.key)]).flatMap(
-                  (field) => {
-                    const key = String(field.key);
-                    return [
-                      <th
-                        key={`${key}__target`}
-                        className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[56px] ${SUB_TONE.INSPECTION}`}
-                      >
-                        Target
-                      </th>,
-                      <th
-                        key={`${key}__compliance`}
-                        className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[70px] ${SUB_TONE.INSPECTION}`}
-                      >
-                        Compliance
-                      </th>,
-                    ];
-                  },
-                )}
+                {DETAIL_FIELDS.filter((f) => INSP_TARGET_FIELDS[String(f.key)]).flatMap((field) => {
+                  const key = String(field.key);
+                  return [
+                    <th
+                      key={`${key}__target`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[56px] ${SUB_TONE.INSPECTION}`}
+                    >
+                      Target
+                    </th>,
+                    <th
+                      key={`${key}__compliance`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[70px] ${SUB_TONE.INSPECTION}`}
+                    >
+                      Compliance
+                    </th>,
+                  ];
+                })}
               </tr>
             </thead>
             <tbody>
               {slices.map((slice, dayIndex) => {
-                const rowBg = dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd;
+                const rowBg =
+                  dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd;
                 const rowTotal = DETAIL_FIELDS.reduce(
                   (sum, f) => sum + num(slice.totals[f.key as keyof ComplianceDailyCounts]),
                   0,
@@ -826,7 +831,9 @@ function ComplianceViewBody({
                         rowSpan={2}
                         className={`sticky left-0 z-20 border-b border-r border-grid px-3 py-1.5 align-middle text-[11px] font-semibold ${rowBg}`}
                       >
-                        <span className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300" : ""}>
+                        <span
+                          className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300" : ""}
+                        >
                           {slice.label}
                         </span>
                       </td>
@@ -863,7 +870,9 @@ function ComplianceViewBody({
                         return cells;
                       })}
 
-                      <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
+                      <td
+                        className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                      >
                         MANUAL
                       </td>
 
@@ -931,7 +940,9 @@ function ComplianceViewBody({
                     {/* FSIS row */}
                     <tr className={rowBg}>
                       {/* Inspection cells merged with MANUAL row above */}
-                      <td className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}>
+                      <td
+                        className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                      >
                         FSIS
                       </td>
 
@@ -1055,7 +1066,9 @@ export default function ComplianceViewPage() {
             <Eye className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance — Daily Details</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Fire Safety Compliance — Daily Details
+            </h1>
             <p className="text-sm text-muted-foreground">
               Read-only day-by-day breakdown for the selected station and month.
             </p>

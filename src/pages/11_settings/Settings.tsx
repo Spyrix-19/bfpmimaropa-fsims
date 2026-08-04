@@ -72,11 +72,15 @@ export default function Settings({ onClose }: { onClose?: () => void } = {}) {
             <SettingsIcon className="h-5 w-5 text-primary" />
             Settings
           </h1>
-          <p className="text-xs text-muted-foreground">System preferences for FSIMS — {REGION_NAME}.</p>
+          <p className="text-xs text-muted-foreground">
+            System preferences for FSIMS — {REGION_NAME}.
+          </p>
         </div>
         {onClose ? (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Close</Button>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
           </div>
         ) : null}
       </div>

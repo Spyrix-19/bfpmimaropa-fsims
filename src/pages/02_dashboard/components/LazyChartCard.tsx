@@ -23,7 +23,13 @@ export function LazyChartCard<TProps extends object>({
         {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       <div className={`${height} w-full`}>
-        <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading chart…</div>}>
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Loading chart…
+            </div>
+          }
+        >
           <Chart {...props} />
         </Suspense>
       </div>

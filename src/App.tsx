@@ -8,8 +8,12 @@ import { Toaster } from "@/components/ui/sonner";
 
 const Dashboard = lazy(() => import("@/pages/02_dashboard/Dashboard"));
 const Monitoring = lazy(() => import("./pages/04_compliance/Compliance.tsx"));
-const ComplianceViewPage = lazy(() => import("./pages/04_compliance/components/complianceView.tsx"));
-const ComplianceEditPage = lazy(() => import("./pages/04_compliance/components/complianceEdit.tsx"));
+const ComplianceViewPage = lazy(
+  () => import("./pages/04_compliance/components/complianceView.tsx"),
+);
+const ComplianceEditPage = lazy(
+  () => import("./pages/04_compliance/components/complianceEdit.tsx"),
+);
 const TargetReference = lazy(() => import("@/pages/06_target-reference/targetreference"));
 const AccomplishedNotice = lazy(() => import("@/pages/05_notices/Notice.tsx"));
 
@@ -162,8 +166,6 @@ export default function App() {
                       </RequireAccess>
                     }
                   />
-
-
 
                   <Route
                     path="/reports"

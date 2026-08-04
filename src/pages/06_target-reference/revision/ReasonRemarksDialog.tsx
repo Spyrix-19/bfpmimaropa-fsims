@@ -96,11 +96,7 @@ export default function ReasonRemarksDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancel
           </Button>
-          <Button
-            variant={confirmVariant}
-            onClick={handleConfirm}
-            disabled={!canConfirm}
-          >
+          <Button variant={confirmVariant} onClick={handleConfirm} disabled={!canConfirm}>
             {busy ? "Submitting…" : confirmLabel}
           </Button>
         </DialogFooter>

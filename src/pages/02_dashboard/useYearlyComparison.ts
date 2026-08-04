@@ -7,8 +7,18 @@ import { useFilters, resolveReportMonths } from "@/lib/filters";
 import type { DashboardYearlyInspectionModel } from "@/types/dashboardType";
 
 const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 export type YearlyPoint = { name: string } & Record<string, number | string>;
@@ -43,13 +53,10 @@ export function useYearlyComparison() {
           retryDelayMs: 800,
         },
       );
-      const { ok, data, error, canceled } =
-        unwrap<DashboardYearlyInspectionModel[]>(resp);
+      const { ok, data, error, canceled } = unwrap<DashboardYearlyInspectionModel[]>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
-        toast.error(
-          isGenericError(error) ? "Unable to load year-over-year comparison." : error,
-        );
+        toast.error(isGenericError(error) ? "Unable to load year-over-year comparison." : error);
         setRows([]);
         setYears([]);
       } else {
@@ -73,7 +80,9 @@ export function useYearlyComparison() {
         }
 
         setYears(yearKeys);
-        setRows(reportmonth.length ? byMonth.filter((_, i) => reportmonth.includes(i + 1)) : byMonth);
+        setRows(
+          reportmonth.length ? byMonth.filter((_, i) => reportmonth.includes(i + 1)) : byMonth,
+        );
       }
       setLoading(false);
     })();

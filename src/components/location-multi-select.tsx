@@ -173,7 +173,9 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{r.locationname}</div>
                       {!hideCode && r.locationcode ? (
-                        <div className="truncate text-xs text-muted-foreground">{r.locationcode}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {r.locationcode}
+                        </div>
                       ) : null}
                     </div>
                     {sel ? <Check className="h-4 w-4 text-primary" /> : null}

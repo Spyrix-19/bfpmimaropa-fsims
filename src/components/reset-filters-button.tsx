@@ -42,10 +42,7 @@ export default function ResetFiltersButton({
           >
             <RotateCw
               key={spinKey}
-              className={cn(
-                "h-4 w-4",
-                spinKey > 0 && "[animation:spin_400ms_ease-out_1]",
-              )}
+              className={cn("h-4 w-4", spinKey > 0 && "[animation:spin_400ms_ease-out_1]")}
             />
           </button>
         </TooltipTrigger>

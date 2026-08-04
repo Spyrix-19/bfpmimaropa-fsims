@@ -1,5 +1,14 @@
 import * as React from "react";
-import { BellRing, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Download, ClipboardCheck } from "lucide-react";
+import {
+  BellRing,
+  Eye,
+  LayoutGrid,
+  Loader2,
+  CalendarDays,
+  Plus,
+  Download,
+  ClipboardCheck,
+} from "lucide-react";
 
 import { toast } from "@/lib/toast";
 import { Card } from "@/components/ui/card";
@@ -115,7 +124,6 @@ interface NoticeDayEntry {
   modes: { manual: ModeCounts; fsis: ModeCounts };
 }
 
-
 export interface NoticeRecord {
   key: string;
   stationno: string;
@@ -150,10 +158,7 @@ function emptyBreakdown(): Record<NoticeCategory, NoticeCategoryCounts> {
 }
 
 function emptyMode(): ModeCounts {
-  return NOTICE_CATEGORIES.reduce(
-    (acc, category) => ({ ...acc, [category]: 0 }),
-    {} as ModeCounts,
-  );
+  return NOTICE_CATEGORIES.reduce((acc, category) => ({ ...acc, [category]: 0 }), {} as ModeCounts);
 }
 
 function emptyLine(key: string, label: string): NoticeLedgerLine {
@@ -235,8 +240,6 @@ function buildLedgerLines(
     byKey.set(yr, emptyLine(yr, `Annual ${yr}`));
   }
 
-
-
   for (const entry of Array.isArray(entries) ? entries : []) {
     const iso = String(entry?.dateaccomplish ?? "").slice(0, 10);
     if (!iso || iso.startsWith("1900")) continue;
@@ -246,7 +249,6 @@ function buildLedgerLines(
     // Never mix other years into the selected reporting year.
     if (recordYear !== yr) continue;
     if (groupBy === "day" && dateISO && iso !== dateISO) continue;
-
 
     const key =
       groupBy === "month"
@@ -466,8 +468,11 @@ export default function AccomplishedNotice() {
     [currentYear],
   );
 
-  const { state: filterState, set: setFilterState, resetState: resetFilterState } =
-    useModuleFilterState();
+  const {
+    state: filterState,
+    set: setFilterState,
+    resetState: resetFilterState,
+  } = useModuleFilterState();
   const year = filterState.year;
   const isAggregated = filterState.interval !== "DAILY";
   const allDates = isAggregated || isAllDays(filterState.date);
@@ -476,7 +481,8 @@ export default function AccomplishedNotice() {
     [filterState.date],
   );
   const selectedMonths = React.useMemo(
-    () => (isAggregated ? resolveModuleMonths(filterState) : [Number(selectedDateISO.slice(5, 7)) || 1]),
+    () =>
+      isAggregated ? resolveModuleMonths(filterState) : [Number(selectedDateISO.slice(5, 7)) || 1],
     [filterState, isAggregated, selectedDateISO],
   );
   const monthKey = selectedMonths.join(",");
@@ -484,9 +490,7 @@ export default function AccomplishedNotice() {
   /** Backend interval code: 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual. */
   /** Workbook period label — mirrors the Fire Safety Compliance export contract. */
   const exportPeriod: NoticePeriod =
-    filterState.interval === "SEMESTER"
-      ? "SEMI-ANNUAL"
-      : (filterState.interval as NoticePeriod);
+    filterState.interval === "SEMESTER" ? "SEMI-ANNUAL" : (filterState.interval as NoticePeriod);
 
   const intervalCode = React.useMemo(() => {
     switch (filterState.interval) {
@@ -521,7 +525,8 @@ export default function AccomplishedNotice() {
   /** Header caption for aggregated cards, e.g. "Q1 2026". */
   const periodLabel = React.useMemo(() => {
     if (!isAggregated) return null;
-    const name = (month: number) => MONTHS.find((item) => item.value === month)?.name ?? String(month);
+    const name = (month: number) =>
+      MONTHS.find((item) => item.value === month)?.name ?? String(month);
     switch (filterState.interval) {
       case "ANNUAL":
         return `Annual ${year}`;
@@ -538,11 +543,23 @@ export default function AccomplishedNotice() {
           ? `All Months ${year}`
           : `${selectedMonths.map(name).join(", ")} ${year}`;
     }
-  }, [isAggregated, filterState.interval, filterState.quarter, filterState.semester, selectedMonths, year]);
+  }, [
+    isAggregated,
+    filterState.interval,
+    filterState.quarter,
+    filterState.semester,
+    selectedMonths,
+    year,
+  ]);
 
   const locationSel = useScopedLocationMulti(scope);
-  const { provinceno, provincename, stationno, stationname, paramsKey: locationParamsKey } =
-    locationSel;
+  const {
+    provinceno,
+    provincename,
+    stationno,
+    stationname,
+    paramsKey: locationParamsKey,
+  } = locationSel;
 
   const [records, setRecords] = React.useState<NoticeRecord[]>([]);
   const [total, setTotal] = React.useState(0);
@@ -567,7 +584,6 @@ export default function AccomplishedNotice() {
     setPage(1);
   };
 
-
   React.useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
@@ -591,9 +607,13 @@ export default function AccomplishedNotice() {
 
       // The Ledger endpoint wraps its rows in `{ total, items }`; older
       // deployments returned a bare array, so both shapes are accepted.
-      const { ok, data, total: apiTotal, error, canceled } = unwrap<
-        NoticeLedgerResultModel | NoticeDetailModel[]
-      >(response);
+      const {
+        ok,
+        data,
+        total: apiTotal,
+        error,
+        canceled,
+      } = unwrap<NoticeLedgerResultModel | NoticeDetailModel[]>(response);
       if (cancelled || canceled) return;
       if (!ok) {
         toast.error(error || "Unable to load notice ledger.");
@@ -645,7 +665,17 @@ export default function AccomplishedNotice() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [year, monthKey, intervalCode, selectedDateISO, allDates, provincename, stationname, pageSize, setPage]);
+  }, [
+    year,
+    monthKey,
+    intervalCode,
+    selectedDateISO,
+    allDates,
+    provincename,
+    stationname,
+    pageSize,
+    setPage,
+  ]);
 
   // The ledger is paginated server-side — render the returned page as-is.
   const paged = records;
@@ -697,7 +727,6 @@ export default function AccomplishedNotice() {
         },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
-
 
       const { ok, data, error } = unwrap<NoticeLedgerResultModel | NoticeDetailModel[]>(response);
       if (!ok) {
@@ -789,7 +818,11 @@ export default function AccomplishedNotice() {
             disabled={exporting || paged.length === 0}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
             Export
           </Button>
           <Button
@@ -1020,7 +1053,9 @@ function NoticeLedgerCard({
       <div className="p-3">
         {lines.length === 0 ? (
           <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
-            {groupBy === "day" ? "No daily entries for this period." : "No entries for this period."}
+            {groupBy === "day"
+              ? "No daily entries for this period."
+              : "No entries for this period."}
           </div>
         ) : (
           <div className="max-h-[24rem] overflow-auto rounded-xl border border-border/40">
@@ -1040,7 +1075,10 @@ function NoticeLedgerCard({
                     Mode of Issuance
                   </th>
 
-                  <th colSpan={NOTICE_CATEGORIES.length} className={`${headCell} sticky top-0 z-30`}>
+                  <th
+                    colSpan={NOTICE_CATEGORIES.length}
+                    className={`${headCell} sticky top-0 z-30`}
+                  >
                     Notices
                   </th>
                 </tr>
@@ -1070,7 +1108,6 @@ function NoticeLedgerCard({
                       <td
                         className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}
                       >
-
                         MANUAL
                       </td>
                       {NOTICE_CATEGORIES.map((category) => (
@@ -1083,7 +1120,6 @@ function NoticeLedgerCard({
                       <td
                         className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}
                       >
-
                         FSIS
                       </td>
                       {NOTICE_CATEGORIES.map((category) => (
@@ -1105,7 +1141,9 @@ function NoticeLedgerCard({
                   >
                     Total
                   </th>
-                  <td className={`${footCell} sticky left-[11rem] z-20 border-r-2 border-r-border/60`}>
+                  <td
+                    className={`${footCell} sticky left-[11rem] z-20 border-r-2 border-r-border/60`}
+                  >
                     MANUAL
                   </td>
                   {NOTICE_CATEGORIES.map((category) => (
@@ -1115,7 +1153,9 @@ function NoticeLedgerCard({
                   ))}
                 </tr>
                 <tr>
-                  <td className={`${footCell} sticky left-[11rem] z-20 border-r-2 border-r-border/60`}>
+                  <td
+                    className={`${footCell} sticky left-[11rem] z-20 border-r-2 border-r-border/60`}
+                  >
                     FSIS
                   </td>
                   {NOTICE_CATEGORIES.map((category) => (
@@ -1123,7 +1163,6 @@ function NoticeLedgerCard({
                       {totals.fsis[category].toLocaleString()}
                     </td>
                   ))}
-
                 </tr>
               </tfoot>
             </table>
@@ -1131,7 +1170,9 @@ function NoticeLedgerCard({
         )}
         <div className="mt-2 text-[10px] text-muted-foreground dark:text-slate-400">
           Last updated:{" "}
-          {record.lastupdated ? new Date(`${record.lastupdated}T00:00:00`).toLocaleDateString() : "—"}
+          {record.lastupdated
+            ? new Date(`${record.lastupdated}T00:00:00`).toLocaleDateString()
+            : "—"}
         </div>
       </div>
 
@@ -1158,7 +1199,6 @@ function NoticeLedgerCard({
           <LayoutGrid className="h-4 w-4" />
         </button>
       </div>
-
     </Card>
   );
 }

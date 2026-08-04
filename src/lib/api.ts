@@ -17,7 +17,6 @@ const EXTERNAL_API_BASE_URL = (
 const PROXY_ONLY_PATHS: string[] = [];
 const API_BASE_URL = "/";
 
-
 /* =========================
    RETRY PRESETS
 ========================= */
@@ -130,7 +129,8 @@ api.interceptors.request.use((config) => {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const isCanceled = (error: AxiosError) =>
-  error?.code === "ERR_CANCELED" || (error as unknown as { name?: string })?.name === "CanceledError";
+  error?.code === "ERR_CANCELED" ||
+  (error as unknown as { name?: string })?.name === "CanceledError";
 
 /** Timeout / cold-start style failures — always worth retrying with backoff. */
 const isTimeoutError = (error: AxiosError) =>
@@ -242,7 +242,6 @@ const withRetry = async <T>(
   throw lastError;
 };
 
-
 /* =========================
    RESPONSE NORMALIZER
 ========================= */
@@ -259,11 +258,7 @@ const normalizeResponse = <T>(res: { status: number; data?: T }): ApiResponse<T>
 // SQL fragments, or other sensitive details. Only the API envelope's
 // `errorMessages` field is considered safe to display — and only after
 // sanitization. The backend's `InnerMessage` is intentionally IGNORED.
-import {
-  ApiMessages,
-  fallbackMessageForStatus,
-  sanitizeEnvelopeMessage,
-} from "@/lib/api-messages";
+import { ApiMessages, fallbackMessageForStatus, sanitizeEnvelopeMessage } from "@/lib/api-messages";
 
 const GENERIC_ERROR_MESSAGE = ApiMessages.UNKNOWN;
 
@@ -275,9 +270,7 @@ const normalizeError = <T>(error: AxiosError, options?: ApiOptions): ApiResponse
   // (axios `error.message`, upstream `data.message`, `InnerMessage`, stack
   // traces, etc.) is discarded so the end user cannot see internals.
   const envelopeMessage =
-    typeof data?.errorMessages === "string"
-      ? (data.errorMessages as string)
-      : "";
+    typeof data?.errorMessages === "string" ? (data.errorMessages as string) : "";
 
   // Sanitize: if the envelope message itself looks system-level (stack trace,
   // .NET exception name, DB error), swap it for a safe status-based fallback.
@@ -286,7 +279,6 @@ const normalizeError = <T>(error: AxiosError, options?: ApiOptions): ApiResponse
   // Transport-level failures (no response, timeout, network) are reported by
   // the single axios response interceptor above — never here, so parallel
   // requests can't stack duplicate banners.
-
 
   return {
     statusCode: status,
@@ -426,9 +418,7 @@ const doRequest = async <T>(
     attemptsLeftByRid.delete(rid);
     if (showLoading) loadingBus.stop();
   }
-
 };
-
 
 /* =========================
    PUBLIC METHODS

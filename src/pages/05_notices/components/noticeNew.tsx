@@ -28,6 +28,8 @@ import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
+import StationInfoCard from "@/components/station-info-card";
+
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   Dialog,
@@ -271,10 +273,7 @@ function NoticesTable({
                 Total
               </td>
               {NOTICE_FIELDS.map((f) => (
-                <td
-                  key={f.key}
-                  className="border-r px-3 py-2 text-center font-bold tabular-nums"
-                >
+                <td key={f.key} className="border-r px-3 py-2 text-center font-bold tabular-nums">
                   {colTotal(f.key).toLocaleString()}
                 </td>
               ))}
@@ -376,23 +375,30 @@ function NoticeAccomplishmentPanel({
             <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-2 text-left">Category</th>
               <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.issued} />Issuance
+                <Dot color={SERIES.issued} />
+                Issuance
               </th>
               <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.accomplished} />Accomplished
+                <Dot color={SERIES.accomplished} />
+                Accomplished
               </th>
               <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.pending} />Pending
+                <Dot color={SERIES.pending} />
+                Pending
               </th>
               <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.positive} />Positive Listing
+                <Dot color={SERIES.positive} />
+                Positive Listing
               </th>
               <th className="px-4 py-2 text-center">% Accomplishment</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.key} className={cn("border-t border-border/50", i % 2 === 1 && "bg-muted/20")}>
+              <tr
+                key={r.key}
+                className={cn("border-t border-border/50", i % 2 === 1 && "bg-muted/20")}
+              >
                 <td className="px-4 py-2 font-semibold uppercase text-foreground">{r.label}</td>
                 <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.issued }}>
                   {r.issued.toLocaleString()}
@@ -574,9 +580,10 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
       );
 
       const entry =
-        (Array.isArray(detail?.noticedetallist) ? detail?.noticedetallist : []).find((e) =>
-          String(e.dateaccomplish ?? "").slice(0, 10) === selectedDateKey,
-        ) ?? (detail?.noticedetallist?.[0] || null);
+        (Array.isArray(detail?.noticedetallist) ? detail?.noticedetallist : []).find(
+          (e) => String(e.dateaccomplish ?? "").slice(0, 10) === selectedDateKey,
+        ) ??
+        (detail?.noticedetallist?.[0] || null);
 
       if (entry) {
         setPendingExistingRecord(entry);
@@ -665,7 +672,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
 
   if (!record) return null;
 
-
   // Live MANUAL + FSIS entries = what is being accomplished for the day.
   const issuedTotals = NOTICE_FIELDS.reduce(
     (acc, f) => ({ ...acc, [f.key]: (manualValues[f.key] ?? 0) + (fsisValues[f.key] ?? 0) }),
@@ -679,7 +685,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     abatementcount: record.breakdown.Abatement?.pending ?? 0,
     closurecount: record.breakdown.Closure?.pending ?? 0,
   };
-
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -734,7 +739,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
         ],
       };
 
-
       const resp = await noticeAPI.create(payload, { suppressGlobalLoading: true });
       const { ok, canceled, error } = unwrap(resp);
       if (canceled) return;
@@ -750,7 +754,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     }
   };
 
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden p-0">
@@ -760,9 +763,12 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               <FilePlus2 className="h-5 w-5" />
             </span>
             <div>
-              <DialogTitle className="text-base font-semibold">Notice Accomplishment Entry</DialogTitle>
+              <DialogTitle className="text-base font-semibold">
+                Notice Accomplishment Entry
+              </DialogTitle>
               <DialogDescription className="text-sm">
-                Select a reporting period and station, then encode the notices accomplished (complied/closed) for the day.
+                Select a reporting period and station, then encode the notices accomplished
+                (complied/closed) for the day.
               </DialogDescription>
             </div>
           </div>
@@ -822,17 +828,16 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           </Card>
 
           {/* 2. Station Information ------------------------------------------ */}
-          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Province" required>
-                <Input readOnly value={record.provincename || record.province || ""} />
-              </Field>
-              <Field label="Station" required>
-                <Input readOnly value={record.stationname || ""} />
-              </Field>
-            </div>
-          </Card>
+          <StationInfoCard
+            stationName={record.stationname || ""}
+            unitCode={record.stationcode || ""}
+            logoUrl={record.logourl || null}
+            fields={[
+              { label: "Station Code", value: record.stationcode ?? "" },
+              { label: "City / Municipality", value: record.cityname ?? "" },
+              { label: "Province", value: record.provincename || record.province || "" },
+            ]}
+          />
 
           {/* 3. Issued vs. Accomplished -------------------------------------- */}
           <NoticeAccomplishmentPanel
@@ -921,7 +926,11 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  {saving ? "Saving…" : existingNoticeNo ? "Update Accomplishment" : "Save Accomplishment"}
+                  {saving
+                    ? "Saving…"
+                    : existingNoticeNo
+                      ? "Update Accomplishment"
+                      : "Save Accomplishment"}
                 </Button>
               </>
             )}
@@ -933,7 +942,8 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           onOpenChange={(v) => {
             if (!v) {
               setExistingDialogOpen(false);
-              if (existingLocked && pendingExistingRecord) plotExistingRecord(pendingExistingRecord);
+              if (existingLocked && pendingExistingRecord)
+                plotExistingRecord(pendingExistingRecord);
             } else {
               setExistingDialogOpen(true);
             }

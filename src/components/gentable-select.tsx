@@ -24,7 +24,17 @@ export default function GentableSelect<V extends string | number = string>(props
   "aria-label"?: string;
   id?: string;
 }) {
-  const { value, onChange, options, placeholder, disabled, readOnly, className, valueToString, id } = props;
+  const {
+    value,
+    onChange,
+    options,
+    placeholder,
+    disabled,
+    readOnly,
+    className,
+    valueToString,
+    id,
+  } = props;
   const ariaLabel = props["aria-label"];
 
   const toStr = (v: any) => (valueToString ? valueToString(v) : String(v ?? ""));
@@ -51,10 +61,15 @@ export default function GentableSelect<V extends string | number = string>(props
             (disabled ? " disabled:opacity-100" : "")
           }
         >
-          <span className={(current ? "" : "text-muted-foreground") + " min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis"}>{displayLabel}</span>
-          {!isInert ? (
-            <ChevronDown className="h-4 w-4 text-primary" aria-hidden="true" />
-          ) : null}
+          <span
+            className={
+              (current ? "" : "text-muted-foreground") +
+              " min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
+            }
+          >
+            {displayLabel}
+          </span>
+          {!isInert ? <ChevronDown className="h-4 w-4 text-primary" aria-hidden="true" /> : null}
         </button>
       </DropdownMenuTrigger>
       {!isInert ? (

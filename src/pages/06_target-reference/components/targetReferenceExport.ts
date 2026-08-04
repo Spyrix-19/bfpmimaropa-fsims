@@ -1,4 +1,3 @@
-
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MONTHS } from "@/lib/fsims-constants";
@@ -11,6 +10,18 @@ import {
   type TargetPeriod,
 } from "../helpers";
 import type { TargetReferenceClassModel } from "@/types/targetreferenceType";
+import {
+  border,
+  categoryHeaderStyle,
+  crownHeaderStyle,
+  dataCellStyle,
+  dataRowStyle,
+  fill,
+  formatMilitaryTimestamp,
+  provinceRowStyle,
+  subtitleStyle,
+  titleStyle,
+} from "@/lib/excel-style";
 
 export interface TargetReferenceExportGroup {
   province: string;
@@ -33,94 +44,6 @@ interface PeriodDef {
   key: string;
   label: string;
   getBucket: (list: TargetReferenceClassModel[]) => TargetBucket;
-}
-
-function fill(color: string): ExcelJS.Fill {
-  return {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: color },
-  };
-}
-
-function border(style: ExcelJS.BorderStyle = "thin", color = "FF64748B"): ExcelJS.Borders {
-  const b: Partial<ExcelJS.Border> = { style, color: { argb: color } };
-  return {
-    top: b as ExcelJS.Border,
-    left: b as ExcelJS.Border,
-    right: b as ExcelJS.Border,
-    bottom: b as ExcelJS.Border,
-    diagonal: {} as ExcelJS.Border,
-  };
-}
-
-function titleStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, color: { argb: "FF0F172A" }, size: 16 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border("medium", "FF0F172A"),
-  };
-}
-
-function formatMilitaryTimestamp(value: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hour12: true,
-  }).format(value);
-}
-
-function subtitleStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 10, color: { argb: "FF0F172A" } },
-    alignment: { horizontal: "left", vertical: "middle" },
-    border: border("thin", "FFCBD5E1"),
-  };
-}
-
-function crownHeaderStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, color: { argb: "FFFFFFFF" }, size: 10 },
-    alignment: { horizontal: "center", vertical: "middle", wrapText: true },
-    border: border("thin", "FF334155"),
-  };
-}
-
-function categoryHeaderStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 9, color: { argb: "FF064E3B" } },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-  };
-}
-
-function dataCellStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { size: 10 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-  };
-}
-
-function dataRowStyle(isAlternate: boolean): Partial<ExcelJS.Style> {
-  return {
-    font: { size: 10 },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border(),
-    fill: isAlternate ? fill("FFF8FAFC") : undefined,
-  };
-}
-
-function provinceRowStyle(): Partial<ExcelJS.Style> {
-  return {
-    font: { bold: true, size: 10, color: { argb: "FF713F12" } },
-    alignment: { horizontal: "center", vertical: "middle" },
-    border: border("medium", "FF334155"),
-  };
 }
 
 function buildPeriodDefs(
@@ -190,10 +113,7 @@ function buildPeriodDefs(
     case "DAILY": {
       const month = selectedMonths[0] ?? new Date().getMonth() + 1;
       const monthName = MONTHS.find((m) => m.value === month)?.name ?? "";
-      const allDays = Array.from(
-        { length: new Date(year, month, 0).getDate() },
-        (_, i) => i + 1,
-      );
+      const allDays = Array.from({ length: new Date(year, month, 0).getDate() }, (_, i) => i + 1);
       const days = selectedDay ? [selectedDay] : allDays;
       return days.map((day) => ({
         key: `d${day}`,
@@ -216,7 +136,6 @@ const INTERVAL_TITLES: Record<TargetPeriod, string> = {
   "SEMI-ANNUAL": "Semi-Annual",
   ANNUAL: "Annual",
 };
-
 
 export async function exportTargetReferenceWorkbook(opts: {
   year: number;
@@ -264,14 +183,7 @@ export async function exportTargetReferenceWorkbook(opts: {
     },
   });
 
-  const periods = buildPeriodDefs(
-    interval,
-    year,
-    selectedMonths,
-    quarter,
-    semester,
-    selectedDay,
-  );
+  const periods = buildPeriodDefs(interval, year, selectedMonths, quarter, semester, selectedDay);
   const dataStartCol = 5;
   const lastCol = dataStartCol + periods.length * 4 - 1;
 
@@ -379,13 +291,15 @@ export async function exportTargetReferenceWorkbook(opts: {
         const bucket = period.getBucket(station.targetreferencelist);
         return addBucket(acc, bucket);
       }, emptyBucket());
-      [totalBucket.bplo, totalBucket.gov, totalBucket.peza, totalBucket.tieza].forEach((value, idx) => {
-        const cell = provinceRow.getCell(col + idx);
-        cell.value = Number(value) || 0;
-        cell.numFmt = "#,##0;(#,##0);-";
-        cell.fill = fill("FFFEF08A");
-        Object.assign(cell, provinceRowStyle());
-      });
+      [totalBucket.bplo, totalBucket.gov, totalBucket.peza, totalBucket.tieza].forEach(
+        (value, idx) => {
+          const cell = provinceRow.getCell(col + idx);
+          cell.value = Number(value) || 0;
+          cell.numFmt = "#,##0;(#,##0);-";
+          cell.fill = fill("FFFEF08A");
+          Object.assign(cell, provinceRowStyle());
+        },
+      );
       col += 4;
     });
     provinceRow.height = 24;

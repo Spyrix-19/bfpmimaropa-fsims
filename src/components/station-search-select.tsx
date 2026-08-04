@@ -115,7 +115,6 @@ export default function StationSearchSelect({
     };
   }, [open, debounced, page, provinceno]);
 
-
   const select = (r: SearchStationModel) => {
     setLabel(r.stationname);
     onChange(r.stationno, r.stationname, r.provincename, r);
@@ -128,7 +127,8 @@ export default function StationSearchSelect({
     setOpen(false);
   };
 
-  const allSelected = showAllOption && (value === EMPTY_GUID || value === "" || value === undefined);
+  const allSelected =
+    showAllOption && (value === EMPTY_GUID || value === "" || value === undefined);
 
   const showPrev = page > 1;
   const showNext = rows.length === PAGE_SIZE; // best-effort: full page means there might be more
@@ -163,13 +163,17 @@ export default function StationSearchSelect({
             className,
           )}
         >
-          <span className={cn("min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis", !label && "text-muted-foreground")}>
+          <span
+            className={cn(
+              "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis",
+              !label && "text-muted-foreground",
+            )}
+          >
             {label || placeholder}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
         </button>
       </PopoverTrigger>
-
 
       <PopoverContent className="w-max min-w-[320px] p-0" align="start">
         <div className="border-b p-2">
@@ -210,34 +214,36 @@ export default function StationSearchSelect({
                 </button>
               ) : null}
               {rows.map((r: any) => {
-              const selected = r.stationno === value;
-              return (
-                <button
-                  key={r.stationno || `${r.stationcode}-${r.stationname}`}
-                  type="button"
-                  onClick={() => select(r)}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
-                    selected && "bg-muted",
-                  )}
-                >
-                  <div className="min-w-0 flex items-center gap-2">
-                    <AvatarWithFallback
-                      src={r.logourl || null}
-                      entity={r}
-                      name={r.stationcode ?? r.stationname}
-                      alt={r.stationname}
-                      className="w-8 h-8 rounded-md overflow-hidden bg-muted/30"
-                    />
+                const selected = r.stationno === value;
+                return (
+                  <button
+                    key={r.stationno || `${r.stationcode}-${r.stationname}`}
+                    type="button"
+                    onClick={() => select(r)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                      selected && "bg-muted",
+                    )}
+                  >
+                    <div className="min-w-0 flex items-center gap-2">
+                      <AvatarWithFallback
+                        src={r.logourl || null}
+                        entity={r}
+                        name={r.stationcode ?? r.stationname}
+                        alt={r.stationname}
+                        className="w-8 h-8 rounded-md overflow-hidden bg-muted/30"
+                      />
 
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{r.stationname}</div>
-                      <div className="truncate text-xs text-muted-foreground">{r.stationcode}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{r.stationname}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {r.stationcode}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  {selected ? <Check className="h-4 w-4 text-primary" /> : null}
-                </button>
-              );
+                    {selected ? <Check className="h-4 w-4 text-primary" /> : null}
+                  </button>
+                );
               })}
             </>
           )}

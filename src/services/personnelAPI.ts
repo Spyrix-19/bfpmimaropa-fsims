@@ -16,10 +16,7 @@ import type {
   SearchMemberModel,
 } from "@/types/personnelType";
 
-
 export const personnelAPI = {
- 
-
   async UpdateInfo(params: MemberInfoDTO) {
     return await apiPost("/api/v1/Personnel/Info/Update", params, { ...NO_RETRY });
   },
@@ -86,5 +83,4 @@ export const personnelAPI = {
       ...options,
     });
   },
-
 };

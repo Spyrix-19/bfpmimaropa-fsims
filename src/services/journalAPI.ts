@@ -1,10 +1,17 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
-import {JournalDTO, JournalDetailParams, JournalDetailModel, JournalLedgerParams, JournalModel, JournalDeleteParams} from "@/types/journalType"
+import {
+  JournalDTO,
+  JournalDetailParams,
+  JournalDetailModel,
+  JournalLedgerParams,
+  JournalModel,
+  JournalDeleteParams,
+} from "@/types/journalType";
 
 export const journalAPI = {
   async create(params: JournalDTO) {
     return await apiPost("/api/v1/Journal/Create", params, { ...NO_RETRY });
-  },  
+  },
 
   async getDetail(params?: JournalDetailParams, options?: import("@/lib/api").ApiOptions) {
     return await apiGet<JournalDetailModel>("/api/v1/Journal/Detail", {
@@ -28,8 +35,4 @@ export const journalAPI = {
       ...MUTATION_RETRY_LIGHT,
     });
   },
-
-
-
-  
 };

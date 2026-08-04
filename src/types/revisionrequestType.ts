@@ -8,7 +8,7 @@ export interface FSISEditRequestDTO {
   requestremarks: string;
   statusno: number;
   requestedby: string;
-  dateinspected?: string;   //for issuance (monitoringedit.tsx) only
+  dateinspected?: string; //for issuance (monitoringedit.tsx) only
 }
 
 export interface FSISEditRequestStatusDTO {
@@ -81,11 +81,8 @@ export interface FSISEditRequestModel {
   dateinspected?: string;
 }
 
-
 export interface FSISEditRequestDeleteParams {
   requestno: string;
   deletedby: string;
   roleno: number;
 }
-
-

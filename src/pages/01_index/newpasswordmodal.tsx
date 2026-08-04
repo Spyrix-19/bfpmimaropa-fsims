@@ -82,7 +82,9 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
             </div>
             <div>
               <h3 className="text-lg font-semibold">Set your new password</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Your account requires a new password before you can access the system.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your account requires a new password before you can access the system.
+              </p>
             </div>
           </div>
         </DialogHeader>
@@ -108,7 +110,9 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">At least 8 characters, one uppercase letter, one number, one special character.</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                At least 8 characters, one uppercase letter, one number, one special character.
+              </p>
             </label>
 
             <label className="block text-sm">

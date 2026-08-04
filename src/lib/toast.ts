@@ -48,7 +48,6 @@ function withSharedId(message: ToastArgs[0], data: ToastArgs[1]): ToastArgs[1] {
   return { ...(data ?? {}), id };
 }
 
-
 const errorToast = (message: ToastArgs[0], data?: ToastArgs[1]) => {
   if (shouldSuppressToast(message)) return;
   return sonnerToast.error(message, withSharedId(message, data));

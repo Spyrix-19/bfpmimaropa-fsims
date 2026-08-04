@@ -85,4 +85,3 @@ export function useIssuanceGap() {
 
   return { gapRows: rows, loading };
 }
-

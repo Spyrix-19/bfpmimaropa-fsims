@@ -13,6 +13,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import StationInfoCard from "@/components/station-info-card";
+
 import {
   Dialog,
   DialogContent,
@@ -48,7 +50,6 @@ const MODE_ROWS = [
   { key: "fsis" as const, label: "FSIS" },
 ];
 
-
 const SERIES = {
   issued: "var(--color-warning)",
   accomplished: "var(--color-primary)",
@@ -66,10 +67,7 @@ function emptyBreakdown(): Record<NoticeCategory, NoticeCategoryCounts> {
 type ModeCounts = Record<NoticeCategory, number>;
 
 function emptyMode(): ModeCounts {
-  return NOTICE_CATEGORIES.reduce(
-    (acc, category) => ({ ...acc, [category]: 0 }),
-    {} as ModeCounts,
-  );
+  return NOTICE_CATEGORIES.reduce((acc, category) => ({ ...acc, [category]: 0 }), {} as ModeCounts);
 }
 
 interface DayRow {
@@ -80,7 +78,6 @@ interface DayRow {
   breakdown: Record<NoticeCategory, NoticeCategoryCounts>;
   modes: { manual: ModeCounts; fsis: ModeCounts };
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*  Presentational helpers                                                     */
@@ -127,7 +124,6 @@ function ReadOnlyField({
   );
 }
 
-
 function Dot({ color }: { color: string }) {
   return (
     <span
@@ -141,13 +137,7 @@ function Dot({ color }: { color: string }) {
 /*  Issued vs. Accomplished panel                                              */
 /* -------------------------------------------------------------------------- */
 
-function NoticeAccomplishmentPanel({
-  days,
-  periodLabel,
-}: {
-  days: DayRow[];
-  periodLabel: string;
-}) {
+function NoticeAccomplishmentPanel({ days, periodLabel }: { days: DayRow[]; periodLabel: string }) {
   const rows = NOTICE_CATEGORIES.map((category) => {
     const issued = days.reduce((s, d) => s + (d.breakdown[category]?.pending ?? 0), 0);
     const accomplished = days.reduce((s, d) => s + (d.breakdown[category]?.accomplished ?? 0), 0);
@@ -334,7 +324,6 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
         breakdown: existing?.breakdown ?? emptyBreakdown(),
         modes: existing?.modes ?? { manual: emptyMode(), fsis: emptyMode() },
       };
-
     });
   }, [record]);
 
@@ -342,7 +331,7 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
 
   const month = record.reportMonth;
   const year = record.reportYear;
-  const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
+  const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? String(month);
 
   const rowTotal = (entry: DayRow) =>
     NOTICE_CATEGORIES.reduce(
@@ -356,7 +345,6 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
       0,
     );
 
-
   const grandTotal = days.reduce((sum, d) => sum + rowTotal(d), 0);
 
   return (
@@ -368,7 +356,9 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
               <Table2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">Notice Accomplishment Details</DialogTitle>
+              <DialogTitle className="text-base font-bold">
+                Notice Accomplishment Details
+              </DialogTitle>
               <DialogDescription>
                 {record.stationname ? `${record.stationname} · ` : ""}
                 {monthName} {year}
@@ -392,18 +382,16 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
           </Card>
 
           {/* Station Information ------------------------------------------- */}
-          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <ReadOnlyField
-                label="Province"
-                required
-                value={record.provincename || record.province}
-              />
-              <ReadOnlyField label="Station" required value={record.stationname} />
-            </div>
-          </Card>
-
+          <StationInfoCard
+            stationName={record.stationname || ""}
+            unitCode={record.stationcode || ""}
+            logoUrl={record.logourl || null}
+            fields={[
+              { label: "Station Code", value: record.stationcode ?? "" },
+              { label: "City / Municipality", value: record.cityname ?? "" },
+              { label: "Province", value: record.provincename || record.province || "" },
+            ]}
+          />
 
           {/* Issued vs. Accomplished ---------------------------------------- */}
           <NoticeAccomplishmentPanel days={days} periodLabel={`${monthName} ${year}`} />

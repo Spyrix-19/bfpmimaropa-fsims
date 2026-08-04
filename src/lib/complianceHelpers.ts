@@ -142,12 +142,14 @@ export function breakdownFor(rows: ComplianceDailyCounts[]) {
     inspection: Object.fromEntries(
       INSPECTION_FIELDS.map((key) => [key, sumFields(rows, [key])]),
     ) as Record<string, number>,
-    fsec: Object.fromEntries(
-      FSEC_FIELDS.map((key) => [key, sumFields(rows, [key])]),
-    ) as Record<string, number>,
-    fsic: Object.fromEntries(
-      FSIC_FIELDS.map((key) => [key, sumFields(rows, [key])]),
-    ) as Record<string, number>,
+    fsec: Object.fromEntries(FSEC_FIELDS.map((key) => [key, sumFields(rows, [key])])) as Record<
+      string,
+      number
+    >,
+    fsic: Object.fromEntries(FSIC_FIELDS.map((key) => [key, sumFields(rows, [key])])) as Record<
+      string,
+      number
+    >,
     notices: Object.fromEntries(
       NOTICES_FIELDS.map((key) => [key, sumFields(rows, [key])]),
     ) as Record<string, number>,
@@ -169,7 +171,9 @@ export function isSameMonth(iso: string, year: number, month: number): boolean {
 }
 
 /** Group live (non-deleted) rows by `${stationno}|${year}|${month}`. */
-export function groupByStationMonth(rows: ComplianceDailyCounts[]): Map<string, ComplianceDailyCounts[]> {
+export function groupByStationMonth(
+  rows: ComplianceDailyCounts[],
+): Map<string, ComplianceDailyCounts[]> {
   const out = new Map<string, ComplianceDailyCounts[]>();
   for (const r of rows) {
     if (r.deletedat) continue;
@@ -182,7 +186,9 @@ export function groupByStationMonth(rows: ComplianceDailyCounts[]): Map<string, 
   return out;
 }
 
-export function fieldsForCategory(cat: ComplianceCategoryKey): readonly (keyof ComplianceDailyCounts)[] {
+export function fieldsForCategory(
+  cat: ComplianceCategoryKey,
+): readonly (keyof ComplianceDailyCounts)[] {
   switch (cat) {
     case "INSPECTION":
       return INSPECTION_FIELDS;

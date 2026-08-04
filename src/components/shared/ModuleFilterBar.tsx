@@ -156,14 +156,13 @@ export function MonthMultiSelect({
 }) {
   const [open, setOpen] = React.useState(false);
   const allSelected = value.length === 0 || value.length === ALL_MONTHS.length;
-  const label =
-    allSelected
-      ? "All months"
-      : value.length === 1
-        ? MONTHS.find((m) => m.value === value[0])?.name
-        : value.length > 1
-          ? `${value.length} months selected`
-          : "Select month";
+  const label = allSelected
+    ? "All months"
+    : value.length === 1
+      ? MONTHS.find((m) => m.value === value[0])?.name
+      : value.length > 1
+        ? `${value.length} months selected`
+        : "Select month";
 
   const toggle = (m: number) => {
     if (allSelected) {
@@ -236,7 +235,6 @@ export function MonthMultiSelect({
       </PopoverContent>
     </Popover>
   );
-
 }
 
 /* ------------------------------------------------------------------ *
@@ -348,7 +346,6 @@ export function SubFilterControl({
     setDateOpen(false);
   };
 
-
   if (state.interval === "DAILY") {
     return (
       <Popover open={dateOpen} onOpenChange={setDateOpen}>
@@ -372,17 +369,17 @@ export function SubFilterControl({
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           {allowAllDays && (
-          <button
-            type="button"
-            onClick={handleAllDays}
-            className={cn(
-              "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted",
-              allDays && "bg-muted",
-            )}
-          >
-            <span className="font-medium">All (whole month)</span>
-            {allDays ? <Check className="h-4 w-4 text-primary" /> : null}
-          </button>
+            <button
+              type="button"
+              onClick={handleAllDays}
+              className={cn(
+                "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted",
+                allDays && "bg-muted",
+              )}
+            >
+              <span className="font-medium">All (whole month)</span>
+              {allDays ? <Check className="h-4 w-4 text-primary" /> : null}
+            </button>
           )}
           <Calendar
             mode="single"
@@ -397,7 +394,6 @@ export function SubFilterControl({
             initialFocus
             className={cn("p-3 pointer-events-auto")}
           />
-
         </PopoverContent>
       </Popover>
     );
@@ -467,7 +463,6 @@ export function ModuleFilterBar({
   /** DAILY only: when false, the "All (whole month)" shortcut is hidden. */
   allowAllDays?: boolean;
 }) {
-
   return (
     <div className="glass-panel rounded-2xl p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">

@@ -59,7 +59,11 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
   }, [debounced]);
 
   const provincesKey = React.useMemo(
-    () => provinces.map((p) => p.provinceno).sort().join(","),
+    () =>
+      provinces
+        .map((p) => p.provinceno)
+        .sort()
+        .join(","),
     [provinces],
   );
 
@@ -222,7 +226,9 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
                       />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{r.stationname}</div>
-                        <div className="truncate text-xs text-muted-foreground">{r.stationcode}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {r.stationcode}
+                        </div>
                       </div>
                     </div>
                     {sel ? <Check className="h-4 w-4 text-primary" /> : null}

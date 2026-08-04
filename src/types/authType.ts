@@ -70,7 +70,7 @@ export interface AuthMemberModel {
   profileurl: string;
   filetype?: string;
 
-  isactive?: boolean;  
+  isactive?: boolean;
 
   systemaccess: SystemAccessEntry[];
 }
@@ -83,7 +83,6 @@ export interface AuthApiResponse {
   member?: AuthMemberModel | null;
   accessToken: string;
 }
-
 
 /** Resolved FSIMS system access entry attached to the auth user. */
 export interface FsimsAccess {
