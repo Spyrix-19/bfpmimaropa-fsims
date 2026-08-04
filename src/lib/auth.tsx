@@ -44,6 +44,7 @@ export type AppModule =
   | "reports"
   | "settings"
   | "users"
+  | "logistics"
   | "target-revisions";
 
 // All authenticated roles share page-level access to the common modules. The
@@ -55,6 +56,7 @@ const ALLOWED_MODULES: ReadonlySet<AppModule> = new Set<AppModule>([
   "monitoring",
   "reports",
   "settings",
+  "logistics",
 ]);
 
 /** Admin-only modules: only SUPER (1) and ADMIN (2) may access. */
@@ -65,6 +67,7 @@ const ROUTE_MODULE: { prefix: string; module: AppModule }[] = [
   { prefix: "/inspections", module: "inspections" },
   { prefix: "/monitoring", module: "monitoring" },
   { prefix: "/reports", module: "reports" },
+  { prefix: "/logistics", module: "logistics" },
   { prefix: "/settings", module: "settings" },
   { prefix: "/users", module: "users" },
   { prefix: "/target-revision-requests", module: "target-revisions" },

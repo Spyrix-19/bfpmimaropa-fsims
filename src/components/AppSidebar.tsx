@@ -11,6 +11,9 @@ import {
   History,
   ChevronRight,
   ClipboardCheck,
+  Boxes,
+  Radio,
+  ShieldCheck,
 } from "lucide-react";
 
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -100,6 +103,23 @@ const GROUPS: NavGroup[] = [
         module: "target-revisions",
       },
 
+    ],
+  },
+  {
+    label: "Logistics & Capability",
+    items: [
+      {
+        to: "/logistics/issued-bwc",
+        label: "Issued BWC",
+        icon: <Radio className="h-4 w-4" />,
+        module: "logistics",
+      },
+      {
+        to: "/logistics/fire-safety-inspector",
+        label: "Fire Safety Inspector",
+        icon: <ShieldCheck className="h-4 w-4" />,
+        module: "logistics",
+      },
     ],
   },
   {

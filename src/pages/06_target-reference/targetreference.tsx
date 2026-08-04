@@ -1,6 +1,9 @@
 import * as React from "react";
 import { usePagination } from "@/hooks/usePagination";
-import { ScopedLocationFilterPair } from "@/components/shared/ScopedLocationFilterPair";
+import {
+  ScopedLocationMultiFilterPair,
+  useScopedLocationMulti,
+} from "@/components/shared/ScopedLocationMultiFilterPair";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -150,46 +153,18 @@ export default function TargetReferenceIndexPage() {
   const selectedMonths = React.useMemo(() => resolveModuleMonths(filterState), [filterState]);
   /** DAILY only: a specific day, or null when "All" is selected. */
   const selectedDay = React.useMemo(() => resolveSelectedDay(filterState), [filterState]);
-  // Unlocked fields default to EMPTY_GUID ("ALL"); locked fields carry the login scope GUID.
-  const [provinceFilter, setProvinceFilter] = React.useState<string>(
-    scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
-  );
-  const [provinceFilterName, setProvinceFilterName] = React.useState<string>(
-    scope.provinceLocked ? scope.provincename : "ALL",
-  );
-  const [stationFilter, setStationFilter] = React.useState<string>(
-    scope.stationLocked ? scope.stationno : EMPTY_GUID,
-  );
-  const [stationFilterName, setStationFilterName] = React.useState<string>(
-    scope.stationLocked ? scope.stationname : "ALL",
-  );
+  const locationSel = useScopedLocationMulti(scope);
+  const {
+    provinceno: provinceFilter,
+    provincename: provinceFilterName,
+    stationno: stationFilter,
+    stationname: stationFilterName,
+    paramsKey: locationParamsKey,
+  } = locationSel;
   const YEARS = React.useMemo(buildYears, []);
-  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
+  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
 
-  // Re-apply scope defaults whenever the authenticated scope resolves/changes.
-  React.useEffect(() => {
-    if (scope.provinceLocked) {
-      setProvinceFilter(scope.provinceno);
-      setProvinceFilterName(scope.provincename);
-    } else {
-      setProvinceFilter(EMPTY_GUID);
-      setProvinceFilterName("ALL");
-    }
-    if (scope.stationLocked) {
-      setStationFilter(scope.stationno);
-      setStationFilterName(scope.stationname);
-    } else {
-      setStationFilter(EMPTY_GUID);
-      setStationFilterName("ALL");
-    }
-  }, [
-    scope.provinceLocked,
-    scope.stationLocked,
-    scope.provinceno,
-    scope.stationno,
-    scope.provincename,
-    scope.stationname,
-  ]);
+
 
   const [rows, setRows] = React.useState<TargetReferenceModel[]>([]);
   const [total, setTotal] = React.useState(0);
@@ -201,56 +176,57 @@ export default function TargetReferenceIndexPage() {
   const [provincePayload, setProvincePayload] = React.useState<TargetReferenceParamClass[] | null>(
     null,
   );
-  const effectiveProvinceNo = scope.provinceLocked ? scope.provinceno : provinceFilter;
-  const effectiveStationNo = scope.stationLocked ? scope.stationno : stationFilter;
-
   React.useEffect(() => {
+    const params = JSON.parse(locationParamsKey) as TargetReferenceParamClass[];
     let cancelled = false;
     (async () => {
-      // Explicit station pick → single province/station pair.
-      if (effectiveStationNo && effectiveStationNo !== EMPTY_GUID) {
-        if (!cancelled)
-          setProvincePayload([
-            { provinceno: effectiveProvinceNo || EMPTY_GUID, stationnos: [effectiveStationNo] },
-          ]);
+      // Provinces with an explicit station selection are already complete.
+      const needsFill = params.length === 0 || params.some((p) => p.stationnos.length === 0);
+      if (!needsFill) {
+        setProvincePayload(params);
         return;
       }
       setProvincePayload(null);
-      const resp = await stationAPI.search(
-        {
-          provinceno:
-            effectiveProvinceNo && effectiveProvinceNo !== EMPTY_GUID
-              ? effectiveProvinceNo
-              : undefined,
-          pageNumber: 1,
-          pageSize: 1000,
-        },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
-      );
-      const { ok, data } = unwrap<SearchStationModel[]>(resp);
-      if (cancelled) return;
+      const targets: (string | undefined)[] =
+        params.length === 0
+          ? [undefined]
+          : params.filter((p) => p.stationnos.length === 0).map((p) => p.provinceno);
+
       const byProvince = new Map<string, string[]>();
-      if (ok && Array.isArray(data)) {
-        data.forEach((s) => {
-          const p = s.provinceno || effectiveProvinceNo || EMPTY_GUID;
-          if (!byProvince.has(p)) byProvince.set(p, []);
-          if (s.stationno) byProvince.get(p)!.push(s.stationno);
-        });
+      params
+        .filter((p) => p.stationnos.length > 0)
+        .forEach((p) => byProvince.set(p.provinceno, [...p.stationnos]));
+
+      for (const provinceno of targets) {
+        const resp = await stationAPI.search(
+          {
+            provinceno: provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined,
+            pageNumber: 1,
+            pageSize: 1000,
+          },
+          { suppressGlobalLoading: true, suppressErrorToast: true },
+        );
+        const { ok, data } = unwrap<SearchStationModel[]>(resp);
+        if (cancelled) return;
+        if (ok && Array.isArray(data)) {
+          data.forEach((s) => {
+            const p = s.provinceno || provinceno || EMPTY_GUID;
+            if (!byProvince.has(p)) byProvince.set(p, []);
+            if (s.stationno) byProvince.get(p)!.push(s.stationno);
+          });
+        }
       }
+      if (cancelled) return;
       const payload = Array.from(byProvince.entries()).map(([provinceno, stationnos]) => ({
         provinceno,
         stationnos,
       }));
-      setProvincePayload(
-        payload.length
-          ? payload
-          : [{ provinceno: effectiveProvinceNo || EMPTY_GUID, stationnos: [] }],
-      );
+      setProvincePayload(payload.length ? payload : [{ provinceno: EMPTY_GUID, stationnos: [] }]);
     })();
     return () => {
       cancelled = true;
     };
-  }, [effectiveProvinceNo, effectiveStationNo]);
+  }, [locationParamsKey]);
 
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingGroup, setEditingGroup] = React.useState<{
@@ -346,31 +322,7 @@ export default function TargetReferenceIndexPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [filterState, provinceFilter, stationFilter, pageSize]);
-
-  const handleProvinceSelect = (locationno: string, locationname: string) => {
-    setProvinceFilter(locationno);
-    setProvinceFilterName(locationname);
-    // Reset station to ALL whenever province changes (editable case).
-    setStationFilter(EMPTY_GUID);
-    setStationFilterName("ALL");
-  };
-
-  const handleStationSelect = (
-    stationno: string,
-    stationname: string,
-    province?: string,
-    station?: SearchStationModel,
-  ) => {
-    setStationFilter(stationno);
-    setStationFilterName(stationname);
-    // Only propagate the station's province when the picker returned a real
-    // station AND province is editable. ALL (EMPTY_GUID) must not mutate it.
-    if (stationno !== EMPTY_GUID && station?.provinceno && !scope.provinceLocked) {
-      setProvinceFilter(station.provinceno);
-      setProvinceFilterName(station.provincename || province || provinceFilterName);
-    }
-  };
+  }, [filterState, locationParamsKey, pageSize]);
 
   const handleAdd = () => {
     setEditingGroup(null);
@@ -379,12 +331,10 @@ export default function TargetReferenceIndexPage() {
 
   const handleResetFilters = () => {
     resetFilterState();
-    setProvinceFilter(scope.provinceLocked ? scope.provinceno : EMPTY_GUID);
-    setProvinceFilterName(scope.provinceLocked ? scope.provincename : "ALL");
-    setStationFilter(scope.stationLocked ? scope.stationno : EMPTY_GUID);
-    setStationFilterName(scope.stationLocked ? scope.stationname : "ALL");
+    locationSel.reset();
     setPage(1);
   };
+
 
   const handleEdit = (g: GroupItem) => {
     setEditingGroup({ year: g.year, stationno: g.stationno });
@@ -525,15 +475,11 @@ export default function TargetReferenceIndexPage() {
         onChange={setFilterState}
         onReset={handleResetFilters}
       >
-        <ScopedLocationFilterPair
+        <ScopedLocationMultiFilterPair
           hideLabels
           scope={scope}
-          provinceValue={provinceFilter}
-          provinceLabel={provinceFilterName}
-          stationValue={stationFilter}
-          stationLabel={stationFilterName}
-          onProvinceChange={handleProvinceSelect}
-          onStationChange={handleStationSelect}
+          selection={locationSel}
+          reportyear={Number(year)}
         />
       </ModuleFilterBar>
 

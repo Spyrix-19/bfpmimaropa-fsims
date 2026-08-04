@@ -12,7 +12,10 @@ import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import { MONTHS } from "@/lib/fsims-constants";
 import { calendarDaysInMonth } from "@/lib/complianceHelpers";
-import { ScopedLocationFilterPair } from "@/components/shared/ScopedLocationFilterPair";
+import {
+  ScopedLocationMultiFilterPair,
+  useScopedLocationMulti,
+} from "@/components/shared/ScopedLocationMultiFilterPair";
 import {
   ModuleFilterBar,
   useModuleFilterState,
@@ -484,22 +487,13 @@ export default function AccomplishedNotice() {
     }
   }, [isAggregated, filterState.interval, filterState.quarter, filterState.semester, selectedMonths, year]);
 
-  const [provinceno, setProvinceno] = React.useState<string>(
-    scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
-  );
-  const [provincename, setProvincename] = React.useState<string>(
-    scope.provinceLocked ? scope.provincename : "ALL",
-  );
-  const [stationno, setStationno] = React.useState<string>(
-    scope.stationLocked ? scope.stationno : EMPTY_GUID,
-  );
-  const [stationname, setStationname] = React.useState<string>(
-    scope.stationLocked ? scope.stationname : "ALL",
-  );
+  const locationSel = useScopedLocationMulti(scope);
+  const { provinceno, provincename, stationno, stationname, paramsKey: locationParamsKey } =
+    locationSel;
 
   const [records, setRecords] = React.useState<NoticeRecord[]>([]);
   const [total, setTotal] = React.useState(0);
-  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
+  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
 
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
@@ -514,78 +508,12 @@ export default function AccomplishedNotice() {
   const [refreshTick, setRefreshTick] = React.useState(0);
   const refresh = () => setRefreshTick((value) => value + 1);
 
-  React.useEffect(() => {
-    if (!user) return;
-    if (scope.provinceLocked) {
-      setProvinceno(scope.provinceno);
-      setProvincename(scope.provincename);
-    } else {
-      setProvinceno(EMPTY_GUID);
-      setProvincename("ALL");
-    }
-    if (scope.stationLocked) {
-      setStationno(scope.stationno);
-      setStationname(scope.stationname);
-    } else {
-      setStationno(EMPTY_GUID);
-      setStationname("ALL");
-    }
-  }, [
-    scope.provinceLocked,
-    scope.stationLocked,
-    scope.provinceno,
-    scope.stationno,
-    scope.provincename,
-    scope.stationname,
-    user,
-  ]);
-
-  const handleProvinceSelect = (locationno: string, locationname: string) => {
-    setProvinceno(locationno);
-    setProvincename(locationname);
-    setStationno(EMPTY_GUID);
-    setStationname("ALL");
-  };
-
-  const handleStationSelect = (
-    no: string,
-    name: string,
-    _province?: string,
-    station?: SearchStationModel,
-  ) => {
-    setStationno(no);
-    setStationname(name);
-    if (no !== EMPTY_GUID && station?.provinceno && !scope.provinceLocked) {
-      setProvinceno(station.provinceno);
-      setProvincename(station.provincename || provincename);
-    }
-  };
-
   const handleResetFilters = () => {
     resetFilterState();
-    if (!scope.provinceLocked) {
-      setProvinceno(EMPTY_GUID);
-      setProvincename("ALL");
-    }
-    if (!scope.stationLocked) {
-      setStationno(EMPTY_GUID);
-      setStationname("ALL");
-    }
+    locationSel.reset();
     setPage(1);
   };
 
-  const buildProvinceParams = React.useCallback((): NoticeParamClass[] => {
-    const effectiveProvinceNo = scope.provinceLocked ? scope.provinceno : provinceno;
-    const effectiveStationNo = scope.stationLocked ? scope.stationno : stationno;
-    if (!effectiveProvinceNo || effectiveProvinceNo === EMPTY_GUID) return [];
-    return [
-      {
-        provinceno: effectiveProvinceNo,
-        stationnos:
-          effectiveStationNo && effectiveStationNo !== EMPTY_GUID ? [effectiveStationNo] : [],
-      },
-    ];
-  }, [scope.provinceLocked, scope.stationLocked, scope.provinceno, scope.stationno, provinceno, stationno]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -600,7 +528,7 @@ export default function AccomplishedNotice() {
             interval: intervalCode,
             dateaccomplish: allDates ? "" : `${selectedDateISO}T00:00:00`,
             reportmonth: [...selectedMonths],
-            provinces: buildProvinceParams(),
+            provinces: JSON.parse(locationParamsKey) as NoticeParamClass[],
           } as NoticeModel,
           pagenumber: page,
           pagesize: pageSize,
@@ -656,7 +584,7 @@ export default function AccomplishedNotice() {
     ledgerGranularity,
     selectedDateISO,
     allDates,
-    buildProvinceParams,
+    locationParamsKey,
     page,
     pageSize,
     refreshTick,
@@ -849,15 +777,11 @@ export default function AccomplishedNotice() {
         intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
         allowAllDays
       >
-        <ScopedLocationFilterPair
+        <ScopedLocationMultiFilterPair
           hideLabels
           scope={scope}
-          provinceValue={provinceno}
-          provinceLabel={provincename}
-          stationValue={stationno}
-          stationLabel={stationname}
-          onProvinceChange={handleProvinceSelect}
-          onStationChange={handleStationSelect}
+          selection={locationSel}
+          reportyear={Number(year)}
         />
       </ModuleFilterBar>
 

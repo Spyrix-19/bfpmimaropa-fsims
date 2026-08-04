@@ -20,6 +20,19 @@ export default function PaginationControls({
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
+  // Always include the active page size so the select never shows a value
+  // that differs from the rows actually being fetched.
+  const pageSizeOptions = React.useMemo(() => {
+    const base = [5, 10, 20, 50];
+    if (!base.includes(pageSize)) base.push(pageSize);
+    return base.sort((a, b) => a - b);
+  }, [pageSize]);
+
+  // If filters shrink the result set below the current page, snap back into range
+  // so the list never renders as an empty page.
+  React.useEffect(() => {
+    if (total > 0 && page > pageCount) onPageChange(pageCount);
+  }, [total, page, pageCount, onPageChange]);
 
   return (
     <>
@@ -36,10 +49,11 @@ export default function PaginationControls({
               className="h-8 rounded-md border bg-background px-2 text-sm"
               aria-label="Rows per page"
             >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -85,11 +99,13 @@ export default function PaginationControls({
             }}
             className="h-8 rounded-md border bg-background px-2 text-sm"
           >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
+            {pageSizeOptions.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
           </select>
+          <span className="sr-only" aria-live="polite">{`Page ${page} of ${pageCount}`}</span>
         </div>
 
         <div className="text-sm text-muted-foreground">{`Showing ${start}-${end} of ${total}`}</div>

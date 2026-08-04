@@ -1,6 +1,9 @@
 import * as React from "react";
 import { usePagination } from "@/hooks/usePagination";
-import { ScopedLocationFilterPair } from "@/components/shared/ScopedLocationFilterPair";
+import {
+  ScopedLocationMultiFilterPair,
+  useScopedLocationMulti,
+} from "@/components/shared/ScopedLocationMultiFilterPair";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,6 +74,7 @@ import type { ComplianceMonthlyRow, TargetAccomplishmentModel } from "@/types/co
 import type {
   FSISComplianceMonthlyLedgerModel,
   FSISComplianceDailyClass,
+  FSISComplianceParamClass,
   FSISIssuanceClassModel,
   FSISComplianceModel,
 } from "@/types/complianceType.ts";
@@ -332,19 +336,10 @@ export default function FireSafetyCompliancePage() {
   }, [filterState.interval]);
 
 
-  const [provinceno, setProvinceno] = React.useState<string>(
-    scope.provinceLocked ? scope.provinceno : EMPTY_GUID,
-  );
-  const [provincename, setProvincename] = React.useState<string>(
-    scope.provinceLocked ? scope.provincename : "ALL",
-  );
-  const [stationno, setStationno] = React.useState<string>(
-    scope.stationLocked ? scope.stationno : EMPTY_GUID,
-  );
-  const [stationname, setStationname] = React.useState<string>(
-    scope.stationLocked ? scope.stationname : "ALL",
-  );
-  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 12 });
+  const locationSel = useScopedLocationMulti(scope);
+  const { provinceno, provincename, stationno, stationname, paramsKey: locationParamsKey } =
+    locationSel;
+  const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
 
   const [rows, setRows] = React.useState<LedgerRow[]>([]);
   const [total, setTotal] = React.useState<number>(0);
@@ -387,67 +382,12 @@ export default function FireSafetyCompliancePage() {
     if (!user) navigate("/");
   }, [user, navigate]);
 
-  // Re-apply scope defaults whenever the authenticated scope resolves/changes.
-  React.useEffect(() => {
-    if (scope.provinceLocked) {
-      setProvinceno(scope.provinceno);
-      setProvincename(scope.provincename);
-    } else {
-      setProvinceno(EMPTY_GUID);
-      setProvincename("ALL");
-    }
-    if (scope.stationLocked) {
-      setStationno(scope.stationno);
-      setStationname(scope.stationname);
-    } else {
-      setStationno(EMPTY_GUID);
-      setStationname("ALL");
-    }
-  }, [
-    scope.provinceLocked,
-    scope.stationLocked,
-    scope.provinceno,
-    scope.stationno,
-    scope.provincename,
-    scope.stationname,
-  ]);
-
-  const handleProvinceSelect = (locationno: string, locationname: string) => {
-    setProvinceno(locationno);
-    setProvincename(locationname);
-    // Reset station to ALL whenever province changes (editable case).
-    setStationno(EMPTY_GUID);
-    setStationname("ALL");
-  };
-
-  const handleStationSelect = (
-    no: string,
-    name: string,
-    _province?: string,
-    station?: SearchStationModel,
-  ) => {
-    setStationno(no);
-    setStationname(name);
-    // Sync province when a real station is picked and province is editable.
-    if (no !== EMPTY_GUID && station?.provinceno && !scope.provinceLocked) {
-      setProvinceno(station.provinceno);
-      setProvincename(station.provincename || provincename);
-    }
-  };
-
   const handleResetFilters = () => {
     resetFilterState();
-
-    if (!scope.provinceLocked) {
-      setProvinceno(EMPTY_GUID);
-      setProvincename("ALL");
-    }
-    if (!scope.stationLocked) {
-      setStationno(EMPTY_GUID);
-      setStationname("ALL");
-    }
+    locationSel.reset();
     setPage(1);
   };
+
 
   // Fetch ledger from server-side endpoint. Ensure empty/ALL filters
   // are sent as `EMPTY_GUID` so the backend receives explicit GUIDs.
@@ -456,20 +396,7 @@ export default function FireSafetyCompliancePage() {
     const controller = new AbortController();
     (async () => {
       setLoading(true);
-      const effectiveProvinceNo = scope.provinceLocked ? scope.provinceno : provinceno;
-      const effectiveStationNo = scope.stationLocked ? scope.stationno : stationno;
-      const provinces =
-        effectiveProvinceNo && effectiveProvinceNo !== EMPTY_GUID
-          ? [
-              {
-                provinceno: effectiveProvinceNo,
-                stationnos:
-                  effectiveStationNo && effectiveStationNo !== EMPTY_GUID
-                    ? [effectiveStationNo]
-                    : [],
-              },
-            ]
-          : [];
+      const provinces = JSON.parse(locationParamsKey) as FSISComplianceParamClass[];
       // DAILY: interval 1. Specific date -> `dateinspected`; ALL dates -> empty.
       // MONTHLY: interval 2, no specific date, every selected month is plotted.
       const dateinspected = allDates ? "" : `${selectedDateISO}T00:00:00`;
@@ -623,12 +550,7 @@ export default function FireSafetyCompliancePage() {
     selectedDateISO,
     allDates,
 
-    scope.provinceLocked,
-    scope.stationLocked,
-    scope.provinceno,
-    scope.stationno,
-    provinceno,
-    stationno,
+    locationParamsKey,
     refreshTick,
     page,
     pageSize,
@@ -636,7 +558,7 @@ export default function FireSafetyCompliancePage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [year, monthsKey, isAggregated, selectedDateISO, allDates, provinceno, stationno, pageSize]);
+  }, [year, monthsKey, isAggregated, selectedDateISO, allDates, locationParamsKey, pageSize, setPage]);
 
 
   // Server-side ledger returns a single page — use `rows` directly and
@@ -710,18 +632,7 @@ export default function FireSafetyCompliancePage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const effProvinceNo = scope.provinceLocked ? scope.provinceno : provinceno;
-      const effStationNo = scope.stationLocked ? scope.stationno : stationno;
-      const provinces =
-        effProvinceNo && effProvinceNo !== EMPTY_GUID
-          ? [
-              {
-                provinceno: effProvinceNo,
-                stationnos:
-                  effStationNo && effStationNo !== EMPTY_GUID ? [effStationNo] : [],
-              },
-            ]
-          : [];
+      const provinces = locationSel.provinceParams;
 
       const resp = await complianceAPI.getLedger(
         {
@@ -837,15 +748,11 @@ export default function FireSafetyCompliancePage() {
         intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
         allowAllDays
       >
-        <ScopedLocationFilterPair
+        <ScopedLocationMultiFilterPair
           hideLabels
           scope={scope}
-          provinceValue={provinceno}
-          provinceLabel={provincename}
-          stationValue={stationno}
-          stationLabel={stationname}
-          onProvinceChange={handleProvinceSelect}
-          onStationChange={handleStationSelect}
+          selection={locationSel}
+          reportyear={Number(year)}
         />
       </ModuleFilterBar>
 

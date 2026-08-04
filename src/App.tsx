@@ -14,6 +14,8 @@ const TargetReference = lazy(() => import("@/pages/06_target-reference/targetref
 const AccomplishedNotice = lazy(() => import("@/pages/05_notices/Notice.tsx"));
 
 const Reports = lazy(() => import("@/pages/08_reports/MatrixReports.tsx"));
+const IssuedBwc = lazy(() => import("@/pages/07_logistics/IssuedBwc"));
+const FireSafetyInspector = lazy(() => import("@/pages/07_logistics/FireSafetyInspector"));
 const InspectionsNew = lazy(() => import("./pages/04_compliance/components/complianceNew.tsx"));
 const Profile = lazy(() => import("@/pages/03_profile/Profile"));
 const SettingsPage = lazy(() => import("@/pages/10_settings/Settings"));
@@ -168,6 +170,30 @@ export default function App() {
                     element={
                       <RequireAccess module="reports">
                         <Reports />
+                      </RequireAccess>
+                    }
+                  />
+                  <Route
+                    path="/logistics"
+                    element={
+                      <RequireAccess module="logistics">
+                        <IssuedBwc />
+                      </RequireAccess>
+                    }
+                  />
+                  <Route
+                    path="/logistics/issued-bwc"
+                    element={
+                      <RequireAccess module="logistics">
+                        <IssuedBwc />
+                      </RequireAccess>
+                    }
+                  />
+                  <Route
+                    path="/logistics/fire-safety-inspector"
+                    element={
+                      <RequireAccess module="logistics">
+                        <FireSafetyInspector />
                       </RequireAccess>
                     }
                   />
