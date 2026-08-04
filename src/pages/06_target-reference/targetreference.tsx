@@ -688,16 +688,27 @@ function TargetCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-3 border-b bg-card p-4">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-bold text-foreground">
-              {group.stationCode}
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {group.year}
-            </span>
+          <div className="flex items-center gap-3">
+            <AvatarWithFallback
+              src={group.logoUrl || null}
+              entity={group.row}
+              name={group.stationCode || group.stationName}
+              alt={group.stationName}
+              className="w-10 h-10 rounded-md overflow-hidden bg-muted/30"
+            />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-bold text-foreground">
+                  {group.stationCode}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group.year}
+                </span>
+              </div>
+              <div className="mt-1 text-sm font-bold text-foreground">{group.stationName}</div>
+              <div className="text-[11px] text-muted-foreground">{group.province}</div>
+            </div>
           </div>
-          <div className="mt-1 text-sm font-bold text-foreground">{group.stationName}</div>
-          <div className="text-[11px] text-muted-foreground">{group.province}</div>
         </div>
         <div
           className="grid h-10 w-14 place-items-center rounded-lg border border-border/60 bg-muted/40 text-center text-foreground"
