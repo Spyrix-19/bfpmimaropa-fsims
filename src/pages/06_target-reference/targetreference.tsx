@@ -725,13 +725,6 @@ function TargetCard({
           <div className="text-[8px] font-bold uppercase leading-none">Total</div>
           <div className="text-xs font-bold leading-none">{annualSum.toLocaleString()}</div>
         </div>
-
-          className="grid h-10 w-14 place-items-center rounded-lg border border-border/60 bg-muted/40 text-center text-foreground"
-          title="Annual Total"
-        >
-          <div className="text-[8px] font-bold uppercase leading-none">Total</div>
-          <div className="text-xs font-bold leading-none">{annualSum.toLocaleString()}</div>
-        </div>
       </div>
 
       {/* Body */}
