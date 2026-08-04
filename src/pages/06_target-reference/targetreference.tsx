@@ -68,6 +68,8 @@ import {
   buildLedgerRequest,
   addBucket,
   emptyBucket,
+  daysInMonth,
+  sumBucket,
   type TargetPeriod,
   type TargetBucket,
 } from "./helpers";
@@ -657,6 +659,11 @@ function TargetCard({
       ),
     [group.row.targetreferencelist, group.year, month, selectedDay],
   );
+  const daysWithData = React.useMemo(() => {
+    const d = dailyDerived.daily;
+    return dailyDerived.days.reduce((acc, day) => (sumBucket(d[day]) > 0 ? acc + 1 : acc), 0);
+  }, [dailyDerived.days, dailyDerived.daily]);
+  const monthTotalDays = React.useMemo(() => daysInMonth(group.year, month), [group.year, month]);
   const monthSet = React.useMemo(() => new Set(months), [months]);
   const monthlyTotal = React.useMemo(
     () =>
@@ -697,14 +704,24 @@ function TargetCard({
               className="w-10 h-10 rounded-md overflow-hidden bg-muted/30"
             />
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-bold text-foreground">
-                  {group.stationCode}
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {group.year}
-                </span>
-              </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-bold text-foreground">
+                    {group.stationCode}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.year}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">•</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {MONTHS.find((m) => m.value === month)?.short ?? ""} {group.year}
+                  </span>
+                  <span className="ml-2 inline-flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground">
+                    <Calendar className="h-3 w-3 text-rose-600" />
+                    <span className="font-semibold text-foreground">{daysWithData}</span>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="text-muted-foreground">{monthTotalDays}</span>
+                  </span>
+                </div>
               <div className="mt-1 text-sm font-bold text-foreground">{group.stationName}</div>
               <div className="text-[11px] text-muted-foreground">{group.province}</div>
             </div>
