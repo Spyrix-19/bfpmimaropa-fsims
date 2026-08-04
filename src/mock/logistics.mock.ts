@@ -7,6 +7,7 @@
 export interface StationInfo {
   stationno: string;
   stationname: string;
+  unitcode: string;
   provincename: string;
   cityname: string;
 }
