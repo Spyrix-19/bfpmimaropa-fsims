@@ -11,6 +11,7 @@ import {
   Table2,
   Target,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import {
   Bar,
@@ -44,7 +45,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { cn } from "@/lib/utils";
+import { cn, buildYears } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { useAuth } from "@/lib/auth";
@@ -83,10 +84,7 @@ const MODE_ROWS = [
   { key: "accomplished" as const, label: "Accomplished" },
 ];
 
-const YEAR_OPTIONS: number[] = (() => {
-  const current = new Date().getFullYear();
-  return Array.from({ length: 7 }, (_, i) => current - 4 + i);
-})();
+const YEAR_OPTIONS: number[] = buildYears();
 
 const SERIES = {
   issued: "var(--color-warning)",
@@ -508,6 +506,10 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     if (record) setDays(buildDays(record, nextYear, nextMonth));
   };
 
+  const basePeriodMonth = record?.reportMonth ?? new Date().getMonth() + 1;
+  const basePeriodYear = record?.reportYear ?? new Date().getFullYear();
+  const isPeriodChanged = month !== basePeriodMonth || year !== basePeriodYear;
+
   if (!record) return null;
 
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
@@ -637,15 +639,29 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         >
           {/* Reporting Period ---------------------------------------------- */}
           <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:max-w-2xl">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                <CalendarIcon className="h-4 w-4" />
+                Reporting Period
+              </h2>
+              {isPeriodChanged && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => changePeriod(basePeriodMonth, basePeriodYear)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset to {MONTHS[basePeriodMonth - 1]?.name} {basePeriodYear}
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Reporting Month <span className="text-destructive">*</span>
-                </span>
+                <span className="text-xs font-medium text-muted-foreground">Month</span>
                 <Select value={String(month)} onValueChange={(v) => changePeriod(Number(v), year)}>
-                  <SelectTrigger className="h-10 w-full">
-                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -658,12 +674,9 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Reporting Year <span className="text-destructive">*</span>
-                </span>
+                <span className="text-xs font-medium text-muted-foreground">Year</span>
                 <Select value={String(year)} onValueChange={(v) => changePeriod(month, Number(v))}>
-                  <SelectTrigger className="h-10 w-full">
-                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -677,6 +690,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
               </div>
             </div>
           </Card>
+
 
           {/* Station Information ------------------------------------------- */}
           <StationInfoCard

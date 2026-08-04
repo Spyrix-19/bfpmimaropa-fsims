@@ -31,6 +31,8 @@ type ConfirmDialogProps = {
   contentIconBgClass?: string;
   contentIconColorClass?: string;
   onCancel?: () => void;
+  /** When false, hides the X button and blocks outside/escape dismissal. */
+  dismissible?: boolean;
 
   // Backwards-compatible props (old API)
   // keep optional so existing call sites still work
@@ -56,10 +58,17 @@ export default function ConfirmDialog({
   contentIconBgClass = "tone-danger-soft",
   contentIconColorClass = "text-destructive",
   onCancel,
+  dismissible = true,
 }: ConfirmDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg" hideCloseButton={!!headerTitle}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v && !dismissible) return; onOpenChange(v); }}>
+      <DialogContent
+        className="max-w-lg"
+        hideCloseButton={!!headerTitle || !dismissible}
+        onEscapeKeyDown={(e) => { if (!dismissible) e.preventDefault(); }}
+        onPointerDownOutside={(e) => { if (!dismissible) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (!dismissible) e.preventDefault(); }}
+      >
         <div className="flex flex-col items-stretch gap-4 p-4 md:p-5">
           {headerTitle ? (
             <>
@@ -68,7 +77,7 @@ export default function ConfirmDialog({
                   <HeaderIcon className="h-5 w-5" />
                 </div>
                 <div className="text-xl font-extrabold tracking-wide">{headerTitle}</div>
-                <div className="ml-auto">
+                <div className={"ml-auto" + (dismissible ? "" : " hidden")}>
                   <DialogClose asChild>
                     <button
                       type="button"

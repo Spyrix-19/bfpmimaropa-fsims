@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   Building2,
   Calendar,
@@ -187,6 +189,15 @@ export default function TargetReferenceForm({
     ids: Record<string, string>;
   } | null>(null);
   const [selectedDate, setSelectedDate] = React.useState<string>(formatDateInputValue(new Date()));
+  const [dateOpen, setDateOpen] = React.useState(false);
+  // Keeps the calendar view on the month of the currently selected date so the
+  // displayed value and the highlighted day never disagree.
+  const [calendarMonth, setCalendarMonth] = React.useState<Date>(() =>
+    parseDateInputValue(formatDateInputValue(new Date())),
+  );
+  React.useEffect(() => {
+    if (dateOpen && selectedDate) setCalendarMonth(parseDateInputValue(selectedDate));
+  }, [dateOpen, selectedDate]);
   const [remarks, setRemarks] = React.useState<string>("");
 
   // ── Existing-record (per target date) detection ────────────────────────────
@@ -457,7 +468,9 @@ export default function TargetReferenceForm({
 
         const isPast = parseDateInputValue(selectedDate).getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
-        setExistingLocked(isPast && !unlocked);
+        const pending = !unlocked && Boolean(record.isrevisionrequest);
+        const locked = !unlocked && (isPast || pending);
+        setExistingLocked(locked);
         // Always confirm first — whether the record will be opened for editing
         // or will require a revision request, the user must acknowledge that a
         // Target Reference already exists for the selected date.
@@ -465,7 +478,7 @@ export default function TargetReferenceForm({
         if (promptedDateKeyRef.current !== key) {
           promptedDateKeyRef.current = key;
           setDateDuplicateOpen(true);
-        } else if (isPast && !unlocked) {
+        } else if (locked) {
           plotExistingRecord(record);
         }
       } else {
@@ -603,14 +616,12 @@ export default function TargetReferenceForm({
     );
   }, [revisionRequests, selectedDate, existingTargetno]);
   const hasPendingRevision =
-    !isEdit &&
-    isPastSelectedDate &&
-    (existingMeta.isrevisionrequest || !!activeAddRequest) &&
-    !unlockedByApproval;
+    !isEdit && !unlockedByApproval && (existingMeta.isrevisionrequest || !!activeAddRequest);
   /** Locked past date with no approval and no pending request → request revision. */
   const needsRevisionRequest =
     !isEdit && isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
-  const addFieldsLocked = !isEdit && isPastSelectedDate && !unlockedByApproval;
+  const addFieldsLocked =
+    !isEdit && !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
 
   const handleSave = async () => {
     const submitStationNo = scope.stationLocked
@@ -1126,36 +1137,49 @@ export default function TargetReferenceForm({
                     title="Editing every day of this month"
                   />
                 ) : (
-                  <label
-                    htmlFor="target-reference-date"
-                    className={cn(
-                      "relative flex h-11 cursor-pointer items-center gap-3 rounded-lg border bg-background px-3 text-sm transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary",
-                      errors.date ? "border-destructive" : "border-primary/60",
-                    )}
-                  >
-                    <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className={cn("font-medium", !selectedDate && "text-muted-foreground")}>
-                      {selectedDate ? formatLongOrdinalDate(selectedDate) : "Select date"}
-                    </span>
-                    <input
-                      id="target-reference-date"
-                      type="date"
-                      value={selectedDate}
-                      onChange={(event) => {
-                        setSelectedDate(event.target.value);
-                        if (errors.date) {
-                          setErrors((e) => {
-                            const n = { ...e };
-                            delete n.date;
-                            return n;
-                          });
+                  <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "h-11 w-full justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground",
+                          errors.date && "border-destructive",
+                        )}
+                        aria-invalid={Boolean(errors.date)}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {selectedDate ? formatLongOrdinalDate(selectedDate) : "Pick a date"}
+                        {checkingExisting && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarPicker
+                        mode="single"
+                        selected={selectedDate ? parseDateInputValue(selectedDate) : undefined}
+                        defaultMonth={
+                          selectedDate ? parseDateInputValue(selectedDate) : new Date()
                         }
-                      }}
-                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                      title="Select target reference date"
-                      aria-invalid={Boolean(errors.date)}
-                    />
-                  </label>
+                        month={calendarMonth}
+                        onMonthChange={setCalendarMonth}
+                        onSelect={(d) => {
+                          if (!d) return;
+                          setSelectedDate(formatDateInputValue(d));
+                          setDateOpen(false);
+                          if (errors.date) {
+                            setErrors((e) => {
+                              const n = { ...e };
+                              delete n.date;
+                              return n;
+                            });
+                          }
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 )}
               </div>
               <PastDatesLockedNote />
@@ -1304,6 +1328,7 @@ export default function TargetReferenceForm({
         description={`A Target Reference already exists for this station and period (${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}).\n\nOpening the existing record for editing.`}
         confirmLabel="Edit Existing"
         showCancel={false}
+        dismissible={false}
         onConfirm={handleDuplicateConfirm}
       />
 
@@ -1326,6 +1351,7 @@ export default function TargetReferenceForm({
         }`}
         confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
         showCancel={false}
+        dismissible={false}
         onConfirm={handleExistingConfirm}
       />
 

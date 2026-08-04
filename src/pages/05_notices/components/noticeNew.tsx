@@ -993,6 +993,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           }`}
           confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
           showCancel={false}
+          dismissible={false}
           onConfirm={() => {
             if (pendingExistingRecord) plotExistingRecord(pendingExistingRecord);
             setExistingDialogOpen(false);

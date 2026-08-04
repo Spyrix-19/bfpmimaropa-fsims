@@ -1163,6 +1163,15 @@ function InspectionsNewBody({
           )}
         </Card>
 
+      </Card>
+
+      {/* 4. Daily Issuance Activities -------------------------------------- */}
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Issuance Activities"
+          subtitle="Encode issuances separately for MANUAL and FSIS"
+        />
+
         <div className="space-y-4">
           <InspectionMatrix
             constructionFields={DAILY_INSPECTION_CONSTRUCTION_FIELDS}
@@ -1173,14 +1182,6 @@ function InspectionsNewBody({
             locked={fieldsLocked}
           />
         </div>
-      </Card>
-
-      {/* 4. Daily Issuance Activities -------------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
-        <SectionTitle
-          title="Daily Issuance Activities"
-          subtitle="Encode issuances separately for MANUAL and FSIS"
-        />
 
         <TooltipProvider delayDuration={150}>
           <IssuanceTable
@@ -1191,6 +1192,7 @@ function InspectionsNewBody({
             locked={fieldsLocked}
           />
         </TooltipProvider>
+
 
         <Field label="Remarks">
           <Textarea
@@ -1289,6 +1291,7 @@ function InspectionsNewBody({
         }`}
         confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
         showCancel={false}
+        dismissible={false}
         onConfirm={handleDuplicateConfirm}
       />
 

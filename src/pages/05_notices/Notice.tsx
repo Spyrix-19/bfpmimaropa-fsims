@@ -949,6 +949,11 @@ export default function AccomplishedNotice() {
           open={!!viewTarget}
           onOpenChange={(open) => !open && setViewTarget(null)}
           record={viewTarget}
+          onEdit={(y, m) => {
+            const t = viewTarget;
+            setViewTarget(null);
+            setEditTarget({ ...t, reportYear: y, reportMonth: m });
+          }}
         />
       )}
       {editTarget && (

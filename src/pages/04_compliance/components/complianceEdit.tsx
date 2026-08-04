@@ -13,6 +13,7 @@ import {
   Lock,
   Trash2,
   Ban,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
 
@@ -1057,10 +1058,24 @@ function ComplianceEditBody({
     <div className="space-y-8 pb-4 md:space-y-8">
       {/* Reporting Period ---------------------------------------------------- */}
       <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
-        <StationSectionTitle
-          icon={<CalendarDays className="h-4 w-4" />}
-          title="Reporting Period"
-        />
+        <div className="flex items-center justify-between gap-3">
+          <StationSectionTitle
+            icon={<CalendarDays className="h-4 w-4" />}
+            title="Reporting Period"
+          />
+          {(month !== initialMonth || year !== initialYear) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => changePeriod(initialMonth, initialYear)}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset to {MONTHS.find((mo) => mo.value === initialMonth)?.name} {initialYear}
+            </Button>
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">

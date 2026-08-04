@@ -18,8 +18,11 @@ import {
 import {
   Building2,
   Calendar as CalendarIcon,
+  ChevronsDown,
+  ChevronsUp,
   Loader2,
   Lock,
+  Pencil,
   RotateCcw,
   X,
 } from "lucide-react";
@@ -48,6 +51,8 @@ interface Props {
   period: TargetPeriod;
   /** Report month (1..12) driving the Daily breakdown. */
   month: number;
+  /** Opens the edit form for the period currently shown in this view. */
+  onEdit?: (year: number, month: number) => void;
 }
 
 function Row({
@@ -87,6 +92,7 @@ export default function TargetReferenceDetails({
   target,
   period,
   month,
+  onEdit,
 }: Props) {
   const YEARS = React.useMemo(buildYears, []);
   const [loading, setLoading] = React.useState(false);
@@ -158,14 +164,33 @@ export default function TargetReferenceDetails({
 
   const completeAddress = detail ? detail.provincename : "";
 
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const [canScroll, setCanScroll] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => setCanScroll(el.scrollHeight - el.clientHeight > 40);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [detail, period, selectedMonth, selectedYear, loading]);
+
+  const scrollTo = (dir: "top" | "bottom") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: dir === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="max-w-3xl h-[90vh] overflow-hidden min-h-0"
+        className="flex max-h-[92vh] w-[calc(100vw-2rem)] min-h-0 max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
-        <DialogHeader className="-mx-6 -mt-6 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
               <Building2 className="h-5 w-5 text-primary" />
@@ -184,12 +209,18 @@ export default function TargetReferenceDetails({
           </div>
         </DialogHeader>
 
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20">
+          <div
+            ref={scrollRef}
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-5"
+          >
         {loading ? (
           <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </div>
         ) : detail && derived ? (
-          <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+          <>
+
             <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -264,7 +295,7 @@ export default function TargetReferenceDetails({
               ]}
             />
 
-            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
+            <div className="flex h-[360px] min-h-[360px] flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
               <div className="border-b bg-card px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-primary">
                 {period === "DAILY" && "Daily Targets"}
                 {period === "MONTHLY" && "Monthly Targets"}
@@ -273,6 +304,7 @@ export default function TargetReferenceDetails({
                 {period === "ANNUAL" && "Annual Targets"}
               </div>
               <div className="min-h-0 flex-1 overflow-auto">
+
                 <table className="min-w-full text-sm">
                   <thead className="sticky top-0 z-10 bg-card">
                     <tr className="bg-card text-left text-xs uppercase tracking-[0.15em] text-primary">
@@ -369,15 +401,54 @@ export default function TargetReferenceDetails({
                 </table>
               </div>
             </div>
-          </div>
+          </>
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             No details available.
           </div>
         )}
+          </div>
 
-        <DialogFooter className="mt-auto">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="gap-2">
+          {canScroll && (
+            <div className="pointer-events-none absolute bottom-3 right-4 flex flex-col gap-1.5">
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Scroll to top"
+                onClick={() => scrollTo("top")}
+                className="pointer-events-auto h-8 w-8 rounded-full border border-border/60 shadow-soft"
+              >
+                <ChevronsUp className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Scroll to bottom"
+                onClick={() => scrollTo("bottom")}
+                className="pointer-events-auto h-8 w-8 rounded-full border border-border/60 shadow-soft"
+              >
+                <ChevronsDown className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="border-t bg-background px-5 py-3">
+          {onEdit && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                onOpenChange(false);
+                onEdit(selectedYear, selectedMonth);
+              }}
+            >
+              <Pencil className="h-4 w-4" /> Edit
+            </Button>
+          )}
+          <Button onClick={() => onOpenChange(false)} className="gap-2">
             <X className="h-4 w-4" /> Close
           </Button>
         </DialogFooter>
@@ -385,3 +456,4 @@ export default function TargetReferenceDetails({
     </Dialog>
   );
 }
+

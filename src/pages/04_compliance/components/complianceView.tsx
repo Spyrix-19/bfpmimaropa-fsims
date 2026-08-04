@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Calendar as CalendarIcon, Eye, Loader2, Lock, RotateCcw, Target } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Eye, Loader2, Lock, Pencil, RotateCcw, Target } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -502,10 +502,12 @@ function ComplianceViewBody({
   stationno,
   year,
   initialMonth,
+  onPeriodChange,
 }: {
   stationno: string;
   year: number;
   initialMonth?: number;
+  onPeriodChange?: (year: number, month: number) => void;
 }) {
   const [selectedMonth, setSelectedMonth] = React.useState<number>(() => {
     if (initialMonth && initialMonth >= 1 && initialMonth <= 12) return initialMonth;
@@ -527,6 +529,10 @@ function ComplianceViewBody({
     setSelectedMonth(baseMonth);
     setSelectedYear(year || new Date().getFullYear());
   }, [baseMonth, year]);
+
+  React.useEffect(() => {
+    onPeriodChange?.(selectedYear, selectedMonth);
+  }, [selectedYear, selectedMonth, onPeriodChange]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -690,14 +696,7 @@ function ComplianceViewBody({
 
   return (
     <div className="space-y-4">
-      <StationInfoCard
-        stationName={station?.stationname}
-        unitCode={station?.stationcode}
-        logoUrl={station?.logourl}
-        cityName={station?.cityname}
-        provinceName={station?.provincename}
-      />
-
+      {/* Reporting Period ------------------------------------------------- */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -758,12 +757,25 @@ function ComplianceViewBody({
             </Select>
           </div>
         </div>
-
-        <InlineAccomplishmentPanel
-          rows={accomplishmentRows}
-          periodLabel={`${MONTHS[selectedMonth - 1]?.name ?? ""} ${selectedYear}`}
-        />
       </Card>
+
+      {/* Station Information ---------------------------------------------- */}
+      <StationInfoCard
+        stationName={station?.stationname || ""}
+        unitCode={station?.stationcode || ""}
+        logoUrl={station?.logourl || null}
+        fields={[
+          { label: "Station Code", value: station?.stationcode ?? "" },
+          { label: "City / Municipality", value: station?.cityname ?? "" },
+          { label: "Province", value: station?.provincename ?? "" },
+        ]}
+      />
+
+      {/* Target vs. Compliance -------------------------------------------- */}
+      <InlineAccomplishmentPanel
+        rows={accomplishmentRows}
+        periodLabel={`${MONTHS[selectedMonth - 1]?.name ?? ""} ${selectedYear}`}
+      />
 
       <Card className="overflow-hidden border-border/60 shadow-soft">
         <div className="max-h-[65vh] w-full max-w-full overflow-auto">
@@ -1139,6 +1151,7 @@ export function ComplianceViewModal({
   year,
   month,
   stationName,
+  onEdit,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -1146,7 +1159,17 @@ export function ComplianceViewModal({
   year: number;
   month?: number;
   stationName?: string;
+  /** Opens the edit modal for the period currently shown in this view. */
+  onEdit?: (year: number, month: number) => void;
 }) {
+  const [viewPeriod, setViewPeriod] = React.useState<{ year: number; month: number }>({
+    year,
+    month: month ?? new Date().getMonth() + 1,
+  });
+  const handlePeriodChange = React.useCallback(
+    (y: number, m: number) => setViewPeriod({ year: y, month: m }),
+    [],
+  );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -1177,8 +1200,31 @@ export function ComplianceViewModal({
         </DialogHeader>
         <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5">
           {open ? (
-            <ComplianceViewBody stationno={stationno} year={year} initialMonth={month} />
+            <ComplianceViewBody
+              stationno={stationno}
+              year={year}
+              initialMonth={month}
+              onPeriodChange={handlePeriodChange}
+            />
           ) : null}
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 border-t bg-background px-5 py-3">
+          {onEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                onOpenChange(false);
+                onEdit(viewPeriod.year, viewPeriod.month);
+              }}
+            >
+              <Pencil className="h-4 w-4" /> Edit
+            </Button>
+          )}
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

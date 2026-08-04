@@ -230,6 +230,7 @@ export default function TargetReferenceIndexPage() {
   const [editingGroup, setEditingGroup] = React.useState<{
     year: number;
     stationno: string;
+    month?: number;
   } | null>(null);
 
   const [detailsOpen, setDetailsOpen] = React.useState(false);
@@ -521,7 +522,11 @@ export default function TargetReferenceIndexPage() {
         onOpenChange={setFormOpen}
         editing={
           editingGroup
-            ? { year: editingGroup.year, month: Number(month), stationno: editingGroup.stationno }
+            ? {
+                year: editingGroup.year,
+                month: editingGroup.month ?? Number(month),
+                stationno: editingGroup.stationno,
+              }
             : null
         }
         initialYear={Number(year)}
@@ -535,6 +540,13 @@ export default function TargetReferenceIndexPage() {
         target={detailsTarget}
         period={period}
         month={Number(month)}
+        onEdit={(y, m) => {
+          const t = detailsTarget;
+          setDetailsOpen(false);
+          if (!t) return;
+          setEditingGroup({ year: y, stationno: t.stationno, month: m });
+          setFormOpen(true);
+        }}
       />
 
       <TargetMatrixModal

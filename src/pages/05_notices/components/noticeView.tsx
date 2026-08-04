@@ -1,5 +1,16 @@
 import * as React from "react";
-import { Building2, CalendarIcon, Lock, RotateCcw, Table2, Target } from "lucide-react";
+import {
+  Building2,
+  CalendarIcon,
+  ChevronsDown,
+  ChevronsUp,
+  Lock,
+  Pencil,
+  RotateCcw,
+  Table2,
+  Target,
+  X,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -19,6 +30,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -307,11 +319,13 @@ interface NoticeViewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   record: NoticeRecord | null;
+  /** Opens the edit modal for the period currently shown in this view. */
+  onEdit?: (year: number, month: number) => void;
 }
 
 const YEAR_OPTIONS = buildYears();
 
-export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalProps) {
+export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeViewModalProps) {
   const [viewMonth, setViewMonth] = React.useState<number>(record?.reportMonth ?? 1);
   const [viewYear, setViewYear] = React.useState<number>(record?.reportYear ?? new Date().getFullYear());
 
@@ -349,6 +363,25 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
       };
     });
   }, [record, viewMonth, viewYear]);
+
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const [canScroll, setCanScroll] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => setCanScroll(el.scrollHeight - el.clientHeight > 40);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, record?.key, viewMonth, viewYear, days.length]);
+
+  const scrollTo = (dir: "top" | "bottom") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: dir === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
+  };
 
   if (!record) return null;
 
@@ -395,7 +428,11 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
           </div>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20">
+        <div
+          ref={scrollRef}
+          className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-5 py-5"
+        >
           {/* Reporting Period ---------------------------------------------- */}
           <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
             <div className="flex items-center justify-between gap-3">
@@ -423,7 +460,7 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
                   value={String(viewMonth)}
                   onValueChange={(value) => setViewMonth(Number(value))}
                 >
-                  <SelectTrigger className="h-10 w-full">
+                  <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -441,7 +478,7 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
                   value={String(viewYear)}
                   onValueChange={(value) => setViewYear(Number(value))}
                 >
-                  <SelectTrigger className="h-10 w-full">
+                  <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -633,13 +670,52 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
               </table>
             </div>
           </Card>
-
-          <div className="flex flex-wrap justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-          </div>
         </div>
+
+          {canScroll && (
+            <div className="pointer-events-none absolute bottom-3 right-4 flex flex-col gap-1.5">
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Scroll to top"
+                onClick={() => scrollTo("top")}
+                className="pointer-events-auto h-8 w-8 rounded-full border border-border/60 shadow-soft"
+              >
+                <ChevronsUp className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Scroll to bottom"
+                onClick={() => scrollTo("bottom")}
+                className="pointer-events-auto h-8 w-8 rounded-full border border-border/60 shadow-soft"
+              >
+                <ChevronsDown className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+
+        <DialogFooter className="border-t bg-background px-5 py-3">
+          {onEdit && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                onOpenChange(false);
+                onEdit(year, month);
+              }}
+            >
+              <Pencil className="h-4 w-4" /> Edit
+            </Button>
+          )}
+          <Button onClick={() => onOpenChange(false)} className="gap-2">
+            <X className="h-4 w-4" /> Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
