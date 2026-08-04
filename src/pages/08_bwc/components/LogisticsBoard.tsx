@@ -202,31 +202,79 @@ export default function LogisticsBoard<T extends StationInfo>({
           No stations found. Adjust your filters and try again.
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {paged.map((row) => (
-            <Card
-              key={row.stationno}
-              className="group space-y-4 border-border/60 bg-card p-4 shadow-soft"
-            >
-              <StationHeading station={row} />
-              <div className="grid grid-cols-3 gap-2">
-                {stats.map((s) => (
-                  <StatBox key={s.label} label={s.label} value={s.get(row)} tone={s.tone} />
-                ))}
-              </div>
-              <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-3">
-                <EditButton
-                  icon={<Eye />}
-                  ariaLabel="View"
-                  tooltip="View"
-                  onClick={() => soon("View")}
-                />
-                <EditButton tooltip="Edit" onClick={() => soon("Edit")} />
-                <DeleteButton tooltip="Delete" onClick={() => soon("Delete")} />
-              </div>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="hidden md:block">
+            <div className="overflow-auto rounded border border-border/60">
+              <table className="min-w-full border-separate border-spacing-0 text-sm">
+                <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="whitespace-nowrap px-3 py-3 text-left">Station</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-left">City</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-left">Province</th>
+                    {stats.map((s) => (
+                      <th key={s.label} className="whitespace-nowrap px-3 py-3 text-right">
+                        {s.label}
+                      </th>
+                    ))}
+                    <th className="whitespace-nowrap px-3 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map((row) => (
+                    <tr key={row.stationno} className="border-b border-border/60 hover:bg-muted/20">
+                      <td className="px-3 py-3 align-middle">{row.stationname}</td>
+                      <td className="px-3 py-3 align-middle">{row.cityname}</td>
+                      <td className="px-3 py-3 align-middle">{row.provincename}</td>
+                      {stats.map((s) => (
+                        <td key={s.label} className="px-3 py-3 text-right align-middle font-semibold text-foreground">
+                          {s.get(row)}
+                        </td>
+                      ))}
+                      <td className="px-3 py-3 align-middle text-right">
+                        <div className="inline-flex items-center justify-end gap-2">
+                          <EditButton
+                            icon={<Eye />}
+                            ariaLabel="View"
+                            tooltip="View"
+                            onClick={() => soon("View")}
+                          />
+                          <EditButton tooltip="Edit" onClick={() => soon("Edit")} />
+                          <DeleteButton tooltip="Delete" onClick={() => soon("Delete")} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 md:hidden">
+            {paged.map((row) => (
+              <Card
+                key={row.stationno}
+                className="group space-y-4 border-border/60 bg-card p-4 shadow-soft"
+              >
+                <StationHeading station={row} />
+                <div className="grid grid-cols-3 gap-2">
+                  {stats.map((s) => (
+                    <StatBox key={s.label} label={s.label} value={s.get(row)} tone={s.tone} />
+                  ))}
+                </div>
+                <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-3">
+                  <EditButton
+                    icon={<Eye />}
+                    ariaLabel="View"
+                    tooltip="View"
+                    onClick={() => soon("View")}
+                  />
+                  <EditButton tooltip="Edit" onClick={() => soon("Edit")} />
+                  <DeleteButton tooltip="Delete" onClick={() => soon("Delete")} />
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="border-t border-border/60 pt-3">

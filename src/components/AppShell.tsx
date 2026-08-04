@@ -12,7 +12,7 @@ const AppSidebar = lazy(() => import("./AppSidebar").then((module) => ({ default
 const LoginModal = lazy(() =>
   import("../pages/01_index/LoginModal").then((module) => ({ default: module.LoginModal })),
 );
-const SettingsPage = lazy(() => import("@/pages/10_settings/Settings"));
+const SettingsPage = lazy(() => import("@/pages/11_settings/Settings"));
 
 function useDarkMode() {
   const [dark, setDark] = useState(false);

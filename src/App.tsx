@@ -13,14 +13,14 @@ const ComplianceEditPage = lazy(() => import("./pages/04_compliance/components/c
 const TargetReference = lazy(() => import("@/pages/06_target-reference/targetreference"));
 const AccomplishedNotice = lazy(() => import("@/pages/05_notices/Notice.tsx"));
 
-const Reports = lazy(() => import("@/pages/08_reports/MatrixReports.tsx"));
-const IssuedBwc = lazy(() => import("@/pages/07_logistics/IssuedBwc"));
-const FireSafetyInspector = lazy(() => import("@/pages/07_logistics/FireSafetyInspector"));
+const Reports = lazy(() => import("@/pages/10_reports/MatrixReports.tsx"));
+const IssuedBwc = lazy(() => import("@/pages/08_bwc/IssuedBwc.tsx"));
+const FireSafetyInspector = lazy(() => import("@/pages/08_bwc/FireSafetyInspector.tsx"));
 const InspectionsNew = lazy(() => import("./pages/04_compliance/components/complianceNew.tsx"));
 const Profile = lazy(() => import("@/pages/03_profile/Profile"));
-const SettingsPage = lazy(() => import("@/pages/10_settings/Settings"));
-const AvailableUsers = lazy(() => import("@/pages/09_users/AvailableUsers"));
-const ActiveUsers = lazy(() => import("@/pages/09_users/ActiveUsers"));
+const SettingsPage = lazy(() => import("@/pages/11_settings/Settings.tsx"));
+const AvailableUsers = lazy(() => import("@/pages/12_users/AvailableUsers.tsx"));
+const ActiveUsers = lazy(() => import("@/pages/12_users/ActiveUsers.tsx"));
 const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
 const TargetRevisionRequests = lazy(
   () => import("@/pages/07_revisionrequest/RevisionRequests.tsx"),
