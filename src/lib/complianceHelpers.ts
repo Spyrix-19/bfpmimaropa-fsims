@@ -54,7 +54,7 @@ export const CATEGORY_FIELDS: Record<
     { key: "insp_total", label: "Inspection" },
     { key: "fsec_total", label: "FSEC" },
     { key: "fsic_total", label: "FSIC" },
-    { key: "not_total", label: "Notices" },
+    { key: "not_total", label: "Issued Notices" },
   ],
 };
 

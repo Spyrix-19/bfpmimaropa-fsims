@@ -43,6 +43,7 @@ import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { formatDateTime } from "@/lib/date-format";
 import type { JournalModel } from "@/types/journalType";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
+import { useAuth } from "@/lib/auth";
 
 /**
  * Dashboard body.
@@ -693,6 +694,7 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
 }
 
 export function DashboardBody() {
+  const { isAuthenticated } = useAuth();
   const { compliance } = useComplianceSummary();
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
@@ -705,7 +707,7 @@ export function DashboardBody() {
     loading: recentActivityLoading,
     error: recentActivityError,
     refresh: refreshRecentActivity,
-  } = useRecentActivity();
+  } = useRecentActivity(isAuthenticated);
 
   const inspectionBreakdown = [
     { label: "During", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
@@ -959,7 +961,8 @@ export function DashboardBody() {
         )}
       </ChartCard>
 
-      {/* Row 6: Recent Dashboard Activity (100%) */}
+      {/* Row 6: Recent Dashboard Activity (100%) — signed-in users only */}
+      {isAuthenticated && (
       <ActivityCard
         title="Recent Dashboard Activity"
         subtitle="Latest system journal entries · auto-refreshes every 60s"
@@ -968,6 +971,7 @@ export function DashboardBody() {
         error={recentActivityError}
         onRetry={refreshRecentActivity}
       />
+      )}
 
       {/* Announcements now live in the top-nav notifications popover. */}
     </div>

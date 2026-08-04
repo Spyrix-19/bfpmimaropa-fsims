@@ -350,7 +350,7 @@ function NoticeAccomplishmentPanel({
           <Target className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-sm font-semibold">Notice Accomplishment vs. Issued</div>
+          <div className="text-sm font-semibold">Accomplished Notices vs. Issued</div>
           <div className="text-[11px] text-muted-foreground">{periodLabel}</div>
         </div>
       </div>
@@ -757,7 +757,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
         toast.error(error || "Unable to save notice entry.");
         return;
       }
-      toast.success("Notice accomplishment saved.");
+      toast.success("Accomplished Notices saved.");
       onSaved();
       onOpenChange(false);
     } finally {
@@ -775,7 +775,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
             </span>
             <div>
               <DialogTitle className="text-base font-semibold">
-                Notice Accomplishment Entry
+                Accomplished Notices Entry
               </DialogTitle>
               <DialogDescription className="text-sm">
                 Record notice accomplishments per station and reporting period — monthly, quarterly, semi-annual, and annual totals are
@@ -878,11 +878,11 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
             periodLabel={format(reportingDate, "PPP")}
           />
 
-          {/* 4. Daily Notice Accomplishments --------------------------------- */}
+          {/* 4. Daily Accomplished Notices --------------------------------- */}
 
           <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
             <SectionTitle
-              title="Daily Notice Accomplishments"
+              title="Daily Accomplished Notices"
               subtitle="Encode accomplished notices separately for MANUAL and FSIS"
             />
 
@@ -983,7 +983,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           ContentIcon={AlertTriangle}
           contentIconBgClass="tone-warning-soft"
           contentIconColorClass="text-warning"
-          title="Notice Accomplishment Already Exists"
+          title="Accomplished Notices Already Exists"
           description={`A notice accomplishment record already exists for ${
             record.stationname || "this station"
           } on ${formatLongDate(reportingDate)}.\n\n${

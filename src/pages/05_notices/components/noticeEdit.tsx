@@ -301,7 +301,7 @@ function NoticeAccomplishmentPanel({
           <Target className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-sm font-semibold">Notice Accomplishment vs. Issued</div>
+          <div className="text-sm font-semibold">Accomplished Notices vs. Issued</div>
           <div className="text-[11px] text-muted-foreground">{periodLabel}</div>
         </div>
       </div>
@@ -711,7 +711,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
           return;
         }
       }
-      toast.success("Notice entry updated.");
+      toast.success("Accomplished Notices entry updated.");
       onSaved();
       onOpenChange(false);
     } finally {
@@ -733,7 +733,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             </div>
             <div>
               <DialogTitle className="text-base font-bold">
-                Notice Accomplishment Editor
+                Accomplished Notices Editor
               </DialogTitle>
               <DialogDescription>
                 {record.stationname ? `${record.stationname} · ` : ""}
@@ -833,12 +833,12 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             periodLabel={`${monthName} ${year}`}
           />
 
-          {/* Daily Notice Details ------------------------------------------- */}
+          {/* Daily Accomplished Notices Details ------------------------------------------- */}
           <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <SectionTitle
-                title="Daily Notice Details"
-                subtitle="Notice accomplishment per day"
+                title="Daily Accomplished Notices Details"
+                subtitle="Accomplished Notices per day"
               />
               <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {monthName} {year}
@@ -886,7 +886,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                         MONITORING_THEME.headerGroup,
                       )}
                     >
-                      Other Notices
+                      Other Accomplished Notices
                     </th>
                     <th
                       rowSpan={2}

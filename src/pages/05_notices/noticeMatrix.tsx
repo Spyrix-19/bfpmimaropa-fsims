@@ -156,7 +156,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               <LayoutGrid className="h-4 w-4" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold">Accomplished Notice Matrix</DialogTitle>
+              <DialogTitle className="text-lg font-bold">Accomplished Notices Matrix</DialogTitle>
               <p className="text-xs text-muted-foreground">
                 Manual and FSIS issuance — {record.reportYear}
               </p>

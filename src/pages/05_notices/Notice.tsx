@@ -699,7 +699,7 @@ export default function AccomplishedNotice() {
         toast.error(error || "Unable to delete notice ledger.");
         return;
       }
-      toast.success("Notice ledger deleted.");
+      toast.success("Accomplished Notices ledger deleted.");
       setDeleteTarget(null);
       refresh();
     } finally {
@@ -803,10 +803,10 @@ export default function AccomplishedNotice() {
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5 text-primary" />
-            Accomplished Notice
+            Accomplished Notices
           </h1>
           <p className="text-xs text-muted-foreground">
-            Notice accomplishments grouped by station, month, and year.
+            Accomplished Notices grouped by station, month, and year.
           </p>
         </div>
         <div
@@ -833,11 +833,11 @@ export default function AccomplishedNotice() {
             }}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
-            <LayoutGrid className="h-4 w-4" /> Notice Matrix
+            <LayoutGrid className="h-4 w-4" /> Accomplished Notices Matrix
           </Button>
           {canManage && (
             <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
-              <Plus className="h-4 w-4" /> Add Notice
+              <Plus className="h-4 w-4" /> Add Accomplished Notice
             </Button>
           )}
         </div>
@@ -907,7 +907,7 @@ export default function AccomplishedNotice() {
       <SecureDeleteDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
-        title="Delete Notice Ledger?"
+        title="Delete Accomplished Notices Ledger?"
         subject={
           deleteTarget ? (
             <>
@@ -1084,7 +1084,7 @@ function NoticeLedgerCard({
                     colSpan={NOTICE_CATEGORIES.length}
                     className={`${headCell} sticky top-0 z-30`}
                   >
-                    Notices
+                    Accomplished Notices
                   </th>
                 </tr>
                 <tr>
@@ -1197,8 +1197,8 @@ function NoticeLedgerCard({
         <button
           type="button"
           onClick={onMatrix}
-          aria-label="Notice Matrix"
-          title="Notice Matrix"
+          aria-label="Accomplished Notices Matrix"
+          title="Accomplished Notices Matrix"
           className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
         >
           <LayoutGrid className="h-4 w-4" />

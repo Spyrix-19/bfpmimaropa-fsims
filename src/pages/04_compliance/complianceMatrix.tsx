@@ -1025,7 +1025,7 @@ function MatrixHeader({
   catSpan: number;
 }) {
   const CATS = computeCategoryRuns().map((r) => ({
-    label: r.category,
+    label: r.category === "NOTICES" ? "ISSUED NOTICES" : r.category,
     span: r.end - r.start + 1,
     cls: CATEGORY_STYLE[r.category],
   }));

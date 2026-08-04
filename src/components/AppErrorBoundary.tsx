@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { isStoredSuperAdmin } from "@/lib/auth";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -50,9 +51,11 @@ export class AppErrorBoundary extends Component<Props, State> {
           <p className="mt-2 text-sm text-muted-foreground">
             The page failed to load. Try again, or reload the app to fetch the latest version.
           </p>
-          <pre className="mt-4 max-h-32 overflow-auto rounded-md bg-muted p-3 text-left text-xs text-muted-foreground">
-            {error.message}
-          </pre>
+          {isStoredSuperAdmin() && (
+            <pre className="mt-4 max-h-32 overflow-auto rounded-md bg-muted p-3 text-left text-xs text-muted-foreground">
+              {error.message}
+            </pre>
+          )}
           <div className="mt-5 flex justify-center gap-3">
             <button
               type="button"

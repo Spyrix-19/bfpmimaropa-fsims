@@ -493,7 +493,7 @@ function InlineAccomplishmentPanel({
 
 /**
  * Read-only monthly overview mirroring the Edit table:
- *  - Two rows per day (MANUAL / FSIS) for FSEC, FSIC, and Other Notices.
+ *  - Two rows per day (MANUAL / FSIS) for FSEC, FSIC, and Issued Notices.
  *  - Inspection, Total, and Remarks columns are merged across the two rows
  *    (rowSpan=2) so the day's values represent the combined MANUAL + FSIS
  *    output.
@@ -818,7 +818,7 @@ function ComplianceViewBody({
                   colSpan={5}
                   className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
                 >
-                  Other Notices
+                  Issued Notices
                 </th>
                 <th
                   rowSpan={3}

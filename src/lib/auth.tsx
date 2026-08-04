@@ -334,6 +334,19 @@ function readStoredSession(): StoredSession | null {
   }
 }
 
+/**
+ * Storage-only super admin check. Safe to call outside the AuthProvider tree
+ * (e.g. from the top-level error boundary, which renders when React unmounts).
+ */
+export function isStoredSuperAdmin(): boolean {
+  try {
+    const stored = readStoredSession();
+    return (stored?.user?.systemaccess?.rolecode || "").toUpperCase() === SUPER;
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [pendingMember, setPendingMember] = useState<AuthMemberModel | null>(null);

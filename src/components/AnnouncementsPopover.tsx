@@ -38,7 +38,8 @@ import {
  * Announcements — its own top-nav popover, separate from notifications.
  *
  * Data currently comes from the centralized announcement mock store
- * (`src/mock/announcements.mock.ts`) until the backend exposes an endpoint.
+ * (`src/mock/announcements.mock.ts`), which starts empty until the backend
+ * exposes an announcement endpoint.
  *
  * Permissions:
  * - Create: Super Administrator (roleno 1) or Administrator (roleno 2) whose

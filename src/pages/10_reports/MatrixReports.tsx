@@ -130,7 +130,7 @@ const CAT_OPTIONS: { value: ComplianceCategoryKey; label: string }[] = [
   { value: "INSPECTION", label: "Inspection" },
   { value: "FSEC", label: "FSEC" },
   { value: "FSIC", label: "FSIC" },
-  { value: "NOTICES", label: "Notices" },
+  { value: "NOTICES", label: "Issued Notices" },
   { value: "OVERALL", label: "Overall Summary" },
 ];
 

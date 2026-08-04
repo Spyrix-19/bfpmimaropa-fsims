@@ -1212,7 +1212,7 @@ function ComplianceEditBody({
                   colSpan={5}
                   className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
                 >
-                  Other Notices
+                  Issued Notices
                 </th>
                 <th
                   rowSpan={3}

@@ -1548,7 +1548,7 @@ function IssuanceTable({
       subHeadClass: MONITORING_THEME.headerSoft,
     },
     {
-      title: "NOTICES",
+      title: "ISSUED NOTICES",
       fields: OTHERS_FIELDS,
       headClass: MONITORING_THEME.headerGroup,
       subHeadClass: MONITORING_THEME.headerSoft,

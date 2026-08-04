@@ -1,10 +1,11 @@
 import * as React from "react";
 
 /**
- * Centralized announcement mock store.
+ * Centralized announcement store.
  *
  * TEMPORARY: the backend has no announcement endpoint yet, so announcements
- * live in this single in-memory store. Every screen reads/writes through
+ * live in this single in-memory store. It contains NO sample data — it starts
+ * empty and only holds what users create in this session. Every screen reads/writes through
  * `useAnnouncementStore()` so swapping this file for a real API later touches
  * nothing else.
  */
@@ -62,28 +63,8 @@ export function canModifyAnnouncement(
 // Store
 // ---------------------------------------------------------------------------
 
-const seed: AnnouncementRecord[] = [
-  {
-    announcementno: "ann-seed-1",
-    title: "Q3 inspection targets released",
-    message:
-      "Provincial targets for the third quarter are now published. Coordinate with your station focal person for the breakdown per sector.",
-    createdbyno: "seed-national",
-    createdbyname: "FSIMS National Office",
-    stationname: "National Headquarters",
-    dateposted: "2026-07-24T08:15:00.000Z",
-  },
-  {
-    announcementno: "ann-seed-2",
-    title: "System maintenance advisory",
-    message:
-      "FSIMS will be briefly unavailable on Aug 02, 2026 from 11:00 PM to 12:30 AM for scheduled maintenance.",
-    createdbyno: "seed-regional",
-    createdbyname: "Regional Office MIMAROPA",
-    stationname: "Regional Office MIMAROPA",
-    dateposted: "2026-07-27T02:00:00.000Z",
-  },
-];
+/** No seeded/sample announcements — the store starts empty. */
+const seed: AnnouncementRecord[] = [];
 
 let records: AnnouncementRecord[] = [...seed];
 const listeners = new Set<() => void>();
@@ -146,7 +127,7 @@ const store = {
   },
 };
 
-/** React binding for the mock store. */
+/** React binding for the in-memory store. */
 export function useAnnouncementStore() {
   const items = React.useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   return {

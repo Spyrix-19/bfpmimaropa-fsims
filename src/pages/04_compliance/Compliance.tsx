@@ -991,7 +991,7 @@ const ISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
     ],
   },
   {
-    title: "Notices",
+    title: "Issued Notices",
     cols: [
       { key: "nodcount", label: "NOD" },
       { key: "ntccount", label: "NTC" },

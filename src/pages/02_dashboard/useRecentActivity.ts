@@ -20,7 +20,7 @@ import type { JournalModel } from "@/types/journalType";
 const POLL_INTERVAL_MS = 60_000;
 const PAGE_SIZE = 5;
 
-export function useRecentActivity() {
+export function useRecentActivity(enabled = true) {
   const [items, setItems] = React.useState<JournalModel[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -74,6 +74,14 @@ export function useRecentActivity() {
   const refresh = React.useCallback(() => setRefreshKey((k) => k + 1), []);
 
   React.useEffect(() => {
+    // Signed-out visitors never see (or fetch) the activity feed.
+    if (!enabled) {
+      setItems([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     const controller = new AbortController();
     void fetchLatest(controller.signal);
 
@@ -86,7 +94,7 @@ export function useRecentActivity() {
       window.clearInterval(timer);
       controller.abort();
     };
-  }, [fetchLatest, refreshKey]);
+  }, [fetchLatest, refreshKey, enabled]);
 
   return { activity: items, loading, error, refresh };
 }

@@ -57,7 +57,7 @@ export interface ComplianceModeBucket {
   fsis: ComplianceBucket;
 }
 
-const ISSUANCE_LABELS: string[] = ["FSEC", "FSIC", "Notices"];
+const ISSUANCE_LABELS: string[] = ["FSEC", "FSIC", "Issued Notices"];
 const MODE_LABELS: string[] = ["MANUAL", "FSIS"];
 const COLS_PER_PERIOD = 1 + ISSUANCE_LABELS.length * MODE_LABELS.length;
 const MODE_MANUAL = 96;
