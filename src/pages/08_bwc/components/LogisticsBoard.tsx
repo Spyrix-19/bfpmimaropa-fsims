@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Building2, Download, Eye, LayoutGrid, Plus } from "lucide-react";
+import { Download, Eye, LayoutGrid, Plus } from "lucide-react";
+import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,9 +40,12 @@ interface Props<T extends StationInfo> {
 function StationHeading({ station }: { station: StationInfo }) {
   return (
     <div className="flex min-w-0 items-start gap-2.5">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border/60 bg-muted/50">
-        <Building2 className="h-4 w-4 text-muted-foreground" />
-      </div>
+      <AvatarWithFallback
+        name={station.stationname}
+        src={station.logourl ?? null}
+        alt={station.stationname}
+        className="h-9 w-9 shrink-0 border border-border/60"
+      />
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold leading-tight">{station.stationname}</div>
         <div className="truncate text-xs font-medium text-primary">{station.unitcode}</div>
