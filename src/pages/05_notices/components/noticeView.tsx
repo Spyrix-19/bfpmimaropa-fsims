@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Building2, Lock, Table2, Target } from "lucide-react";
+import { Building2, CalendarIcon, Lock, Table2, Target } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -94,16 +94,27 @@ function SectionTitle({
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
+function ReadOnlyField({
+  label,
+  value,
+  required,
+}: {
+  label: string;
+  value: string;
+  required?: boolean;
+}) {
   return (
     <div className="space-y-1.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium text-muted-foreground">
+        {label} {required && <span className="text-destructive">*</span>}
+      </span>
       <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
         <span className="truncate">{value || "—"}</span>
       </div>
     </div>
   );
 }
+
 
 function Dot({ color }: { color: string }) {
   return (
@@ -357,16 +368,37 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5">
-          {/* Station Information ------------------------------------------- */}
-          <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <ReadOnlyField label="Station" value={record.stationname} />
-              <ReadOnlyField label="Province" value={record.provincename || record.province} />
-              <ReadOnlyField label="Reporting Month" value={String(monthName)} />
-              <ReadOnlyField label="Reporting Year" value={String(year)} />
+          {/* Reporting Period ---------------------------------------------- */}
+          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+            <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
+            <div className="grid grid-cols-1 gap-4 sm:max-w-md">
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Reporting Period As Of <span className="text-destructive">*</span>
+                </span>
+                <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <span className="truncate">
+                    {monthName} {year}
+                  </span>
+                </div>
+              </div>
             </div>
           </Card>
+
+          {/* Station Information ------------------------------------------- */}
+          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ReadOnlyField
+                label="Province"
+                required
+                value={record.provincename || record.province}
+              />
+              <ReadOnlyField label="Station" required value={record.stationname} />
+            </div>
+          </Card>
+
 
           {/* Issued vs. Accomplished ---------------------------------------- */}
           <NoticeAccomplishmentPanel days={days} periodLabel={`${monthName} ${year}`} />

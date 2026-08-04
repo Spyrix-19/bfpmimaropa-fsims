@@ -1,7 +1,5 @@
 import * as React from "react";
 import { BellRing, Eye, LayoutGrid, Loader2, CalendarDays, Plus, Download, ClipboardCheck } from "lucide-react";
-import ExcelJS from "exceljs";
-import { saveAs } from "file-saver";
 
 import { toast } from "@/lib/toast";
 import { Card } from "@/components/ui/card";
@@ -20,9 +18,15 @@ import {
   ModuleFilterBar,
   useModuleFilterState,
   resolveModuleMonths,
+  resolveSelectedDay,
   baseDate,
   isAllDays,
 } from "@/components/shared/ModuleFilterBar";
+import {
+  exportNoticeWorkbook,
+  type NoticePeriod,
+  type NoticeExportRecord,
+} from "./components/noticeExport";
 import PaginationControls from "@/components/pagination";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import EditButton from "@/components/edit-button";
@@ -435,6 +439,12 @@ export default function AccomplishedNotice() {
   const monthKey = selectedMonths.join(",");
 
   /** Backend interval code: 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual. */
+  /** Workbook period label — mirrors the Fire Safety Compliance export contract. */
+  const exportPeriod: NoticePeriod =
+    filterState.interval === "SEMESTER"
+      ? "SEMI-ANNUAL"
+      : (filterState.interval as NoticePeriod);
+
   const intervalCode = React.useMemo(() => {
     switch (filterState.interval) {
       case "DAILY":
@@ -625,78 +635,68 @@ export default function AccomplishedNotice() {
   };
 
   const handleExport = async () => {
-    if (paged.length === 0) {
-      toast.info("No notice records to export.");
-      return;
-    }
     setExporting(true);
     try {
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = "FSIMS";
-      workbook.created = new Date();
-      const worksheet = workbook.addWorksheet(`Notice ${year}`);
-      worksheet.columns = [
-        { header: "Station Code", key: "stationCode", width: 16 },
-        { header: "Station Name", key: "stationName", width: 32 },
-        { header: "Province", key: "province", width: 22 },
-        { header: "Municipality", key: "municipality", width: 22 },
-        { header: "Year", key: "year", width: 10 },
-        { header: "Period", key: "period", width: 22 },
-        { header: "Mode", key: "mode", width: 12 },
-        ...NOTICE_CATEGORIES.map((category) => ({
-          header: CATEGORY_LABEL[category],
-          key: category,
-          width: 14,
-        })),
-        { header: "Total", key: "total", width: 12 },
-      ];
+      // Use the exact same ledger request as the table, but unpaginated so
+      // every station is plotted into the workbook.
+      const response = await noticeAPI.getLedger(
+        {
+          parameters: {
+            searchkey: "",
+            reportyear: Number(year),
+            interval: intervalCode,
+            dateaccomplish: allDates ? "" : `${selectedDateISO}T00:00:00`,
+            reportmonth: [...selectedMonths],
+            provinces: JSON.parse(locationParamsKey) as NoticeParamClass[],
+          } as NoticeModel,
+          pagenumber: 1,
+          pagesize: Math.max(Number(total) || 0, 10000),
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
 
-      for (const record of paged) {
-        for (const line of record.lines) {
-          for (const mode of ["MANUAL", "FSIS"] as const) {
-            const counts = mode === "MANUAL" ? line.manual : line.fsis;
-            const categoryRow: Record<string, number> = {};
-            let lineTotal = 0;
-            for (const category of NOTICE_CATEGORIES) {
-              categoryRow[category] = counts[category];
-              lineTotal += counts[category];
-            }
-            worksheet.addRow({
-              stationCode: record.stationcode,
-              stationName: record.stationname,
-              province: record.province,
-              municipality: record.municipality,
-              year: record.reportYear,
-              period: line.label,
-              mode,
-              ...categoryRow,
-              total: lineTotal,
-            });
-          }
-        }
+
+      const { ok, data, error } = unwrap<NoticeLedgerResultModel | NoticeDetailModel[]>(response);
+      if (!ok) {
+        toast.error(error || "Unable to export notice records.");
+        return;
       }
 
-      worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
-        row.eachCell((cell, columnNumber) => {
-          if (columnNumber >= 8) {
-            cell.numFmt = "#,##0;(#,##0);-";
-            cell.alignment = { horizontal: "right" };
-          }
-        });
-      });
+      const exportRows = Array.isArray(data)
+        ? data
+        : Array.isArray((data as NoticeLedgerResultModel | null)?.items)
+          ? (data as NoticeLedgerResultModel).items
+          : [];
+      if (exportRows.length === 0) {
+        toast.info("No notice records to export.");
+        return;
+      }
 
-      const buffer = await workbook.xlsx.writeBuffer();
-      saveAs(
-        new Blob([buffer], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }),
-        `Notice_${year}.xlsx`,
-      );
-      toast.success("Notice exported.");
+      await exportNoticeWorkbook({
+        year: Number(year),
+        groups: exportRows.map((row) => ({
+          province: row.provincename ?? "",
+          stationCode: row.stationcode ?? "",
+          stationName: row.stationname ?? "",
+          noticelist: (Array.isArray(row.noticedetallist)
+            ? row.noticedetallist
+            : []) as NoticeExportRecord[],
+        })),
+        interval: exportPeriod,
+        selectedMonths,
+        quarter: filterState.quarter,
+        semester: filterState.semester,
+        selectedDay: resolveSelectedDay(filterState),
+        signatory: {
+          rank: user?.rankcode ?? user?.rankname ?? "",
+          fullname: user?.fullname ?? user?.name ?? "",
+          designation: user?.designation ?? "",
+        },
+      });
+      toast.success("Accomplished Notices exported.");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to export Notice.");
+      toast.error("Failed to export Accomplished Notices.");
     } finally {
       setExporting(false);
     }

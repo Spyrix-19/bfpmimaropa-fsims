@@ -3,6 +3,7 @@ import {
   AlertCircle,
   Ban,
   Building2,
+  CalendarIcon,
   FilePen,
   Loader2,
   Lock,
@@ -159,16 +160,27 @@ function SectionTitle({
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
+function ReadOnlyField({
+  label,
+  value,
+  required,
+}: {
+  label: string;
+  value: string;
+  required?: boolean;
+}) {
   return (
     <div className="space-y-1.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium text-muted-foreground">
+        {label} {required && <span className="text-destructive">*</span>}
+      </span>
       <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
         <span className="truncate">{value || "—"}</span>
       </div>
     </div>
   );
 }
+
 
 function Dot({ color }: { color: string }) {
   return (
@@ -629,16 +641,17 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
           noValidate
           className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5"
         >
-          {/* Station Information ------------------------------------------- */}
-          <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <ReadOnlyField label="Station" value={record.stationname} />
-              <ReadOnlyField label="Province" value={record.provincename || record.province} />
+          {/* Reporting Period ---------------------------------------------- */}
+          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+            <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:max-w-2xl">
               <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Reporting Month</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  Reporting Month <span className="text-destructive">*</span>
+                </span>
                 <Select value={String(month)} onValueChange={(v) => changePeriod(Number(v), year)}>
                   <SelectTrigger className="h-10 w-full">
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -651,9 +664,12 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Reporting Year</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  Reporting Year <span className="text-destructive">*</span>
+                </span>
                 <Select value={String(year)} onValueChange={(v) => changePeriod(month, Number(v))}>
                   <SelectTrigger className="h-10 w-full">
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -667,6 +683,20 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
               </div>
             </div>
           </Card>
+
+          {/* Station Information ------------------------------------------- */}
+          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+            <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ReadOnlyField
+                label="Province"
+                required
+                value={record.provincename || record.province}
+              />
+              <ReadOnlyField label="Station" required value={record.stationname} />
+            </div>
+          </Card>
+
 
           {/* Issued vs. Accomplished ---------------------------------------- */}
           <NoticeAccomplishmentPanel days={days} periodLabel={`${monthName} ${year}`} />
