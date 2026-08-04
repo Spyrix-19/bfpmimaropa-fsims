@@ -8,6 +8,8 @@ import FilterField from "@/components/filter-field";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+import { resolveLocationScope, useAuth } from "@/lib/auth";
+import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
@@ -75,7 +77,37 @@ export default function InspectorLedger({
   const [searchkey, setSearchkey] = React.useState("");
   const [selectedProvinces, setSelectedProvinces] = React.useState<SelectedLocation[]>([]);
   const [selectedStations, setSelectedStations] = React.useState<SelectedStation[]>([]);
+  const { user, systemAccess } = useAuth();
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
+
+  const scope = React.useMemo(
+    () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
+
+  React.useEffect(() => {
+    if (scope.provinceLocked && scope.provinceno) {
+      const locked: SelectedLocation = {
+        locationno: scope.provinceno,
+        locationname: scope.provincename,
+      };
+      const same =
+        selectedProvinces.length === 1 && selectedProvinces[0].locationno === locked.locationno;
+      if (!same) setSelectedProvinces([locked]);
+    }
+
+    if (scope.stationLocked && scope.stationno) {
+      const locked: SelectedStation = {
+        stationno: scope.stationno,
+        stationname: scope.stationname,
+        provinceno: scope.provinceno,
+        provincename: scope.provincename,
+      };
+      const same =
+        selectedStations.length === 1 && selectedStations[0].stationno === locked.stationno;
+      if (!same) setSelectedStations([locked]);
+    }
+  }, [scope.provinceLocked, scope.provinceno, scope.provincename, scope.stationLocked, scope.stationno, scope.stationname, scope.provincename, selectedProvinces, selectedStations]);
 
   const filtered = React.useMemo(() => {
     const key = searchkey.trim().toLowerCase();
@@ -104,6 +136,32 @@ export default function InspectorLedger({
     setSearchkey("");
     setSelectedProvinces([]);
     setSelectedStations([]);
+    setPage(1);
+  };
+
+  const handleProvincesChange = (next: SelectedLocation[]) => {
+    if (next.length === 0) {
+      setSelectedProvinces([]);
+      setSelectedStations([]);
+      setPage(1);
+      return;
+    }
+    const allowed = new Set(next.map((p) => p.locationno));
+    setSelectedProvinces(next);
+    setSelectedStations((prev) => prev.filter((s) => allowed.has(s.provinceno)));
+    setPage(1);
+  };
+
+  const handleStationsChange = (next: SelectedStation[]) => {
+    const merged = [...selectedProvinces];
+    const known = new Set(merged.map((p) => p.locationno));
+    next.forEach((s) => {
+      if (!s.provinceno || known.has(s.provinceno)) return;
+      known.add(s.provinceno);
+      merged.push({ locationno: s.provinceno, locationname: s.provincename });
+    });
+    setSelectedProvinces(merged);
+    setSelectedStations(next);
     setPage(1);
   };
 
@@ -184,33 +242,43 @@ export default function InspectorLedger({
             />
           </FilterField>
           <FilterField label="Province">
-            <LocationMultiSelect
-              mode="location"
-              value={selectedProvinces}
-              locationtype="PROVINCE"
-              parentcode={MIMAROPA_REGION_CODE}
-              onChange={(next) => {
-                setSelectedProvinces(next);
-                setPage(1);
-              }}
-              placeholder="All provinces"
-              hideCode
-              className="w-full"
-            />
+            {scope.provinceLocked ? (
+              <ReadOnlyField
+                value={scope.provincename || "All provinces"}
+                placeholder="All provinces"
+                title="Restricted to your assigned province"
+              />
+            ) : (
+              <LocationMultiSelect
+                mode="location"
+                value={selectedProvinces}
+                locationtype="PROVINCE"
+                parentcode={MIMAROPA_REGION_CODE}
+                onChange={handleProvincesChange}
+                placeholder="All provinces"
+                hideCode
+                className="w-full"
+              />
+            )}
           </FilterField>
           <FilterField label="Station">
-            <StationMultiSelect
-              mode="station"
-              value={selectedStations}
-              provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
-              onChange={(next) => {
-                setSelectedStations(next);
-                setPage(1);
-              }}
-              placeholder="All stations"
-              alwaysEnabled
-              className="w-full"
-            />
+            {scope.stationLocked ? (
+              <ReadOnlyField
+                value={scope.stationname || "All stations"}
+                placeholder="All stations"
+                title="Restricted to your assigned station"
+              />
+            ) : (
+              <StationMultiSelect
+                mode="station"
+                value={selectedStations}
+                provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
+                onChange={handleStationsChange}
+                placeholder="All stations"
+                alwaysEnabled
+                className="w-full"
+              />
+            )}
           </FilterField>
           <div className="flex justify-end">
             <ResetFiltersButton onReset={handleReset} />
