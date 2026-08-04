@@ -25,7 +25,7 @@ export default function EditButton({
 }: EditButtonProps) {
   // Match the original inline button used in leave.tsx: square variant
   const baseSquare =
-    "rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white group-hover:bg-primary group-hover:text-white cursor-pointer";
+    "rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer";
 
   const baseCircle =
     "inline-flex items-center justify-center h-8 w-8 rounded-full bg-card border border-border shadow-sm text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer";
