@@ -10,8 +10,6 @@ export default function FireSafetyInspectorPage() {
       icon={<ShieldCheck className="h-5 w-5 text-primary" />}
       entityLabel="Inspector"
       addLabel="Add Inspector"
-      matrixLabel="Inspector Matrix"
-      matrixTitle="Fire Safety Inspector Matrix"
       totalLabel="Total Inspectors"
       rows={MOCK_FIRE_SAFETY_INSPECTORS}
       fields={[

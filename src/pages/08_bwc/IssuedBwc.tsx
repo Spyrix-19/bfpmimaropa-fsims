@@ -10,8 +10,6 @@ export default function IssuedBwcPage() {
       icon={<Radio className="h-5 w-5 text-primary" />}
       entityLabel="BWC"
       addLabel="Add BWC"
-      matrixLabel="BWC Matrix"
-      matrixTitle="Issued BWC Matrix"
       totalLabel="Total Issued"
       rows={MOCK_ISSUED_BWC}
       fields={[

@@ -1,17 +1,13 @@
 import * as React from "react";
-import { Download, Eye, LayoutGrid, Plus } from "lucide-react";
+import { Download, Eye, Plus } from "lucide-react";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import SearchKey from "@/components/search-key";
 import FilterField from "@/components/filter-field";
+import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
+import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
+import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import ResetFiltersButton from "@/components/reset-filters-button";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
@@ -22,7 +18,6 @@ import { StatBox } from "@/components/stat-box";
 import InspectorDeleteDialog from "./InspectorDeleteDialog";
 import InspectorFormModal from "./InspectorFormModal";
 import InspectorDetailsModal from "./InspectorDetailsModal";
-import InspectorMatrixModal from "./InspectorMatrixModal";
 import { exportInspectorLedger } from "./inspectorExport";
 import type { InspectorField, InspectorRow } from "./inspectorTypes";
 import { num, rowTotal } from "./inspectorTypes";
@@ -35,8 +30,6 @@ interface Props {
   /** Singular entity label, e.g. "BWC" or "Inspector". */
   entityLabel: string;
   addLabel: string;
-  matrixLabel: string;
-  matrixTitle: string;
   totalLabel: string;
   rows: InspectorRow[];
   fields: InspectorField[];
@@ -68,8 +61,6 @@ export default function InspectorLedger({
   icon,
   entityLabel,
   addLabel,
-  matrixLabel,
-  matrixTitle,
   totalLabel,
   rows: initialRows,
   fields,
@@ -79,36 +70,29 @@ export default function InspectorLedger({
   const [formRow, setFormRow] = React.useState<InspectorRow | null>(null);
   const [viewRow, setViewRow] = React.useState<InspectorRow | null>(null);
   const [viewOpen, setViewOpen] = React.useState(false);
-  const [matrixOpen, setMatrixOpen] = React.useState(false);
   const [deleteRow, setDeleteRow] = React.useState<InspectorRow | null>(null);
   const [deleting, setDeleting] = React.useState(false);
   const [searchkey, setSearchkey] = React.useState("");
-  const [province, setProvince] = React.useState("ALL");
-  const [station, setStation] = React.useState("ALL");
+  const [selectedProvinces, setSelectedProvinces] = React.useState<SelectedLocation[]>([]);
+  const [selectedStations, setSelectedStations] = React.useState<SelectedStation[]>([]);
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
-
-  const provinces = React.useMemo(
-    () => Array.from(new Set(rows.map((r) => r.provincename))).sort(),
-    [rows],
-  );
-  const stations = React.useMemo(
-    () =>
-      rows
-        .filter((r) => province === "ALL" || r.provincename === province)
-        .map((r) => r.stationname)
-        .sort(),
-    [rows, province],
-  );
 
   const filtered = React.useMemo(() => {
     const key = searchkey.trim().toLowerCase();
+    const provinceNames = new Set(selectedProvinces.map((p) => p.locationname.toLowerCase()));
+    const stationNames = new Set(selectedStations.map((s) => s.stationname.toLowerCase()));
+
     return rows.filter((r) => {
-      if (province !== "ALL" && r.provincename !== province) return false;
-      if (station !== "ALL" && r.stationname !== station) return false;
+      if (selectedProvinces.length > 0 && !provinceNames.has(r.provincename.toLowerCase())) {
+        return false;
+      }
+      if (selectedStations.length > 0 && !stationNames.has(r.stationname.toLowerCase())) {
+        return false;
+      }
       if (!key) return true;
       return `${r.stationname} ${r.cityname} ${r.provincename}`.toLowerCase().includes(key);
     });
-  }, [rows, searchkey, province, station]);
+  }, [rows, searchkey, selectedProvinces, selectedStations]);
 
   const total = filtered.length;
   const paged = React.useMemo(
@@ -118,8 +102,8 @@ export default function InspectorLedger({
 
   const handleReset = () => {
     setSearchkey("");
-    setProvince("ALL");
-    setStation("ALL");
+    setSelectedProvinces([]);
+    setSelectedStations([]);
     setPage(1);
   };
 
@@ -172,20 +156,13 @@ export default function InspectorLedger({
           </h1>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
-        <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
           <Button
             variant="outline"
             onClick={() => exportInspectorLedger(filtered, fields, totalLabel, title)}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
             <Download className="h-4 w-4" /> Export
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setMatrixOpen(true)}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-          >
-            <LayoutGrid className="h-4 w-4" /> {matrixLabel}
           </Button>
           <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
             <Plus className="h-4 w-4" /> {addLabel}
@@ -207,47 +184,33 @@ export default function InspectorLedger({
             />
           </FilterField>
           <FilterField label="Province">
-            <Select
-              value={province}
-              onValueChange={(v) => {
-                setProvince(v);
-                setStation("ALL");
+            <LocationMultiSelect
+              mode="location"
+              value={selectedProvinces}
+              locationtype="PROVINCE"
+              parentcode={MIMAROPA_REGION_CODE}
+              onChange={(next) => {
+                setSelectedProvinces(next);
                 setPage(1);
               }}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="All Provinces" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Provinces</SelectItem>
-                {provinces.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="All provinces"
+              hideCode
+              className="w-full"
+            />
           </FilterField>
           <FilterField label="Station">
-            <Select
-              value={station}
-              onValueChange={(v) => {
-                setStation(v);
+            <StationMultiSelect
+              mode="station"
+              value={selectedStations}
+              provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
+              onChange={(next) => {
+                setSelectedStations(next);
                 setPage(1);
               }}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="All Stations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Stations</SelectItem>
-                {stations.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="All stations"
+              alwaysEnabled
+              className="w-full"
+            />
           </FilterField>
           <div className="flex justify-end">
             <ResetFiltersButton onReset={handleReset} />
@@ -319,15 +282,6 @@ export default function InspectorLedger({
         totalLabel={totalLabel}
         icon={icon}
         onEdit={() => viewRow && openEdit(viewRow)}
-      />
-
-      <InspectorMatrixModal
-        open={matrixOpen}
-        onOpenChange={setMatrixOpen}
-        title={matrixTitle}
-        totalLabel={totalLabel}
-        fields={fields}
-        rows={rows}
       />
 
       <InspectorDeleteDialog
