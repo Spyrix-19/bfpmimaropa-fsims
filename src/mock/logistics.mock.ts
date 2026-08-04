@@ -10,6 +10,7 @@ export interface StationInfo {
   unitcode: string;
   provincename: string;
   cityname: string;
+  logourl?: string | null;
 }
 
 export interface IssuedBwcRow extends StationInfo {
