@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Eye, Loader2, Target } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Eye, Loader2, Lock, RotateCcw, Target } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -36,9 +36,8 @@ import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { CATEGORY_FIELDS } from "@/lib/complianceHelpers";
-import { cn } from "@/lib/utils";
+import { cn, buildYears } from "@/lib/utils";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
-import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import type { ComplianceDailyCounts } from "@/types/complianceType";
 import type {
   FSISComplianceMonthlyLedgerModel,
@@ -512,9 +511,22 @@ function ComplianceViewBody({
     if (initialMonth && initialMonth >= 1 && initialMonth <= 12) return initialMonth;
     return new Date().getMonth() + 1;
   });
+  const [selectedYear, setSelectedYear] = React.useState<number>(year || new Date().getFullYear());
   const [loading, setLoading] = React.useState(true);
   const [station, setStation] = React.useState<FSISComplianceMonthlyLedgerModel | null>(null);
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
+
+  const YEAR_OPTIONS = React.useMemo(buildYears, []);
+  const baseMonth =
+    initialMonth && initialMonth >= 1 && initialMonth <= 12
+      ? initialMonth
+      : new Date().getMonth() + 1;
+  const isPeriodChanged = selectedMonth !== baseMonth || selectedYear !== year;
+
+  React.useEffect(() => {
+    setSelectedMonth(baseMonth);
+    setSelectedYear(year || new Date().getFullYear());
+  }, [baseMonth, year]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -542,7 +554,7 @@ function ComplianceViewBody({
       const resp = await complianceAPI.getDetail(
         {
           stationno: stationno || EMPTY_GUID,
-          reportyear: year,
+          reportyear: selectedYear,
           reportmonth: selectedMonth,
         },
         { suppressGlobalLoading: true },
@@ -573,7 +585,7 @@ function ComplianceViewBody({
               streetaddress: "",
               logourl: String(first?.logourl ?? ""),
               month: selectedMonth,
-              year,
+              year: selectedYear,
               totaltargetbplo: 0,
               totaltargetgov: 0,
               totaltargetpeza: 0,
@@ -624,11 +636,11 @@ function ComplianceViewBody({
     return () => {
       cancelled = true;
     };
-  }, [stationno, provinceno, year, selectedMonth]);
+  }, [stationno, provinceno, selectedYear, selectedMonth]);
 
   const slices = React.useMemo<DaySlice[]>(
-    () => buildSlices(station?.complianceLedgerList, year, selectedMonth),
-    [station, year, selectedMonth],
+    () => buildSlices(station?.complianceLedgerList, selectedYear, selectedMonth),
+    [station, selectedYear, selectedMonth],
   );
 
   /**
@@ -686,18 +698,37 @@ function ComplianceViewBody({
         provinceName={station?.provincename}
       />
 
-      <Card className="border-border/60 p-4 shadow-soft">
-        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Month
-            </label>
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <CalendarIcon className="h-4 w-4" />
+            Reporting Period
+          </h2>
+          {isPeriodChanged && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedMonth(baseMonth);
+                setSelectedYear(year || new Date().getFullYear());
+              }}
+              className="h-8 gap-1.5 text-xs"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset to {MONTHS[baseMonth - 1]?.name} {year}
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Month</span>
             <Select
               value={String(selectedMonth)}
               onValueChange={(v) => setSelectedMonth(Number(v))}
             >
-              <SelectTrigger className="h-10">
-                <SelectValue />
+              <SelectTrigger className="h-10 w-full">
+                <SelectValue placeholder="Select month" />
               </SelectTrigger>
               <SelectContent>
                 {MONTHS.map((m) => (
@@ -708,17 +739,29 @@ function ComplianceViewBody({
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Year
-            </label>
-            <ReadOnlyField value={year} title="Year is locked to the selected ledger record" />
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Year</span>
+            <Select
+              value={String(selectedYear)}
+              onValueChange={(v) => setSelectedYear(Number(v))}
+            >
+              <SelectTrigger className="h-10 w-full">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {YEAR_OPTIONS.map((yr) => (
+                  <SelectItem key={yr} value={String(yr)}>
+                    {yr}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         <InlineAccomplishmentPanel
           rows={accomplishmentRows}
-          periodLabel={`${MONTHS[selectedMonth - 1]?.name ?? ""} ${year}`}
+          periodLabel={`${MONTHS[selectedMonth - 1]?.name ?? ""} ${selectedYear}`}
         />
       </Card>
 
@@ -1111,16 +1154,28 @@ export function ComplianceViewModal({
         onInteractOutside={(e) => e.preventDefault()}
         className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
-        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
-          <DialogTitle className="flex items-center gap-2 text-base font-bold">
-            <Eye className="h-5 w-5 text-primary" /> Fire Safety Compliance — Daily Details
-          </DialogTitle>
-          <DialogDescription>
-            {stationName ? `${stationName} · ` : ""}
-            {year} — read-only day-by-day breakdown for the selected month.
-          </DialogDescription>
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-primary/10 p-2">
+              <Eye className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-bold">
+                Fire Safety Compliance — Daily Details
+              </DialogTitle>
+              <DialogDescription>
+                {stationName ? `${stationName} · ` : ""}
+                {month ? `${MONTHS[month - 1]?.name ?? ""} ` : ""}
+                {year}
+              </DialogDescription>
+              <p className="mt-1 text-[11px] text-muted-foreground/90">
+                <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                View only — values are displayed as recorded and cannot be modified here.
+              </p>
+            </div>
+          </div>
         </DialogHeader>
-        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5">
           {open ? (
             <ComplianceViewBody stationno={stationno} year={year} initialMonth={month} />
           ) : null}

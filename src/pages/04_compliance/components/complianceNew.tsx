@@ -906,7 +906,9 @@ function InspectionsNewBody({
           </Field>
         </div>
 
+        <PastDatesLockedNote />
       </Card>
+
 
       {/* 2. Station Information -------------------------------------------- */}
       <StationInfoCard
@@ -1394,7 +1396,8 @@ export default function InspectionsNew() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance Entry</h1>
           <p className="text-sm text-muted-foreground">
-            Record fire safety compliance accomplishments per station and reporting period.
+            Record fire safety compliance accomplishments per station and reporting period  — monthly, quarterly, semi-annual, and annual totals are
+              auto-computed.
           </p>
         </div>
       </div>
@@ -1442,7 +1445,7 @@ export function InspectionsNewModal({
               <DialogDescription>
                 Select a reporting period and station, then encode daily accomplishments.
               </DialogDescription>
-              <PastDatesLockedNote className="mt-1" />
+              
             </div>
           </div>
         </DialogHeader>

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Building2, CalendarIcon, Lock, Table2, Target } from "lucide-react";
+import { Building2, CalendarIcon, Lock, RotateCcw, Table2, Target } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -23,7 +23,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import { cn, buildYears } from "@/lib/utils";
 import { MONTHS } from "@/lib/fsims-constants";
 import { calendarDaysInMonth } from "@/lib/complianceHelpers";
 import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceTheme";
@@ -301,12 +309,27 @@ interface NoticeViewModalProps {
   record: NoticeRecord | null;
 }
 
+const YEAR_OPTIONS = buildYears();
+
 export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalProps) {
+  const [viewMonth, setViewMonth] = React.useState<number>(record?.reportMonth ?? 1);
+  const [viewYear, setViewYear] = React.useState<number>(record?.reportYear ?? new Date().getFullYear());
+
+  // Reset to the record's period whenever a new record is opened.
+  React.useEffect(() => {
+    if (record) {
+      setViewMonth(record.reportMonth);
+      setViewYear(record.reportYear);
+    }
+  }, [record?.key]);
+
   const days = React.useMemo<DayRow[]>(() => {
     if (!record) return [];
-    const y = record.reportYear;
-    const m = record.reportMonth;
-    const byDate = new Map(record.dailyEntries.map((e) => [e.date.slice(0, 10), e]));
+    const y = viewYear;
+    const m = viewMonth;
+    const periodPrefix = `${y}-${String(m).padStart(2, "0")}`;
+    const scopedEntries = record.dailyEntries.filter((e) => e.date.startsWith(periodPrefix));
+    const byDate = new Map(scopedEntries.map((e) => [e.date.slice(0, 10), e]));
     const total = calendarDaysInMonth(y, m);
     return Array.from({ length: total }, (_, i) => {
       const day = i + 1;
@@ -325,13 +348,14 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
         modes: existing?.modes ?? { manual: emptyMode(), fsis: emptyMode() },
       };
     });
-  }, [record]);
+  }, [record, viewMonth, viewYear]);
 
   if (!record) return null;
 
-  const month = record.reportMonth;
-  const year = record.reportYear;
+  const month = viewMonth;
+  const year = viewYear;
   const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? String(month);
+  const isPeriodChanged = month !== record.reportMonth || year !== record.reportYear;
 
   const rowTotal = (entry: DayRow) =>
     NOTICE_CATEGORIES.reduce(
@@ -374,10 +398,61 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5">
           {/* Reporting Period ---------------------------------------------- */}
           <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
+            <div className="flex items-center justify-between gap-3">
+              <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
+              {isPeriodChanged && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setViewMonth(record.reportMonth);
+                    setViewYear(record.reportYear);
+                  }}
+                  className="h-8 gap-1.5 text-xs"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset to {MONTHS.find((mo) => mo.value === record.reportMonth)?.name} {record.reportYear}
+                </Button>
+              )}
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <ReadOnlyField label="Month" value={monthName} />
-              <ReadOnlyField label="Year" value={String(year)} />
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Month</span>
+                <Select
+                  value={String(viewMonth)}
+                  onValueChange={(value) => setViewMonth(Number(value))}
+                >
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((mo) => (
+                      <SelectItem key={mo.value} value={String(mo.value)}>
+                        {mo.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Year</span>
+                <Select
+                  value={String(viewYear)}
+                  onValueChange={(value) => setViewYear(Number(value))}
+                >
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {YEAR_OPTIONS.map((yr) => (
+                      <SelectItem key={yr} value={String(yr)}>
+                        {yr}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </Card>
 

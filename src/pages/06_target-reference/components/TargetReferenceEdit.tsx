@@ -974,10 +974,10 @@ export default function TargetReferenceForm({
         >
           <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
             <DialogTitle className="text-base font-bold">
-              {isEdit ? "Edit Target Reference" : "Add Target Reference"}
+              {isEdit ? "Edit Target Reference" : "Target Reference Entry"}
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
-              Encode daily targets — monthly, quarterly, semi-annual, and annual totals are
+              Record target references per station and reporting period — monthly, quarterly, semi-annual, and annual totals are
               auto-computed.
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground/90">

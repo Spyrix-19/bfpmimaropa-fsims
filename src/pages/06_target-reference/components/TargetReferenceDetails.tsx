@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Loader2, X } from "lucide-react";
+import {
+  Building2,
+  Calendar as CalendarIcon,
+  Loader2,
+  Lock,
+  RotateCcw,
+  X,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import StationInfoCard from "@/components/station-info-card";
@@ -121,12 +130,16 @@ export default function TargetReferenceDetails({
     };
   }, [open, target, selectedYear, selectedMonth]);
 
+  const baseYear = target?.reportyear ?? new Date().getFullYear();
+  const baseMonth = month || new Date().getMonth() + 1;
+  const isPeriodChanged = selectedMonth !== baseMonth || selectedYear !== baseYear;
+
   const dailyDerived = React.useMemo(
     () =>
       detail
-        ? computeDailyFromList(detail.targetreferencelist, target?.reportyear ?? 0, month)
+        ? computeDailyFromList(detail.targetreferencelist, selectedYear, selectedMonth)
         : null,
-    [detail, target?.reportyear, month],
+    [detail, selectedYear, selectedMonth],
   );
 
   const derived = React.useMemo(
@@ -152,10 +165,23 @@ export default function TargetReferenceDetails({
         onInteractOutside={(e) => e.preventDefault()}
         className="max-w-3xl h-[90vh] overflow-hidden min-h-0"
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Building2 className="h-4 w-4 text-primary" /> Target Reference Details
-          </DialogTitle>
+        <DialogHeader className="-mx-6 -mt-6 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-primary/10 p-2">
+              <Building2 className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-bold">Target Reference Details</DialogTitle>
+              <DialogDescription>
+                {detail?.stationname ? `${detail.stationname} · ` : ""}
+                {MONTHS[selectedMonth - 1]?.name ?? ""} {selectedYear}
+              </DialogDescription>
+              <p className="mt-1 text-[11px] text-muted-foreground/90">
+                <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                View only — values are displayed as recorded and cannot be modified here.
+              </p>
+            </div>
+          </div>
         </DialogHeader>
 
         {loading ? (
@@ -164,67 +190,79 @@ export default function TargetReferenceDetails({
           </div>
         ) : detail && derived ? (
           <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
-            <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-              <StationInfoCard
-                className="rounded-xl"
-                stationName={detail.stationname}
-                unitCode={detail.stationcode}
-                logoUrl={detail.logourl || null}
-                fields={[
-                  { label: "Station Code", value: detail.stationcode },
-                  { label: "Station Name", value: detail.stationname },
-                  { label: "Province", value: detail.provincename },
-                ]}
-              />
-
-              <div className="rounded-xl border border-border/60 bg-card p-4 shadow-soft">
-                <div className="text-sm font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                  Filter by year and month
+            <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  <CalendarIcon className="h-4 w-4" />
+                  Reporting Period
+                </h2>
+                {isPeriodChanged && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedMonth(baseMonth);
+                      setSelectedYear(baseYear);
+                    }}
+                    className="h-8 gap-1.5 text-xs"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset to {MONTHS[baseMonth - 1]?.name} {baseYear}
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Month</span>
+                  <Select
+                    value={String(selectedMonth)}
+                    onValueChange={(next) => setSelectedMonth(Number(next))}
+                  >
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((m) => (
+                        <SelectItem key={m.value} value={String(m.value)}>
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Year
-                    </div>
-                    <Select
-                      value={String(selectedYear)}
-                      onValueChange={(next) => setSelectedYear(Number(next))}
-                    >
-                      <SelectTrigger className="h-10 min-w-[120px] rounded-md border bg-background px-3 text-left text-sm">
-                        <SelectValue placeholder="Select year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {YEARS.map((yearOption) => (
-                          <SelectItem key={yearOption} value={String(yearOption)}>
-                            {yearOption}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Month
-                    </div>
-                    <Select
-                      value={String(selectedMonth)}
-                      onValueChange={(next) => setSelectedMonth(Number(next))}
-                    >
-                      <SelectTrigger className="h-10 min-w-[120px] rounded-md border bg-background px-3 text-left text-sm">
-                        <SelectValue placeholder="Select month" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MONTHS.map((m) => (
-                          <SelectItem key={m.value} value={String(m.value)}>
-                            {m.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Year</span>
+                  <Select
+                    value={String(selectedYear)}
+                    onValueChange={(next) => setSelectedYear(Number(next))}
+                  >
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YEARS.map((yearOption) => (
+                        <SelectItem key={yearOption} value={String(yearOption)}>
+                          {yearOption}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            </div>
+            </Card>
+
+            <StationInfoCard
+              className="rounded-xl"
+              stationName={detail.stationname}
+              unitCode={detail.stationcode}
+              logoUrl={detail.logourl || null}
+              fields={[
+                { label: "Station Code", value: detail.stationcode },
+                { label: "Station Name", value: detail.stationname },
+                { label: "Province", value: detail.provincename },
+              ]}
+            />
 
             <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
               <div className="border-b bg-card px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-primary">
@@ -262,7 +300,7 @@ export default function TargetReferenceDetails({
                       dailyDerived.days.map((d) => (
                         <Row
                           key={d}
-                          label={formatDayLabel(target?.reportyear ?? 0, month, d)}
+                          label={formatDayLabel(selectedYear, selectedMonth, d)}
                           b={dailyDerived.daily[d]}
                         />
                       ))}

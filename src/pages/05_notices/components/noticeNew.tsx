@@ -778,10 +778,10 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                 Notice Accomplishment Entry
               </DialogTitle>
               <DialogDescription className="text-sm">
-                Select a reporting period and station, then encode the notices accomplished
-                (complied/closed) for the day.
+                Record notice accomplishments per station and reporting period — monthly, quarterly, semi-annual, and annual totals are
+              auto-computed.
               </DialogDescription>
-              <PastDatesLockedNote className="mt-1" />
+              
             </div>
           </div>
         </DialogHeader>
@@ -837,6 +837,9 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                 </Popover>
               </Field>
             </div>
+
+            <PastDatesLockedNote />
+
 
           </Card>
 

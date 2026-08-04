@@ -53,7 +53,7 @@ import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { TargetReferenceModel, TargetReferenceParamClass } from "@/types/targetreferenceType";
 
-import TargetReferenceEdit from "./components/TargetReferenceEdit";
+import TargetReferenceEdit from "./components/TargetReferenceNew";
 import TargetReferenceDetails from "./components/TargetReferenceDetails";
 import TargetMatrixModal from "./components/TargetMatrix";
 import { exportTargetReferenceWorkbook } from "./components/targetReferenceExport";

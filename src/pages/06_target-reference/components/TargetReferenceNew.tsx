@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -29,6 +30,8 @@ import {
   AlertTriangle,
   Trash2,
   Ban,
+  Target,
+  FilePlus2,
 } from "lucide-react";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
@@ -1089,23 +1092,21 @@ export default function TargetReferenceForm({
           onInteractOutside={(e) => e.preventDefault()}
           className="max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] gap-0 overflow-y-auto overflow-x-hidden p-0 sm:rounded-xl"
         >
-          <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
-            <DialogTitle className="text-base font-bold">
-              {isEdit ? "Edit Target Reference" : "Add Target Reference"}
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              Encode daily targets — monthly, quarterly, semi-annual, and annual totals are
-              auto-computed.
-            </p>
-            <p className="mt-1 text-[11px] text-muted-foreground/90">
-              <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
-              Each month locks on the{" "}
-              <span className="font-semibold">
-                4th day of the following month at 12:00 AM (PST)
+          <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <FilePlus2 className="h-5 w-5" />
               </span>
-              . The current and next month remain editable — past months require a revision request
-              once locked.
-            </p>
+              <div>
+                <DialogTitle className="text-base font-semibold">
+                  {isEdit ? "Edit Target Reference" : "Target Reference Entry"}
+                </DialogTitle>
+                <DialogDescription className="text-sm">
+                  Record target references per station and reporting period  — monthly, quarterly, semi-annual, and annual totals are
+              auto-computed.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 px-5 py-4">
@@ -1156,9 +1157,10 @@ export default function TargetReferenceForm({
                     />
                   </label>
                 )}
-                <PastDatesLockedNote className="pt-0.5" />
               </div>
+              <PastDatesLockedNote />
             </Card>
+
 
             {/* Station Information card */}
             <StationInfoCard
