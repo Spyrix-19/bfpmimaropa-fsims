@@ -7,6 +7,7 @@
 export interface StationInfo {
   stationno: string;
   stationname: string;
+  unitcode: string;
   provincename: string;
   cityname: string;
 }
@@ -22,21 +23,21 @@ export interface InspectorRow extends StationInfo {
 }
 
 export const MOCK_ISSUED_BWC: IssuedBwcRow[] = [
-  { stationno: "1", stationname: "Calapan City Fire Station", provincename: "Oriental Mindoro", cityname: "Calapan City", working: 14, ber: 3 },
-  { stationno: "2", stationname: "Puerto Princesa City Fire Station", provincename: "Palawan", cityname: "Puerto Princesa City", working: 21, ber: 5 },
-  { stationno: "3", stationname: "Boac Fire Station", provincename: "Marinduque", cityname: "Boac", working: 8, ber: 1 },
-  { stationno: "4", stationname: "San Jose Fire Station", provincename: "Occidental Mindoro", cityname: "San Jose", working: 11, ber: 4 },
-  { stationno: "5", stationname: "Odiongan Fire Station", provincename: "Romblon", cityname: "Odiongan", working: 6, ber: 2 },
-  { stationno: "6", stationname: "Roxas Fire Station", provincename: "Oriental Mindoro", cityname: "Roxas", working: 9, ber: 0 },
+  { stationno: "1", stationname: "Calapan City Fire Station", unitcode: "45201", provincename: "Oriental Mindoro", cityname: "Calapan City", working: 14, ber: 3 },
+  { stationno: "2", stationname: "Puerto Princesa City Fire Station", unitcode: "47301", provincename: "Palawan", cityname: "Puerto Princesa City", working: 21, ber: 5 },
+  { stationno: "3", stationname: "Boac Fire Station", unitcode: "46401", provincename: "Marinduque", cityname: "Boac", working: 8, ber: 1 },
+  { stationno: "4", stationname: "San Jose Fire Station", unitcode: "45102", provincename: "Occidental Mindoro", cityname: "San Jose", working: 11, ber: 4 },
+  { stationno: "5", stationname: "Odiongan Fire Station", unitcode: "45903", provincename: "Romblon", cityname: "Odiongan", working: 6, ber: 2 },
+  { stationno: "6", stationname: "Roxas Fire Station", unitcode: "45208", provincename: "Oriental Mindoro", cityname: "Roxas", working: 9, ber: 0 },
 ];
 
 export const MOCK_FIRE_SAFETY_INSPECTORS: InspectorRow[] = [
-  { stationno: "1", stationname: "Calapan City Fire Station", provincename: "Oriental Mindoro", cityname: "Calapan City", withTraining: 10, withoutTraining: 4 },
-  { stationno: "2", stationname: "Puerto Princesa City Fire Station", provincename: "Palawan", cityname: "Puerto Princesa City", withTraining: 16, withoutTraining: 6 },
-  { stationno: "3", stationname: "Boac Fire Station", provincename: "Marinduque", cityname: "Boac", withTraining: 5, withoutTraining: 3 },
-  { stationno: "4", stationname: "San Jose Fire Station", provincename: "Occidental Mindoro", cityname: "San Jose", withTraining: 7, withoutTraining: 5 },
-  { stationno: "5", stationname: "Odiongan Fire Station", provincename: "Romblon", cityname: "Odiongan", withTraining: 4, withoutTraining: 2 },
-  { stationno: "6", stationname: "Roxas Fire Station", provincename: "Oriental Mindoro", cityname: "Roxas", withTraining: 6, withoutTraining: 1 },
+  { stationno: "1", stationname: "Calapan City Fire Station", unitcode: "45201", provincename: "Oriental Mindoro", cityname: "Calapan City", withTraining: 10, withoutTraining: 4 },
+  { stationno: "2", stationname: "Puerto Princesa City Fire Station", unitcode: "47301", provincename: "Palawan", cityname: "Puerto Princesa City", withTraining: 16, withoutTraining: 6 },
+  { stationno: "3", stationname: "Boac Fire Station", unitcode: "46401", provincename: "Marinduque", cityname: "Boac", withTraining: 5, withoutTraining: 3 },
+  { stationno: "4", stationname: "San Jose Fire Station", unitcode: "45102", provincename: "Occidental Mindoro", cityname: "San Jose", withTraining: 7, withoutTraining: 5 },
+  { stationno: "5", stationname: "Odiongan Fire Station", unitcode: "45903", provincename: "Romblon", cityname: "Odiongan", withTraining: 4, withoutTraining: 2 },
+  { stationno: "6", stationname: "Roxas Fire Station", unitcode: "45208", provincename: "Oriental Mindoro", cityname: "Roxas", withTraining: 6, withoutTraining: 1 },
 ];
 
 export const totalIssued = (row: IssuedBwcRow) => row.working + row.ber;
