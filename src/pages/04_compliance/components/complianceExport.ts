@@ -37,7 +37,16 @@ export interface ComplianceBucket {
   notices: number;
 }
 
-const CATEGORY_LABELS: string[] = ["Inspection", "FSEC", "FSIC", "Notices"];
+export interface ComplianceModeBucket {
+  inspection: number;
+  manual: ComplianceBucket;
+  fsis: ComplianceBucket;
+}
+
+const ISSUANCE_LABELS: string[] = ["FSEC", "FSIC", "Notices"];
+const MODE_LABELS: string[] = ["MANUAL", "FSIS"];
+const COLS_PER_PERIOD = 1 + ISSUANCE_LABELS.length * MODE_LABELS.length;
+const MODE_MANUAL = 96;
 const QUARTER_LABELS = ["First Quarter", "Second Quarter", "Third Quarter", "Fourth Quarter"];
 const SEMESTER_LABELS = ["First Semester", "Second Semester"];
 
@@ -48,12 +57,30 @@ export const emptyBucket = (): ComplianceBucket => ({
   notices: 0,
 });
 
+export const emptyModeBucket = (): ComplianceModeBucket => ({
+  inspection: 0,
+  manual: emptyBucket(),
+  fsis: emptyBucket(),
+});
+
 export const addBucket = (a: ComplianceBucket, b: ComplianceBucket): ComplianceBucket => ({
   inspection: a.inspection + b.inspection,
   fsec: a.fsec + b.fsec,
   fsic: a.fsic + b.fsic,
   notices: a.notices + b.notices,
 });
+
+export const addModeBucket = (
+  a: ComplianceModeBucket,
+  b: ComplianceModeBucket,
+): ComplianceModeBucket => ({
+  inspection: a.inspection + b.inspection,
+  manual: addBucket(a.manual, b.manual),
+  fsis: addBucket(a.fsis, b.fsis),
+});
+
+const issuanceValues = (bucket: ComplianceBucket) => [bucket.fsec, bucket.fsic, bucket.notices];
+
 
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
@@ -93,44 +120,43 @@ function recordDate(rec: ComplianceExportRecord): { year: number; month: number;
   return { year: y, month: m, day: d };
 }
 
-function recordBucket(rec: ComplianceExportRecord): ComplianceBucket {
+function recordBucket(rec: ComplianceExportRecord): ComplianceModeBucket {
   const r = rec as Record<string, unknown>;
-  let inspection = 0;
-  for (const k of INSPECTION_KEYS) inspection += num(r[k]);
+  const out = emptyModeBucket();
+  for (const k of INSPECTION_KEYS) out.inspection += num(r[k]);
 
-  let fsec = 0;
-  let fsic = 0;
-  let notices = 0;
   const issuances = Array.isArray(rec.issuancelist) ? rec.issuancelist : [];
   for (const iss of issuances) {
     const i = iss as Record<string, unknown>;
-    for (const k of FSEC_KEYS) fsec += num(i[k]);
-    for (const k of FSIC_KEYS) fsic += num(i[k]);
-    for (const k of NOTICE_KEYS) notices += num(i[k]);
+    const target = num(i.fsicmode) === MODE_MANUAL ? out.manual : out.fsis;
+    for (const k of FSEC_KEYS) target.fsec += num(i[k]);
+    for (const k of FSIC_KEYS) target.fsic += num(i[k]);
+    for (const k of NOTICE_KEYS) target.notices += num(i[k]);
   }
-  // Some responses flatten issuance counts onto the day record itself.
-  for (const k of FSEC_KEYS) fsec += num(r[k]);
-  for (const k of FSIC_KEYS) fsic += num(r[k]);
-  for (const k of NOTICE_KEYS) notices += num(r[k]);
+  // Some responses flatten issuance counts onto the day record itself (no mode → manual).
+  for (const k of FSEC_KEYS) out.manual.fsec += num(r[k]);
+  for (const k of FSIC_KEYS) out.manual.fsic += num(r[k]);
+  for (const k of NOTICE_KEYS) out.manual.notices += num(r[k]);
 
-  return { inspection, fsec, fsic, notices };
+  return out;
 }
 
 function sumWhere(
   list: ComplianceExportRecord[],
   predicate: (p: { year: number; month: number; day: number }) => boolean,
-): ComplianceBucket {
-  return (list ?? []).reduce<ComplianceBucket>((acc, rec) => {
+): ComplianceModeBucket {
+  return (list ?? []).reduce<ComplianceModeBucket>((acc, rec) => {
     const parts = recordDate(rec);
     if (!parts || !predicate(parts)) return acc;
-    return addBucket(acc, recordBucket(rec));
-  }, emptyBucket());
+    return addModeBucket(acc, recordBucket(rec));
+  }, emptyModeBucket());
 }
 
 interface PeriodDef {
   key: string;
   label: string;
-  getBucket: (list: ComplianceExportRecord[]) => ComplianceBucket;
+  getBucket: (list: ComplianceExportRecord[]) => ComplianceModeBucket;
+
 }
 
 function fill(color: string): ExcelJS.Fill {
@@ -176,6 +202,14 @@ function crownHeaderStyle(): Partial<ExcelJS.Style> {
   return {
     font: { bold: true, color: { argb: "FFFFFFFF" }, size: 10 },
     alignment: { horizontal: "center", vertical: "middle", wrapText: true },
+    border: border("thin", "FF334155"),
+  };
+}
+
+function modeHeaderStyle(): Partial<ExcelJS.Style> {
+  return {
+    font: { bold: true, size: 9, color: { argb: "FF0F172A" } },
+    alignment: { horizontal: "center", vertical: "middle" },
     border: border("thin", "FF334155"),
   };
 }
@@ -323,7 +357,7 @@ export async function exportComplianceWorkbook(opts: {
 
   const intervalTitle = INTERVAL_TITLES[interval] ?? "";
   const ws = wb.addWorksheet(`${intervalTitle} ${year}`.trim(), {
-    views: [{ state: "frozen", xSplit: 4, ySplit: 3, showGridLines: false }],
+    views: [{ state: "frozen", xSplit: 4, ySplit: 4, showGridLines: false }],
     pageSetup: {
       orientation: "landscape",
       fitToPage: true,
@@ -343,7 +377,7 @@ export async function exportComplianceWorkbook(opts: {
 
   const periods = buildPeriodDefs(interval, year, selectedMonths, quarter, semester, selectedDay);
   const dataStartCol = 5;
-  const lastCol = dataStartCol + periods.length * 4 - 1;
+  const lastCol = dataStartCol + periods.length * COLS_PER_PERIOD - 1;
 
   ws.mergeCells(1, 1, 1, lastCol);
   const titleCell = ws.getCell(1, 1);
@@ -360,8 +394,8 @@ export async function exportComplianceWorkbook(opts: {
 
   ws.getRow(1).height = 30;
 
-  // Station Information crown — merged across the four info columns and both header rows
-  ws.mergeCells(2, 1, 3, 4);
+  // Station Information crown — merged across the four info columns and all header rows
+  ws.mergeCells(2, 1, 4, 4);
   const stationInfoHeader = ws.getCell(2, 1);
   stationInfoHeader.value = "Station Information";
   stationInfoHeader.fill = fill("FF1D4ED8");
@@ -369,32 +403,53 @@ export async function exportComplianceWorkbook(opts: {
 
   let col = dataStartCol;
   periods.forEach((period) => {
-    const c2 = col + 3;
-    ws.mergeCells(2, col, 2, c2);
+    const periodEnd = col + COLS_PER_PERIOD - 1;
+    ws.mergeCells(2, col, 2, periodEnd);
     const cell = ws.getCell(2, col);
     cell.value = period.label.toUpperCase();
     Object.assign(cell, crownHeaderStyle());
     cell.fill = fill("FF0F766E");
 
-    const catRow = ws.getRow(3);
-    CATEGORY_LABELS.forEach((label, idx) => {
-      const catCell = catRow.getCell(col + idx);
-      catCell.value = label;
-      catCell.fill = fill("FFD1FAE5");
-      Object.assign(catCell, categoryHeaderStyle());
+    const modeRow = ws.getRow(3);
+    const catRow = ws.getRow(4);
+
+    // Inspection is mode-agnostic — one column spanning both header rows.
+    ws.mergeCells(3, col, 4, col);
+    const inspCell = modeRow.getCell(col);
+    inspCell.value = "Inspection";
+    inspCell.fill = fill("FFD1FAE5");
+    Object.assign(inspCell, categoryHeaderStyle());
+
+    MODE_LABELS.forEach((mode, modeIdx) => {
+      const modeStart = col + 1 + modeIdx * ISSUANCE_LABELS.length;
+      const modeEnd = modeStart + ISSUANCE_LABELS.length - 1;
+      ws.mergeCells(3, modeStart, 3, modeEnd);
+      const modeCell = modeRow.getCell(modeStart);
+      modeCell.value = mode;
+      modeCell.fill = fill(modeIdx === 0 ? "FFBAE6FD" : "FFFDE68A");
+      Object.assign(modeCell, modeHeaderStyle());
+
+      ISSUANCE_LABELS.forEach((label, idx) => {
+        const catCell = catRow.getCell(modeStart + idx);
+        catCell.value = label;
+        catCell.fill = fill("FFD1FAE5");
+        Object.assign(catCell, categoryHeaderStyle());
+      });
     });
-    col += 4;
+    col += COLS_PER_PERIOD;
   });
 
   ws.getRow(2).height = 26;
-  ws.getRow(3).height = 22;
+  ws.getRow(3).height = 20;
+  ws.getRow(4).height = 22;
+
 
   ws.getColumn(1).width = 5;
   ws.getColumn(2).width = 24;
   ws.getColumn(3).width = 16;
   ws.getColumn(4).width = 32;
   for (let c = dataStartCol; c <= lastCol; c++) {
-    ws.getColumn(c).width = 14;
+    ws.getColumn(c).width = 12;
   }
 
   const provinceGroups = new Map<string, ComplianceExportGroup[]>();
@@ -405,7 +460,7 @@ export async function exportComplianceWorkbook(opts: {
     provinceGroups.set(province, existing);
   });
 
-  let cursor = 4;
+  let cursor = 5;
   const provinceNames = Array.from(provinceGroups.keys()).sort((a, b) => a.localeCompare(b));
   provinceNames.forEach((provinceName, provinceIndex) => {
     const stationGroups = provinceGroups.get(provinceName) ?? [];
@@ -424,14 +479,19 @@ export async function exportComplianceWorkbook(opts: {
       let col = dataStartCol;
       periods.forEach((period) => {
         const bucket = period.getBucket(station.compliancelist);
-        [bucket.inspection, bucket.fsec, bucket.fsic, bucket.notices].forEach((value, idx) => {
+        [
+          bucket.inspection,
+          ...issuanceValues(bucket.manual),
+          ...issuanceValues(bucket.fsis),
+        ].forEach((value, idx) => {
           const cell = row.getCell(col + idx);
           cell.value = Number(value) || 0;
           cell.numFmt = "#,##0;(#,##0);-";
           Object.assign(cell, dataCellStyle());
         });
-        col += 4;
+        col += COLS_PER_PERIOD;
       });
+
       row.height = 22;
       cursor++;
     });
@@ -445,21 +505,24 @@ export async function exportComplianceWorkbook(opts: {
 
     let totalCol = dataStartCol;
     periods.forEach((period) => {
-      const totalBucket = stationGroups.reduce<ComplianceBucket>(
-        (acc, station) => addBucket(acc, period.getBucket(station.compliancelist)),
-        emptyBucket(),
+      const totalBucket = stationGroups.reduce<ComplianceModeBucket>(
+        (acc, station) => addModeBucket(acc, period.getBucket(station.compliancelist)),
+        emptyModeBucket(),
       );
-      [totalBucket.inspection, totalBucket.fsec, totalBucket.fsic, totalBucket.notices].forEach(
-        (value, idx) => {
-          const cell = provinceRow.getCell(totalCol + idx);
-          cell.value = Number(value) || 0;
-          cell.numFmt = "#,##0;(#,##0);-";
-          cell.fill = fill("FFFEF08A");
-          Object.assign(cell, provinceRowStyle());
-        },
-      );
-      totalCol += 4;
+      [
+        totalBucket.inspection,
+        ...issuanceValues(totalBucket.manual),
+        ...issuanceValues(totalBucket.fsis),
+      ].forEach((value, idx) => {
+        const cell = provinceRow.getCell(totalCol + idx);
+        cell.value = Number(value) || 0;
+        cell.numFmt = "#,##0;(#,##0);-";
+        cell.fill = fill("FFFEF08A");
+        Object.assign(cell, provinceRowStyle());
+      });
+      totalCol += COLS_PER_PERIOD;
     });
+
     provinceRow.height = 24;
     cursor++;
 

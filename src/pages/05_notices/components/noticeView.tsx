@@ -44,9 +44,10 @@ const CATEGORY_LABEL: Record<NoticeCategory, string> = {
 };
 
 const MODE_ROWS = [
-  { key: "pending" as const, label: "Issuance" },
-  { key: "accomplished" as const, label: "Accomplished" },
+  { key: "manual" as const, label: "Manual" },
+  { key: "fsis" as const, label: "FSIS" },
 ];
+
 
 const SERIES = {
   issued: "var(--color-warning)",
@@ -62,13 +63,24 @@ function emptyBreakdown(): Record<NoticeCategory, NoticeCategoryCounts> {
   );
 }
 
+type ModeCounts = Record<NoticeCategory, number>;
+
+function emptyMode(): ModeCounts {
+  return NOTICE_CATEGORIES.reduce(
+    (acc, category) => ({ ...acc, [category]: 0 }),
+    {} as ModeCounts,
+  );
+}
+
 interface DayRow {
   day: number;
   date: string;
   label: string;
   remarks: string;
   breakdown: Record<NoticeCategory, NoticeCategoryCounts>;
+  modes: { manual: ModeCounts; fsis: ModeCounts };
 }
+
 
 /* -------------------------------------------------------------------------- */
 /*  Presentational helpers                                                     */
@@ -320,7 +332,9 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
         }),
         remarks: existing?.remarks ?? "",
         breakdown: existing?.breakdown ?? emptyBreakdown(),
+        modes: existing?.modes ?? { manual: emptyMode(), fsis: emptyMode() },
       };
+
     });
   }, [record]);
 
@@ -332,16 +346,16 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
 
   const rowTotal = (entry: DayRow) =>
     NOTICE_CATEGORIES.reduce(
-      (sum, c) => sum + (entry.breakdown[c].pending ?? 0) + (entry.breakdown[c].accomplished ?? 0),
+      (sum, c) => sum + (entry.modes.manual[c] ?? 0) + (entry.modes.fsis[c] ?? 0),
       0,
     );
 
   const columnTotal = (category: NoticeCategory) =>
     days.reduce(
-      (sum, d) =>
-        sum + (d.breakdown[category].pending ?? 0) + (d.breakdown[category].accomplished ?? 0),
+      (sum, d) => sum + (d.modes.manual[category] ?? 0) + (d.modes.fsis[category] ?? 0),
       0,
     );
+
 
   const grandTotal = days.reduce((sum, d) => sum + rowTotal(d), 0);
 
@@ -510,7 +524,7 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
                               {mode.label}
                             </td>
                             {NOTICE_CATEGORIES.map((category) => {
-                              const value = entry.breakdown[category][mode.key] ?? 0;
+                              const value = entry.modes[mode.key][category] ?? 0;
                               return (
                                 <td
                                   key={`${entry.day}-${category}-${mode.key}`}

@@ -111,7 +111,10 @@ interface NoticeDayEntry {
   date: string;
   remarks: string;
   breakdown: Record<NoticeCategory, NoticeCategoryCounts>;
+  /** Per mode-of-issuance counts (96 = MANUAL, 97 = FSIS). */
+  modes: { manual: ModeCounts; fsis: ModeCounts };
 }
+
 
 export interface NoticeRecord {
   key: string;
@@ -190,8 +193,20 @@ function buildLedgerLines(
 ): NoticeLedgerLine[] {
   const byKey = new Map<string, NoticeLedgerLine>();
   const monthSet = new Set(months);
+  const yr = String(year);
 
-  if (groupBy === "day" && !dateISO) {
+  /* Seed every period the current filter covers so lines with no encoded
+   * records still render as zero rows:
+   *   day      -> day 1 .. last day of the selected month(s)
+   *   month    -> each selected month (January – December when "All")
+   *   quarter  -> each quarter covered by the selected months (Q1..Q4)
+   *   semester -> each semester covered (1st / 2nd)
+   *   annual   -> the selected year
+   */
+  if (groupBy === "day" && dateISO) {
+    // Specific date: always render that one date, even with no records.
+    byKey.set(dateISO, emptyLine(dateISO, dayLabel(dateISO)));
+  } else if (groupBy === "day" && !dateISO) {
     for (const month of months) {
       const totalDays = calendarDaysInMonth(year, month);
       for (let day = 1; day <= totalDays; day += 1) {
@@ -199,7 +214,27 @@ function buildLedgerLines(
         byKey.set(iso, emptyLine(iso, dayLabel(iso)));
       }
     }
+  } else if (groupBy === "month") {
+    for (const month of months) {
+      const ym = `${yr}-${String(month).padStart(2, "0")}`;
+      byKey.set(ym, emptyLine(ym, monthLabel(`${ym}-01`)));
+    }
+  } else if (groupBy === "quarter") {
+    const quarters = [...new Set(months.map((m) => Math.ceil(m / 3)))].sort((a, b) => a - b);
+    for (const q of quarters) {
+      const key = `${yr}-q${q}`;
+      byKey.set(key, emptyLine(key, `Q${q} ${yr}`));
+    }
+  } else if (groupBy === "semester") {
+    const semesters = [...new Set(months.map((m) => (m <= 6 ? 1 : 2)))].sort((a, b) => a - b);
+    for (const s of semesters) {
+      const key = `${yr}-s${s}`;
+      byKey.set(key, emptyLine(key, `${s === 1 ? "1st" : "2nd"} Semester ${yr}`));
+    }
+  } else if (groupBy === "annual") {
+    byKey.set(yr, emptyLine(yr, `Annual ${yr}`));
   }
+
 
 
   for (const entry of Array.isArray(entries) ? entries : []) {
@@ -208,6 +243,10 @@ function buildLedgerLines(
     const recordMonth = Number(iso.slice(5, 7)) || 0;
     if (!recordMonth || (monthSet.size > 0 && !monthSet.has(recordMonth))) continue;
     const recordYear = iso.slice(0, 4);
+    // Never mix other years into the selected reporting year.
+    if (recordYear !== yr) continue;
+    if (groupBy === "day" && dateISO && iso !== dateISO) continue;
+
 
     const key =
       groupBy === "month"
@@ -285,13 +324,16 @@ function mapDetailToRecord(
     .map((entry) => {
       const iso = String(entry.dateaccomplish ?? "").slice(0, 10);
       const breakdown = emptyBreakdown();
+      const modes = { manual: emptyMode(), fsis: emptyMode() };
       for (const accom of Array.isArray(entry.noticeaccomlist) ? entry.noticeaccomlist : []) {
+        const bucket = num(accom?.fsicmode) === MODE_FSIS ? modes.fsis : modes.manual;
         for (const category of NOTICE_CATEGORIES) {
           const count = num(
             (accom as unknown as Record<string, unknown>)?.[CATEGORY_COUNT_KEY[category]],
           );
           breakdown[category].pending += count;
           breakdown[category].accomplished += count;
+          bucket[category] += count;
         }
       }
       return {
@@ -299,6 +341,7 @@ function mapDetailToRecord(
         date: iso,
         remarks: "",
         breakdown,
+        modes,
       } satisfies NoticeDayEntry;
     })
     .sort((a, b) => a.date.localeCompare(b.date));
