@@ -18,8 +18,6 @@ import {
 import {
   Building2,
   Calendar as CalendarIcon,
-  ChevronsDown,
-  ChevronsUp,
   Loader2,
   Lock,
   Pencil,
@@ -164,24 +162,6 @@ export default function TargetReferenceDetails({
 
   const completeAddress = detail ? detail.provincename : "";
 
-  const scrollRef = React.useRef<HTMLDivElement | null>(null);
-  const [canScroll, setCanScroll] = React.useState(false);
-
-  React.useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const update = () => setCanScroll(el.scrollHeight - el.clientHeight > 40);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [detail, period, selectedMonth, selectedYear, loading]);
-
-  const scrollTo = (dir: "top" | "bottom") => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: dir === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -210,11 +190,8 @@ export default function TargetReferenceDetails({
         </DialogHeader>
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20">
-          <div
-            ref={scrollRef}
-            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-5"
-          >
-        {loading ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-5">
+        {loading && !detail ? (
           <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </div>
@@ -408,31 +385,6 @@ export default function TargetReferenceDetails({
           </div>
         )}
           </div>
-
-          {canScroll && (
-            <div className="pointer-events-none absolute bottom-3 right-4 flex flex-col gap-1.5">
-              <Button
-                type="button"
-                size="icon"
-                variant="secondary"
-                aria-label="Scroll to top"
-                onClick={() => scrollTo("top")}
-                className="pointer-events-auto h-8 w-8 rounded-full border border-border/60 shadow-soft"
-              >
-                <ChevronsUp className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="secondary"
-                aria-label="Scroll to bottom"
-                onClick={() => scrollTo("bottom")}
-                className="pointer-events-auto h-8 w-8 rounded-full border border-border/60 shadow-soft"
-              >
-                <ChevronsDown className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </div>
 
         <DialogFooter className="border-t bg-background px-5 py-3">

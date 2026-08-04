@@ -1,3 +1,4 @@
+import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import * as React from "react";
 import {
   AlertCircle,
@@ -55,7 +56,7 @@ import { noticeAPI } from "@/services/noticeAPI";
 import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceTheme";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
-import type { NoticeCategory, NoticeCategoryCounts } from "@/types/noticeType";
+import type { NoticeCategory, NoticeDetailModel } from "@/types/noticeType";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
@@ -78,11 +79,78 @@ const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   Closure: "Closure",
 };
 
-/** Mode of issuance rows rendered per day. */
-const MODE_ROWS = [
-  { key: "pending" as const, label: "Issuance" },
-  { key: "accomplished" as const, label: "Accomplished" },
+/** Mode of issuance rows rendered per day (96 = MANUAL, 97 = FSIS). */
+const MODE_MANUAL = 96;
+const MODE_FSIS = 97;
+
+type ModeKey = "manual" | "fsis";
+
+const MODE_ROWS: { key: ModeKey; label: string; code: number }[] = [
+  { key: "manual", label: "MANUAL", code: MODE_MANUAL },
+  { key: "fsis", label: "FSIS", code: MODE_FSIS },
 ];
+
+/** Category → API count field. */
+const CATEGORY_COUNT_KEY: Record<NoticeCategory, string> = {
+  NOD: "nodcount",
+  NTC: "ntccount",
+  NTCV: "ntcvcount",
+  Abatement: "abatementcount",
+  Closure: "closurecount",
+};
+
+type ModeCounts = Record<NoticeCategory, number>;
+
+function emptyModeCounts(): ModeCounts {
+  return NOTICE_CATEGORIES.reduce(
+    (acc, category) => ({ ...acc, [category]: 0 }),
+    {} as ModeCounts,
+  );
+}
+
+function emptyModes(): Record<ModeKey, ModeCounts> {
+  return { manual: emptyModeCounts(), fsis: emptyModeCounts() };
+}
+
+/** One day of encoded notice data, keyed by its accomplishment date. */
+interface DaySource {
+  modes: Record<ModeKey, ModeCounts>;
+  remarks: string;
+  editablestatus: number;
+  isrevisionrequest: boolean;
+}
+
+/**
+ * Bind the station detail payload into a `date → MANUAL/FSIS counts` map so
+ * every row is plotted on its own accomplishment date.
+ */
+function parseDetailToDays(detail: NoticeDetailModel | null | undefined): Map<string, DaySource> {
+  const map = new Map<string, DaySource>();
+  const list = Array.isArray(detail?.noticedetallist) ? detail!.noticedetallist : [];
+  for (const entry of list) {
+    const iso = String(entry?.dateaccomplish ?? "").slice(0, 10);
+    if (!iso || iso.startsWith("1900")) continue;
+    const current =
+      map.get(iso) ??
+      ({
+        modes: emptyModes(),
+        remarks: "",
+        editablestatus: 0,
+        isrevisionrequest: false,
+      } satisfies DaySource);
+    current.editablestatus = Number(entry?.editablestatus ?? current.editablestatus) || 0;
+    current.isrevisionrequest = Boolean(entry?.isrevisionrequest) || current.isrevisionrequest;
+    for (const accom of Array.isArray(entry?.noticeaccomlist) ? entry.noticeaccomlist : []) {
+      const key: ModeKey = Number(accom?.fsicmode) === MODE_FSIS ? "fsis" : "manual";
+      for (const category of NOTICE_CATEGORIES) {
+        const raw = (accom as unknown as Record<string, unknown>)[CATEGORY_COUNT_KEY[category]];
+        current.modes[key][category] += Number(raw ?? 0) || 0;
+      }
+    }
+    map.set(iso, current);
+  }
+  return map;
+}
 
 const YEAR_OPTIONS: number[] = buildYears();
 
@@ -92,13 +160,6 @@ const SERIES = {
   pending: "var(--color-destructive)",
   positive: "var(--color-success)",
 } as const;
-
-function emptyBreakdown(): Record<NoticeCategory, NoticeCategoryCounts> {
-  return NOTICE_CATEGORIES.reduce(
-    (acc, category) => ({ ...acc, [category]: { pending: 0, accomplished: 0 } }),
-    {} as Record<NoticeCategory, NoticeCategoryCounts>,
-  );
-}
 
 /**
  * PST lock activation — mirrors the compliance editor.
@@ -133,7 +194,8 @@ interface DayRow {
   /** 153 = approved revision → day temporarily unlocked. */
   editablestatus: number;
   isrevisionrequest: boolean;
-  breakdown: Record<NoticeCategory, NoticeCategoryCounts>;
+  /** MANUAL (96) / FSIS (97) counts encoded on this date. */
+  modes: Record<ModeKey, ModeCounts>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -194,10 +256,21 @@ function Dot({ color }: { color: string }) {
 /*  Issued vs. Accomplished panel                                              */
 /* -------------------------------------------------------------------------- */
 
-function NoticeAccomplishmentPanel({ days, periodLabel }: { days: DayRow[]; periodLabel: string }) {
+function NoticeAccomplishmentPanel({
+  days,
+  issuedByCategory,
+  periodLabel,
+}: {
+  days: DayRow[];
+  issuedByCategory: ModeCounts;
+  periodLabel: string;
+}) {
   const rows = NOTICE_CATEGORIES.map((category) => {
-    const issued = days.reduce((s, d) => s + (d.breakdown[category]?.pending ?? 0), 0);
-    const accomplished = days.reduce((s, d) => s + (d.breakdown[category]?.accomplished ?? 0), 0);
+    const issued = issuedByCategory[category] ?? 0;
+    const accomplished = days.reduce(
+      (s, d) => s + (d.modes.manual[category] ?? 0) + (d.modes.fsis[category] ?? 0),
+      0,
+    );
     const pending = Math.max(issued - accomplished, 0);
     const positive = Math.max(accomplished - issued, 0);
     const percentage = issued > 0 ? (accomplished / issued) * 100 : 0;
@@ -385,44 +458,90 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     }[]
   >([]);
 
-  const buildDays = React.useCallback((src: NoticeRecord, y: number, m: number): DayRow[] => {
-    const monthLocked = hasPstLockActivated(y, m);
-    const byDate = new Map(src.dailyEntries.map((e) => [e.date.slice(0, 10), e]));
-    const total = calendarDaysInMonth(y, m);
-    return Array.from({ length: total }, (_, i) => {
-      const day = i + 1;
-      const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const existing = byDate.get(date);
-      const editablestatus = Number((existing as any)?.editablestatus ?? 0);
-      const isrevisionrequest = Boolean((existing as any)?.isrevisionrequest);
-      return {
-        day,
-        date,
-        label: new Date(y, m - 1, day).toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        }),
-        remarks: existing?.remarks ?? "",
-        isLocked: editablestatus === 153 ? false : monthLocked || isDayPassed(date),
-        editablestatus,
-        isrevisionrequest,
-        breakdown: existing?.breakdown ?? emptyBreakdown(),
-      };
-    });
+  /** Seed from the ledger row so the grid renders instantly, per date. */
+  const seedFromRecord = React.useCallback((src: NoticeRecord): Map<string, DaySource> => {
+    const map = new Map<string, DaySource>();
+    for (const entry of src.dailyEntries) {
+      const iso = String(entry.date ?? "").slice(0, 10);
+      if (!iso) continue;
+      map.set(iso, {
+        modes: {
+          manual: { ...emptyModeCounts(), ...(entry.modes?.manual ?? {}) },
+          fsis: { ...emptyModeCounts(), ...(entry.modes?.fsis ?? {}) },
+        },
+        remarks: entry.remarks ?? "",
+        editablestatus: Number((entry as any)?.editablestatus ?? 0) || 0,
+        isrevisionrequest: Boolean((entry as any)?.isrevisionrequest),
+      });
+    }
+    return map;
   }, []);
+
+  const buildDays = React.useCallback(
+    (source: Map<string, DaySource>, y: number, m: number): DayRow[] => {
+      const monthLocked = hasPstLockActivated(y, m);
+      const total = calendarDaysInMonth(y, m);
+      return Array.from({ length: total }, (_, i) => {
+        const day = i + 1;
+        const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const existing = source.get(date);
+        const editablestatus = Number(existing?.editablestatus ?? 0);
+        return {
+          day,
+          date,
+          label: new Date(y, m - 1, day).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          }),
+          remarks: existing?.remarks ?? "",
+          isLocked: editablestatus === 153 ? false : monthLocked || isDayPassed(date),
+          editablestatus,
+          isrevisionrequest: Boolean(existing?.isrevisionrequest),
+          modes: existing?.modes ?? emptyModes(),
+        } satisfies DayRow;
+      });
+    },
+    [],
+  );
 
   React.useEffect(() => {
     if (!record || !open) return;
     setMonth(record.reportMonth);
     setYear(record.reportYear);
-    setDays(buildDays(record, record.reportYear, record.reportMonth));
+    setDays(buildDays(seedFromRecord(record), record.reportYear, record.reportMonth));
     setGeneralRemarks("");
     setSaveError(null);
-  }, [record, open, buildDays]);
+  }, [record, open, buildDays, seedFromRecord]);
 
   const stationno = record?.stationno ?? "";
   const provinceno = record?.provinceno ?? "";
+
+  /**
+   * Authoritative per-station month detail — guarantees every encoded MANUAL /
+   * FSIS row lands on its own accomplishment date, even when the ledger list
+   * was filtered to a single day.
+   */
+  React.useEffect(() => {
+    if (!open || !stationno || !year || !month) return;
+    let cancelled = false;
+    (async () => {
+      const resp = await noticeAPI.getDetail(
+        { stationno, reportyear: Number(year), reportmonth: Number(month) },
+        { suppressGlobalLoading: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<NoticeDetailModel | NoticeDetailModel[]>(resp);
+      if (!ok || !data) return;
+      const detail = Array.isArray(data)
+        ? (data.find((d) => d?.stationno === stationno) ?? data[0] ?? null)
+        : data;
+      setDays(buildDays(parseDetailToDays(detail), year, month));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, stationno, year, month, buildDays]);
 
   React.useEffect(() => {
     if (!open || !stationno || !year || !month) {
@@ -503,7 +622,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   const changePeriod = (nextMonth: number, nextYear: number) => {
     setMonth(nextMonth);
     setYear(nextYear);
-    if (record) setDays(buildDays(record, nextYear, nextMonth));
   };
 
   const basePeriodMonth = record?.reportMonth ?? new Date().getMonth() + 1;
@@ -519,12 +637,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   });
   const allLocked = rows.length > 0 && rows.every((d) => d.isLocked);
 
-  const updateField = (
-    day: number,
-    category: NoticeCategory,
-    field: keyof NoticeCategoryCounts,
-    raw: string,
-  ) => {
+  const updateField = (day: number, category: NoticeCategory, field: ModeKey, raw: string) => {
     const cleaned = raw.replace(/[^0-9]/g, "");
     const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
     setDays((prev) =>
@@ -532,9 +645,9 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         entry.day === day
           ? {
               ...entry,
-              breakdown: {
-                ...entry.breakdown,
-                [category]: { ...entry.breakdown[category], [field]: value },
+              modes: {
+                ...entry.modes,
+                [field]: { ...entry.modes[field], [category]: value },
               },
             }
           : entry,
@@ -550,16 +663,18 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
 
   const rowTotal = (entry: DayRow) =>
     NOTICE_CATEGORIES.reduce(
-      (sum, c) => sum + (entry.breakdown[c].pending ?? 0) + (entry.breakdown[c].accomplished ?? 0),
+      (sum, c) => sum + (entry.modes.manual[c] ?? 0) + (entry.modes.fsis[c] ?? 0),
       0,
     );
 
   const columnTotal = (category: NoticeCategory) =>
-    days.reduce(
-      (sum, d) =>
-        sum + (d.breakdown[category].pending ?? 0) + (d.breakdown[category].accomplished ?? 0),
-      0,
-    );
+    days.reduce((sum, d) => sum + (d.modes.manual[category] ?? 0) + (d.modes.fsis[category] ?? 0), 0);
+
+  /** Issued totals come from the ledger record, not the encoded daily rows. */
+  const issuedByCategory = NOTICE_CATEGORIES.reduce((acc, category) => {
+    acc[category] = Number(record.breakdown?.[category]?.pending ?? 0) || 0;
+    return acc;
+  }, emptyModeCounts());
 
   const grandTotal = days.reduce((sum, d) => sum + rowTotal(d), 0);
 
@@ -568,28 +683,33 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     setSaving(true);
     setSaveError(null);
     try {
-      const payload = {
-        noticeno: EMPTY_GUID,
-        stationno: record.stationno,
-        dateaccomplish: `${days[0]?.date ?? `${year}-${String(month).padStart(2, "0")}-01`}T00:00:00`,
-        encodedby: user?.memberno ?? "",
-        accomnoticeList: days.map((entry) => ({
-          accomplishno: EMPTY_GUID,
+      // One payload per accomplishment date, with a MANUAL (96) and FSIS (97)
+      // row each, so counts are plotted on the correct date and station.
+      const editable = days.filter((entry) => !entry.isLocked || rowTotal(entry) > 0);
+      for (const entry of editable) {
+        const payload = {
           noticeno: EMPTY_GUID,
-          fsicmode: 0,
-          nodcount: entry.breakdown.NOD.pending,
-          ntccount: entry.breakdown.NTC.pending,
-          ntcvcount: entry.breakdown.NTCV.pending,
-          abatementcount: entry.breakdown.Abatement.pending,
-          closurecount: entry.breakdown.Closure.pending,
-        })),
-      };
-      const resp = await noticeAPI.create(payload, { suppressGlobalLoading: true });
-      const { ok, error } = unwrap(resp);
-      if (!ok) {
-        setSaveError(error || "Unable to update notice entry.");
-        toast.error(error || "Unable to update notice entry.");
-        return;
+          stationno: record.stationno,
+          dateaccomplish: `${entry.date}T00:00:00`,
+          encodedby: user?.memberno ?? "",
+          accomnoticeList: MODE_ROWS.map((mode) => ({
+            accomplishno: EMPTY_GUID,
+            noticeno: EMPTY_GUID,
+            fsicmode: mode.code,
+            nodcount: entry.modes[mode.key].NOD ?? 0,
+            ntccount: entry.modes[mode.key].NTC ?? 0,
+            ntcvcount: entry.modes[mode.key].NTCV ?? 0,
+            abatementcount: entry.modes[mode.key].Abatement ?? 0,
+            closurecount: entry.modes[mode.key].Closure ?? 0,
+          })),
+        };
+        const resp = await noticeAPI.create(payload, { suppressGlobalLoading: true });
+        const { ok, error } = unwrap(resp);
+        if (!ok) {
+          setSaveError(error || "Unable to update notice entry.");
+          toast.error(error || "Unable to update notice entry.");
+          return;
+        }
       }
       toast.success("Notice entry updated.");
       onSaved();
@@ -689,7 +809,9 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                 </Select>
               </div>
             </div>
+            <PastDatesLockedNote />
           </Card>
+
 
 
           {/* Station Information ------------------------------------------- */}
@@ -705,7 +827,11 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
           />
 
           {/* Issued vs. Accomplished ---------------------------------------- */}
-          <NoticeAccomplishmentPanel days={days} periodLabel={`${monthName} ${year}`} />
+          <NoticeAccomplishmentPanel
+            days={days}
+            issuedByCategory={issuedByCategory}
+            periodLabel={`${monthName} ${year}`}
+          />
 
           {/* Daily Notice Details ------------------------------------------- */}
           <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
@@ -892,7 +1018,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                               {mode.label}
                             </td>
                             {NOTICE_CATEGORIES.map((category) => {
-                              const value = entry.breakdown[category][mode.key] ?? 0;
+                              const value = entry.modes[mode.key][category] ?? 0;
                               return (
                                 <td
                                   key={`${entry.day}-${category}-${mode.key}`}

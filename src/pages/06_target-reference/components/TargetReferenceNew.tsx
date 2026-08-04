@@ -34,15 +34,14 @@ import {
   Ban,
   Target,
   FilePlus2,
+  RotateCcw,
 } from "lucide-react";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
-import { cn, toWhole } from "@/lib/utils";
+import { cn, toWhole, buildYears } from "@/lib/utils";
 import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
 import { formatLongDate } from "@/lib/date-format";
-import ReadOnlyField from "./ReadOnlyField";
-
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 
 import StationSearchSelect from "@/components/station-search-select";
@@ -177,6 +176,7 @@ export default function TargetReferenceForm({
 
   const [year, setYear] = React.useState<number>(currentYear);
   const [month, setMonth] = React.useState<number>(currentMonth);
+  const years = React.useMemo(() => buildYears(), []);
   const days = React.useMemo(() => buildDays(year, month), [year, month]);
   const [cells, setCells] = React.useState<CellMap>({});
   const [baselineCells, setBaselineCells] = React.useState<CellMap>({});
@@ -747,6 +747,19 @@ export default function TargetReferenceForm({
     return false;
   }, [cells, baselineCells]);
 
+  /** Switch the reporting period (month / year) being edited. */
+  const changePeriod = (nextMonth: number, nextYear: number) => {
+    if (nextMonth === month && nextYear === year) return;
+    if (isDirty) {
+      toast.error(
+        "Save or discard your changes before switching the reporting period.",
+      );
+      return;
+    }
+    setMonth(nextMonth);
+    setYear(nextYear);
+  };
+
   const handleDuplicateConfirm = () => {
     if (pendingDuplicateData) {
       setAutoEdit(true);
@@ -1123,20 +1136,68 @@ export default function TargetReferenceForm({
           <div className="flex flex-col gap-4 px-5 py-4">
             {/* Reporting Period card */}
             <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
-              <StationSectionTitle
-                icon={<Calendar className="h-4 w-4" />}
-                title="Reporting Period"
-              />
-              <div className="space-y-1.5 sm:max-w-sm">
-                <Label className="text-xs font-semibold">
-                  Reporting Period As Of <span className="text-destructive">*</span>
-                </Label>
-                {isEdit ? (
-                  <ReadOnlyField
-                    value={`${MONTHS.find((mo) => mo.value === month)?.name ?? month} ${year}`}
-                    title="Editing every day of this month"
-                  />
-                ) : (
+              <div className="flex items-center justify-between gap-3">
+                <StationSectionTitle
+                  icon={<Calendar className="h-4 w-4" />}
+                  title="Reporting Period"
+                />
+                {isEdit && (month !== currentMonth || year !== currentYear) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => changePeriod(currentMonth, currentYear)}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset to {MONTHS.find((mo) => mo.value === currentMonth)?.name} {currentYear}
+                  </Button>
+                )}
+              </div>
+              {isEdit ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Month</span>
+                    <Select
+                      value={String(month)}
+                      onValueChange={(value) => changePeriod(Number(value), year)}
+                    >
+                      <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((mo) => (
+                          <SelectItem key={mo.value} value={String(mo.value)}>
+                            {mo.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Year</span>
+                    <Select
+                      value={String(year)}
+                      onValueChange={(value) => changePeriod(month, Number(value))}
+                    >
+                      <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {years.map((y) => (
+                          <SelectItem key={y} value={String(y)}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5 sm:max-w-sm">
+                  <Label className="text-xs font-semibold">
+                    Reporting Period As Of <span className="text-destructive">*</span>
+                  </Label>
                   <Popover open={dateOpen} onOpenChange={setDateOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -1180,8 +1241,8 @@ export default function TargetReferenceForm({
                       />
                     </PopoverContent>
                   </Popover>
-                )}
-              </div>
+                </div>
+              )}
               <PastDatesLockedNote />
             </Card>
 

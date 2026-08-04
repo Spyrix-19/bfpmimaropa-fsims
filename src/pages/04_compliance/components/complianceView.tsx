@@ -686,7 +686,7 @@ function ComplianceViewBody({
     [columnTotals],
   );
 
-  if (loading) {
+  if (loading && !station) {
     return (
       <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" /> Loading…

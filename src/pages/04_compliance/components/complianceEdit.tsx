@@ -1,3 +1,4 @@
+import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -18,7 +19,7 @@ import {
 import { toast } from "@/lib/toast";
 
 import { Card } from "@/components/ui/card";
-import StationInfoCard, { StationSectionTitle } from "@/components/station-info-card";
+import StationInfoCard from "@/components/station-info-card";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1046,7 +1047,9 @@ function ComplianceEditBody({
   });
   const allLocked = days.length > 0 && days.every((d) => d.isLocked);
 
-  if (loading) {
+  // Keep the previously loaded period visible while a new period loads so the
+  // form does not blink; only show the full loader on the very first load.
+  if (loading && editableDays.size === 0) {
     return (
       <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -1057,12 +1060,12 @@ function ComplianceEditBody({
   return (
     <div className="space-y-8 pb-4 md:space-y-8">
       {/* Reporting Period ---------------------------------------------------- */}
-      <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
         <div className="flex items-center justify-between gap-3">
-          <StationSectionTitle
-            icon={<CalendarDays className="h-4 w-4" />}
-            title="Reporting Period"
-          />
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <CalendarDays className="h-4 w-4" />
+            Reporting Period
+          </h2>
           {(month !== initialMonth || year !== initialYear) && (
             <Button
               type="button"
@@ -1076,14 +1079,11 @@ function ComplianceEditBody({
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Reporting Month <span className="text-destructive">*</span>
-            </span>
+            <span className="text-xs font-medium text-muted-foreground">Month</span>
             <Select value={String(month)} onValueChange={(v) => changePeriod(Number(v), year)}>
-              <SelectTrigger className="h-10 w-full">
-                <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
                 <SelectValue placeholder="Select month" />
               </SelectTrigger>
               <SelectContent>
@@ -1096,12 +1096,9 @@ function ComplianceEditBody({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Reporting Year <span className="text-destructive">*</span>
-            </span>
+            <span className="text-xs font-medium text-muted-foreground">Year</span>
             <Select value={String(year)} onValueChange={(v) => changePeriod(month, Number(v))}>
-              <SelectTrigger className="h-10 w-full">
-                <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>
               <SelectContent>
@@ -1114,7 +1111,9 @@ function ComplianceEditBody({
             </Select>
           </div>
         </div>
+        <PastDatesLockedNote />
       </Card>
+
 
       {/* Station Information ------------------------------------------------- */}
       <StationInfoCard

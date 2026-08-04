@@ -1,3 +1,4 @@
+import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import * as React from "react";
 import {
   Dialog,
@@ -19,6 +20,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import {
   Building2,
   Calendar,
+  RotateCcw,
   Loader2,
   Lock,
   FilePen,
@@ -33,13 +35,11 @@ import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
 import { cn, toWhole, buildYears } from "@/lib/utils";
 import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
-import { formatLongDate } from "@/lib/date-format";
-import ReadOnlyField from "./ReadOnlyField";
 
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 
 import StationSearchSelect from "@/components/station-search-select";
-import StationInfoCard, { StationSectionTitle } from "@/components/station-info-card";
+import StationInfoCard from "@/components/station-info-card";
 import { Card } from "@/components/ui/card";
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -157,6 +157,15 @@ export default function TargetReferenceForm({
 
   const [year, setYear] = React.useState<number>(currentYear);
   const [month, setMonth] = React.useState<number>(currentMonth);
+  const basePeriodYear = editing?.year ?? initialYear ?? currentYear;
+  const basePeriodMonth = editing?.month ?? initialMonth ?? currentMonth;
+  const isPeriodChanged = month !== basePeriodMonth || year !== basePeriodYear;
+  const changePeriod = React.useCallback((nextMonth: number, nextYear: number) => {
+    setMonth(nextMonth);
+    setYear(nextYear);
+    setDuplicatePrompted(false);
+    setAutoEdit(false);
+  }, []);
   const currentDay = today.getDate();
   /**
    * Duplicate/existence checks are DATE-based, not month-based: only the
@@ -342,6 +351,9 @@ export default function TargetReferenceForm({
   const sectorsLoading = false;
 
   const [existingLoading, setExistingLoading] = React.useState(false);
+  // True once a period has been fetched at least once for this open dialog —
+  // keeps the grid visible while another period loads (no blink).
+  const [gridLoadedOnce, setGridLoadedOnce] = React.useState(false);
   const [existingTargetNos, setExistingTargetNos] = React.useState<Record<string, string>>({});
 
   const [existingEditableStatus, setExistingEditableStatus] = React.useState<
@@ -438,6 +450,7 @@ export default function TargetReferenceForm({
     setExistingTargetNos({});
     setAutoEdit(false);
     setDuplicatePrompted(false);
+    setGridLoadedOnce(false);
     setYear(editing?.year ?? initialYear ?? currentYear);
     setMonth(editing?.month ?? initialMonth ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
@@ -502,6 +515,7 @@ export default function TargetReferenceForm({
         });
         setDuplicateDialogOpen(true);
         setExistingLoading(false);
+        setGridLoadedOnce(true);
         return;
       }
 
@@ -511,6 +525,7 @@ export default function TargetReferenceForm({
       setExistingEditableStatus(nextEditableStatus);
       setExistingIsRevisionRequest(nextIsRevReq);
       setExistingLoading(false);
+      setGridLoadedOnce(true);
     })();
     return () => {
       cancelled = true;
@@ -777,7 +792,7 @@ export default function TargetReferenceForm({
     setDuplicateDialogOpen(newOpen);
   };
 
-  const tableBody = loadingGrid ? (
+  const tableBody = loadingGrid && !gridLoadedOnce ? (
     <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin" /> Loading…
     </div>
@@ -989,64 +1004,67 @@ export default function TargetReferenceForm({
 
           <div className="flex flex-col gap-4 px-5 py-4">
             {/* Reporting Period card */}
-            <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
-              <StationSectionTitle
-                icon={<Calendar className="h-4 w-4" />}
-                title="Reporting Period"
-              />
-              <div className="space-y-1.5 sm:max-w-sm">
-                <Label className="text-xs font-semibold">
-                  Reporting Period As Of <span className="text-destructive">*</span>
-                </Label>
-                {isEdit ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Select
-                      value={String(month)}
-                      onValueChange={(value) => {
-                        setMonth(Number(value));
-                        setDuplicatePrompted(false);
-                        setAutoEdit(false);
-                      }}
-                    >
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Month" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MONTHS.map((mo) => (
-                          <SelectItem key={mo.value} value={String(mo.value)}>
-                            {mo.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={String(year)}
-                      onValueChange={(value) => {
-                        setYear(Number(value));
-                        setDuplicatePrompted(false);
-                        setAutoEdit(false);
-                      }}
-                    >
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {years.map((y) => (
-                          <SelectItem key={y} value={String(y)}>
-                            {y}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : (
-                  <ReadOnlyField
-                    value={formatLongDate(today)}
-                    title="Targets are encoded for today"
-                  />
+            <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  Reporting Period
+                </h2>
+                {isPeriodChanged && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => changePeriod(basePeriodMonth, basePeriodYear)}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset to {MONTHS[basePeriodMonth - 1]?.name} {basePeriodYear}
+                  </Button>
                 )}
               </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Month</span>
+                  <Select
+                    value={String(month)}
+                    onValueChange={(value) => changePeriod(Number(value), year)}
+                  >
+                    <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((mo) => (
+                        <SelectItem key={mo.value} value={String(mo.value)}>
+                          {mo.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Year</span>
+                  <Select
+                    value={String(year)}
+                    onValueChange={(value) => changePeriod(month, Number(value))}
+                  >
+                    <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <PastDatesLockedNote />
             </Card>
+
+
 
             {/* Station Information card */}
             <StationInfoCard
