@@ -385,18 +385,9 @@ export function NoticeViewModal({ open, onOpenChange, record }: NoticeViewModalP
           {/* Reporting Period ---------------------------------------------- */}
           <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
             <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
-            <div className="grid grid-cols-1 gap-4 sm:max-w-md">
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Reporting Period As Of <span className="text-destructive">*</span>
-                </span>
-                <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="truncate">
-                    {monthName} {year}
-                  </span>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ReadOnlyField label="Month" value={monthName} />
+              <ReadOnlyField label="Year" value={String(year)} />
             </div>
           </Card>
 

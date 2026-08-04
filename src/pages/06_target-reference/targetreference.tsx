@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import {
   Calendar,
+  CalendarDays,
   BarChart3,
   Layers,
   Trophy,
@@ -692,42 +693,39 @@ function TargetCard({
 
   return (
     <Card className="flex flex-col overflow-hidden border-border/60 shadow-soft transition-shadow hover:shadow-elegant">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 border-b bg-card p-4">
+      {/* Header — station details */}
+      <div className="flex items-start gap-3 border-b border-border/40 bg-gradient-to-r from-blue-50 via-blue-50/50 to-transparent p-4">
+        <AvatarWithFallback
+          src={group.logoUrl || undefined}
+          entity={{ name: group.stationName }}
+          name={group.stationName}
+          alt={group.stationName}
+          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-blue-200"
+        />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
-            <AvatarWithFallback
-              src={group.logoUrl || null}
-              entity={group.row}
-              name={group.stationCode || group.stationName}
-              alt={group.stationName}
-              className="w-10 h-10 rounded-md overflow-hidden bg-muted/30"
-            />
-            <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-bold text-foreground">
-                    {group.stationCode}
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {group.year}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">•</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {MONTHS.find((m) => m.value === month)?.short ?? ""} {group.year}
-                  </span>
-                  <span className="ml-2 inline-flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground">
-                    <Calendar className="h-3 w-3 text-rose-600" />
-                    <span className="font-semibold text-foreground">{daysWithData}</span>
-                    <span className="text-muted-foreground">/</span>
-                    <span className="text-muted-foreground">{monthTotalDays}</span>
-                  </span>
-                </div>
-              <div className="mt-1 text-sm font-bold text-foreground">{group.stationName}</div>
-              <div className="text-[11px] text-muted-foreground">{group.province}</div>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+              {group.stationCode}
+            </span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {MONTHS.find((m) => m.value === month)?.name ?? ""} {group.year}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums tone-warning-soft" title="Days with target entries / calendar days">
+              <CalendarDays className="h-3 w-3" />
+              {daysWithData} / {monthTotalDays}
+            </span>
           </div>
+          <div className="mt-1 text-sm font-bold text-foreground">{group.stationName}</div>
+          <div className="text-[11px] text-muted-foreground">{group.province}</div>
         </div>
         <div
+          className="grid h-10 w-14 place-items-center rounded-lg bg-blue-100 text-center text-blue-700"
+          title="Annual Total"
+        >
+          <div className="text-[8px] font-bold uppercase leading-none">Total</div>
+          <div className="text-xs font-bold leading-none">{annualSum.toLocaleString()}</div>
+        </div>
+
           className="grid h-10 w-14 place-items-center rounded-lg border border-border/60 bg-muted/40 text-center text-foreground"
           title="Annual Total"
         >
