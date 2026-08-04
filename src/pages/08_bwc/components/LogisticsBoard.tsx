@@ -44,6 +44,7 @@ function StationHeading({ station }: { station: StationInfo }) {
       </div>
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold leading-tight">{station.stationname}</div>
+        <div className="truncate text-xs font-medium text-primary">{station.unitcode}</div>
         <div className="truncate text-xs text-muted-foreground">
           {station.cityname}, {station.provincename}
         </div>
