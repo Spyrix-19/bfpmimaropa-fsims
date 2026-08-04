@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Building2, Download, Eye, LayoutGrid, Plus } from "lucide-react";
+import { Download, Eye, LayoutGrid, Plus } from "lucide-react";
+import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
