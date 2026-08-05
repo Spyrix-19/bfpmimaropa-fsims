@@ -10,32 +10,34 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import FilterField from "@/components/filter-field";
+import StationSearchSelect from "@/components/station-search-select";
+import type { SearchStationModel } from "@/types/stationTypes";
 import { cn } from "@/lib/utils";
 import type { BwcField, BwcRow } from "./bwcTypes";
 import { num } from "./bwcTypes";
+
+export interface BwcFormSubmit {
+  recordno: string;
+  stationno: string;
+  values: Record<string, number>;
+  remarks: string;
+}
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** null = Add mode, row = Edit mode (same modal). */
   row: BwcRow | null;
-  /** Station catalog used by the Add-mode station picker. */
-  stations: BwcRow[];
   fields: BwcField[];
   entityLabel: string;
   totalLabel: string;
   icon: React.ReactNode;
-  onSubmit: (row: BwcRow) => void;
+  /** Persists the record; resolve true to close the modal. */
+  onSubmit: (payload: BwcFormSubmit) => Promise<boolean>;
 }
 
 function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
@@ -53,7 +55,6 @@ export default function BwcFormModal({
   open,
   onOpenChange,
   row,
-  stations,
   fields,
   entityLabel,
   totalLabel,
@@ -62,7 +63,15 @@ export default function BwcFormModal({
 }: Props) {
   const isEdit = row != null;
   const [stationno, setStationno] = React.useState("");
+  const [station, setStation] = React.useState<{
+    stationname: string;
+    unitcode: string;
+    cityname: string;
+    provincename: string;
+    logourl?: string | null;
+  } | null>(null);
   const [values, setValues] = React.useState<Record<string, string>>({});
+  const [remarks, setRemarks] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
 
@@ -71,13 +80,20 @@ export default function BwcFormModal({
     setTouched(false);
     setSaving(false);
     setStationno(row?.stationno ?? "");
+    setRemarks(String(row?.remarks ?? ""));
+    setStation(
+      row
+        ? {
+            stationname: row.stationname,
+            unitcode: row.unitcode,
+            cityname: row.cityname,
+            provincename: row.provincename,
+            logourl: row.logourl ?? null,
+          }
+        : null,
+    );
     setValues(Object.fromEntries(fields.map((f) => [f.key, row ? String(num(row, f.key)) : ""])));
   }, [open, row, fields]);
-
-  const station = React.useMemo(
-    () => stations.find((s) => s.stationno === stationno) ?? null,
-    [stations, stationno],
-  );
 
   const parsed = fields.map((f) => ({
     ...f,
@@ -91,19 +107,38 @@ export default function BwcFormModal({
   const hasInvalid = parsed.some((f) => f.invalid);
   const canSave = !missingStation && !hasInvalid && !saving;
 
-  const handleSave = () => {
+  const handleStationPick = (
+    nextNo: string,
+    _name: string,
+    _province?: string,
+    picked?: SearchStationModel,
+  ) => {
+    setStationno(nextNo);
+    setStation(
+      picked
+        ? {
+            stationname: picked.stationname,
+            unitcode: picked.stationcode,
+            cityname: picked.cityname,
+            provincename: picked.provincename,
+            logourl: picked.logourl,
+          }
+        : null,
+    );
+  };
+
+  const handleSave = async () => {
     setTouched(true);
-    if (!canSave || !station) return;
+    if (!canSave) return;
     setSaving(true);
-    const next: BwcRow = {
-      ...station,
-      ...Object.fromEntries(parsed.map((f) => [f.key, f.value])),
-    };
-    window.setTimeout(() => {
-      onSubmit(next);
-      setSaving(false);
-      onOpenChange(false);
-    }, 250);
+    const ok = await onSubmit({
+      recordno: String(row?.recordno ?? ""),
+      stationno,
+      values: Object.fromEntries(parsed.map((f) => [f.key, f.value])),
+      remarks: remarks.trim(),
+    });
+    setSaving(false);
+    if (ok) onOpenChange(false);
   };
 
   return (
@@ -147,20 +182,13 @@ export default function BwcFormModal({
             ) : (
               <>
                 <FilterField label="Station">
-                  <Select value={stationno} onValueChange={setStationno}>
-                    <SelectTrigger
-                      className={cn("h-10", touched && missingStation && "border-destructive")}
-                    >
-                      <SelectValue placeholder="Select station" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stations.map((s) => (
-                        <SelectItem key={s.stationno} value={s.stationno}>
-                          {s.stationname}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <StationSearchSelect
+                    value={stationno}
+                    valueName={station?.stationname}
+                    onChange={handleStationPick}
+                    placeholder="Select station"
+                    className={cn(touched && missingStation && "border-destructive")}
+                  />
                 </FilterField>
                 {touched && missingStation && (
                   <p className="text-xs text-destructive">Station is required.</p>
@@ -208,6 +236,14 @@ export default function BwcFormModal({
                 </FilterField>
               ))}
             </div>
+            <FilterField label="Remarks">
+              <Textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Optional remarks"
+                className="min-h-[72px]"
+              />
+            </FilterField>
             <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/10 px-3 py-2">
               <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
                 {totalLabel}
