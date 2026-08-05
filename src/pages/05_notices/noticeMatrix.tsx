@@ -3,14 +3,23 @@ import { Download, LayoutGrid, Loader2 } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
+import ResetFiltersButton from "@/components/reset-filters-button";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { resolveTargetScope } from "@/pages/06_target-reference/helpers";
 import { MATRIX_TONE } from "@/lib/theme";
 import { MONTH_NAMES } from "@/lib/complianceHelpers";
+import { buildYears } from "@/lib/utils";
 import { MONTH_COLORS } from "@/pages/04_compliance/components/monthColors";
 import {
   exportComplianceMatrix,
@@ -21,8 +30,11 @@ import { unwrap } from "@/lib/api-envelope";
 import { toast } from "@/lib/toast";
 import { useAuth } from "@/lib/auth";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
-import type { NoticeCategory, NoticeDetailModel } from "@/types/noticeType";
-
+import type {
+  NoticeCategory,
+  NoticeDetailModel,
+  NoticeLedgerResultModel,
+} from "@/types/noticeType";
 
 /* -------------------------------------------------------------------------
  * Column identity — mirrors the Fire Safety Compliance matrix layout so both
@@ -68,8 +80,6 @@ const ACCOM_FIELD: Record<NoticeCategory, string> = {
   Closure: "closurecount",
 };
 
-
-
 type IssuanceMode = "MANUAL" | "FSIS";
 const ISSUANCE_MODES: { key: IssuanceMode; label: string }[] = [
   { key: "MANUAL", label: "MANUAL" },
@@ -110,40 +120,12 @@ function lineMonth(key: string): number {
   return month >= 1 && month <= 12 ? month : 0;
 }
 
-function buildModeMonths(record: NoticeRecord): Record<IssuanceMode, MonthBuckets> {
-  const modeMonths: Record<IssuanceMode, MonthBuckets> = { MANUAL: {}, FSIS: {} };
-  for (const line of record.lines ?? []) {
-    const month = lineMonth(line.key) || record.reportMonth;
-    if (month < 1 || month > 12) continue;
-    const manual = bucketAt(modeMonths.MANUAL, month);
-    const fsis = bucketAt(modeMonths.FSIS, month);
-    for (const category of NOTICE_CATEGORIES) {
-      manual[category] += line.manual[category] ?? 0;
-      fsis[category] += line.fsis[category] ?? 0;
-    }
-  }
-  return modeMonths;
-}
-
 function sumMonthsOf(months: MonthBuckets, list: readonly number[]): CategoryCounts {
   const out = emptyCounts();
   for (const m of list) {
     const bucket = months[m];
     if (!bucket) continue;
     for (const category of NOTICE_CATEGORIES) out[category] += bucket[category] ?? 0;
-  }
-  return out;
-}
-
-function combineMonths(modeMonths: Record<IssuanceMode, MonthBuckets>): MonthBuckets {
-  const out: MonthBuckets = {};
-  for (const mode of ISSUANCE_MODES) {
-    const src = modeMonths[mode.key];
-    for (const key of Object.keys(src)) {
-      const month = Number(key);
-      const dst = bucketAt(out, month);
-      for (const category of NOTICE_CATEGORIES) dst[category] += src[month][category] ?? 0;
-    }
   }
   return out;
 }
@@ -173,6 +155,108 @@ function exportBucketAt(
   return (months[month] ??= emptyExportBucket());
 }
 
+/* -------------------------------------------------------------------------
+ * Matrix data model — identical shape to the Compliance / Target matrices:
+ * province → stations → per-issuance-mode month buckets.
+ * ---------------------------------------------------------------------- */
+
+interface NoticeStationRow {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  province: string;
+  cityname: string;
+  logoUrl: string;
+  /** Combined (MANUAL + FSIS) values — used for the station / province totals. */
+  months: MonthBuckets;
+  /** Per issuance mode values — one matrix row per mode. */
+  modeMonths: Record<IssuanceMode, MonthBuckets>;
+}
+
+interface NoticeProvinceGroup {
+  province: string;
+  provinceno: string;
+  stations: NoticeStationRow[];
+  provincialTotal: MonthBuckets;
+}
+
+function emptyModeMonths(): Record<IssuanceMode, MonthBuckets> {
+  return { MANUAL: {}, FSIS: {} };
+}
+
+function addCounts(dst: CategoryCounts, src: CategoryCounts) {
+  for (const category of NOTICE_CATEGORIES) dst[category] += src[category] ?? 0;
+}
+
+/** Build province groups from the FSISNotice Ledger payload. */
+function buildGroupsFromLedger(rows: NoticeDetailModel[]): NoticeProvinceGroup[] {
+  const groups: NoticeProvinceGroup[] = [];
+  const byProvince = new Map<string, NoticeProvinceGroup>();
+
+  for (const station of rows ?? []) {
+    const key = station.provinceno || station.provincename || "";
+    let group = byProvince.get(key);
+    if (!group) {
+      group = {
+        province: station.provincename ?? "",
+        provinceno: station.provinceno ?? "",
+        stations: [],
+        provincialTotal: {},
+      };
+      byProvince.set(key, group);
+      groups.push(group);
+    }
+
+    const months: MonthBuckets = {};
+    const modeMonths = emptyModeMonths();
+
+    for (const entry of station.noticedetallist ?? []) {
+      const month = Number(String(entry.dateaccomplish ?? "").slice(5, 7));
+      if (!(month >= 1 && month <= 12)) continue;
+      // Ensure both mode rows exist for every encoded month.
+      for (const mode of ISSUANCE_MODES) bucketAt(modeMonths[mode.key], month);
+      const combinedBucket = bucketAt(months, month);
+      for (const accom of entry.noticeaccomlist ?? []) {
+        const mode = ISSUANCE_MODES.find(
+          (m) => FSIC_MODE_CODE[m.key] === Number(accom.fsicmode),
+        )?.key;
+        if (!mode) continue;
+        const modeBucket = bucketAt(modeMonths[mode], month);
+        for (const category of NOTICE_CATEGORIES) {
+          const value =
+            Number((accom as unknown as Record<string, unknown>)[ACCOM_FIELD[category]] ?? 0) || 0;
+          modeBucket[category] += value;
+          combinedBucket[category] += value;
+        }
+      }
+    }
+
+    group.stations.push({
+      stationno: station.stationno,
+      stationcode: station.stationcode ?? "",
+      stationname: station.stationname ?? "",
+      provinceno: station.provinceno ?? "",
+      province: station.provincename ?? "",
+      cityname: station.cityname ?? "",
+      logoUrl: station.logourl ?? "",
+      months,
+      modeMonths,
+    });
+
+    for (const monthKey of Object.keys(months)) {
+      const month = Number(monthKey);
+      addCounts(bucketAt(group.provincialTotal, month), months[month]);
+    }
+  }
+
+  groups.forEach((g) =>
+    g.stations.sort((a, b) => (a.stationcode || "").localeCompare(b.stationcode || "")),
+  );
+  groups.sort((a, b) => (a.province || "").localeCompare(b.province || ""));
+  return groups;
+}
+
 interface NoticeMatrixModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -186,12 +270,12 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
     () => resolveTargetScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
   );
+  const currentYear = new Date().getFullYear();
+  const YEARS = React.useMemo(buildYears, []);
+  const [year, setYear] = React.useState<number>(Number(record?.reportYear) || currentYear);
   const [exporting, setExporting] = React.useState(false);
-  const modeMonths = React.useMemo(
-    () => (record ? buildModeMonths(record) : { MANUAL: {}, FSIS: {} }),
-    [record],
-  );
-  const combined = React.useMemo(() => combineMonths(modeMonths), [modeMonths]);
+  const [loading, setLoading] = React.useState(false);
+  const [groups, setGroups] = React.useState<NoticeProvinceGroup[]>([]);
 
   // Province / Station filters follow the shared roleno + stationtype rules:
   // locked scopes render as read-only fields, free scopes render pickers.
@@ -200,12 +284,11 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
 
   React.useEffect(() => {
     if (!open) return;
+    setYear(Number(record?.reportYear) || currentYear);
     setProvinceFilters(
       scope.provinceLocked
         ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
-        : record?.provinceno
-          ? [{ locationno: record.provinceno, locationname: record.province ?? "" }]
-          : [],
+        : [],
     );
     setStationFilters(
       scope.stationLocked
@@ -217,20 +300,12 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               provincename: scope.provincename,
             },
           ]
-        : record?.stationno
-          ? [
-              {
-                stationno: record.stationno,
-                stationname: record.stationname ?? "",
-                provinceno: record.provinceno ?? "",
-                provincename: record.province ?? "",
-              },
-            ]
-          : [],
+        : [],
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, record?.stationno, record?.provinceno, scope.provinceLocked, scope.stationLocked]);
+  }, [open, record?.reportYear, scope.provinceLocked, scope.stationLocked]);
 
+  // Province/Station cross-sync — identical rules to the Compliance matrix.
   const handleProvincesChange = (next: SelectedLocation[]) => {
     setProvinceFilters(next);
     if (next.length === 0) {
@@ -258,44 +333,104 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
     });
   };
 
+  // Fetch the full-year matrix for every station in one call, then bucket the
+  // rows per province / station / month. Filtering happens client-side so the
+  // multi-selects update the grid instantly (same as the Compliance matrix).
+  React.useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const response = await noticeAPI.getLedger(
+        {
+          parameters: {
+            searchkey: "",
+            reportyear: Number(year),
+            interval: 1,
+            dateaccomplish: `${year}-01-01T00:00:00`,
+            reportmonth: Array.from({ length: 12 }, (_, i) => i + 1),
+            provinces: [],
+          },
+          pagenumber: 1,
+          pagesize: 10000,
+        },
+        { suppressGlobalLoading: true },
+      );
+      const { ok, data, error } = unwrap<NoticeLedgerResultModel | NoticeDetailModel[]>(response);
+      if (cancelled) return;
+      if (!ok) {
+        toast.error(error || "Unable to load the Accomplished Notices Matrix.");
+        setGroups([]);
+        setLoading(false);
+        return;
+      }
+      const items = Array.isArray(data)
+        ? data
+        : Array.isArray((data as NoticeLedgerResultModel | null)?.items)
+          ? (data as NoticeLedgerResultModel).items
+          : [];
+      setGroups(buildGroupsFromLedger(items));
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, year]);
+
+  // Client-side view filter driven by the multi-selects.
+  const filteredGroups = React.useMemo<NoticeProvinceGroup[]>(() => {
+    const provSet = new Set(provinceFilters.map((p) => p.locationno).filter(Boolean));
+    const stnSet = new Set(stationFilters.map((s) => s.stationno).filter(Boolean));
+    return groups
+      .filter((g) => provSet.size === 0 || provSet.has(g.provinceno))
+      .map((g) => {
+        const stations =
+          stnSet.size === 0 ? g.stations : g.stations.filter((s) => stnSet.has(s.stationno));
+        const provincialTotal: MonthBuckets = {};
+        for (const station of stations) {
+          for (const monthKey of Object.keys(station.months)) {
+            const month = Number(monthKey);
+            addCounts(bucketAt(provincialTotal, month), station.months[month]);
+          }
+        }
+        return { ...g, stations, provincialTotal };
+      })
+      .filter((g) => g.stations.length > 0);
+  }, [groups, provinceFilters, stationFilters]);
+
   const scopedProvinceName = scope.provinceLocked
     ? scope.provincename
     : provinceFilters.length === 1
       ? provinceFilters[0].locationname
       : provinceFilters.length > 1
         ? `${provinceFilters.length} provinces`
-        : (record?.province ?? "");
+        : "";
   const scopedStationName = scope.stationLocked
     ? scope.stationname
     : stationFilters.length === 1
       ? stationFilters[0].stationname
       : stationFilters.length > 1
         ? `${stationFilters.length} stations`
-        : (record?.stationname ?? "");
-
+        : "";
 
   const handleExport = async () => {
-    if (!record) return;
-    const year = Number(record.reportYear) || new Date().getFullYear();
+    if (!year) {
+      toast.error("Please select a year.");
+      return;
+    }
     setExporting(true);
     try {
-      const provinceMap = new Map<string, Set<string>>();
-      for (const p of provinceFilters) {
-        if (p.locationno) provinceMap.set(p.locationno, new Set<string>());
-      }
-      for (const s of stationFilters) {
-        if (!s.provinceno) continue;
-        const set = provinceMap.get(s.provinceno) ?? new Set<string>();
-        if (s.stationno) set.add(s.stationno);
-        provinceMap.set(s.provinceno, set);
-      }
-      const provincesPayload = Array.from(provinceMap.entries()).map(
-        ([provinceno, stationnos]) => ({ provinceno, stationnos: Array.from(stationnos) }),
-      );
+      // Export exactly what the grid shows: derive the province/station payload
+      // from the filtered groups (falling back to everything loaded).
+      const sourceGroups = filteredGroups.length > 0 ? filteredGroups : groups;
+      const provincesPayload = sourceGroups.map((g) => ({
+        provinceno: g.provinceno,
+        stationnos: g.stations.map((s) => s.stationno).filter(Boolean),
+      }));
 
       const resp = await noticeAPI.export({
         searchkey: "",
-        reportyear: year,
+        reportyear: Number(year),
         provinces: provincesPayload,
       });
 
@@ -332,15 +467,14 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
             const allBucket = exportBucketAt(combinedMonths, month);
             for (const category of NOTICE_CATEGORIES) {
               const field = ACCOM_FIELD[category];
-              const value =
-                Number((accom as unknown as Record<string, unknown>)[field] ?? 0) || 0;
+              const value = Number((accom as unknown as Record<string, unknown>)[field] ?? 0) || 0;
               modeBucket[field] += value;
               allBucket[field] += value;
             }
           }
         }
 
-        const provinceName = station.provincename || record.province || "Unknown Province";
+        const provinceName = station.provincename || "Unknown Province";
         const bucket = byProvince.get(provinceName) ?? [];
         bucket.push({
           stationno: station.stationno,
@@ -354,7 +488,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
       }
 
       await exportComplianceMatrix({
-        year,
+        year: Number(year),
         groups: Array.from(byProvince.entries()).map(([province, list]) => ({
           province,
           stations: list.sort((a, b) => (a.stationCode || "").localeCompare(b.stationCode || "")),
@@ -381,9 +515,6 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
     }
   };
 
-  if (!record) return null;
-
-
   const catSpan = NOTICE_CATEGORIES.length;
   const totalCols = 2 + 12 * catSpan + AGGREGATES.length * catSpan;
 
@@ -402,9 +533,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
             </div>
             <div>
               <DialogTitle className="text-lg font-bold">Accomplished Notices Matrix</DialogTitle>
-              <p className="text-xs text-muted-foreground">
-                Manual and FSIS issuance — {record.reportYear}
-              </p>
+              <p className="text-xs text-muted-foreground">Manual and FSIS issuance — {year}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -431,17 +560,27 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               Close
             </Button>
           </div>
-
         </DialogHeader>
 
-        {/* Filters — read-only scope, mirrors the compliance matrix filter bar */}
+        {/* Filters — identical behaviour to the Compliance / Target matrices */}
         <div className="border-b bg-card px-5 py-4">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Year
               </div>
-              <ReadOnlyField value={String(record.reportYear)} placeholder="Year" />
+              <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -485,12 +624,36 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
                       ? [{ provinceno: scope.provinceno }]
                       : provinceFilters.map((p) => ({ provinceno: p.locationno }))
                   }
-                  reportyear={Number(record.reportYear)}
+                  reportyear={Number(year)}
                   onChange={handleStationsChange}
                   placeholder="All stations"
                   alwaysEnabled
                 />
               )}
+            </div>
+            <div className="flex items-end justify-end md:col-span-2 lg:col-span-1">
+              <ResetFiltersButton
+                onReset={() => {
+                  setYear(Number(record?.reportYear) || currentYear);
+                  setProvinceFilters(
+                    scope.provinceLocked
+                      ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
+                      : [],
+                  );
+                  setStationFilters(
+                    scope.stationLocked
+                      ? [
+                          {
+                            stationno: scope.stationno,
+                            stationname: scope.stationname,
+                            provinceno: scope.provinceno,
+                            provincename: scope.provincename,
+                          },
+                        ]
+                      : [],
+                  );
+                }}
+              />
             </div>
           </div>
         </div>
@@ -499,32 +662,36 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
           <table className="w-max min-w-full border-separate border-spacing-0 text-[11px]">
             <MatrixHeader catSpan={catSpan} />
             <tbody>
-              <tr>
-                <td
-                  colSpan={2}
-                  className={`sticky left-0 z-10 border-b border-t-2 border-t-slate-400/60 px-3 py-1.5 text-[12px] uppercase tracking-[0.2em] ${MATRIX_TONE.provHeaderRow}`}
-                >
-                  {scopedProvinceName || "Province"}
-                </td>
-                <td
-                  colSpan={totalCols - 2}
-                  aria-hidden="true"
-                  className="border-b border-t-2 border-grid-strong group-row"
-                />
-              </tr>
-
-              {ISSUANCE_MODES.map((mode, mi) => (
-                <ModeRow
-                  key={mode.key}
-                  record={record}
-                  modeLabel={mode.label}
-                  months={modeMonths[mode.key] ?? {}}
-                  showStation={mi === 0}
-                  rowBg={mi % 2 === 1 ? "bg-muted" : "bg-card"}
-                />
-              ))}
-
-              <TotalRow months={combined} />
+              {loading && (
+                <tr>
+                  <td
+                    colSpan={totalCols}
+                    className="border-b bg-card px-4 py-10 text-center text-sm text-muted-foreground"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                    </span>
+                  </td>
+                </tr>
+              )}
+              {!loading && filteredGroups.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={totalCols}
+                    className="border-b bg-card px-4 py-10 text-center text-sm text-muted-foreground"
+                  >
+                    No accomplished notices for {year}.
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                filteredGroups.map((group) => (
+                  <ProvinceBlock
+                    key={group.provinceno || group.province}
+                    group={group}
+                    totalCols={totalCols}
+                  />
+                ))}
             </tbody>
           </table>
         </div>
@@ -677,58 +844,80 @@ function DataCells({ months, rowClass }: { months: MonthBuckets; rowClass?: stri
   );
 }
 
-function ModeRow({
-  record,
-  modeLabel,
-  months,
-  showStation,
-  rowBg,
-}: {
-  record: NoticeRecord;
-  modeLabel: string;
-  months: MonthBuckets;
-  showStation: boolean;
-  rowBg: string;
-}) {
+function StationBlock({ station, zebra }: { station: NoticeStationRow; zebra: boolean }) {
+  const rowBg = zebra ? "bg-muted" : "bg-card";
   return (
-    <tr className={rowBg}>
-      {showStation ? (
-        <td
-          rowSpan={3}
-          className={`sticky left-0 z-20 min-w-[240px] border-b border-r px-3 py-2 ${rowBg}`}
-        >
-          <div className="flex items-center gap-2">
-            <AvatarWithFallback
-              entity={{ name: record.stationname }}
-              name={record.stationname}
-              className="h-8 w-8 shrink-0 rounded-full ring-1 ring-primary/20"
-            />
-            <div className="min-w-0">
-              <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
-                {record.stationcode}
-              </span>
-              <div className="truncate text-[11px] font-semibold">{record.stationname}</div>
-            </div>
-          </div>
-        </td>
-      ) : null}
-      <td
-        className={`sticky left-[240px] z-20 min-w-[120px] border-b border-r px-3 py-2 text-center text-[11px] font-semibold uppercase ${rowBg}`}
-      >
-        {modeLabel}
-      </td>
-      <DataCells months={months} />
-    </tr>
+    <>
+      {ISSUANCE_MODES.map((mode, mi) => (
+        <tr key={mode.key} className={rowBg}>
+          {mi === 0 ? (
+            <td
+              rowSpan={ISSUANCE_MODES.length}
+              className={`sticky left-0 z-20 min-w-[240px] border-b border-r px-3 py-2 ${rowBg}`}
+            >
+              <div className="flex items-center gap-2">
+                <AvatarWithFallback
+                  entity={{ name: station.stationname, logourl: station.logoUrl }}
+                  name={station.stationname}
+                  className="h-8 w-8 shrink-0 rounded-full ring-1 ring-primary/20"
+                />
+                <div className="min-w-0">
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                    {station.stationcode}
+                  </span>
+                  <div className="truncate text-[11px] font-semibold">{station.stationname}</div>
+                </div>
+              </div>
+            </td>
+          ) : null}
+          <td
+            className={`sticky left-[240px] z-20 min-w-[120px] border-b border-r px-3 py-2 text-center text-[11px] font-semibold uppercase ${rowBg}`}
+          >
+            {mode.label}
+          </td>
+          <DataCells months={station.modeMonths[mode.key] ?? {}} />
+        </tr>
+      ))}
+    </>
   );
 }
 
-function TotalRow({ months }: { months: MonthBuckets }) {
+function ProvinceBlock({ group, totalCols }: { group: NoticeProvinceGroup; totalCols: number }) {
+  return (
+    <>
+      <tr>
+        <td
+          colSpan={2}
+          className={`sticky left-0 z-10 border-b border-t-2 border-t-slate-400/60 px-3 py-1.5 text-[12px] uppercase tracking-[0.2em] ${MATRIX_TONE.provHeaderRow}`}
+        >
+          {group.province || "Unknown Province"}
+        </td>
+        <td
+          colSpan={totalCols - 2}
+          aria-hidden="true"
+          className="border-b border-t-2 border-grid-strong group-row"
+        />
+      </tr>
+      {group.stations.map((station, idx) => (
+        <StationBlock key={station.stationno} station={station} zebra={idx % 2 === 1} />
+      ))}
+      <ProvinceTotalRow province={group.province} months={group.provincialTotal} />
+    </>
+  );
+}
+
+function ProvinceTotalRow({ province, months }: { province: string; months: MonthBuckets }) {
   return (
     <tr>
       <td
+        className={`sticky left-0 z-20 min-w-[240px] border-b border-r px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${STYLE.totalRow}`}
+      >
+        {(province || "Province") + " Total"}
+      </td>
+      <td
         className={`sticky left-[240px] z-20 min-w-[120px] border-b border-r px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider ${STYLE.totalRow}`}
       >
-        Total
+        ALL
       </td>
       <DataCells months={months} rowClass={STYLE.totalRow} />
     </tr>
