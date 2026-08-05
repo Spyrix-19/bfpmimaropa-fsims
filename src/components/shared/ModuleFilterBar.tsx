@@ -71,24 +71,31 @@ function serializeSelectedWeeks(weeks: number[]): string {
   return weeks.map((week) => `w${week}`).join(",");
 }
 
+/**
+ * Sunday–Saturday weeks covering the given year.
+ * Displayed ranges are clipped so they never spill into the adjacent years.
+ */
 function getYearWeekRanges(year: number) {
-  const anchor = new Date(year, 0, 4);
-  const weekOneStart = startOfISOWeek(anchor);
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
   const dateFormatter = new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
+    year: "numeric",
   });
   const ranges: Array<{ weekNumber: number; start: Date; end: Date; label: string }> = [];
 
-  let currentStart = weekOneStart;
+  let currentStart = startOfWeek(yearStart, { weekStartsOn: 0 });
   let weekNumber = 1;
-  while (currentStart.getFullYear() <= year) {
-    const end = endOfISOWeek(currentStart);
+  while (currentStart <= yearEnd) {
+    const currentEnd = endOfWeek(currentStart, { weekStartsOn: 0 });
+    const clippedStart = currentStart < yearStart ? yearStart : currentStart;
+    const clippedEnd = currentEnd > yearEnd ? yearEnd : currentEnd;
     ranges.push({
       weekNumber,
-      start: new Date(currentStart),
-      end: new Date(end),
-      label: `${dateFormatter.format(currentStart)} – ${dateFormatter.format(end)}`,
+      start: new Date(clippedStart),
+      end: new Date(clippedEnd),
+      label: `${dateFormatter.format(clippedStart)} - ${dateFormatter.format(clippedEnd)}`,
     });
 
     currentStart = addDays(currentStart, 7);
@@ -98,6 +105,7 @@ function getYearWeekRanges(year: number) {
 
   return ranges;
 }
+
 
 export function isAllDays(date: string): boolean {
   return typeof date === "string" && date.startsWith(ALL_DAYS_PREFIX);
