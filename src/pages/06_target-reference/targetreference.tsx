@@ -148,7 +148,9 @@ export default function TargetReferenceIndexPage() {
       ? "ANNUAL"
       : filterState.interval === "SEMESTER"
         ? "SEMI-ANNUAL"
-        : filterState.interval;
+        : filterState.interval === "WEEKLY"
+          ? "DAILY"
+          : filterState.interval;
   /** Months the display should render, driven by the active interval. */
   const selectedMonths = React.useMemo(() => resolveModuleMonths(filterState), [filterState]);
   /** DAILY only: a specific day, or null when "All" is selected. */
