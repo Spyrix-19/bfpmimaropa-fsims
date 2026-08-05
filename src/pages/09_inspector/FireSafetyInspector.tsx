@@ -1,27 +1,27 @@
 import { ShieldCheck } from "lucide-react";
-import InspectorLedger from "./components/InspectorLedger";
-import { MOCK_FIRE_SAFETY_INSPECTORS } from "@/mock/logistics.mock";
+import BwcLedger from "../08_bwc/components/BwcLedger";
+import { inspectorLogisticsApi } from "@/lib/logisticsApi";
 
 export default function FireSafetyInspectorPage() {
   return (
-    <InspectorLedger
+    <BwcLedger
       title="Fire Safety Inspector"
       description="Station-level Fire Safety Inspector training capability."
       icon={<ShieldCheck className="h-5 w-5 text-primary" />}
       entityLabel="Inspector"
       addLabel="Add Inspector"
       totalLabel="Total Inspectors"
-      rows={MOCK_FIRE_SAFETY_INSPECTORS}
+      api={inspectorLogisticsApi}
       fields={[
         {
-          key: "withTraining",
+          key: "withtrainingcount",
           label: "With Training",
           shortLabel: "W/ Training",
           tone: "success",
           hint: "Inspectors with completed FSIC training.",
         },
         {
-          key: "withoutTraining",
+          key: "withouttrainingcount",
           label: "Without Training",
           shortLabel: "W/O Training",
           tone: "destructive",
