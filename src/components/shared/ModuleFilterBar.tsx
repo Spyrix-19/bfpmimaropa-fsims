@@ -14,6 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatLongDate } from "@/lib/date-format";
 import { MONTHS } from "@/lib/fsims-constants";
