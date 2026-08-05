@@ -17,8 +17,8 @@ import FilterField from "@/components/filter-field";
 import StationSearchSelect from "@/components/station-search-select";
 import type { SearchStationModel } from "@/types/stationTypes";
 import { cn } from "@/lib/utils";
-import type { InspectorField, InspectorRow } from "./inspectorTypes";
-import { num } from "./inspectorTypes";
+import type { InspectorField, InspectorRow } from "../FireSafetyInspector";
+import { num } from "../inspectorexport";
 
 export interface InspectorFormSubmit {
   recordno: string;
@@ -58,7 +58,8 @@ function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string })
   );
 }
 
-export default function InspectorAddEditModal({
+/** Add / Edit modal for a Fire Safety Inspector station record. */
+export default function InspectorModal({
   open,
   onOpenChange,
   row,
