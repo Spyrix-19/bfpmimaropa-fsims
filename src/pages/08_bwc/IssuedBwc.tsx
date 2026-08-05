@@ -1,6 +1,6 @@
 import { Radio } from "lucide-react";
 import BwcLedger from "./components/BwcLedger";
-import { MOCK_ISSUED_BWC } from "@/mock/logistics.mock";
+import { bwcLogisticsApi } from "@/lib/logisticsApi";
 
 export default function IssuedBwcPage() {
   return (
@@ -11,10 +11,22 @@ export default function IssuedBwcPage() {
       entityLabel="BWC"
       addLabel="Add BWC"
       totalLabel="Total Issued"
-      rows={MOCK_ISSUED_BWC}
+      api={bwcLogisticsApi}
       fields={[
-        { key: "working", label: "Working", tone: "success", hint: "Units currently serviceable." },
-        { key: "ber", label: "BER", tone: "destructive", hint: "Beyond economical repair." },
+        {
+          key: "operationalcount",
+          label: "Working",
+          shortLabel: "Working",
+          tone: "success",
+          hint: "Units currently serviceable.",
+        },
+        {
+          key: "nonoperationalcount",
+          label: "BER",
+          shortLabel: "BER",
+          tone: "destructive",
+          hint: "Beyond economical repair.",
+        },
       ]}
     />
   );
