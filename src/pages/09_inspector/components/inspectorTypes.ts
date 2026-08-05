@@ -1,7 +1,16 @@
-import type { StationInfo } from "@/mock/logistics.mock";
+/** Station identity fields returned with every ledger row. */
+export interface StationInfo {
+  stationno: string;
+  stationname: string;
+  unitcode: string;
+  provincename: string;
+  cityname: string;
+  logourl?: string | null;
+}
+
 
 /** A numeric metric column shared by the board, form, details and matrix. */
-export interface BwcField {
+export interface InspectorField {
   key: string;
   label: string;
   /** Short label used inside the matrix header. */
@@ -13,15 +22,15 @@ export interface BwcField {
 
 /** Any logistics row: station identity + record key + numeric metrics. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type BwcRow = StationInfo & Record<string, any> & { recordno: string; remarks?: string };
+export type InspectorRow = StationInfo & Record<string, any> & { recordno: string; remarks?: string };
 
-export const num = (row: BwcRow, key: string) => Number(row[key] ?? 0) || 0;
+export const num = (row: InspectorRow, key: string) => Number(row[key] ?? 0) || 0;
 
-export const rowTotal = (row: BwcRow, fields: BwcField[]) =>
+export const rowTotal = (row: InspectorRow, fields: InspectorField[]) =>
   fields.reduce((sum, f) => sum + num(row, f.key), 0);
 
 /** Maps an API ledger/detail model into the flat row shape used by the UI. */
-export function toBwcRow(model: unknown, idKey: string): BwcRow {
+export function toInspectorRow(model: unknown, idKey: string): InspectorRow {
   const m = (model ?? {}) as Record<string, unknown>;
   return {
     ...(m as object),
@@ -33,5 +42,5 @@ export function toBwcRow(model: unknown, idKey: string): BwcRow {
     provincename: String(m.provincename ?? ""),
     logourl: (m.logourl as string) ?? null,
     remarks: String(m.remarks ?? ""),
-  } as BwcRow;
+  } as InspectorRow;
 }

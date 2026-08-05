@@ -1,23 +1,23 @@
 import { toast } from "@/lib/toast";
-import type { BwcField, BwcRow } from "./bwcTypes";
-import { num, rowTotal } from "./bwcTypes";
+import type { InspectorField, InspectorRow } from "./inspectorTypes";
+import { num, rowTotal } from "./inspectorTypes";
 
 export interface BwcMatrixGroup {
   provincename: string;
-  stations: BwcRow[];
+  stations: InspectorRow[];
 }
 
 const csvCell = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
 
 /** Exports the Issued BWC matrix, grouped by province with province totals. */
-export function exportBwcMatrix(
+export function exportInspectorMatrix(
   groups: BwcMatrixGroup[],
-  fields: BwcField[],
+  fields: InspectorField[],
   totalLabel: string,
   title: string,
 ) {
-  const sumOf = (list: BwcRow[], key: string) => list.reduce((sum, r) => sum + num(r, key), 0);
-  const sumTotal = (list: BwcRow[]) => list.reduce((sum, r) => sum + rowTotal(r, fields), 0);
+  const sumOf = (list: InspectorRow[], key: string) => list.reduce((sum, r) => sum + num(r, key), 0);
+  const sumTotal = (list: InspectorRow[]) => list.reduce((sum, r) => sum + rowTotal(r, fields), 0);
 
   const header = [
     "Province",

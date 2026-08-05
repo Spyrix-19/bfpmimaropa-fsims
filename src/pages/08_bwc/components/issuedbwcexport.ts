@@ -1,6 +1,12 @@
 import { toast } from "@/lib/toast";
-import type { BwcField, BwcRow } from "./bwcTypes";
-import { num, rowTotal } from "./bwcTypes";
+import type { BwcField, BwcRow } from "./issuedbwc";
+
+/** Reads a numeric metric off a ledger row. */
+export const num = (row: BwcRow, key: string) => Number(row[key] ?? 0) || 0;
+
+/** Sum of every metric column on a row. */
+export const rowTotal = (row: BwcRow, fields: BwcField[]) =>
+  fields.reduce((sum, f) => sum + num(row, f.key), 0);
 
 const csvCell = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
 
@@ -14,7 +20,7 @@ const download = (filename: string, lines: string[]) => {
   URL.revokeObjectURL(url);
 };
 
-/** Exports the Issued BWC ledger (card list) as it is currently filtered. */
+/** Exports the Issued BWC ledger as it is currently filtered. */
 export function exportBwcLedger(
   rows: BwcRow[],
   fields: BwcField[],

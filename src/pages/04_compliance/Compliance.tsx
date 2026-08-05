@@ -919,11 +919,15 @@ export default function FireSafetyCompliancePage() {
           year={viewTarget.year}
           month={viewTarget.month}
           stationName={viewTarget.stationname}
-          onEdit={(y, m) => {
-            const t = viewTarget;
-            setViewTarget(null);
-            setEditTarget({ ...t, year: y, month: m });
-          }}
+          onEdit={
+            canManage
+              ? (y, m) => {
+                  const t = viewTarget;
+                  setViewTarget(null);
+                  setEditTarget({ ...t, year: y, month: m });
+                }
+              : undefined
+          }
         />
       )}
 

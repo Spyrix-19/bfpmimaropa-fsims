@@ -542,13 +542,17 @@ export default function TargetReferenceIndexPage() {
         target={detailsTarget}
         period={period}
         month={Number(month)}
-        onEdit={(y, m) => {
-          const t = detailsTarget;
-          setDetailsOpen(false);
-          if (!t) return;
-          setEditingGroup({ year: y, stationno: t.stationno, month: m });
-          setFormOpen(true);
-        }}
+        onEdit={
+          canManage
+            ? (y, m) => {
+                const t = detailsTarget;
+                setDetailsOpen(false);
+                if (!t) return;
+                setEditingGroup({ year: y, stationno: t.stationno, month: m });
+                setFormOpen(true);
+              }
+            : undefined
+        }
       />
 
       <TargetMatrixModal

@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { StatBox } from "@/components/stat-box";
-import type { BwcField, BwcRow } from "./bwcTypes";
-import { num, rowTotal } from "./bwcTypes";
+import type { BwcField, BwcRow } from "../issuedbwc";
+import { num, rowTotal } from "../bwcexport";
 
 interface Props {
   open: boolean;
@@ -37,7 +37,7 @@ function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string })
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: React.ReactNode }) {
+function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
@@ -50,7 +50,8 @@ function ReadOnlyField({ label, value }: { label: string; value: React.ReactNode
   );
 }
 
-export default function BwcDetailsModal({
+/** Read-only details view for an Issued BWC station record. */
+export default function BwcView({
   open,
   onOpenChange,
   row,
@@ -100,9 +101,9 @@ export default function BwcDetailsModal({
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
-                <ReadOnlyField label="Unit Code" value={row.unitcode} />
-                <ReadOnlyField label="City / Municipality" value={row.cityname} />
-                <ReadOnlyField label="Province" value={row.provincename} />
+                <DetailField label="Unit Code" value={row.unitcode} />
+                <DetailField label="City / Municipality" value={row.cityname} />
+                <DetailField label="Province" value={row.provincename} />
               </div>
             </Card>
 

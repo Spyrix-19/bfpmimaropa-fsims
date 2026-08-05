@@ -1,6 +1,6 @@
 import { ShieldCheck } from "lucide-react";
 import InspectorLedger from "./components/InspectorLedger";
-import { inspectorLogisticsApi } from "@/lib/logisticsApi";
+import { inspectorApi } from "./components/inspectorApi";
 
 export default function FireSafetyInspectorPage() {
   return (
@@ -11,7 +11,7 @@ export default function FireSafetyInspectorPage() {
       entityLabel="Inspector"
       addLabel="Add Inspector"
       totalLabel="Total Inspectors"
-      api={inspectorLogisticsApi}
+      api={inspectorApi}
       fields={[
         {
           key: "withtrainingcount",

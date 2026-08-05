@@ -17,8 +17,8 @@ import FilterField from "@/components/filter-field";
 import StationSearchSelect from "@/components/station-search-select";
 import type { SearchStationModel } from "@/types/stationTypes";
 import { cn } from "@/lib/utils";
-import type { BwcField, BwcRow } from "./bwcTypes";
-import { num } from "./bwcTypes";
+import type { BwcField, BwcRow } from "../issuedbwc";
+import { num } from "../bwcexport";
 
 export interface BwcFormSubmit {
   recordno: string;
@@ -58,7 +58,8 @@ function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string })
   );
 }
 
-export default function BwcFormModal({
+/** Add / Edit modal for an Issued BWC station record. */
+export default function BwcModal({
   open,
   onOpenChange,
   row,

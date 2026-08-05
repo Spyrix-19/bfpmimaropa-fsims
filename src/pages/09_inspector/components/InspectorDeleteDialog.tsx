@@ -1,6 +1,30 @@
-import type { ComponentProps } from "react";
-import BwcDeleteDialog from "../../08_bwc/components/BwcDeleteDialog";
+import SecureDeleteDialog from "@/components/secure-delete-dialog";
+import type { InspectorRow } from "./inspectorTypes";
 
-export default function InspectorDeleteDialog(props: ComponentProps<typeof BwcDeleteDialog>) {
-  return <BwcDeleteDialog {...props} />;
+interface Props {
+  row: InspectorRow | null;
+  onOpenChange: (open: boolean) => void;
+  deleting: boolean;
+  onConfirm: () => void;
+  entityLabel: string;
+}
+
+/** Delete confirmation for an Issued BWC station record. */
+export default function InspectorDeleteDialog({
+  row,
+  onOpenChange,
+  deleting,
+  onConfirm,
+  entityLabel,
+}: Props) {
+  return (
+    <SecureDeleteDialog
+      open={row != null}
+      onOpenChange={onOpenChange}
+      subject={row ? `${row.stationname} — ${entityLabel} record` : undefined}
+      description={`This permanently removes the ${entityLabel.toLowerCase()} record for this station.`}
+      deleting={deleting}
+      onConfirm={onConfirm}
+    />
+  );
 }
