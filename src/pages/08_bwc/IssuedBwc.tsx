@@ -338,6 +338,17 @@ export default function IssuedBwcPage() {
     const trimmed = stationno.trim();
     if (!trimmed) return null;
 
+    const existsResp = await bwcAPI.CheckExist(
+      { stationno: trimmed },
+      { suppressGlobalLoading: true, suppressErrorToast: true },
+    );
+    const exists = unwrap<boolean>(existsResp);
+    if (!exists.ok) {
+      toast.error(exists.error || "Unable to check existing bwc record.");
+      return null;
+    }
+    if (exists.data !== true) return null;
+
     const resp = await bwcAPI.getLedger(
       { parameters: { searchkey: trimmed, provinces: [] }, pagenumber: 1, pagesize: 50 },
       { suppressGlobalLoading: true, suppressErrorToast: true },
@@ -454,7 +465,17 @@ export default function IssuedBwcPage() {
         toast.error(error || "Unable to export issued bwc records.");
         return;
       }
-      exportBwcLedger((Array.isArray(data) ? data : []).map(toBwcRow), FIELDS, TOTAL_LABEL, TITLE);
+      await exportBwcLedger(
+        (Array.isArray(data) ? data : []).map(toBwcRow),
+        FIELDS,
+        TOTAL_LABEL,
+        TITLE,
+        {
+          rank: user?.rankcode ?? user?.rankname ?? "",
+          fullname: user?.fullname ?? user?.name ?? "",
+          designation: user?.designation ?? "",
+        },
+      );
     } finally {
       setExporting(false);
     }
@@ -516,7 +537,6 @@ export default function IssuedBwcPage() {
                 onChange={handleProvincesChange}
                 placeholder="All provinces"
                 hideCode
-                useStationApi
                 className="w-full"
               />
             )}

@@ -311,6 +311,42 @@ export async function exportTargetReferenceWorkbook(opts: {
     }
   });
 
+  // Regional grand total — only when more than one province is present
+  if (provinceNames.length > 1) {
+    ws.getRow(cursor).height = 8;
+    cursor++;
+    const grandRow = ws.getRow(cursor);
+    ws.mergeCells(cursor, 1, cursor, 4);
+    const grandLabel = grandRow.getCell(1);
+    grandLabel.value = "REGIONAL GRAND TOTAL — MIMAROPA";
+    grandLabel.fill = fill("FF0F766E");
+    Object.assign(grandLabel, provinceRowStyle());
+    grandLabel.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+
+    let gCol = dataStartCol;
+    periods.forEach((period) => {
+      const totalBucket = groups.reduce<TargetBucket>(
+        (acc, station) => addBucket(acc, period.getBucket(station.targetreferencelist)),
+        emptyBucket(),
+      );
+      [totalBucket.bplo, totalBucket.gov, totalBucket.peza, totalBucket.tieza].forEach(
+        (value, idx) => {
+          const cell = grandRow.getCell(gCol + idx);
+          cell.value = Number(value) || 0;
+          cell.numFmt = "#,##0;(#,##0);-";
+          cell.fill = fill("FF0F766E");
+          Object.assign(cell, provinceRowStyle());
+          cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+        },
+      );
+      gCol += 4;
+    });
+    grandRow.height = 24;
+    cursor++;
+  }
+
+
+
   const footerStart = cursor + 2;
   ws.mergeCells(footerStart, 1, footerStart, 6);
   const genCell = ws.getCell(footerStart, 1);

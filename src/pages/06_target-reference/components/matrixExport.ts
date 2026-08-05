@@ -319,14 +319,42 @@ export async function exportTargetMatrix(opts: {
     cursor++;
   };
 
+  const provinceTotalRows: number[] = [];
   groups.forEach((g) => {
     const stationRowNums: number[] = [];
     g.stations.forEach((s, i) => {
       stationRowNums.push(cursor);
       writeStationRow(s, i + 1, g.province);
     });
+    provinceTotalRows.push(cursor);
     writeProvinceTotal(g.province, stationRowNums);
   });
+
+  // Regional grand total — only when more than one province is present
+  if (provinceTotalRows.length > 1) {
+    const row = ws.getRow(cursor);
+    ws.mergeCells(cursor, COL.NO, cursor, COL.STATION);
+    const labelCell = row.getCell(COL.NO);
+    labelCell.value = "REGIONAL GRAND TOTAL — MIMAROPA";
+    labelCell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+    labelCell.alignment = { horizontal: "center", vertical: "middle" };
+    labelCell.fill = fill("FF0F766E");
+    labelCell.border = border("medium", "FF334155");
+
+    for (let col = COL.MONTHS_START; col <= COL.LAST; col++) {
+      const cell = row.getCell(col);
+      const refs = provinceTotalRows.map((r) => ws.getCell(r, col).address).join("+");
+      cell.value = { formula: refs } as ExcelJS.CellFormulaValue;
+      cell.numFmt = NUMBER_FMT;
+      cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.fill = fill("FF0F766E");
+      cell.border = border();
+    }
+    row.height = 24;
+    cursor++;
+  }
+
 
   // -------------------------------------------------- Column widths
   ws.getColumn(COL.NO).width = 5;

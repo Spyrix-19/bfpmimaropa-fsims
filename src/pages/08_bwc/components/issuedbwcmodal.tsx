@@ -17,6 +17,7 @@ import FilterField from "@/components/filter-field";
 import StationSearchSelect from "@/components/station-search-select";
 import type { SearchStationModel } from "@/types/stationTypes";
 import { cn } from "@/lib/utils";
+import { useAuth, resolveLocationScope } from "@/lib/auth";
 import type { BwcField, BwcRow } from "../IssuedBwc";
 import { num } from "../bwcexport";
 
@@ -71,6 +72,15 @@ export default function BwcModal({
   onStationSelected,
 }: Props) {
   const isEdit = row != null;
+  const { user, systemAccess } = useAuth();
+  const scope = React.useMemo(
+    () => resolveLocationScope(user, systemAccess?.roleno),
+    [user, systemAccess?.roleno],
+  );
+  // roleno 3 (personnel) => station is fixed to their own station.
+  const stationLocked = scope.roleno === 3 && !!scope.stationno;
+  // stationtype 27 admins are scoped to their province; 25/26 admins search all.
+  const scopedProvinceno = stationLocked ? undefined : scope.provinceno || undefined;
   const [stationno, setStationno] = React.useState("");
   const [station, setStation] = React.useState<{
     stationname: string;
@@ -102,7 +112,20 @@ export default function BwcModal({
         : null,
     );
     setValues(Object.fromEntries(fields.map((f) => [f.key, row ? String(num(row, f.key)) : ""])));
-  }, [open, row, fields]);
+
+    if (!row && stationLocked) {
+      setStationno(scope.stationno);
+      setStation({
+        stationname: user?.stationname ?? scope.stationname,
+        unitcode: user?.stationcode ?? "",
+        cityname: user?.cityname ?? "",
+        provincename: user?.provincename ?? scope.provincename,
+        logourl: null,
+      });
+      void onStationSelected?.(scope.stationno, user?.stationname ?? scope.stationname, user?.provincename ?? scope.provincename);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, row, fields, stationLocked, scope.stationno]);
 
   const parsed = fields.map((f) => ({
     ...f,
@@ -173,7 +196,8 @@ export default function BwcModal({
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto bg-muted/20 px-5 py-5">
           <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
             <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
-            {isEdit && station ? (
+            {(isEdit || (stationLocked && station)) && station ? (
+              <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <AvatarWithFallback
                   name={station.stationname}
@@ -185,9 +209,23 @@ export default function BwcModal({
                   <div className="truncate text-sm font-semibold">{station.stationname}</div>
                   <div className="text-xs font-medium text-primary">{station.unitcode}</div>
                   <div className="text-xs text-muted-foreground">
-                    {station.cityname}, {station.provincename}
+                    {[station.cityname, station.provincename].filter(Boolean).join(", ")}
                   </div>
                 </div>
+              </div>
+              {!isEdit && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { label: "Station Code", value: station.unitcode },
+                    { label: "Station Name", value: station.stationname },
+                    { label: "Province", value: station.provincename },
+                  ].map((f) => (
+                    <FilterField key={f.label} label={f.label}>
+                      <Input value={f.value ?? ""} readOnly className="h-10 bg-muted/40" />
+                    </FilterField>
+                  ))}
+                </div>
+              )}
               </div>
             ) : (
               <>
@@ -195,6 +233,7 @@ export default function BwcModal({
                   <StationSearchSelect
                     value={stationno}
                     valueName={station?.stationname}
+                    provinceno={scopedProvinceno}
                     onChange={handleStationPick}
                     placeholder="Select station"
                     className={cn(touched && missingStation && "border-destructive")}

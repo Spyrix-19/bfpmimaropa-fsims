@@ -483,14 +483,81 @@ export async function exportComplianceMatrix(opts: {
     cursor = last + 1;
   };
 
+  /** Regional grand total rows — sums the provincial total rows. */
+  const writeGrandTotals = (provinceStarts: number[], modeLabels: string[]) => {
+    const start = cursor;
+    const last = start + modeLabels.length - 1;
+    const GRAND = "FF0F766E";
+
+    modeLabels.forEach((label, mi) => {
+      const rowNumber = start + mi;
+      const row = ws.getRow(rowNumber);
+      row.getCell(COL.MODE).value = label;
+
+      for (let col = COL.MONTHS_START; col <= LAST; col++) {
+        const ci = (col - COL.MONTHS_START) % catSpan;
+        const field = fields[ci];
+        const inspection = isInspection(field);
+        if (inspection && mi !== 0) continue;
+        const cell = row.getCell(col);
+        const refs = provinceStarts
+          .map((p) => ws.getCell(inspection ? p : p + mi, col).address)
+          .join(",");
+        cell.value = { formula: `SUM(${refs})` } as ExcelJS.CellFormulaValue;
+        cell.numFmt = NUMBER_FMT;
+        cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.fill = fill(GRAND);
+        cell.border = border();
+      }
+
+      const labelCell = row.getCell(COL.NO);
+      if (mi === 0) labelCell.value = "REGIONAL GRAND TOTAL — MIMAROPA";
+      [COL.NO, COL.PROV, COL.CITY, COL.STATION, COL.MODE].forEach((c) => {
+        const cell = row.getCell(c);
+        cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.fill = fill(GRAND);
+        cell.border = border("medium", "FF334155");
+      });
+      row.height = 22;
+    });
+
+    if (modeLabels.length > 1) {
+      ws.mergeCells(start, COL.NO, last, COL.STATION);
+      const mergeInspection = (baseCol: number) => {
+        fields.forEach((f, ci) => {
+          if (isInspection(f)) ws.mergeCells(start, baseCol + ci, last, baseCol + ci);
+        });
+      };
+      for (let m = 0; m < 12; m++) mergeInspection(monthCatCol(m, 0));
+      for (let qi = 0; qi < 4; qi++) mergeInspection(qtotalCol(qi, 0));
+      [SEM1_START, SEM2_START, ANN_START].forEach((base) => mergeInspection(base));
+    } else {
+      ws.mergeCells(start, COL.NO, start, COL.STATION);
+    }
+
+    cursor = last + 1;
+  };
+
+  const provinceTotalStarts: number[] = [];
+  let grandModeLabels: string[] = ["MANUAL", "FSIS"];
   groups.forEach((g) => {
     const anchors: number[] = [];
     const modeLabels = g.stations[0]?.modes.map((m) => m.label) ?? ["MANUAL", "FSIS"];
+    grandModeLabels = modeLabels;
     g.stations.forEach((s, i) => {
       anchors.push(writeStationRows(s, i + 1, g.province));
     });
+    provinceTotalStarts.push(cursor);
     writeProvinceTotals(g.province, anchors, modeLabels);
   });
+
+  // Regional grand total — only when more than one province is present
+  if (provinceTotalStarts.length > 1) {
+    writeGrandTotals(provinceTotalStarts, grandModeLabels);
+  }
+
 
   // Column widths
   ws.getColumn(COL.NO).width = 5;

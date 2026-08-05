@@ -58,7 +58,7 @@ export interface NoticeModeBucket {
 const CATEGORY_LABELS: string[] = ["NOD", "NTC", "NTCV", "Abatement", "Closure"];
 const MODE_LABELS: string[] = ["MANUAL", "FSIS"];
 const CATEGORIES_PER_MODE = CATEGORY_LABELS.length;
-const COLS_PER_PERIOD = CATEGORIES_PER_MODE * MODE_LABELS.length;
+const COLS_PER_PERIOD = CATEGORIES_PER_MODE;
 const QUARTER_LABELS = ["First Quarter", "Second Quarter", "Third Quarter", "Fourth Quarter"];
 const SEMESTER_LABELS = ["First Semester", "Second Semester"];
 
@@ -248,7 +248,7 @@ export async function exportNoticeWorkbook(opts: {
 
   const intervalTitle = INTERVAL_TITLES[interval] ?? "";
   const ws = wb.addWorksheet(`${intervalTitle} ${year}`.trim(), {
-    views: [{ state: "frozen", xSplit: 4, ySplit: 4, showGridLines: false }],
+    views: [{ state: "frozen", xSplit: 5, ySplit: 3, showGridLines: false }],
     pageSetup: {
       orientation: "landscape",
       fitToPage: true,
@@ -267,7 +267,8 @@ export async function exportNoticeWorkbook(opts: {
   });
 
   const periods = buildPeriodDefs(interval, year, selectedMonths, quarter, semester, selectedDay);
-  const dataStartCol = 5;
+  const modeCol = 5;
+  const dataStartCol = 6;
   const lastCol = dataStartCol + periods.length * COLS_PER_PERIOD - 1;
 
   ws.mergeCells(1, 1, 1, lastCol);
@@ -285,12 +286,19 @@ export async function exportNoticeWorkbook(opts: {
 
   ws.getRow(1).height = 30;
 
-  // Station Information crown — merged across the four info columns and all header rows
-  ws.mergeCells(2, 1, 4, 4);
+  // Station Information crown — merged across the four info columns and both header rows
+  ws.mergeCells(2, 1, 3, 4);
   const stationInfoHeader = ws.getCell(2, 1);
   stationInfoHeader.value = "Station Information";
   stationInfoHeader.fill = fill("FF1D4ED8");
   Object.assign(stationInfoHeader, crownHeaderStyle());
+
+  // Mode of Issuance lives beside the station information, inside the frozen pane
+  ws.mergeCells(2, modeCol, 3, modeCol);
+  const modeHeader = ws.getCell(2, modeCol);
+  modeHeader.value = "MODE OF ISSUANCE";
+  modeHeader.fill = fill("FF1D4ED8");
+  Object.assign(modeHeader, crownHeaderStyle());
 
   let col = dataStartCol;
   periods.forEach((period) => {
@@ -301,35 +309,24 @@ export async function exportNoticeWorkbook(opts: {
     Object.assign(cell, crownHeaderStyle());
     cell.fill = fill("FF0F766E");
 
-    const modeRow = ws.getRow(3);
-    const catRow = ws.getRow(4);
-    MODE_LABELS.forEach((mode, modeIdx) => {
-      const modeStart = col + modeIdx * CATEGORIES_PER_MODE;
-      const modeEnd = modeStart + CATEGORIES_PER_MODE - 1;
-      ws.mergeCells(3, modeStart, 3, modeEnd);
-      const modeCell = ws.getCell(3, modeStart);
-      modeCell.value = mode;
-      modeCell.fill = fill(modeIdx === 0 ? "FFBAE6FD" : "FFFDE68A");
-      Object.assign(modeCell, modeHeaderStyle());
-
-      CATEGORY_LABELS.forEach((label, idx) => {
-        const catCell = catRow.getCell(modeStart + idx);
-        catCell.value = label;
-        catCell.fill = fill("FFD1FAE5");
-        Object.assign(catCell, categoryHeaderStyle());
-      });
+    const catRow = ws.getRow(3);
+    CATEGORY_LABELS.forEach((label, idx) => {
+      const catCell = catRow.getCell(col + idx);
+      catCell.value = label;
+      catCell.fill = fill("FFD1FAE5");
+      Object.assign(catCell, categoryHeaderStyle());
     });
     col += COLS_PER_PERIOD;
   });
 
   ws.getRow(2).height = 26;
-  ws.getRow(3).height = 20;
-  ws.getRow(4).height = 22;
+  ws.getRow(3).height = 22;
 
   ws.getColumn(1).width = 5;
   ws.getColumn(2).width = 24;
   ws.getColumn(3).width = 16;
   ws.getColumn(4).width = 32;
+  ws.getColumn(modeCol).width = 20;
   for (let c = dataStartCol; c <= lastCol; c++) {
     ws.getColumn(c).width = 12;
   }
@@ -342,69 +339,132 @@ export async function exportNoticeWorkbook(opts: {
     provinceGroups.set(province, existing);
   });
 
-  let cursor = 5;
+  /** Writes the MANUAL / FSIS pair of rows for one station or provincial total. */
+  const writeModeRows = (
+    startRow: number,
+    buckets: NoticeModeBucket[],
+    opts2: { isAlternate?: boolean; isTotal?: boolean; isGrand?: boolean },
+  ) => {
+    MODE_LABELS.forEach((mode, modeIdx) => {
+      const row = ws.getRow(startRow + modeIdx);
+      const modeCell = row.getCell(modeCol);
+      modeCell.value = mode;
+      modeCell.fill = fill(modeIdx === 0 ? "FFBAE6FD" : "FFFDE68A");
+      Object.assign(modeCell, opts2.isTotal || opts2.isGrand ? provinceRowStyle() : modeHeaderStyle());
+      if (opts2.isTotal) modeCell.fill = fill(modeIdx === 0 ? "FFBAE6FD" : "FFFDE68A");
+      if (opts2.isGrand) {
+        modeCell.fill = fill("FF0F766E");
+        modeCell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+      }
+
+      let c = dataStartCol;
+      buckets.forEach((bucket) => {
+        const values = bucketValues(modeIdx === 0 ? bucket.manual : bucket.fsis);
+        values.forEach((value, idx) => {
+          const cell = row.getCell(c + idx);
+          cell.value = Number(value) || 0;
+          cell.numFmt = "#,##0;(#,##0);-";
+          if (opts2.isGrand) {
+            Object.assign(cell, provinceRowStyle());
+            cell.fill = fill("FF0F766E");
+            cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+          } else if (opts2.isTotal) {
+            cell.fill = fill("FFFEF08A");
+            Object.assign(cell, provinceRowStyle());
+          } else {
+            Object.assign(cell, dataCellStyle());
+            if (opts2.isAlternate) cell.fill = fill("FFF8FAFC");
+          }
+        });
+        c += COLS_PER_PERIOD;
+      });
+      row.height = opts2.isTotal || opts2.isGrand ? 22 : 20;
+    });
+  };
+
+  let cursor = 4;
   const provinceNames = Array.from(provinceGroups.keys()).sort((a, b) => a.localeCompare(b));
   provinceNames.forEach((provinceName, provinceIndex) => {
     const stationGroups = provinceGroups.get(provinceName) ?? [];
 
     stationGroups.forEach((station, stationIndex) => {
-      const row = ws.getRow(cursor);
       const isAlternate = stationIndex % 2 === 1;
-      row.getCell(1).value = stationIndex + 1;
-      row.getCell(2).value = provinceName;
-      row.getCell(3).value = station.stationCode;
-      row.getCell(4).value = station.stationName;
+      const startRow = cursor;
+      const endRow = cursor + MODE_LABELS.length - 1;
+
+      // Station identity spans both mode rows
+      const values = [stationIndex + 1, provinceName, station.stationCode, station.stationName];
       for (let c = 1; c <= 4; c++) {
-        Object.assign(row.getCell(c), dataRowStyle(isAlternate));
+        ws.mergeCells(startRow, c, endRow, c);
+        const cell = ws.getCell(startRow, c);
+        cell.value = values[c - 1];
+        Object.assign(cell, dataRowStyle(isAlternate));
       }
 
-      let col = dataStartCol;
-      periods.forEach((period) => {
-        const bucket = period.getBucket(station.noticelist);
-        [...bucketValues(bucket.manual), ...bucketValues(bucket.fsis)].forEach((value, idx) => {
-          const cell = row.getCell(col + idx);
-          cell.value = Number(value) || 0;
-          cell.numFmt = "#,##0;(#,##0);-";
-          Object.assign(cell, dataCellStyle());
-        });
-        col += COLS_PER_PERIOD;
-      });
-      row.height = 22;
-      cursor++;
+      writeModeRows(
+        startRow,
+        periods.map((period) => period.getBucket(station.noticelist)),
+        { isAlternate },
+      );
+
+      cursor = endRow + 1;
     });
 
-    const provinceRow = ws.getRow(cursor);
-    ws.mergeCells(cursor, 1, cursor, 4);
-    const labelCell = provinceRow.getCell(1);
+    const startRow = cursor;
+    const endRow = cursor + MODE_LABELS.length - 1;
+    ws.mergeCells(startRow, 1, endRow, 4);
+    const labelCell = ws.getCell(startRow, 1);
     labelCell.value = `PROVINCIAL TOTAL — ${provinceName.toUpperCase()}`;
     labelCell.fill = fill("FFFEF08A");
     Object.assign(labelCell, provinceRowStyle());
 
-    let totalCol = dataStartCol;
-    periods.forEach((period) => {
-      const totalBucket = stationGroups.reduce<NoticeModeBucket>(
-        (acc, station) => addModeBucket(acc, period.getBucket(station.noticelist)),
-        emptyModeBucket(),
-      );
-      [...bucketValues(totalBucket.manual), ...bucketValues(totalBucket.fsis)].forEach(
-        (value, idx) => {
-          const cell = provinceRow.getCell(totalCol + idx);
-          cell.value = Number(value) || 0;
-          cell.numFmt = "#,##0;(#,##0);-";
-          cell.fill = fill("FFFEF08A");
-          Object.assign(cell, provinceRowStyle());
-        },
-      );
-      totalCol += COLS_PER_PERIOD;
-    });
-    provinceRow.height = 24;
-    cursor++;
+    writeModeRows(
+      startRow,
+      periods.map((period) =>
+        stationGroups.reduce<NoticeModeBucket>(
+          (acc, station) => addModeBucket(acc, period.getBucket(station.noticelist)),
+          emptyModeBucket(),
+        ),
+      ),
+      { isTotal: true },
+    );
+
+    cursor = endRow + 1;
 
     if (provinceIndex < provinceNames.length - 1) {
       ws.getRow(cursor).height = 8;
       cursor++;
     }
   });
+
+  // Regional grand total — only meaningful when more than one province is present
+  if (provinceNames.length > 1) {
+    ws.getRow(cursor).height = 8;
+    cursor++;
+    const gStart = cursor;
+    const gEnd = cursor + MODE_LABELS.length - 1;
+    ws.mergeCells(gStart, 1, gEnd, 4);
+    const gLabel = ws.getCell(gStart, 1);
+    gLabel.value = "REGIONAL GRAND TOTAL — MIMAROPA";
+    gLabel.fill = fill("FF0F766E");
+    Object.assign(gLabel, provinceRowStyle());
+    gLabel.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+
+    writeModeRows(
+      gStart,
+      periods.map((period) =>
+        groups.reduce<NoticeModeBucket>(
+          (acc, station) => addModeBucket(acc, period.getBucket(station.noticelist)),
+          emptyModeBucket(),
+        ),
+      ),
+      { isGrand: true },
+    );
+    cursor = gEnd + 1;
+  }
+
+
+
 
   const footerStart = cursor + 2;
   ws.mergeCells(footerStart, 1, footerStart, 6);
@@ -444,7 +504,7 @@ export async function exportNoticeWorkbook(opts: {
   generatedDateCell.alignment = { horizontal: "left", vertical: "middle" };
 
   ws.pageSetup.printArea = `A1:${ws.getCell(generatedDateRow, lastCol).address}`;
-  ws.pageSetup.printTitlesRow = "2:4";
+  ws.pageSetup.printTitlesRow = "2:3";
 
   const buf = await wb.xlsx.writeBuffer();
   saveAs(
