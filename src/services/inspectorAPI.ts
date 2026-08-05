@@ -1,7 +1,7 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 import { FSISInspectionDeleteParams, FSISInspectionDetailModel, FSISInspectionDetailParams, FSISInspectionModel, FSISInspectorDTO, FSISInspectorLedgerParams } from "@/types/inspectorType";
 
-export const bwcAPI = {
+export const inspectorAPI = {
   async create(params: FSISInspectorDTO) {
     return await apiPost("/api/v1/FSISInspector/Create", params, { ...NO_RETRY });
   },
