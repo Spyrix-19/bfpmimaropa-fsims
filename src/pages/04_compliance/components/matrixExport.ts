@@ -90,12 +90,14 @@ export async function exportComplianceMatrix(opts: {
   fields: ComplianceField[];
   signatory?: ComplianceExportSignatory;
   filename?: string;
+  /** Per-category label overrides, e.g. { NOTICES: "Accomplished Notices" }. */
+  categoryLabels?: Record<string, string>;
   /** Workbook title row — defaults to the compliance matrix caption. */
   title?: string;
   /** Worksheet tab name — defaults to `Compliance Matrix {year}`. */
   sheetName?: string;
 }) {
-  const { year, groups, fields, signatory, filename, title, sheetName } = opts;
+  const { year, groups, fields, signatory, filename, categoryLabels, title, sheetName } = opts;
 
   const catSpan = fields.length;
 
@@ -230,7 +232,10 @@ export async function exportComplianceMatrix(opts: {
     if (c2 > c1) ws.mergeCells(row, c1, row, c2);
     const style = catStyle(run.category);
     const cell = ws.getCell(row, c1);
-    cell.value = run.category === "NOTICES" ? "ISSUED NOTICES" : run.category || "";
+    const categoryLabel =
+      categoryLabels?.[run.category] ??
+      (run.category === "NOTICES" ? "ISSUED NOTICES" : run.category || "");
+    cell.value = categoryLabel;
     cell.fill = fill(style.fg);
     cell.font = { bold: true, size: 10, color: { argb: style.font } };
     cell.alignment = { horizontal: "center", vertical: "middle" };

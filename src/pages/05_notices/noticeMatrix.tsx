@@ -494,6 +494,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
           stations: list.sort((a, b) => (a.stationCode || "").localeCompare(b.stationCode || "")),
         })),
         fields: EXPORT_FIELDS,
+        categoryLabels: { NOTICES: "Accomplished Notices" },
         title: `ACCOMPLISHED NOTICES MATRIX — ${year}`,
         sheetName: `Notices Matrix ${year}`,
         signatory: {
