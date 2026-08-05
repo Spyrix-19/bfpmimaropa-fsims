@@ -44,6 +44,29 @@ export function FilterBar() {
             .split(",")
             .map((v) => Number(v.trim()))
             .filter((m) => m >= 1 && m <= 12);
+    const legacyWeeklyMatch = /^week:(\d{1,2}):([1-6](?:,[1-6])*)$/.exec(p);
+    const weeklyMatch = /^week:(\d{4}):([1-5]?\d(?:,[1-5]?\d)*)$/.exec(p);
+    const weeklyMonth = legacyWeeklyMatch ? Number(legacyWeeklyMatch[1]) : null;
+    const weeklyYear = weeklyMatch ? Number(weeklyMatch[1]) : null;
+    const weeklyWeeks = weeklyMatch
+      ? weeklyMatch[2]
+          .split(",")
+          .map((v) => Number(v.trim()))
+          .filter((v) => v >= 1 && v <= 53)
+          .map((v) => `w${v}`)
+      : legacyWeeklyMatch
+        ? legacyWeeklyMatch[2]
+            .split(",")
+            .map((v) => Number(v.trim()))
+            .filter((v) => v >= 1 && v <= 53)
+            .map((v) => `w${v}`)
+        : [];
+    const weeklyDate =
+      filters.interval === "WEEKLY" && weeklyMonth
+        ? `all:${new Date(Number(filters.year), weeklyMonth - 1, 1).toISOString().slice(0, 10)}`
+        : filters.interval === "WEEKLY" && weeklyYear
+          ? `all:${new Date(weeklyYear, 0, 1).toISOString().slice(0, 10)}`
+          : `all:${toISODate(today)}`;
     return {
       year: filters.year,
       interval: filters.interval,
@@ -52,8 +75,11 @@ export function FilterBar() {
           ? p && p !== "all"
             ? p
             : `all:${toISODate(today)}`
-          : `all:${toISODate(today)}`,
+          : filters.interval === "WEEKLY"
+            ? weeklyDate
+            : `all:${toISODate(today)}`,
       months: filters.interval === "MONTHLY" ? (months.length ? months : []) : [],
+      week: weeklyWeeks.length ? weeklyWeeks.join(",") : "all",
       quarter: /^q[1-4]$/.test(p) ? p : p === "all" ? "all" : "all",
       semester: /^s[12]$/.test(p) ? p : p === "all" ? "all" : "all",
     };
@@ -70,6 +96,21 @@ export function FilterBar() {
       case "DAILY":
         period = next.date;
         break;
+      case "WEEKLY": {
+        const weekValue =
+          next.week === "all"
+            ? "all"
+            : next.week
+                .split(",")
+                .map((part) => part.trim().replace(/^w/i, ""))
+                .filter((part) => /^\d+$/.test(part))
+                .map((part) => Number(part))
+                .filter((part) => part >= 1 && part <= 53)
+                .sort((a, b) => a - b)
+                .join(",");
+        period = weekValue === "all" ? "all" : `week:${next.year}:${weekValue}`;
+        break;
+      }
       case "MONTHLY":
         period =
           next.months.length === 0 || next.months.length === 12 ? "all" : next.months.join(",");
@@ -174,6 +215,7 @@ export function FilterBar() {
       state={filterState}
       onChange={handleFilterChange}
       onReset={reset}
+      intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
     >
       {scope.provinceLocked ? (
         <ReadOnlyField

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CalendarIcon, ChevronDown, Check } from "lucide-react";
+import { addDays, endOfISOWeek, startOfISOWeek } from "date-fns";
+import { CalendarIcon, ChevronDown, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import ResetFiltersButton from "@/components/reset-filters-button";
 
 import {
@@ -32,6 +33,8 @@ export interface ModuleFilterState {
   date: string;
   /** MONTHLY: one or more selected month numbers (1..12). */
   months: number[];
+  /** WEEKLY: `all` or a comma-separated list of `w1`..`w53` for the selected year. */
+  week: string;
   /** QUARTERLY: `q1`..`q4`. */
   quarter: string;
   /** SEMESTER: `s1` | `s2`. */
@@ -40,6 +43,7 @@ export interface ModuleFilterState {
 
 export const MODULE_INTERVALS: { value: ModuleInterval; label: string }[] = [
   { value: "DAILY", label: "Daily" },
+  { value: "WEEKLY", label: "Weekly" },
   { value: "MONTHLY", label: "Monthly" },
   { value: "QUARTERLY", label: "Quarterly" },
   { value: "SEMESTER", label: "Semester" },
@@ -50,6 +54,50 @@ const ALL_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
 /** `all:yyyy-mm-dd` marks "all days" of the referenced month. */
 const ALL_DAYS_PREFIX = "all:";
+
+function parseSelectedWeeks(value: string): number[] {
+  if (!value || value === "all") return [];
+  return value
+    .split(",")
+    .map((part) => part.trim().replace(/^w/i, ""))
+    .filter((part) => /^\d+$/.test(part))
+    .map((part) => Number(part))
+    .filter((part) => part >= 1 && part <= 53)
+    .sort((a, b) => a - b);
+}
+
+function serializeSelectedWeeks(weeks: number[]): string {
+  if (!weeks.length) return "all";
+  return weeks.map((week) => `w${week}`).join(",");
+}
+
+function getYearWeekRanges(year: number) {
+  const anchor = new Date(year, 0, 4);
+  const weekOneStart = startOfISOWeek(anchor);
+  const dateFormatter = new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  });
+  const ranges: Array<{ weekNumber: number; start: Date; end: Date; label: string }> = [];
+
+  let currentStart = weekOneStart;
+  let weekNumber = 1;
+  while (currentStart.getFullYear() <= year) {
+    const end = endOfISOWeek(currentStart);
+    ranges.push({
+      weekNumber,
+      start: new Date(currentStart),
+      end: new Date(end),
+      label: `${dateFormatter.format(currentStart)} – ${dateFormatter.format(end)}`,
+    });
+
+    currentStart = addDays(currentStart, 7);
+    weekNumber += 1;
+    if (weekNumber > 60) break;
+  }
+
+  return ranges;
+}
 
 export function isAllDays(date: string): boolean {
   return typeof date === "string" && date.startsWith(ALL_DAYS_PREFIX);
@@ -71,6 +119,7 @@ export function defaultModuleFilterState(): ModuleFilterState {
     interval: "DAILY",
     date: toAllDays(toISODate(now)),
     months: [],
+    week: "all",
     quarter: "all",
     semester: "all",
   };
@@ -84,6 +133,10 @@ export function resolveModuleMonths(state: ModuleFilterState): number[] {
     case "ANNUAL":
       return ALL;
     case "DAILY": {
+      const d = fromISODate(baseDate(state.date));
+      return d ? [d.getMonth() + 1] : ALL;
+    }
+    case "WEEKLY": {
       const d = fromISODate(baseDate(state.date));
       return d ? [d.getMonth() + 1] : ALL;
     }
@@ -237,6 +290,133 @@ export function MonthMultiSelect({
   );
 }
 
+function WeekMultiSelect({
+  state,
+  onChange,
+}: {
+  state: ModuleFilterState;
+  onChange: (patch: Partial<ModuleFilterState>) => void;
+}) {
+  const [weekPopoverOpen, setWeekPopoverOpen] = React.useState(false);
+  const selectedWeeks = React.useMemo(() => parseSelectedWeeks(state.week), [state.week]);
+  const initialYear = React.useMemo(() => {
+    const parsed = fromISODate(baseDate(state.date));
+    return parsed?.getFullYear() ?? Number(state.year) ?? new Date().getFullYear();
+  }, [state.date, state.year]);
+  const [viewYear, setViewYear] = React.useState<number>(initialYear);
+  const weekRanges = React.useMemo(() => getYearWeekRanges(viewYear), [viewYear]);
+
+  React.useEffect(() => {
+    setViewYear(initialYear);
+  }, [initialYear]);
+
+  const handleWeekToggle = (weekNumber: number) => {
+    const nextWeeks = selectedWeeks.includes(weekNumber)
+      ? selectedWeeks.filter((week) => week !== weekNumber)
+      : [...selectedWeeks, weekNumber].sort((a, b) => a - b);
+    const firstWeek = weekRanges.find((range) => range.weekNumber === weekNumber);
+    const anchorDate = firstWeek?.start ?? new Date(viewYear, 0, 1);
+    onChange({
+      week: serializeSelectedWeeks(nextWeeks),
+      date: toAllDays(toISODate(anchorDate)),
+      year: String(viewYear),
+    });
+  };
+
+  const handleSelectAllWeeks = () => {
+    onChange({
+      week: "all",
+      date: toAllDays(toISODate(new Date(viewYear, 0, 1))),
+      year: String(viewYear),
+    });
+  };
+
+  const shiftYear = (direction: -1 | 1) => {
+    const nextYear = viewYear + direction;
+    setViewYear(nextYear);
+  };
+
+  const label = selectedWeeks.length
+    ? selectedWeeks.length === 1
+      ? `Week ${selectedWeeks[0]}`
+      : `${selectedWeeks.length} weeks selected`
+    : "All weeks";
+
+  return (
+    <Popover open={weekPopoverOpen} onOpenChange={setWeekPopoverOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "h-10 w-full justify-start gap-2 px-3 text-left text-sm font-normal",
+            selectedWeeks.length === 0 && "text-muted-foreground",
+          )}
+        >
+          <CalendarIcon className="h-4 w-4 shrink-0 opacity-70" />
+          <span className="truncate">{label}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[360px] p-0" align="start">
+        <div className="border-b px-3 py-2">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-sm font-medium">Select weeks</div>
+            <button
+              type="button"
+              onClick={handleSelectAllWeeks}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              All weeks
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => shiftYear(-1)}
+              className="rounded-md p-1 hover:bg-muted"
+              aria-label="Previous year"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="text-sm font-medium">{viewYear}</div>
+            <button
+              type="button"
+              onClick={() => shiftYear(1)}
+              className="rounded-md p-1 hover:bg-muted"
+              aria-label="Next year"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 p-3">
+          {weekRanges.map((weekRange) => {
+            const isSelected = selectedWeeks.includes(weekRange.weekNumber);
+            return (
+              <button
+                key={`week-${weekRange.weekNumber}`}
+                type="button"
+                onClick={() => handleWeekToggle(weekRange.weekNumber)}
+                title={`Week ${weekRange.weekNumber}: ${weekRange.label}`}
+                className={cn(
+                  "rounded-lg border px-3 py-2 text-left shadow-sm transition-colors hover:bg-muted",
+                  isSelected ? "border-primary bg-primary/10 text-primary" : "bg-background",
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold">Week {weekRange.weekNumber}</span>
+                  {isSelected ? <Check className="h-4 w-4" /> : null}
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">{weekRange.label}</div>
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /* ------------------------------------------------------------------ *
  * PERIOD select + SUB FILTER control (shared by the filter bar and the
  * matrix dialogs so there is a single implementation).
@@ -267,6 +447,15 @@ export function PeriodSelect({
       });
       return;
     }
+    if (next === "WEEKLY") {
+      onChange({
+        interval: next,
+        date: toAllDays(toISODate(today)),
+        week: "all",
+        year: String(today.getFullYear()),
+      });
+      return;
+    }
     if (next === "MONTHLY") {
       onChange({ interval: next, months: [] });
       return;
@@ -284,7 +473,7 @@ export function PeriodSelect({
 
   const options = intervals?.length
     ? MODULE_INTERVALS.filter((it) => intervals.includes(it.value))
-    : MODULE_INTERVALS;
+    : MODULE_INTERVALS.filter((it) => it.value !== "WEEKLY");
 
   return (
     <Select value={value} onValueChange={handleIntervalChange}>
@@ -397,6 +586,9 @@ export function SubFilterControl({
         </PopoverContent>
       </Popover>
     );
+  }
+  if (state.interval === "WEEKLY") {
+    return <WeekMultiSelect state={state} onChange={onChange} />;
   }
   if (state.interval === "MONTHLY") {
     return <MonthMultiSelect value={state.months} onChange={(months) => onChange({ months })} />;

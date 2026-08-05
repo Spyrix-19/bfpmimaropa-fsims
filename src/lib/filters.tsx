@@ -13,7 +13,7 @@ export interface RefFilter {
   code?: string; // optional (e.g. locationcode for scoping children)
 }
 
-export type DashInterval = "ALL" | "DAILY" | "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
+export type DashInterval = "ALL" | "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
 
 export interface DashFilters {
   year: string;
@@ -65,6 +65,40 @@ export function resolveReportMonths(interval: DashInterval, period: string): num
     // `period` carries the selected ISO date; narrow the query to its month.
     const d = fromISODate(period.startsWith("all:") ? period.slice(4) : period);
     return d ? [d.getMonth() + 1] : ALL;
+  }
+  if (interval === "WEEKLY") {
+    const weekYearMatch = /^week:(\d{4}):([1-5]?\d(?:,[1-5]?\d)*)$/.exec(period ?? "");
+    if (weekYearMatch) {
+      const year = Number(weekYearMatch[1]);
+      const weeks = weekYearMatch[2]
+        .split(",")
+        .map((p) => Number(p.trim()))
+        .filter((w) => w >= 1 && w <= 53);
+      if (!weeks.length) return ALL;
+
+      const months = new Set<number>();
+      weeks.forEach((week) => {
+        const weekStart = new Date(year, 0, 4);
+        const dayOfWeek = weekStart.getDay();
+        const mondayOfWeekOne = new Date(weekStart);
+        mondayOfWeekOne.setDate(weekStart.getDate() - ((dayOfWeek + 6) % 7));
+        const start = new Date(mondayOfWeekOne);
+        start.setDate(mondayOfWeekOne.getDate() + (week - 1) * 7);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        months.add(start.getMonth() + 1);
+        months.add(end.getMonth() + 1);
+      });
+
+      return [...months].sort((a, b) => a - b);
+    }
+
+    const legacyMatch = /^week:(\d{1,2}):([1-6](?:,[1-6])*)$/.exec(period ?? "");
+    if (legacyMatch) {
+      const month = Number(legacyMatch[1]);
+      return month >= 1 && month <= 12 ? [month] : ALL;
+    }
+    return ALL;
   }
   if (period === "all" || !period) return ALL;
 
