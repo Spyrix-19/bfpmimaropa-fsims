@@ -38,6 +38,13 @@ interface Props {
   icon: React.ReactNode;
   /** Persists the record; resolve true to close the modal. */
   onSubmit: (payload: BwcFormSubmit) => Promise<boolean>;
+  /** Fires when the user picks a station in add mode. */
+  onStationSelected?: (
+    stationno: string,
+    stationname: string,
+    province?: string,
+    picked?: SearchStationModel,
+  ) => void | Promise<void>;
 }
 
 function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
@@ -60,6 +67,7 @@ export default function BwcFormModal({
   totalLabel,
   icon,
   onSubmit,
+  onStationSelected,
 }: Props) {
   const isEdit = row != null;
   const [stationno, setStationno] = React.useState("");
@@ -109,8 +117,8 @@ export default function BwcFormModal({
 
   const handleStationPick = (
     nextNo: string,
-    _name: string,
-    _province?: string,
+    name: string,
+    province?: string,
     picked?: SearchStationModel,
   ) => {
     setStationno(nextNo);
@@ -125,6 +133,7 @@ export default function BwcFormModal({
           }
         : null,
     );
+    void onStationSelected?.(nextNo, name, province, picked);
   };
 
   const handleSave = async () => {

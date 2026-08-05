@@ -1,10 +1,10 @@
 import { ShieldCheck } from "lucide-react";
-import BwcLedger from "../08_bwc/components/BwcLedger";
+import InspectorLedger from "./components/InspectorLedger";
 import { inspectorLogisticsApi } from "@/lib/logisticsApi";
 
 export default function FireSafetyInspectorPage() {
   return (
-    <BwcLedger
+    <InspectorLedger
       title="Fire Safety Inspector"
       description="Station-level Fire Safety Inspector training capability."
       icon={<ShieldCheck className="h-5 w-5 text-primary" />}

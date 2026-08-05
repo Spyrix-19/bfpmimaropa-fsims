@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Download, Eye, Plus } from "lucide-react";
+import { AlertTriangle, Download, Eye, Plus } from "lucide-react";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { unwrap } from "@/lib/api-envelope";
 import { toast } from "@/lib/toast";
 import { StatBox } from "@/components/stat-box";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+import type { SearchStationModel } from "@/types/stationTypes";
 import type { LogisticsApi, LogisticsProvinceParam } from "@/lib/logisticsApi";
 import BwcDeleteDialog from "./BwcDeleteDialog";
 import BwcFormModal, { type BwcFormSubmit } from "./BwcFormModal";
@@ -77,6 +79,9 @@ export default function BwcLedger({
   const [refreshTick, setRefreshTick] = React.useState(0);
   const [formOpen, setFormOpen] = React.useState(false);
   const [formRow, setFormRow] = React.useState<BwcRow | null>(null);
+  const [existingRecord, setExistingRecord] = React.useState<BwcRow | null>(null);
+  const [existingRecordDialogOpen, setExistingRecordDialogOpen] = React.useState(false);
+  const [existingStationLabel, setExistingStationLabel] = React.useState("");
   const [viewRow, setViewRow] = React.useState<BwcRow | null>(null);
   const [viewOpen, setViewOpen] = React.useState(false);
   const [deleteRow, setDeleteRow] = React.useState<BwcRow | null>(null);
@@ -214,12 +219,24 @@ export default function BwcLedger({
   };
 
   const openAdd = () => {
+    setExistingRecord(null);
+    setExistingRecordDialogOpen(false);
     setFormRow(null);
     setFormOpen(true);
   };
   const openEdit = (row: BwcRow) => {
+    setExistingRecord(null);
+    setExistingRecordDialogOpen(false);
     setFormRow(row);
     setFormOpen(true);
+  };
+  const handleFormOpenChange = (open: boolean) => {
+    setFormOpen(open);
+    if (!open) {
+      setExistingRecord(null);
+      setExistingRecordDialogOpen(false);
+      setExistingStationLabel("");
+    }
   };
 
   /** Loads the full record from the Detail endpoint before showing it. */
@@ -230,6 +247,76 @@ export default function BwcLedger({
     const resp = await api.detail(row.recordno, { suppressGlobalLoading: true });
     const { ok, data } = unwrap<unknown>(resp);
     if (ok && data) setViewRow(toBwcRow(data, api.idKey));
+  };
+
+  const checkExistingRecord = React.useCallback(
+    async (stationno: string, stationname?: string) => {
+      if (!stationno) return null;
+      const trimmed = stationno.trim();
+      if (!trimmed) return null;
+
+      const resp = await api.list(
+        { searchkey: trimmed, provinces: [], pagenumber: 1, pagesize: 50 },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      const { ok, data, error } = unwrap<unknown[]>(resp);
+      if (!ok) {
+        toast.error(error || `Unable to check existing ${entityLabel.toLowerCase()} record.`);
+        return null;
+      }
+
+      const list = (Array.isArray(data) ? data : []).map((m) => toBwcRow(m, api.idKey));
+      const existing = list.find((row) => String(row.stationno ?? "") === trimmed);
+      if (!existing?.recordno) return null;
+
+      const detailResp = await api.detail(existing.recordno, {
+        suppressGlobalLoading: true,
+        suppressErrorToast: true,
+      });
+      const detail = unwrap<unknown>(detailResp);
+      if (!detail.ok || !detail.data) {
+        return toBwcRow(existing, api.idKey);
+      }
+
+      setExistingStationLabel(stationname || existing.stationname || trimmed);
+      return toBwcRow(detail.data, api.idKey);
+    },
+    [api, entityLabel, api.idKey],
+  );
+
+  const handleStationSelection = async (
+    stationno: string,
+    stationname: string,
+    _province?: string,
+    _picked?: SearchStationModel,
+  ) => {
+    if (formRow) return;
+    const trimmed = stationno.trim();
+    if (!trimmed) {
+      setExistingRecord(null);
+      setExistingRecordDialogOpen(false);
+      setExistingStationLabel("");
+      return;
+    }
+
+    const existing = await checkExistingRecord(trimmed, stationname);
+    if (existing?.recordno) {
+      setExistingRecord(existing);
+      setExistingStationLabel(stationname || existing.stationname || trimmed);
+      setExistingRecordDialogOpen(true);
+      return;
+    }
+
+    setExistingRecord(null);
+    setExistingRecordDialogOpen(false);
+    setExistingStationLabel("");
+  };
+
+  const handleExistingRecordConfirm = () => {
+    setExistingRecordDialogOpen(false);
+    if (existingRecord) {
+      setFormRow(existingRecord);
+    }
   };
 
   const handleSubmit = async (payload: BwcFormSubmit): Promise<boolean> => {
@@ -430,13 +517,14 @@ export default function BwcLedger({
 
       <BwcFormModal
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={handleFormOpenChange}
         row={formRow}
         fields={fields}
         entityLabel={entityLabel}
         totalLabel={totalLabel}
         icon={icon}
         onSubmit={handleSubmit}
+        onStationSelected={handleStationSelection}
       />
 
       <BwcDetailsModal
@@ -448,6 +536,19 @@ export default function BwcLedger({
         totalLabel={totalLabel}
         icon={icon}
         onEdit={() => viewRow && openEdit(viewRow)}
+      />
+
+      <ConfirmDialog
+        open={existingRecordDialogOpen}
+        onOpenChange={setExistingRecordDialogOpen}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
+        title={`${entityLabel} Record Already Exists`}
+        description={`A ${entityLabel.toLowerCase()} record already exists for ${existingStationLabel || "this station"}. Do you want to open and edit the existing record?`}
+        confirmLabel="Use Existing"
+        showCancel={true}
+        onConfirm={handleExistingRecordConfirm}
       />
 
       <BwcDeleteDialog
