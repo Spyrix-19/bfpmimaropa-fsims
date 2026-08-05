@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import {
   NUMBER_FMT,
@@ -52,7 +52,7 @@ export async function exportStationLedgerWorkbook(opts: {
 }) {
   const { title, crownLabel, rows, fields, totalLabel, signatory } = opts;
 
-  const wb = new ExcelJS.Workbook();
+  const wb = new (await import("exceljs")).default.Workbook();
   wb.creator = "FSIMS";
   wb.created = new Date();
 

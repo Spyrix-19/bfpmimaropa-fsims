@@ -13,7 +13,7 @@
  *     mode-agnostic INSPECTION cells are merged vertically across both rows.
  *   • Provincial totals, one blank row, then the regional grand total.
  */
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MONTHS } from "@/lib/fsims-constants";
 import { toNumber as num } from "@/lib/utils";
@@ -380,7 +380,7 @@ export async function exportComplianceGridWorkbook(opts: {
   const periods = buildPeriods(interval, year, selectedMonths, quarter, semester, selectedDay);
   const showTotalBlock = periods.length > 1;
 
-  const wb = new ExcelJS.Workbook();
+  const wb = new (await import("exceljs")).default.Workbook();
   wb.creator = "FSIMS";
   wb.created = new Date();
 

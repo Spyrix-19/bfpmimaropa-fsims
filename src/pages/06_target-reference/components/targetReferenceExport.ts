@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MONTHS } from "@/lib/fsims-constants";
 import {
@@ -159,7 +159,7 @@ export async function exportTargetReferenceWorkbook(opts: {
     signatory,
     filename,
   } = opts;
-  const wb = new ExcelJS.Workbook();
+  const wb = new (await import("exceljs")).default.Workbook();
   wb.creator = "FSIMS";
   wb.created = new Date();
 

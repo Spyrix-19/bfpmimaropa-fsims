@@ -9,7 +9,7 @@
  *     station identity cells are merged vertically across both mode rows.
  * Totals use Excel SUM formulas so the workbook stays self-recalculating.
  */
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MONTHS } from "@/lib/fsims-constants";
 import { MONTH_COLORS } from "./monthColors";
@@ -148,7 +148,7 @@ export async function exportComplianceMatrix(opts: {
     COL.MONTHS_START + monthIdx0 * catSpan + catIdx;
   const qtotalCol = (qIdx0: number, catIdx: number) => QTOTAL_START + qIdx0 * catSpan + catIdx;
 
-  const wb = new ExcelJS.Workbook();
+  const wb = new (await import("exceljs")).default.Workbook();
   wb.creator = "FSIMS";
   wb.created = new Date();
   const ws = wb.addWorksheet(sheetName ?? `Compliance Matrix ${year}`, {

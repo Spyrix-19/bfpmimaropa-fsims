@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, Download, Eye, Plus, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Download, Loader2, Eye, Plus, ShieldCheck } from "lucide-react";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -497,7 +497,12 @@ export default function FireSafetyInspectorPage() {
             disabled={exporting}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
-            <Download className="h-4 w-4" /> Export
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}{" "}
+            {exporting ? "Exporting…" : "Export"}
           </Button>
           {canManage && (
             <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">

@@ -40,6 +40,7 @@ import {
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useAuth, type AppModule } from "@/lib/auth";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
+import { prefetchRoute } from "@/lib/route-prefetch";
 
 interface NavItem {
   to: string;
@@ -223,7 +224,13 @@ export function AppSidebar() {
                       return (
                         <SidebarMenuItem key={item.to}>
                           <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.label}>
-                            <Link to={item.to} onClick={closeOnMobile}>
+                            <Link
+                              to={item.to}
+                              onClick={closeOnMobile}
+                              onMouseEnter={() => prefetchRoute(item.to)}
+                              onFocus={() => prefetchRoute(item.to)}
+                              onPointerDown={() => prefetchRoute(item.to)}
+                            >
                               {item.icon}
                               <span>{item.label}</span>
                             </Link>
@@ -236,7 +243,13 @@ export function AppSidebar() {
                       <Collapsible key={item.to} defaultOpen={isOpen} className="group/collapsible">
                         <SidebarMenuItem>
                           <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.label}>
-                            <Link to={item.to} onClick={closeOnMobile}>
+                            <Link
+                              to={item.to}
+                              onClick={closeOnMobile}
+                              onMouseEnter={() => prefetchRoute(item.to)}
+                              onFocus={() => prefetchRoute(item.to)}
+                              onPointerDown={() => prefetchRoute(item.to)}
+                            >
                               {item.icon}
                               <span>{item.label}</span>
                             </Link>
@@ -254,7 +267,13 @@ export function AppSidebar() {
                               {visibleChildren.map((child) => (
                                 <SidebarMenuSubItem key={child.to}>
                                   <SidebarMenuSubButton asChild isActive={isActive(child.to)}>
-                                    <Link to={child.to} onClick={closeOnMobile}>
+                                    <Link
+                                      to={child.to}
+                                      onClick={closeOnMobile}
+                                      onMouseEnter={() => prefetchRoute(child.to)}
+                                      onFocus={() => prefetchRoute(child.to)}
+                                      onPointerDown={() => prefetchRoute(child.to)}
+                                    >
                                       {child.icon}
                                       <span>{child.label}</span>
                                     </Link>

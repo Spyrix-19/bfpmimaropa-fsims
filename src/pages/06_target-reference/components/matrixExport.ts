@@ -6,7 +6,7 @@
  * signature footer). Formulas are kept where possible so the workbook stays
  * dynamic when a user edits monthly values.
  */
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { MONTHS } from "@/lib/fsims-constants";
 import {
@@ -89,7 +89,7 @@ export async function exportTargetMatrix(opts: {
 }) {
   const { year, groups, signatory, filename } = opts;
 
-  const wb = new ExcelJS.Workbook();
+  const wb = new (await import("exceljs")).default.Workbook();
   wb.creator = "FSIMS";
   wb.created = new Date();
   const ws = wb.addWorksheet(`Target Matrix ${year}`, {

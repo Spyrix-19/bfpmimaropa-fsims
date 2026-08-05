@@ -5,6 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
+import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
+import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
+import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+import { resolveTargetScope } from "@/pages/06_target-reference/helpers";
 import { MATRIX_TONE } from "@/lib/theme";
 import { MONTH_NAMES } from "@/lib/complianceHelpers";
 import { MONTH_COLORS } from "@/pages/04_compliance/components/monthColors";
@@ -176,7 +180,12 @@ interface NoticeMatrixModalProps {
 }
 
 export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixModalProps) {
-  const { user } = useAuth();
+  const { user, systemAccess } = useAuth();
+  // Same roleno / stationno scoping rules as the Compliance and Target matrices.
+  const scope = React.useMemo(
+    () => resolveTargetScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
   const [exporting, setExporting] = React.useState(false);
   const modeMonths = React.useMemo(
     () => (record ? buildModeMonths(record) : { MANUAL: {}, FSIS: {} }),
@@ -184,16 +193,112 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
   );
   const combined = React.useMemo(() => combineMonths(modeMonths), [modeMonths]);
 
+  // Province / Station filters follow the shared roleno + stationtype rules:
+  // locked scopes render as read-only fields, free scopes render pickers.
+  const [provinceFilters, setProvinceFilters] = React.useState<SelectedLocation[]>([]);
+  const [stationFilters, setStationFilters] = React.useState<SelectedStation[]>([]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setProvinceFilters(
+      scope.provinceLocked
+        ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
+        : record?.provinceno
+          ? [{ locationno: record.provinceno, locationname: record.province ?? "" }]
+          : [],
+    );
+    setStationFilters(
+      scope.stationLocked
+        ? [
+            {
+              stationno: scope.stationno,
+              stationname: scope.stationname,
+              provinceno: scope.provinceno,
+              provincename: scope.provincename,
+            },
+          ]
+        : record?.stationno
+          ? [
+              {
+                stationno: record.stationno,
+                stationname: record.stationname ?? "",
+                provinceno: record.provinceno ?? "",
+                provincename: record.province ?? "",
+              },
+            ]
+          : [],
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, record?.stationno, record?.provinceno, scope.provinceLocked, scope.stationLocked]);
+
+  const handleProvincesChange = (next: SelectedLocation[]) => {
+    setProvinceFilters(next);
+    if (next.length === 0) {
+      setStationFilters((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+    const allowed = new Set(next.map((p) => p.locationno));
+    setStationFilters((prev) => {
+      const filtered = prev.filter((s) => allowed.has(s.provinceno));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  };
+
+  const handleStationsChange = (next: SelectedStation[]) => {
+    setStationFilters(next);
+    setProvinceFilters((prev) => {
+      const merged = [...prev];
+      const known = new Set(prev.map((p) => p.locationno));
+      next.forEach((s) => {
+        if (!s.provinceno || known.has(s.provinceno)) return;
+        merged.push({ locationno: s.provinceno, locationname: s.provincename });
+        known.add(s.provinceno);
+      });
+      return merged.length === prev.length ? prev : merged;
+    });
+  };
+
+  const scopedProvinceName = scope.provinceLocked
+    ? scope.provincename
+    : provinceFilters.length === 1
+      ? provinceFilters[0].locationname
+      : provinceFilters.length > 1
+        ? `${provinceFilters.length} provinces`
+        : (record?.province ?? "");
+  const scopedStationName = scope.stationLocked
+    ? scope.stationname
+    : stationFilters.length === 1
+      ? stationFilters[0].stationname
+      : stationFilters.length > 1
+        ? `${stationFilters.length} stations`
+        : (record?.stationname ?? "");
+
+
   const handleExport = async () => {
     if (!record) return;
     const year = Number(record.reportYear) || new Date().getFullYear();
     setExporting(true);
     try {
+      const provinceMap = new Map<string, Set<string>>();
+      for (const p of provinceFilters) {
+        if (p.locationno) provinceMap.set(p.locationno, new Set<string>());
+      }
+      for (const s of stationFilters) {
+        if (!s.provinceno) continue;
+        const set = provinceMap.get(s.provinceno) ?? new Set<string>();
+        if (s.stationno) set.add(s.stationno);
+        provinceMap.set(s.provinceno, set);
+      }
+      const provincesPayload = Array.from(provinceMap.entries()).map(
+        ([provinceno, stationnos]) => ({ provinceno, stationnos: Array.from(stationnos) }),
+      );
+
       const resp = await noticeAPI.export({
         searchkey: "",
         reportyear: year,
-        provinces: [{ provinceno: record.provinceno, stationnos: [record.stationno] }],
+        provinces: provincesPayload,
       });
+
       const { ok, data, error } = unwrap<NoticeDetailModel[]>(resp);
       if (!ok) {
         toast.error(error || "Unable to export Accomplished Notices Matrix.");
@@ -331,7 +436,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
 
         {/* Filters — read-only scope, mirrors the compliance matrix filter bar */}
         <div className="border-b bg-card px-5 py-4">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Year
@@ -342,19 +447,50 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Province
               </div>
-              <ReadOnlyField value={record.province} placeholder="All provinces" />
-            </div>
-            <div className="space-y-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                City / Municipality
-              </div>
-              <ReadOnlyField value={record.municipality} placeholder="All municipalities" />
+              {scope.provinceLocked ? (
+                <ReadOnlyField
+                  value={scopedProvinceName}
+                  placeholder="All provinces"
+                  title="Restricted to your assigned province"
+                />
+              ) : (
+                <LocationMultiSelect
+                  mode="location"
+                  value={provinceFilters}
+                  locationtype="PROVINCE"
+                  parentcode={MIMAROPA_REGION_CODE}
+                  onChange={handleProvincesChange}
+                  placeholder="All provinces"
+                  hideCode
+                  className="w-full"
+                />
+              )}
             </div>
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Station
               </div>
-              <ReadOnlyField value={record.stationname} placeholder="All stations" />
+              {scope.stationLocked ? (
+                <ReadOnlyField
+                  value={scopedStationName}
+                  placeholder="All stations"
+                  title="Restricted to your assigned station"
+                />
+              ) : (
+                <StationMultiSelect
+                  mode="station"
+                  value={stationFilters}
+                  provinces={
+                    scope.provinceLocked
+                      ? [{ provinceno: scope.provinceno }]
+                      : provinceFilters.map((p) => ({ provinceno: p.locationno }))
+                  }
+                  reportyear={Number(record.reportYear)}
+                  onChange={handleStationsChange}
+                  placeholder="All stations"
+                  alwaysEnabled
+                />
+              )}
             </div>
           </div>
         </div>
@@ -368,7 +504,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
                   colSpan={2}
                   className={`sticky left-0 z-10 border-b border-t-2 border-t-slate-400/60 px-3 py-1.5 text-[12px] uppercase tracking-[0.2em] ${MATRIX_TONE.provHeaderRow}`}
                 >
-                  {record.province || "Province"}
+                  {scopedProvinceName || "Province"}
                 </td>
                 <td
                   colSpan={totalCols - 2}
