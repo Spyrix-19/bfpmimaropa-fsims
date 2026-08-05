@@ -224,9 +224,8 @@ export async function exportTargetMatrix(opts: {
     const row = ws.getRow(cursor);
     row.getCell(COL.NO).value = seq;
     row.getCell(COL.PROV).value = provinceName;
-    row.getCell(COL.CITY).value = station.cityName || "";
-    row.getCell(COL.STATION).value =
-      `${station.stationCode ? station.stationCode + "  " : ""}${station.stationName}`;
+    row.getCell(COL.CITY).value = station.stationCode || "";
+    row.getCell(COL.STATION).value = station.stationName;
 
     // Monthly numeric cells
     for (let m = 0; m < 12; m++) {
@@ -332,6 +331,8 @@ export async function exportTargetMatrix(opts: {
 
   // Regional grand total — only when more than one province is present
   if (provinceTotalRows.length > 1) {
+    // Skip one full blank row before the regional grand total
+    cursor++;
     const row = ws.getRow(cursor);
     ws.mergeCells(cursor, COL.NO, cursor, COL.STATION);
     const labelCell = row.getCell(COL.NO);

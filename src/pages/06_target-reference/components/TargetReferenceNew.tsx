@@ -450,6 +450,20 @@ export default function TargetReferenceForm({
     let cancelled = false;
     (async () => {
       setCheckingExisting(true);
+      // Blank the inputs on every station/date switch — they are only refilled
+      // when the API returns a record for that exact date.
+      setCells((prev) => {
+        const next = { ...prev };
+        delete next.bplo;
+        delete next.gov;
+        delete next.peza;
+        delete next.tieza;
+        return next;
+      });
+      setBaselineCells({});
+      setRemarks("");
+      setErrors({});
+
       const resp = await targetreferenceAPI.getDetailByTargetdate(
         { Stationno: activeStationNo, Targetdate: targetdate },
         { suppressGlobalLoading: true },
@@ -498,6 +512,8 @@ export default function TargetReferenceForm({
           return next;
         });
         setBaselineCells({});
+        setRemarks("");
+
       }
     })();
 

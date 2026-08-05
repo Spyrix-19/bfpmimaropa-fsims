@@ -1,5 +1,5 @@
 import * as React from "react";
-import { LayoutGrid } from "lucide-react";
+import { Download, LayoutGrid, Loader2 } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,17 @@ import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField"
 import { MATRIX_TONE } from "@/lib/theme";
 import { MONTH_NAMES } from "@/lib/complianceHelpers";
 import { MONTH_COLORS } from "@/pages/04_compliance/components/monthColors";
+import {
+  exportComplianceMatrix,
+  type ComplianceExportStation,
+} from "@/pages/04_compliance/components/matrixExport";
+import { noticeAPI } from "@/services/noticeAPI";
+import { unwrap } from "@/lib/api-envelope";
+import { toast } from "@/lib/toast";
+import { useAuth } from "@/lib/auth";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
-import type { NoticeCategory } from "@/types/noticeType";
+import type { NoticeCategory, NoticeDetailModel } from "@/types/noticeType";
+
 
 /* -------------------------------------------------------------------------
  * Column identity — mirrors the Fire Safety Compliance matrix layout so both
@@ -45,6 +54,17 @@ const CATEGORY_LABEL: Record<NoticeCategory, string> = {
   Abatement: "Abatement",
   Closure: "Closure",
 };
+
+/** Category → `noticeaccomlist` count field returned by the Export endpoint. */
+const ACCOM_FIELD: Record<NoticeCategory, string> = {
+  NOD: "nodcount",
+  NTC: "ntccount",
+  NTCV: "ntcvcount",
+  Abatement: "abatementcount",
+  Closure: "closurecount",
+};
+
+
 
 type IssuanceMode = "MANUAL" | "FSIS";
 const ISSUANCE_MODES: { key: IssuanceMode; label: string }[] = [
@@ -124,6 +144,31 @@ function combineMonths(modeMonths: Record<IssuanceMode, MonthBuckets>): MonthBuc
   return out;
 }
 
+/* -------------------------------------------------------------------------
+ * Excel export — POST /FSISNotice/Export, then plotted through the shared
+ * compliance-matrix workbook writer so both modules produce the same layout
+ * (Station Information | Mode of Issuance | Quarter → Month → Category …).
+ * ---------------------------------------------------------------------- */
+
+const EXPORT_FIELDS = NOTICE_CATEGORIES.map((c) => ({
+  key: ACCOM_FIELD[c],
+  label: CATEGORY_LABEL[c],
+  category: "NOTICES",
+}));
+
+const FSIC_MODE_CODE: Record<IssuanceMode, number> = { MANUAL: 96, FSIS: 97 };
+
+function emptyExportBucket(): Record<string, number> {
+  return Object.fromEntries(NOTICE_CATEGORIES.map((c) => [ACCOM_FIELD[c], 0]));
+}
+
+function exportBucketAt(
+  months: Record<number, Record<string, number>>,
+  month: number,
+): Record<string, number> {
+  return (months[month] ??= emptyExportBucket());
+}
+
 interface NoticeMatrixModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -131,13 +176,108 @@ interface NoticeMatrixModalProps {
 }
 
 export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixModalProps) {
+  const { user } = useAuth();
+  const [exporting, setExporting] = React.useState(false);
   const modeMonths = React.useMemo(
     () => (record ? buildModeMonths(record) : { MANUAL: {}, FSIS: {} }),
     [record],
   );
   const combined = React.useMemo(() => combineMonths(modeMonths), [modeMonths]);
 
+  const handleExport = async () => {
+    if (!record) return;
+    const year = Number(record.reportYear) || new Date().getFullYear();
+    setExporting(true);
+    try {
+      const resp = await noticeAPI.export({
+        searchkey: "",
+        reportyear: year,
+        provinces: [{ provinceno: record.provinceno, stationnos: [record.stationno] }],
+      });
+      const { ok, data, error } = unwrap<NoticeDetailModel[]>(resp);
+      if (!ok) {
+        toast.error(error || "Unable to export Accomplished Notices Matrix.");
+        return;
+      }
+
+      const stations = Array.isArray(data) ? data : [];
+      if (stations.length === 0) {
+        toast.info("No accomplished notices to export.");
+        return;
+      }
+
+      // province → stations, each station carrying MANUAL + FSIS month rows.
+      const byProvince = new Map<string, ComplianceExportStation[]>();
+      for (const station of stations) {
+        const combinedMonths: Record<number, Record<string, number>> = {};
+        const perMode: Record<IssuanceMode, Record<number, Record<string, number>>> = {
+          MANUAL: {},
+          FSIS: {},
+        };
+
+        for (const entry of station.noticedetallist ?? []) {
+          const month = Number(String(entry.dateaccomplish ?? "").slice(5, 7));
+          if (!(month >= 1 && month <= 12)) continue;
+          for (const accom of entry.noticeaccomlist ?? []) {
+            const mode = ISSUANCE_MODES.find(
+              (m) => FSIC_MODE_CODE[m.key] === Number(accom.fsicmode),
+            )?.key;
+            if (!mode) continue;
+            const modeBucket = exportBucketAt(perMode[mode], month);
+            const allBucket = exportBucketAt(combinedMonths, month);
+            for (const category of NOTICE_CATEGORIES) {
+              const field = ACCOM_FIELD[category];
+              const value =
+                Number((accom as unknown as Record<string, unknown>)[field] ?? 0) || 0;
+              modeBucket[field] += value;
+              allBucket[field] += value;
+            }
+          }
+        }
+
+        const provinceName = station.provincename || record.province || "Unknown Province";
+        const bucket = byProvince.get(provinceName) ?? [];
+        bucket.push({
+          stationno: station.stationno,
+          stationCode: station.stationcode ?? "",
+          stationName: station.stationname ?? "",
+          cityName: station.cityname ?? "",
+          months: combinedMonths,
+          modes: ISSUANCE_MODES.map((m) => ({ label: m.label, months: perMode[m.key] })),
+        });
+        byProvince.set(provinceName, bucket);
+      }
+
+      await exportComplianceMatrix({
+        year,
+        groups: Array.from(byProvince.entries()).map(([province, list]) => ({
+          province,
+          stations: list.sort((a, b) => (a.stationCode || "").localeCompare(b.stationCode || "")),
+        })),
+        fields: EXPORT_FIELDS,
+        title: `ACCOMPLISHED NOTICES MATRIX — ${year}`,
+        sheetName: `Notices Matrix ${year}`,
+        signatory: {
+          rank:
+            (user as unknown as { rankcode?: string; rankname?: string })?.rankcode ??
+            (user as unknown as { rankname?: string })?.rankname ??
+            "",
+          fullname: user?.fullname ?? user?.name ?? "",
+          designation: (user as unknown as { designation?: string })?.designation ?? "",
+        },
+        filename: `AccomplishedNoticesMatrix_${year}.xlsx`,
+      });
+      toast.success("Accomplished Notices Matrix exported.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Accomplished Notices Matrix.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (!record) return null;
+
 
   const catSpan = NOTICE_CATEGORIES.length;
   const totalCols = 2 + 12 * catSpan + AGGREGATES.length * catSpan;
@@ -162,9 +302,31 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="gap-2">
-            Close
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={exporting}
+              className="gap-2"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {exporting ? "Exporting…" : "Export"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="gap-2"
+            >
+              Close
+            </Button>
+          </div>
+
         </DialogHeader>
 
         {/* Filters — read-only scope, mirrors the compliance matrix filter bar */}

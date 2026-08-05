@@ -565,6 +565,12 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     let cancelled = false;
     (async () => {
       setCheckingExisting(true);
+      // Blank the matrix on every date switch — it is only refilled when the
+      // API returns a record for that exact date.
+      setManualValues(emptyCounts());
+      setFsisValues(emptyCounts());
+      setRemarks("");
+
       const resp = await noticeAPI.getDetailBydate(
         {
           stationno,
@@ -625,6 +631,8 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
         setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
         setManualValues(emptyCounts());
         setFsisValues(emptyCounts());
+        setRemarks("");
+
       }
     })();
 

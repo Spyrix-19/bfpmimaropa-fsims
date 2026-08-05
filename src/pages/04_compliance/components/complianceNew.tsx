@@ -488,6 +488,15 @@ function InspectionsNewBody({
     setErrors({});
   }, []);
 
+  /** Blanks every input back to its zero/default state. */
+  const clearFormValues = React.useCallback(() => {
+    setNumeric({ ...defaultNumeric });
+    setManualIssuance({ ...defaultIssuance });
+    setFsisIssuance({ ...defaultIssuance });
+    setRemarks("");
+    setErrors({});
+  }, []);
+
   const resetExistingRecord = React.useCallback(() => {
     setExistingFsisno(null);
     setExistingIssuanceNos({});
@@ -497,17 +506,23 @@ function InspectionsNewBody({
     setDateSummary(null);
   }, []);
 
+
   /* Existence check — runs whenever station / date changes. */
   React.useEffect(() => {
     const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
     if (!activeStationNo || activeStationNo === EMPTY_GUID || !reportingDate) {
       resetExistingRecord();
+      clearFormValues();
       return;
     }
 
     let cancelled = false;
     (async () => {
       setCheckingExisting(true);
+      // Start every station/date switch from a blank slate — values are only
+      // re-populated when the API returns a record for that exact date.
+      clearFormValues();
+
       const resp = await complianceAPI.getDetailBydate(
         {
           stationno: activeStationNo,
@@ -576,6 +591,8 @@ function InspectionsNewBody({
         setDuplicateDialogOpen(false);
         setPendingDuplicateTarget(null);
         resetExistingRecord();
+        clearFormValues();
+
         setDateSummary({
           stationno: activeStationNo,
           year: reportingDate.getFullYear(),

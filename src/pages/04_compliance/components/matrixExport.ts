@@ -90,8 +90,13 @@ export async function exportComplianceMatrix(opts: {
   fields: ComplianceField[];
   signatory?: ComplianceExportSignatory;
   filename?: string;
+  /** Workbook title row — defaults to the compliance matrix caption. */
+  title?: string;
+  /** Worksheet tab name — defaults to `Compliance Matrix {year}`. */
+  sheetName?: string;
 }) {
-  const { year, groups, fields, signatory, filename } = opts;
+  const { year, groups, fields, signatory, filename, title, sheetName } = opts;
+
   const catSpan = fields.length;
 
   const isInspection = (f: ComplianceField) => (f.category ?? "") === "INSPECTION";
@@ -146,7 +151,7 @@ export async function exportComplianceMatrix(opts: {
   const wb = new ExcelJS.Workbook();
   wb.creator = "FSIMS";
   wb.created = new Date();
-  const ws = wb.addWorksheet(`Compliance Matrix ${year}`, {
+  const ws = wb.addWorksheet(sheetName ?? `Compliance Matrix ${year}`, {
     views: [{ state: "frozen", xSplit: 5, ySplit: 6, showGridLines: false }],
     pageSetup: {
       orientation: "landscape",
@@ -161,7 +166,7 @@ export async function exportComplianceMatrix(opts: {
   // Title row
   ws.mergeCells(1, 1, 1, LAST);
   const titleCell = ws.getCell(1, 1);
-  titleCell.value = `FIRE SAFETY COMPLIANCE MATRIX — ${year}`;
+  titleCell.value = title ?? `FIRE SAFETY COMPLIANCE MATRIX — ${year}`;
   titleCell.font = { bold: true, size: 14, color: { argb: "FF0F172A" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
   titleCell.fill = fill("FFF8FAFC");
@@ -380,9 +385,9 @@ export async function exportComplianceMatrix(opts: {
       if (mi === 0) {
         row.getCell(COL.NO).value = seq;
         row.getCell(COL.PROV).value = provinceName;
-        row.getCell(COL.CITY).value = station.cityName || "";
-        row.getCell(COL.STATION).value =
-          `${station.stationCode ? station.stationCode + "  " : ""}${station.stationName}`;
+        row.getCell(COL.CITY).value = station.stationCode || "";
+        row.getCell(COL.STATION).value = station.stationName;
+
       }
       row.getCell(COL.MODE).value = mode.label;
 
@@ -555,6 +560,8 @@ export async function exportComplianceMatrix(opts: {
 
   // Regional grand total — only when more than one province is present
   if (provinceTotalStarts.length > 1) {
+    // Skip one full blank row before the regional grand total
+    cursor++;
     writeGrandTotals(provinceTotalStarts, grandModeLabels);
   }
 
@@ -562,7 +569,7 @@ export async function exportComplianceMatrix(opts: {
   // Column widths
   ws.getColumn(COL.NO).width = 5;
   ws.getColumn(COL.PROV).width = 22;
-  ws.getColumn(COL.CITY).width = 22;
+  ws.getColumn(COL.CITY).width = 12;
   ws.getColumn(COL.STATION).width = 30;
   ws.getColumn(COL.MODE).width = 14;
   for (let c = COL.MONTHS_START; c <= LAST; c++) {

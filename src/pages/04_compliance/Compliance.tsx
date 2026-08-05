@@ -45,10 +45,10 @@ import {
   resolveSelectedDay,
 } from "@/components/shared/ModuleFilterBar";
 import {
-  exportComplianceWorkbook,
   type CompliancePeriod,
   type ComplianceExportRecord,
 } from "./components/complianceExport";
+import { exportComplianceGridWorkbook } from "./components/complianceGridExport";
 
 import FilterField from "@/components/filter-field";
 import EditButton from "@/components/edit-button";
@@ -670,8 +670,13 @@ export default function FireSafetyCompliancePage() {
         return;
       }
 
-      await exportComplianceWorkbook({
+      await exportComplianceGridWorkbook({
         year: Number(year),
+        interval: exportPeriod,
+        selectedMonths: [...selectedMonths],
+        quarter: filterState.quarter,
+        semester: filterState.semester,
+        selectedDay: allDates ? null : Number(selectedDateISO.slice(8, 10)) || null,
         groups: exportRows.map((row) => ({
           province: row.provincename ?? "",
           stationCode: row.stationcode ?? "",
@@ -680,17 +685,13 @@ export default function FireSafetyCompliancePage() {
             ? row.compliancelist
             : []) as ComplianceExportRecord[],
         })),
-        interval: exportPeriod,
-        selectedMonths,
-        quarter: filterState.quarter,
-        semester: filterState.semester,
-        selectedDay: resolveSelectedDay(filterState),
         signatory: {
           rank: user?.rankcode ?? user?.rankname ?? "",
           fullname: user?.fullname ?? user?.name ?? "",
           designation: user?.designation ?? "",
         },
       });
+
       toast.success("Fire Safety Compliance exported.");
     } catch (err) {
       console.error(err);

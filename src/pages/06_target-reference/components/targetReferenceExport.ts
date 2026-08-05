@@ -313,7 +313,7 @@ export async function exportTargetReferenceWorkbook(opts: {
 
   // Regional grand total — only when more than one province is present
   if (provinceNames.length > 1) {
-    ws.getRow(cursor).height = 8;
+    // Skip one full blank row before the regional grand total
     cursor++;
     const grandRow = ws.getRow(cursor);
     ws.mergeCells(cursor, 1, cursor, 4);
