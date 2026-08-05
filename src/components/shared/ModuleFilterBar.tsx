@@ -1,6 +1,6 @@
 import * as React from "react";
-import { addDays, endOfISOWeek, startOfISOWeek } from "date-fns";
-import { CalendarIcon, ChevronDown, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { addDays, endOfWeek, startOfWeek } from "date-fns";
+import { CalendarIcon, ChevronDown, Check } from "lucide-react";
 import ResetFiltersButton from "@/components/reset-filters-button";
 
 import {
