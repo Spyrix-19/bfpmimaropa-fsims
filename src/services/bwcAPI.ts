@@ -1,9 +1,17 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
-import { FSISBWCDeleteParams, FSISBWCDetailModel, FSISBWCDetailParams, FSISBWCDTO, FSISBWCLedgerParams, FSISBWCModel } from "@/types/bwcType";
+import { CheckExistParams, FSISBWCDeleteParams, FSISBWCDetailModel, FSISBWCDetailParams, FSISBWCDTO, FSISBWCLedgerParams, FSISBWCModel } from "@/types/bwcType";
 
 export const bwcAPI = {
   async create(params: FSISBWCDTO) {
     return await apiPost("/api/v1/FSISBWC/Create", params, { ...NO_RETRY });
+  },
+
+  async CheckExist(params?: CheckExistParams, options?: import("@/lib/api").ApiOptions) {
+    return await apiGet<boolean>("/api/v1/FSISBWC/CheckExist", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
   },
 
   async getDetail(params?: FSISBWCDetailParams, options?: import("@/lib/api").ApiOptions) {

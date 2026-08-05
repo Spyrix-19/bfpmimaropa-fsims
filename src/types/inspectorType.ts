@@ -7,6 +7,10 @@ export interface FSISInspectorDTO {
     encodedby: string;
   }
   
+  export interface CheckExistParams {
+    stationno: string;
+  }
+  
   export interface FSISInspectionDetailParams {
     inspectorno: string;
   }

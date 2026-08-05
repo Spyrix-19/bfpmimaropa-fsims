@@ -18,7 +18,7 @@ const TargetReference = lazy(() => import("@/pages/06_target-reference/targetref
 const AccomplishedNotice = lazy(() => import("@/pages/05_notices/Notice.tsx"));
 
 const Reports = lazy(() => import("@/pages/10_reports/MatrixReports.tsx"));
-const IssuedBwc = lazy(() => import("@/pages/08_bwc/issuedbwc.tsx"));
+const IssuedBwc = lazy(() => import("@/pages/08_bwc/IssuedBwc.tsx"));
 const FireSafetyInspector = lazy(() => import("@/pages/09_inspector/FireSafetyInspector.tsx"));
 const InspectionsNew = lazy(() => import("./pages/04_compliance/components/complianceNew.tsx"));
 const Profile = lazy(() => import("@/pages/03_profile/Profile"));

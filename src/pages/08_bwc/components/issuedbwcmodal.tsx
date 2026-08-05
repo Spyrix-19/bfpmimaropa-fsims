@@ -17,7 +17,7 @@ import FilterField from "@/components/filter-field";
 import StationSearchSelect from "@/components/station-search-select";
 import type { SearchStationModel } from "@/types/stationTypes";
 import { cn } from "@/lib/utils";
-import type { BwcField, BwcRow } from "../issuedbwc";
+import type { BwcField, BwcRow } from "../IssuedBwc";
 import { num } from "../bwcexport";
 
 export interface BwcFormSubmit {

@@ -7,6 +7,10 @@ export interface FSISBWCDTO {
     encodedby: string;
   }
   
+  export interface CheckExistParams {
+    stationno: string;
+  }
+
   export interface FSISBWCDetailParams {
     bwcno: string;
   }

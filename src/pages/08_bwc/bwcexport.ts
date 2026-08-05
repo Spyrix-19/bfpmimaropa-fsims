@@ -1,5 +1,5 @@
 import { toast } from "@/lib/toast";
-import type { BwcField, BwcRow } from "./issuedbwc";
+import type { BwcField, BwcRow } from "./IssuedBwc";
 
 /** Reads a numeric metric off a ledger row. */
 export const num = (row: BwcRow, key: string) => Number(row[key] ?? 0) || 0;

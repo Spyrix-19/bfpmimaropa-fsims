@@ -14,6 +14,8 @@ import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { StatBox } from "@/components/stat-box";
 import type { InspectorField, InspectorRow } from "../FireSafetyInspector";
 import { num, rowTotal } from "../inspectorexport";
+import { useAuth } from "@/lib/auth";
+import { canShowEditAction } from "@/lib/permissions";
 
 interface Props {
   open: boolean;
@@ -61,6 +63,8 @@ export default function InspectorView({
   icon,
   onEdit,
 }: Props) {
+  const { user, systemAccess } = useAuth();
+  const canEdit = canShowEditAction(user, systemAccess);
   const total = row ? rowTotal(row, fields) : 0;
 
   return (
@@ -148,7 +152,7 @@ export default function InspectorView({
         )}
 
         <DialogFooter className="gap-2 border-t border-border/60 bg-card px-5 py-3">
-          {onEdit && (
+          {onEdit && canEdit && (
             <Button
               variant="outline"
               onClick={() => {

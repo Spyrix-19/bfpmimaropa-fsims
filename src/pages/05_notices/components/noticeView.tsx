@@ -50,6 +50,8 @@ import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceThe
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
 import type { NoticeCategory, NoticeCategoryCounts } from "@/types/noticeType";
+import { useAuth } from "@/lib/auth";
+import { canShowEditAction } from "@/lib/permissions";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -326,6 +328,8 @@ interface NoticeViewModalProps {
 const YEAR_OPTIONS = buildYears();
 
 export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeViewModalProps) {
+  const { user, systemAccess } = useAuth();
+  const canEdit = canShowEditAction(user, systemAccess);
   const [viewMonth, setViewMonth] = React.useState<number>(record?.reportMonth ?? 1);
   const [viewYear, setViewYear] = React.useState<number>(record?.reportYear ?? new Date().getFullYear());
 
@@ -700,7 +704,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
 
 
         <DialogFooter className="border-t bg-background px-5 py-3">
-          {onEdit && (
+          {onEdit && canEdit && (
             <Button
               variant="outline"
               className="gap-2"

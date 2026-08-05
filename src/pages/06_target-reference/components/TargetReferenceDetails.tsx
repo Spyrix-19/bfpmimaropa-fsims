@@ -33,6 +33,8 @@ import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { buildYears } from "@/lib/utils";
 import type { TargetReferenceDetailModel } from "@/types/targetreferenceType";
+import { useAuth } from "@/lib/auth";
+import { canShowEditAction } from "@/lib/permissions";
 import {
   computeDerivedFromList,
   computeDailyFromList,
@@ -92,6 +94,8 @@ export default function TargetReferenceDetails({
   month,
   onEdit,
 }: Props) {
+  const { user, systemAccess } = useAuth();
+  const canEdit = canShowEditAction(user, systemAccess);
   const YEARS = React.useMemo(buildYears, []);
   const [loading, setLoading] = React.useState(false);
   const [detail, setDetail] = React.useState<TargetReferenceDetailModel | null>(null);
@@ -388,7 +392,7 @@ export default function TargetReferenceDetails({
         </div>
 
         <DialogFooter className="border-t bg-background px-5 py-3">
-          {onEdit && (
+          {onEdit && canEdit && (
             <Button
               variant="outline"
               className="gap-2"

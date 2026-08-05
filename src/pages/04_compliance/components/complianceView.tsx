@@ -46,6 +46,8 @@ import type {
   FSISComplianceDetailModel,
 } from "@/types/complianceType";
 import type { SearchStationModel } from "@/types/stationTypes";
+import { useAuth } from "@/lib/auth";
+import { canShowEditAction } from "@/lib/permissions";
 
 const CATEGORY_ORDER = ["INSPECTION", "FSEC", "FSIC", "NOTICES"] as const;
 const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
@@ -1162,6 +1164,8 @@ export function ComplianceViewModal({
   /** Opens the edit modal for the period currently shown in this view. */
   onEdit?: (year: number, month: number) => void;
 }) {
+  const { user, systemAccess } = useAuth();
+  const canEdit = canShowEditAction(user, systemAccess);
   const [viewPeriod, setViewPeriod] = React.useState<{ year: number; month: number }>({
     year,
     month: month ?? new Date().getMonth() + 1,
@@ -1209,7 +1213,7 @@ export function ComplianceViewModal({
           ) : null}
         </div>
         <div className="flex flex-wrap justify-end gap-2 border-t bg-background px-5 py-3">
-          {onEdit && (
+          {onEdit && canEdit && (
             <Button
               type="button"
               variant="outline"
