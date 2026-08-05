@@ -15,14 +15,17 @@ import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import PaginationControls from "@/components/pagination";
 import { usePagination } from "@/hooks/usePagination";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { unwrap } from "@/lib/api-envelope";
 import { toast } from "@/lib/toast";
 import { StatBox } from "@/components/stat-box";
+import type { LogisticsApi, LogisticsProvinceParam } from "@/lib/logisticsApi";
 import BwcDeleteDialog from "./BwcDeleteDialog";
-import BwcFormModal from "./BwcFormModal";
+import BwcFormModal, { type BwcFormSubmit } from "./BwcFormModal";
 import BwcDetailsModal from "./BwcDetailsModal";
 import { exportBwcLedger } from "./bwcExport";
 import type { BwcField, BwcRow } from "./bwcTypes";
-import { num, rowTotal } from "./bwcTypes";
+import { num, rowTotal, toBwcRow } from "./bwcTypes";
 import type { StationInfo } from "@/mock/logistics.mock";
 
 interface Props {
@@ -33,8 +36,9 @@ interface Props {
   entityLabel: string;
   addLabel: string;
   totalLabel: string;
-  rows: BwcRow[];
   fields: BwcField[];
+  /** Endpoint adapter (Issued BWC or Fire Safety Inspector). */
+  api: LogisticsApi;
 }
 
 function StationHeading({ station }: { station: StationInfo }) {
@@ -64,17 +68,22 @@ export default function BwcLedger({
   entityLabel,
   addLabel,
   totalLabel,
-  rows: initialRows,
   fields,
+  api,
 }: Props) {
-  const [rows, setRows] = React.useState<BwcRow[]>(initialRows);
+  const [rows, setRows] = React.useState<BwcRow[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+  const [refreshTick, setRefreshTick] = React.useState(0);
   const [formOpen, setFormOpen] = React.useState(false);
   const [formRow, setFormRow] = React.useState<BwcRow | null>(null);
   const [viewRow, setViewRow] = React.useState<BwcRow | null>(null);
   const [viewOpen, setViewOpen] = React.useState(false);
   const [deleteRow, setDeleteRow] = React.useState<BwcRow | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
   const [searchkey, setSearchkey] = React.useState("");
+  const debouncedSearch = useDebouncedValue(searchkey, 350);
   const [selectedProvinces, setSelectedProvinces] = React.useState<SelectedLocation[]>([]);
   const [selectedStations, setSelectedStations] = React.useState<SelectedStation[]>([]);
   const { user, systemAccess } = useAuth();
@@ -107,30 +116,69 @@ export default function BwcLedger({
         selectedStations.length === 1 && selectedStations[0].stationno === locked.stationno;
       if (!same) setSelectedStations([locked]);
     }
-  }, [scope.provinceLocked, scope.provinceno, scope.provincename, scope.stationLocked, scope.stationno, scope.stationname, scope.provincename, selectedProvinces, selectedStations]);
+  }, [
+    scope.provinceLocked,
+    scope.provinceno,
+    scope.provincename,
+    scope.stationLocked,
+    scope.stationno,
+    scope.stationname,
+    selectedProvinces,
+    selectedStations,
+  ]);
 
-  const filtered = React.useMemo(() => {
-    const key = searchkey.trim().toLowerCase();
-    const provinceNames = new Set(selectedProvinces.map((p) => p.locationname.toLowerCase()));
-    const stationNames = new Set(selectedStations.map((s) => s.stationname.toLowerCase()));
-
-    return rows.filter((r) => {
-      if (selectedProvinces.length > 0 && !provinceNames.has(r.provincename.toLowerCase())) {
-        return false;
-      }
-      if (selectedStations.length > 0 && !stationNames.has(r.stationname.toLowerCase())) {
-        return false;
-      }
-      if (!key) return true;
-      return `${r.stationname} ${r.cityname} ${r.provincename}`.toLowerCase().includes(key);
+  /** Province/station selection collapsed into the API's provinces payload. */
+  const provinceParams = React.useMemo<LogisticsProvinceParam[]>(() => {
+    const map = new Map<string, string[]>();
+    selectedProvinces.forEach((p) => map.set(p.locationno, []));
+    selectedStations.forEach((s) => {
+      if (!s.provinceno) return;
+      const list = map.get(s.provinceno) ?? [];
+      list.push(s.stationno);
+      map.set(s.provinceno, list);
     });
-  }, [rows, searchkey, selectedProvinces, selectedStations]);
+    return Array.from(map.entries()).map(([provinceno, stationnos]) => ({
+      provinceno,
+      stationnos,
+    }));
+  }, [selectedProvinces, selectedStations]);
 
-  const total = filtered.length;
-  const paged = React.useMemo(
-    () => filtered.slice((page - 1) * pageSize, page * pageSize),
-    [filtered, page, pageSize],
-  );
+  const provinceKey = JSON.stringify(provinceParams);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    (async () => {
+      setLoading(true);
+      const resp = await api.list(
+        {
+          searchkey: debouncedSearch.trim(),
+          provinces: JSON.parse(provinceKey) as LogisticsProvinceParam[],
+          pagenumber: page,
+          pagesize: pageSize,
+        },
+        { suppressGlobalLoading: true, signal: controller.signal },
+      );
+      const { ok, data, total: apiTotal, error, canceled } = unwrap<unknown[]>(resp);
+      if (cancelled || canceled) return;
+      if (!ok) {
+        toast.error(error || `Unable to load ${title.toLowerCase()} records.`);
+        setRows([]);
+        setTotal(0);
+      } else {
+        const list = Array.isArray(data) ? data : [];
+        setRows(list.map((m) => toBwcRow(m, api.idKey)));
+        setTotal(apiTotal || list.length);
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [api, debouncedSearch, provinceKey, page, pageSize, refreshTick, title]);
+
+  const refresh = () => setRefreshTick((t) => t + 1);
 
   const handleReset = () => {
     setSearchkey("");
@@ -173,36 +221,81 @@ export default function BwcLedger({
     setFormRow(row);
     setFormOpen(true);
   };
-  const openView = (row: BwcRow) => {
+
+  /** Loads the full record from the Detail endpoint before showing it. */
+  const openView = async (row: BwcRow) => {
     setViewRow(row);
     setViewOpen(true);
+    if (!row.recordno) return;
+    const resp = await api.detail(row.recordno, { suppressGlobalLoading: true });
+    const { ok, data } = unwrap<unknown>(resp);
+    if (ok && data) setViewRow(toBwcRow(data, api.idKey));
   };
 
-  const handleSubmit = (next: BwcRow) => {
-    setRows((prev) => {
-      const exists = prev.some((r) => r.stationno === next.stationno);
-      return exists
-        ? prev.map((r) => (r.stationno === next.stationno ? { ...r, ...next } : r))
-        : [...prev, next];
+  const handleSubmit = async (payload: BwcFormSubmit): Promise<boolean> => {
+    const resp = await api.save({
+      recordno: payload.recordno,
+      stationno: payload.stationno,
+      values: payload.values,
+      remarks: payload.remarks,
+      encodedby: user?.memberno ?? "",
     });
-    toast.success(formRow ? `${entityLabel} record updated.` : `${entityLabel} record added.`);
+    const { ok, error } = unwrap(resp);
+    if (!ok) {
+      toast.error(error || `Unable to save the ${entityLabel.toLowerCase()} record.`);
+      return false;
+    }
+    toast.success(payload.recordno ? `${entityLabel} record updated.` : `${entityLabel} record added.`);
+    refresh();
+    return true;
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteRow) return;
     setDeleting(true);
-    window.setTimeout(() => {
-      setRows((prev) => prev.filter((r) => r.stationno !== deleteRow.stationno));
-      setDeleting(false);
-      setDeleteRow(null);
+    try {
+      const resp = await api.remove({
+        recordno: deleteRow.recordno,
+        deletedby: user?.memberno ?? "",
+        roleno: Number(systemAccess?.roleno ?? 0) || 0,
+      });
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || `Unable to delete the ${entityLabel.toLowerCase()} record.`);
+        return;
+      }
       toast.success(`${entityLabel} record deleted.`);
-    }, 300);
+      setDeleteRow(null);
+      refresh();
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const stationCatalog = React.useMemo(
-    () => [...rows].sort((a, b) => a.stationname.localeCompare(b.stationname)),
-    [rows],
-  );
+  /** Export pulls the same ledger endpoint with paging disabled. */
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const resp = await api.list(
+        {
+          searchkey: debouncedSearch.trim(),
+          provinces: provinceParams,
+          pagenumber: 0,
+          pagesize: 0,
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      const { ok, data, error } = unwrap<unknown[]>(resp);
+      if (!ok) {
+        toast.error(error || `Unable to export ${title.toLowerCase()} records.`);
+        return;
+      }
+      const list = (Array.isArray(data) ? data : []).map((m) => toBwcRow(m, api.idKey));
+      exportBwcLedger(list, fields, totalLabel, title);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -217,7 +310,8 @@ export default function BwcLedger({
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
           <Button
             variant="outline"
-            onClick={() => exportBwcLedger(filtered, fields, totalLabel, title)}
+            onClick={handleExport}
+            disabled={exporting}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
             <Download className="h-4 w-4" /> Export
@@ -287,15 +381,19 @@ export default function BwcLedger({
         </div>
       </Card>
 
-      {paged.length === 0 ? (
+      {loading ? (
+        <Card className="border-border/60 p-10 text-center text-sm text-muted-foreground">
+          Loading records…
+        </Card>
+      ) : rows.length === 0 ? (
         <Card className="border-border/60 p-10 text-center text-sm text-muted-foreground">
           No stations found. Adjust your filters and try again.
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {paged.map((row) => (
+          {rows.map((row) => (
             <Card
-              key={row.stationno}
+              key={row.recordno || row.stationno}
               className="group space-y-4 border-border/60 bg-card p-4 shadow-soft"
             >
               <StationHeading station={row} />
@@ -334,7 +432,6 @@ export default function BwcLedger({
         open={formOpen}
         onOpenChange={setFormOpen}
         row={formRow}
-        stations={stationCatalog}
         fields={fields}
         entityLabel={entityLabel}
         totalLabel={totalLabel}
