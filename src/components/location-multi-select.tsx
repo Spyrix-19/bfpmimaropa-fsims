@@ -82,6 +82,8 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
                     locationno: item.provinceno ?? "",
                     locationcode: item.provinceno ?? "",
                     locationname: item.provincename ?? "",
+                    locationtype: "PROVINCE",
+                    sortorder: 0,
                   } satisfies SearchLocationModel,
                 ]),
               ).values(),
