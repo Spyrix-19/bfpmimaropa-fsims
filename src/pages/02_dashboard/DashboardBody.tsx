@@ -12,7 +12,7 @@ import {
   ClipboardList,
   Download,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { toast } from "@/lib/toast";
 import {
@@ -53,7 +53,7 @@ import type { JournalModel } from "@/types/journalType";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
 import type { SelectedStation } from "@/components/station-multi-select";
 import StationSearchSelect from "@/components/station-search-select";
-import { useAuth } from "@/lib/auth";
+import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
 
 /**
@@ -345,7 +345,7 @@ function YoYYearSelect({
 }) {
   return (
     <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
-      <SelectTrigger className="h-9 min-w-[180px]">
+      <SelectTrigger className="h-9 min-w-[120px]">
         <SelectValue placeholder="Select year" />
       </SelectTrigger>
       <SelectContent>
@@ -730,7 +730,12 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
 }
 
 export function DashboardBody() {
-  const { isAuthenticated } = useAuth();
+  const { user, systemAccess, isAuthenticated } = useAuth();
+  const scope = useMemo(
+    () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
+  const currentYear = new Date().getFullYear();
   const { compliance } = useComplianceSummary();
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
@@ -744,7 +749,6 @@ export function DashboardBody() {
     selectedYear: targetVsActualYear,
     selectedStations: targetVsActualSelectedStations,
   });
-  const currentYear = new Date().getFullYear();
   const [monthlyTrendYear, setMonthlyTrendYear] = useState<number>(currentYear);
   const [monthlyTrendSelectedStation, setMonthlyTrendSelectedStation] = useState<SelectedStation | null>(null);
   const monthlyTrendSelectedStations = useMemo<SelectedStation[]>(
@@ -778,6 +782,35 @@ export function DashboardBody() {
     selectedYears: yoYSelectedYears,
     selectedStations: yoYSelectedStations,
   });
+
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      setTargetVsActualSelectedStation(null);
+      setMonthlyTrendSelectedStation(null);
+      setMonthlySectorSelectedStation(null);
+      setYoYSelectedStation(null);
+      return;
+    }
+
+    if (scope.stationLocked && scope.stationno) {
+      const lockedStation: SelectedStation = {
+        stationno: scope.stationno,
+        stationname: scope.stationname,
+        provinceno: scope.provinceno,
+        provincename: scope.provincename,
+      };
+      setTargetVsActualSelectedStation((prev) =>
+        prev?.stationno === scope.stationno ? prev : lockedStation,
+      );
+      setMonthlyTrendSelectedStation((prev) =>
+        prev?.stationno === scope.stationno ? prev : lockedStation,
+      );
+      setMonthlySectorSelectedStation((prev) =>
+        prev?.stationno === scope.stationno ? prev : lockedStation,
+      );
+      setYoYSelectedStation((prev) => (prev?.stationno === scope.stationno ? prev : lockedStation));
+    }
+  }, [isAuthenticated, scope.stationLocked, scope.stationno, scope.stationname, scope.provinceno, scope.provincename]);
   const {
     activity: recentActivity,
     loading: recentActivityLoading,
@@ -886,7 +919,7 @@ export function DashboardBody() {
           actions={
             <div className="flex items-center gap-2">
               <Select value={String(targetVsActualYear)} onValueChange={(v) => setTargetVsActualYear(Number(v))}>
-                <SelectTrigger className="h-9 min-w-[140px]">
+                <SelectTrigger className="h-9 min-w-[120px]">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -897,25 +930,37 @@ export function DashboardBody() {
                   ))}
                 </SelectContent>
               </Select>
-              <StationSearchSelect
-                value={targetVsActualSelectedStation?.stationno}
-                valueName={targetVsActualSelectedStation?.stationname}
-                onChange={(stationno, stationname, province, station) => {
-                  if (!stationno || !station) {
-                    setTargetVsActualSelectedStation(null);
-                    return;
-                  }
-                  setTargetVsActualSelectedStation({
-                    stationno,
-                    stationname: stationname || station.stationname,
-                    provinceno: station.provinceno ?? "",
-                    provincename: station.provincename ?? province ?? "",
-                  });
-                }}
-                placeholder="Select station"
-                className="w-[220px]"
-                reportyear={targetVsActualYear}
-              />
+              {isAuthenticated ? (
+                scope.stationLocked ? (
+                  <ReadOnlyField
+                    value={scope.stationname}
+                    placeholder="Assigned station"
+                    title="Restricted to your assigned station"
+                    className="w-[260px]"
+                  />
+                ) : (
+                  <StationSearchSelect
+                    value={targetVsActualSelectedStation?.stationno}
+                    valueName={targetVsActualSelectedStation?.stationname}
+                    provinceno={scope.provinceLocked ? scope.provinceno : undefined}
+                    onChange={(stationno, stationname, province, station) => {
+                      if (!stationno || !station) {
+                        setTargetVsActualSelectedStation(null);
+                        return;
+                      }
+                      setTargetVsActualSelectedStation({
+                        stationno,
+                        stationname: stationname || station.stationname,
+                        provinceno: station.provinceno ?? "",
+                        provincename: station.provincename ?? province ?? "",
+                      });
+                    }}
+                    placeholder="Select station"
+                    className="w-[260px]"
+                    reportyear={targetVsActualYear}
+                  />
+                )
+              ) : null}
             </div>
           }
         >
@@ -954,7 +999,7 @@ export function DashboardBody() {
         actions={
           <div className="flex items-center gap-2">
             <Select value={String(monthlyTrendYear)} onValueChange={(v) => setMonthlyTrendYear(Number(v))}>
-              <SelectTrigger className="h-9 min-w-[140px]">
+              <SelectTrigger className="h-9 min-w-[120px]">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -965,25 +1010,37 @@ export function DashboardBody() {
                 ))}
               </SelectContent>
             </Select>
-            <StationSearchSelect
-              value={monthlyTrendSelectedStation?.stationno}
-              valueName={monthlyTrendSelectedStation?.stationname}
-              onChange={(stationno, stationname, province, station) => {
-                if (!stationno || !station) {
-                  setMonthlyTrendSelectedStation(null);
-                  return;
-                }
-                setMonthlyTrendSelectedStation({
-                  stationno,
-                  stationname: stationname || station.stationname,
-                  provinceno: station.provinceno ?? "",
-                  provincename: station.provincename ?? province ?? "",
-                });
-              }}
-              placeholder="Select station"
-              className="w-[220px]"
-              reportyear={monthlyTrendYear}
-            />
+            {isAuthenticated ? (
+              scope.stationLocked ? (
+                <ReadOnlyField
+                  value={scope.stationname}
+                  placeholder="Assigned station"
+                  title="Restricted to your assigned station"
+                  className="w-[260px]"
+                />
+              ) : (
+                <StationSearchSelect
+                  value={monthlyTrendSelectedStation?.stationno}
+                  valueName={monthlyTrendSelectedStation?.stationname}
+                  provinceno={scope.provinceLocked ? scope.provinceno : undefined}
+                  onChange={(stationno, stationname, province, station) => {
+                    if (!stationno || !station) {
+                      setMonthlyTrendSelectedStation(null);
+                      return;
+                    }
+                    setMonthlyTrendSelectedStation({
+                      stationno,
+                      stationname: stationname || station.stationname,
+                      provinceno: station.provinceno ?? "",
+                      provincename: station.provincename ?? province ?? "",
+                    });
+                  }}
+                  placeholder="Select station"
+                  className="w-[260px]"
+                  reportyear={monthlyTrendYear}
+                />
+              )
+            ) : null}
           </div>
         }
       >
@@ -1032,7 +1089,7 @@ export function DashboardBody() {
         actions={
           <div className="flex items-center gap-2">
             <Select value={String(monthlySectorYear)} onValueChange={(v) => setMonthlySectorYear(Number(v))}>
-              <SelectTrigger className="h-9 min-w-[140px]">
+              <SelectTrigger className="h-9 min-w-[120px]">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -1043,25 +1100,37 @@ export function DashboardBody() {
                 ))}
               </SelectContent>
             </Select>
-            <StationSearchSelect
-              value={monthlySectorSelectedStation?.stationno}
-              valueName={monthlySectorSelectedStation?.stationname}
-              onChange={(stationno, stationname, province, station) => {
-                if (!stationno || !station) {
-                  setMonthlySectorSelectedStation(null);
-                  return;
-                }
-                setMonthlySectorSelectedStation({
-                  stationno,
-                  stationname: stationname || station.stationname,
-                  provinceno: station.provinceno ?? "",
-                  provincename: station.provincename ?? province ?? "",
-                });
-              }}
-              placeholder="Select station"
-              className="w-[220px]"
-              reportyear={monthlySectorYear}
-            />
+            {isAuthenticated ? (
+              scope.stationLocked ? (
+                <ReadOnlyField
+                  value={scope.stationname}
+                  placeholder="Assigned station"
+                  title="Restricted to your assigned station"
+                  className="w-[260px]"
+                />
+              ) : (
+                <StationSearchSelect
+                  value={monthlySectorSelectedStation?.stationno}
+                  valueName={monthlySectorSelectedStation?.stationname}
+                  provinceno={scope.provinceLocked ? scope.provinceno : undefined}
+                  onChange={(stationno, stationname, province, station) => {
+                    if (!stationno || !station) {
+                      setMonthlySectorSelectedStation(null);
+                      return;
+                    }
+                    setMonthlySectorSelectedStation({
+                      stationno,
+                      stationname: stationname || station.stationname,
+                      provinceno: station.provinceno ?? "",
+                      provincename: station.provincename ?? province ?? "",
+                    });
+                  }}
+                  placeholder="Select station"
+                  className="w-[260px]"
+                  reportyear={monthlySectorYear}
+                />
+              )
+            ) : null}
           </div>
         }
       >
@@ -1108,24 +1177,36 @@ export function DashboardBody() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <YoYYearSelect value={yoYSelectedYear} onChange={setYoYSelectedYear} options={yoYYearOptions} />
-            <StationSearchSelect
-              value={yoYSelectedStation?.stationno}
-              valueName={yoYSelectedStation?.stationname}
-              onChange={(stationno, stationname, province, station) => {
-                if (!stationno || !station) {
-                  setYoYSelectedStation(null);
-                  return;
-                }
-                setYoYSelectedStation({
-                  stationno,
-                  stationname: stationname || station.stationname,
-                  provinceno: station.provinceno ?? "",
-                  provincename: station.provincename ?? province ?? "",
-                });
-              }}
-              placeholder="Select station"
-              className="w-[220px]"
-            />
+            {isAuthenticated ? (
+              scope.stationLocked ? (
+                <ReadOnlyField
+                  value={scope.stationname}
+                  placeholder="Assigned station"
+                  title="Restricted to your assigned station"
+                  className="w-[260px]"
+                />
+              ) : (
+                <StationSearchSelect
+                  value={yoYSelectedStation?.stationno}
+                  valueName={yoYSelectedStation?.stationname}
+                  provinceno={scope.provinceLocked ? scope.provinceno : undefined}
+                  onChange={(stationno, stationname, province, station) => {
+                    if (!stationno || !station) {
+                      setYoYSelectedStation(null);
+                      return;
+                    }
+                    setYoYSelectedStation({
+                      stationno,
+                      stationname: stationname || station.stationname,
+                      provinceno: station.provinceno ?? "",
+                      provincename: station.provincename ?? province ?? "",
+                    });
+                  }}
+                  placeholder="Select station"
+                  className="w-[260px]"
+                />
+              )
+            ) : null}
           </div>
         }
       >
