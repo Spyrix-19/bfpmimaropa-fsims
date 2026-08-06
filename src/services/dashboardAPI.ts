@@ -8,6 +8,7 @@ import {
   DashboardMonthlyTargetAccomplishModel,
   DashboardMonthlySectorInspectionModel,
   DashboardYearlyInspectionModel,
+  DashboardYearToYearDTO,
 } from "@/types/dashboardType";
 
 export const dashboardAPI = {
@@ -73,7 +74,7 @@ export const dashboardAPI = {
     );
   },
 
-  async getYearlyInspection(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
+  async getYearlyInspection(body: DashboardYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardYearlyInspectionModel>(
       "/api/v1/Dashboard/FSIMS/YearlyInspection/Summary",
       body,

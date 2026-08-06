@@ -9,6 +9,11 @@ export interface DashboardDTO {
   provinces: DashboardClass[];
 }
 
+export interface DashboardYearToYearDTO {
+  reportyear: number[];
+  stationno: string[];
+}
+
 export interface DashboardComplianceModel {
   year: number;
   totaltargetbplo: number;

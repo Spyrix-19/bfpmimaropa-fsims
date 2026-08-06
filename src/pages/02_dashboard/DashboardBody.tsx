@@ -11,6 +11,8 @@ import {
   ShieldAlert,
   ClipboardList,
   Download,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
@@ -28,6 +30,8 @@ import {
   YAxis,
 } from "recharts";
 import { SECTORS, SECTOR_COLORS, CHART_COLORS as C } from "@/lib/chart-constants";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
@@ -43,7 +47,9 @@ import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { formatDateTime } from "@/lib/date-format";
 import type { JournalModel } from "@/types/journalType";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
+import StationMultiSelect, { type SelectedStation } from "@/components/station-multi-select";
 import { useAuth } from "@/lib/auth";
+import { buildYears } from "@/lib/utils";
 
 /**
  * Dashboard body.
@@ -320,6 +326,55 @@ function NoticeCard({
         </div>
       </div>
     </Card>
+  );
+}
+
+function YoYYearMultiSelect({
+  value,
+  onChange,
+  options,
+}: {
+  value: number[];
+  onChange: (next: number[]) => void;
+  options: number[];
+}) {
+  const [open, setOpen] = useState(false);
+  const toggle = (year: number) => {
+    if (value.includes(year)) {
+      if (value.length <= 2) return;
+      onChange(value.filter((item) => item !== year).sort((a, b) => a - b));
+      return;
+    }
+    onChange([...value, year].sort((a, b) => a - b));
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 min-w-[180px] justify-between gap-2">
+          <span className="truncate text-left">{value.length ? value.join(", ") : "Select years"}</span>
+          <ChevronDown className="h-4 w-4 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[220px] p-2" align="start">
+        <div className="space-y-1">
+          {options.map((year) => {
+            const selected = value.includes(year);
+            return (
+              <button
+                key={year}
+                type="button"
+                onClick={() => toggle(year)}
+                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+              >
+                <span>{year}</span>
+                {selected ? <Check className="h-4 w-4 text-primary" /> : null}
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -701,7 +756,22 @@ export function DashboardBody() {
   const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual();
   const { rows: monthlyTrendRows, loading: monthlyTrendLoading } = useMonthlyTargetVsActual();
   const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend();
-  const { rows: yoYRows, years: yoYYears, loading: yoYLoading } = useYearlyComparison();
+  const currentYear = new Date().getFullYear();
+  const yoYYearOptions = useMemo(() => buildYears(), []);
+  const [yoYSelectedYears, setYoYSelectedYears] = useState<number[]>([
+    currentYear,
+    currentYear - 1,
+    currentYear - 2,
+  ]);
+  const [yoYSelectedStations, setYoYSelectedStations] = useState<SelectedStation[]>([]);
+  const yoYStationYear = useMemo(
+    () => (yoYSelectedYears.length ? Math.max(...yoYSelectedYears) : currentYear),
+    [yoYSelectedYears, currentYear],
+  );
+  const { rows: yoYRows, years: yoYYears, loading: yoYLoading } = useYearlyComparison({
+    selectedYears: yoYSelectedYears,
+    selectedStations: yoYSelectedStations,
+  });
   const {
     activity: recentActivity,
     loading: recentActivityLoading,
@@ -921,9 +991,28 @@ export function DashboardBody() {
         subtitle={
           yoYYears.length
             ? `${yoYYears.join(" vs ")} monthly actuals`
-            : "Monthly actuals per report year"
+            : "Monthly actual inspection comparisons per report year"
         }
         height="h-[420px] xl:h-[500px]"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <YoYYearMultiSelect
+              value={yoYSelectedYears}
+              onChange={setYoYSelectedYears}
+              options={yoYYearOptions}
+            />
+            <StationMultiSelect
+              mode="station"
+              value={yoYSelectedStations}
+              provinces={[]}
+              reportyear={yoYStationYear}
+              onChange={setYoYSelectedStations}
+              placeholder="All stations"
+              alwaysEnabled
+              className="w-[220px]"
+            />
+          </div>
+        }
       >
         {yoYLoading ? (
           <div className="grid h-full place-items-center text-sm text-muted-foreground">

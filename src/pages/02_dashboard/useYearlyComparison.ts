@@ -3,8 +3,8 @@ import { toast } from "@/lib/toast";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
-import { useFilters, resolveReportMonths } from "@/lib/filters";
-import type { DashboardYearlyInspectionModel } from "@/types/dashboardType";
+import type { SelectedStation } from "@/components/station-multi-select";
+import type { DashboardYearlyInspectionModel, DashboardYearToYearDTO } from "@/types/dashboardType";
 
 const MONTH_NAMES = [
   "Jan",
@@ -24,37 +24,56 @@ const MONTH_NAMES = [
 export type YearlyPoint = { name: string } & Record<string, number | string>;
 
 /** Year-over-Year Comparison (monthly actuals per report year). */
-export function useYearlyComparison() {
-  const { filters } = useFilters();
+export function useYearlyComparison({
+  selectedYears,
+  selectedStations,
+}: {
+  selectedYears: number[];
+  selectedStations: SelectedStation[];
+}) {
   const [rows, setRows] = React.useState<YearlyPoint[]>([]);
   const [years, setYears] = React.useState<number[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  const reportyear = Number(filters.year) || new Date().getFullYear();
-  const reportmonth = React.useMemo(
-    () => resolveReportMonths(filters.interval, filters.period),
-    [filters.interval, filters.period],
+  const selectedYearKey = React.useMemo(
+    () => [...selectedYears].sort((a, b) => a - b).join(","),
+    [selectedYears],
   );
-  const reportmonthKey = reportmonth.join(",");
+  const selectedStationKey = React.useMemo(
+    () => selectedStations.map((s) => s.stationno).sort().join(","),
+    [selectedStations],
+  );
+
+  const stationnos = React.useMemo(
+    () => selectedStations.map((s) => s.stationno),
+    [selectedStations],
+  );
 
   React.useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
     (async () => {
       setLoading(true);
-      const resp = await dashboardAPI.getYearlyInspection(
-        { reportyear, reportmonth, provinces: [] },
-        {
-          suppressGlobalLoading: true,
-          suppressErrorToast: true,
-          signal: controller.signal,
-          timeout: 90000,
-          retries: 3,
-          retryDelayMs: 800,
-        },
-      );
+      const yearsToQuery = selectedYears.length
+        ? [...selectedYears].sort((a, b) => a - b)
+        : [];
+      const body: DashboardYearToYearDTO = {
+        reportyear: yearsToQuery,
+        stationno: stationnos,
+      };
+
+      const resp = await dashboardAPI.getYearlyInspection(body, {
+        suppressGlobalLoading: true,
+        suppressErrorToast: true,
+        signal: controller.signal,
+        timeout: 90000,
+        retries: 3,
+        retryDelayMs: 800,
+      });
+
       const { ok, data, error, canceled } = unwrap<DashboardYearlyInspectionModel[]>(resp);
       if (cancelled || canceled) return;
+
       if (!ok) {
         toast.error(isGenericError(error) ? "Unable to load year-over-year comparison." : error);
         setRows([]);
@@ -74,15 +93,12 @@ export function useYearlyComparison() {
             byMonth[idx][yr] = Number(m.totalaccomplish) || 0;
           }
         }
-        // ensure every year key exists on every point
         for (const p of byMonth) {
           for (const yr of yearKeys) if (p[String(yr)] == null) p[String(yr)] = 0;
         }
 
         setYears(yearKeys);
-        setRows(
-          reportmonth.length ? byMonth.filter((_, i) => reportmonth.includes(i + 1)) : byMonth,
-        );
+        setRows(byMonth);
       }
       setLoading(false);
     })();
@@ -90,8 +106,7 @@ export function useYearlyComparison() {
       cancelled = true;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportyear, reportmonthKey]);
+  }, [selectedYearKey, selectedStationKey, stationnos]);
 
   return { rows, years, loading };
 }
