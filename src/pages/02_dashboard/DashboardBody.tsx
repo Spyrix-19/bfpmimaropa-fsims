@@ -783,7 +783,7 @@ export function DashboardBody() {
     selectedStations: yoYSelectedStations,
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isAuthenticated) {
       setTargetVsActualSelectedStation(null);
       setMonthlyTrendSelectedStation(null);
