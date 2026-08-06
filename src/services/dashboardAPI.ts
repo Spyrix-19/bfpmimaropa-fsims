@@ -41,7 +41,7 @@ export const dashboardAPI = {
     );
   },
 
-  async getTargetVSInspection(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
+  async getTargetVSInspection(body: DashboardYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardTargetAccomplishModel>(
       "/api/v1/Dashboard/FSIMS/TargetVSInspection/Summary",
       body,

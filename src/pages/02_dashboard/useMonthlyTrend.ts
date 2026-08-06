@@ -105,17 +105,19 @@ export function useMonthlyTargetVsActual({
 }
 
 /** Monthly Trend by Sector (actual inspections per sector per month). */
-export function useMonthlySectorTrend() {
-  const { filters } = useFilters();
+export function useMonthlySectorTrend({
+  selectedYear,
+  selectedStations = [],
+}: {
+  selectedYear?: number;
+  selectedStations?: SelectedStation[];
+}) {
   const [rows, setRows] = React.useState<MonthlySectorPoint[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  const reportyear = Number(filters.year) || new Date().getFullYear();
-  const reportmonth = React.useMemo(
-    () => resolveReportMonths(filters.interval, filters.period),
-    [filters.interval, filters.period],
-  );
-  const reportmonthKey = reportmonth.join(",");
+  const reportyear = selectedYear ?? new Date().getFullYear();
+  const stationnos = React.useMemo(() => selectedStations.map((s) => s.stationno), [selectedStations]);
+  const stationKey = stationnos.join(",");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -123,7 +125,10 @@ export function useMonthlySectorTrend() {
     (async () => {
       setLoading(true);
       const resp = await dashboardAPI.getMonthlySectorInspection(
-        { reportyear, reportmonth, provinces: [] },
+        {
+          reportyear: [reportyear],
+          stationno: stationnos,
+        },
         {
           suppressGlobalLoading: true,
           suppressErrorToast: true,
@@ -139,21 +144,21 @@ export function useMonthlySectorTrend() {
         toast.error(isGenericError(error) ? "Unable to load monthly trend by sector." : error);
         setRows([]);
       } else {
-        setRows(
-          (data ?? []).map((m) => {
-            const totals = (m.monthlysectorinspectionList ?? []).reduce(
-              (acc, g) => ({
-                BPLO: acc.BPLO + (Number(g.totalbplo) || 0),
-                GOVT: acc.GOVT + (Number(g.totalgov) || 0),
-                PEZA: acc.PEZA + (Number(g.totalpeza) || 0),
-                TIEZA: acc.TIEZA + (Number(g.totaltieza) || 0),
-              }),
-              { BPLO: 0, GOVT: 0, PEZA: 0, TIEZA: 0 },
-            );
-            const idx = Math.min(Math.max(Number(m.reportmonth) || 1, 1), 12) - 1;
-            return { name: MONTH_NAMES[idx], ...totals };
-          }),
-        );
+        const monthRows = MONTH_NAMES.map((name) => ({ name, BPLO: 0, GOVT: 0, PEZA: 0, TIEZA: 0 }));
+        (data ?? []).forEach((m) => {
+          const totals = (m.monthlysectorinspectionList ?? []).reduce(
+            (acc, g) => ({
+              BPLO: acc.BPLO + (Number(g.totalbplo) || 0),
+              GOVT: acc.GOVT + (Number(g.totalgov) || 0),
+              PEZA: acc.PEZA + (Number(g.totalpeza) || 0),
+              TIEZA: acc.TIEZA + (Number(g.totaltieza) || 0),
+            }),
+            { BPLO: 0, GOVT: 0, PEZA: 0, TIEZA: 0 },
+          );
+          const idx = Math.min(Math.max(Number(m.reportmonth) || 1, 1), 12) - 1;
+          monthRows[idx] = { name: MONTH_NAMES[idx], ...totals };
+        });
+        setRows(monthRows);
       }
       setLoading(false);
     })();
@@ -161,8 +166,7 @@ export function useMonthlySectorTrend() {
       cancelled = true;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportyear, reportmonthKey]);
+  }, [reportyear, stationKey]);
 
   return { rows, loading };
 }

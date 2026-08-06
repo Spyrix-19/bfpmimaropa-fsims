@@ -746,7 +746,16 @@ export function DashboardBody() {
     selectedYear: monthlyTrendYear,
     selectedStations: monthlyTrendSelectedStations,
   });
-  const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend();
+  const [monthlySectorYear, setMonthlySectorYear] = useState<number>(currentYear);
+  const [monthlySectorSelectedStation, setMonthlySectorSelectedStation] = useState<SelectedStation | null>(null);
+  const monthlySectorSelectedStations = useMemo<SelectedStation[]>(
+    () => (monthlySectorSelectedStation ? [monthlySectorSelectedStation] : []),
+    [monthlySectorSelectedStation],
+  );
+  const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend({
+    selectedYear: monthlySectorYear,
+    selectedStations: monthlySectorSelectedStations,
+  });
   const yoYYearOptions = useMemo(() => buildYears(), []);
   const [yoYSelectedYear, setYoYSelectedYear] = useState<number>(currentYear);
   const yoYSelectedYears = useMemo<number[]>(() => [yoYSelectedYear], [yoYSelectedYear]);
@@ -899,7 +908,7 @@ export function DashboardBody() {
         subtitle="Target vs Actual per month"
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             <Select value={String(monthlyTrendYear)} onValueChange={(v) => setMonthlyTrendYear(Number(v))}>
               <SelectTrigger className="h-9 min-w-[140px]">
                 <SelectValue placeholder="Year" />
@@ -976,6 +985,41 @@ export function DashboardBody() {
         title="Monthly Trend by Sector"
         subtitle="Actual inspections per sector"
         height="h-[420px] xl:h-[500px]"
+        actions={
+          <div className="flex items-center gap-2">
+            <Select value={String(monthlySectorYear)} onValueChange={(v) => setMonthlySectorYear(Number(v))}>
+              <SelectTrigger className="h-9 min-w-[140px]">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {yoYYearOptions.map((year) => (
+                  <SelectItem key={year} value={String(year)}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <StationSearchSelect
+              value={monthlySectorSelectedStation?.stationno}
+              valueName={monthlySectorSelectedStation?.stationname}
+              onChange={(stationno, stationname, province, station) => {
+                if (!stationno || !station) {
+                  setMonthlySectorSelectedStation(null);
+                  return;
+                }
+                setMonthlySectorSelectedStation({
+                  stationno,
+                  stationname: stationname || station.stationname,
+                  provinceno: station.provinceno ?? "",
+                  provincename: station.provincename ?? province ?? "",
+                });
+              }}
+              placeholder="Select station"
+              className="w-[220px]"
+              reportyear={monthlySectorYear}
+            />
+          </div>
+        }
       >
         {monthlySectorLoading ? (
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
