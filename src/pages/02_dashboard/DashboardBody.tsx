@@ -734,7 +734,16 @@ export function DashboardBody() {
   const { compliance } = useComplianceSummary();
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
-  const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual();
+  const [targetVsActualYear, setTargetVsActualYear] = useState<number>(currentYear);
+  const [targetVsActualSelectedStation, setTargetVsActualSelectedStation] = useState<SelectedStation | null>(null);
+  const targetVsActualSelectedStations = useMemo<SelectedStation[]>(
+    () => (targetVsActualSelectedStation ? [targetVsActualSelectedStation] : []),
+    [targetVsActualSelectedStation],
+  );
+  const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual({
+    selectedYear: targetVsActualYear,
+    selectedStations: targetVsActualSelectedStations,
+  });
   const currentYear = new Date().getFullYear();
   const [monthlyTrendYear, setMonthlyTrendYear] = useState<number>(currentYear);
   const [monthlyTrendSelectedStation, setMonthlyTrendSelectedStation] = useState<SelectedStation | null>(null);
@@ -874,6 +883,41 @@ export function DashboardBody() {
           title="Target vs Actual by Province"
           subtitle="Provincial accomplishment"
           height="h-72"
+          actions={
+            <div className="flex items-center gap-2">
+              <Select value={String(targetVsActualYear)} onValueChange={(v) => setTargetVsActualYear(Number(v))}>
+                <SelectTrigger className="h-9 min-w-[140px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {yoYYearOptions.map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <StationSearchSelect
+                value={targetVsActualSelectedStation?.stationno}
+                valueName={targetVsActualSelectedStation?.stationname}
+                onChange={(stationno, stationname, province, station) => {
+                  if (!stationno || !station) {
+                    setTargetVsActualSelectedStation(null);
+                    return;
+                  }
+                  setTargetVsActualSelectedStation({
+                    stationno,
+                    stationname: stationname || station.stationname,
+                    provinceno: station.provinceno ?? "",
+                    provincename: station.provincename ?? province ?? "",
+                  });
+                }}
+                placeholder="Select station"
+                className="w-[220px]"
+                reportyear={targetVsActualYear}
+              />
+            </div>
+          }
         >
           {targetVsActualLoading ? (
             <div className="grid h-full place-items-center text-sm text-muted-foreground">

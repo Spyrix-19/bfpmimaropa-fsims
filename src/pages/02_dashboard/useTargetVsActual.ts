@@ -3,7 +3,7 @@ import { toast } from "@/lib/toast";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
-import { useFilters, resolveReportMonths } from "@/lib/filters";
+import type { SelectedStation } from "@/components/station-multi-select";
 import type { DashboardTargetAccomplishModel } from "@/types/dashboardType";
 
 export interface TargetVsActualRow {
@@ -14,17 +14,19 @@ export interface TargetVsActualRow {
 }
 
 /** Fetches Target vs Actual per province. */
-export function useTargetVsActual() {
-  const { filters } = useFilters();
+export function useTargetVsActual({
+  selectedYear,
+  selectedStations = [],
+}: {
+  selectedYear?: number;
+  selectedStations?: SelectedStation[];
+}) {
   const [rows, setRows] = React.useState<TargetVsActualRow[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  const reportyear = Number(filters.year) || new Date().getFullYear();
-  const reportmonth = React.useMemo(
-    () => resolveReportMonths(filters.interval, filters.period),
-    [filters.interval, filters.period],
-  );
-  const reportmonthKey = reportmonth.join(",");
+  const reportyear = selectedYear ?? new Date().getFullYear();
+  const stationnos = React.useMemo(() => selectedStations.map((s) => s.stationno), [selectedStations]);
+  const stationKey = stationnos.join(",");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -32,7 +34,10 @@ export function useTargetVsActual() {
     (async () => {
       setLoading(true);
       const resp = await dashboardAPI.getTargetVSInspection(
-        { reportyear, reportmonth, provinces: [] },
+        {
+          reportyear: [reportyear],
+          stationno: stationnos,
+        },
         {
           suppressGlobalLoading: true,
           suppressErrorToast: true,
@@ -71,8 +76,7 @@ export function useTargetVsActual() {
       cancelled = true;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportyear, reportmonthKey]);
+  }, [reportyear, stationKey]);
 
   return { rows, loading };
 }
