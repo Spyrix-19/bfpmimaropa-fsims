@@ -214,7 +214,7 @@ export default function TargetRevisionRequests({
             [
               { value: "target-reference", label: "Target Reference" },
               { value: "monitoring", label: "Monitoring (Compliance)" },
-              { value: "notice", label: "AccomplishedNotice" },
+              { value: "notice", label: "Accomplished Notice" },
             ] as { value: RevisionModule; label: string }[]
           ).map((t) => {
             const active = activeTab === t.value;
