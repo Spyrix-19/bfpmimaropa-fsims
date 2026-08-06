@@ -11,8 +11,6 @@ import {
   ShieldAlert,
   ClipboardList,
   Download,
-  ChevronDown,
-  Check,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
@@ -31,7 +29,13 @@ import {
 } from "recharts";
 import { SECTORS, SECTOR_COLORS, CHART_COLORS as C } from "@/lib/chart-constants";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
@@ -330,52 +334,28 @@ function NoticeCard({
   );
 }
 
-function YoYYearMultiSelect({
+function YoYYearSelect({
   value,
   onChange,
   options,
 }: {
-  value: number[];
-  onChange: (next: number[]) => void;
+  value: number;
+  onChange: (next: number) => void;
   options: number[];
 }) {
-  const [open, setOpen] = useState(false);
-  const toggle = (year: number) => {
-    if (value.includes(year)) {
-      if (value.length <= 2) return;
-      onChange(value.filter((item) => item !== year).sort((a, b) => a - b));
-      return;
-    }
-    onChange([...value, year].sort((a, b) => a - b));
-  };
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 min-w-[180px] justify-between gap-2">
-          <span className="truncate text-left">{value.length ? value.join(", ") : "Select years"}</span>
-          <ChevronDown className="h-4 w-4 shrink-0" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[220px] p-2" align="start">
-        <div className="space-y-1">
-          {options.map((year) => {
-            const selected = value.includes(year);
-            return (
-              <button
-                key={year}
-                type="button"
-                onClick={() => toggle(year)}
-                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-              >
-                <span>{year}</span>
-                {selected ? <Check className="h-4 w-4 text-primary" /> : null}
-              </button>
-            );
-          })}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+      <SelectTrigger className="h-9 min-w-[180px]">
+        <SelectValue placeholder="Select year" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((year) => (
+          <SelectItem key={year} value={String(year)}>
+            {year}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -755,24 +735,27 @@ export function DashboardBody() {
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
   const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual();
-  const { rows: monthlyTrendRows, loading: monthlyTrendLoading } = useMonthlyTargetVsActual();
-  const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend();
   const currentYear = new Date().getFullYear();
+  const [monthlyTrendYear, setMonthlyTrendYear] = useState<number>(currentYear);
+  const [monthlyTrendSelectedStation, setMonthlyTrendSelectedStation] = useState<SelectedStation | null>(null);
+  const monthlyTrendSelectedStations = useMemo<SelectedStation[]>(
+    () => (monthlyTrendSelectedStation ? [monthlyTrendSelectedStation] : []),
+    [monthlyTrendSelectedStation],
+  );
+  const { rows: monthlyTrendRows, loading: monthlyTrendLoading } = useMonthlyTargetVsActual({
+    selectedYear: monthlyTrendYear,
+    selectedStations: monthlyTrendSelectedStations,
+  });
+  const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend();
   const yoYYearOptions = useMemo(() => buildYears(), []);
-  const [yoYSelectedYears, setYoYSelectedYears] = useState<number[]>([
-    currentYear,
-    currentYear - 1,
-    currentYear - 2,
-  ]);
+  const [yoYSelectedYear, setYoYSelectedYear] = useState<number>(currentYear);
+  const yoYSelectedYears = useMemo<number[]>(() => [yoYSelectedYear], [yoYSelectedYear]);
   const [yoYSelectedStation, setYoYSelectedStation] = useState<SelectedStation | null>(null);
   const yoYSelectedStations = useMemo<SelectedStation[]>(
     () => (yoYSelectedStation ? [yoYSelectedStation] : []),
     [yoYSelectedStation],
   );
-  const yoYStationYear = useMemo(
-    () => (yoYSelectedYears.length ? Math.max(...yoYSelectedYears) : currentYear),
-    [yoYSelectedYears, currentYear],
-  );
+  const yoYStationYear = useMemo(() => yoYSelectedYear, [yoYSelectedYear]);
   const { rows: yoYRows, years: yoYYears, loading: yoYLoading } = useYearlyComparison({
     selectedYears: yoYSelectedYears,
     selectedStations: yoYSelectedStations,
@@ -915,6 +898,41 @@ export function DashboardBody() {
         title="Monthly Accomplishment Trend"
         subtitle="Target vs Actual per month"
         height="h-[420px] xl:h-[500px]"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={String(monthlyTrendYear)} onValueChange={(v) => setMonthlyTrendYear(Number(v))}>
+              <SelectTrigger className="h-9 min-w-[140px]">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {yoYYearOptions.map((year) => (
+                  <SelectItem key={year} value={String(year)}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <StationSearchSelect
+              value={monthlyTrendSelectedStation?.stationno}
+              valueName={monthlyTrendSelectedStation?.stationname}
+              onChange={(stationno, stationname, province, station) => {
+                if (!stationno || !station) {
+                  setMonthlyTrendSelectedStation(null);
+                  return;
+                }
+                setMonthlyTrendSelectedStation({
+                  stationno,
+                  stationname: stationname || station.stationname,
+                  provinceno: station.provinceno ?? "",
+                  provincename: station.provincename ?? province ?? "",
+                });
+              }}
+              placeholder="Select station"
+              className="w-[220px]"
+              reportyear={monthlyTrendYear}
+            />
+          </div>
+        }
       >
         {monthlyTrendLoading ? (
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
@@ -1001,11 +1019,7 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <YoYYearMultiSelect
-              value={yoYSelectedYears}
-              onChange={setYoYSelectedYears}
-              options={yoYYearOptions}
-            />
+            <YoYYearSelect value={yoYSelectedYear} onChange={setYoYSelectedYear} options={yoYYearOptions} />
             <StationSearchSelect
               value={yoYSelectedStation?.stationno}
               valueName={yoYSelectedStation?.stationname}

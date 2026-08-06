@@ -4,6 +4,7 @@ import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
 import { useFilters, resolveReportMonths } from "@/lib/filters";
+import type { SelectedStation } from "@/components/station-multi-select";
 import type {
   DashboardMonthlyTargetAccomplishModel,
   DashboardMonthlySectorInspectionModel,
@@ -39,17 +40,19 @@ export interface MonthlySectorPoint {
 }
 
 /** Monthly Accomplishment Trend (Target vs Actual per month). */
-export function useMonthlyTargetVsActual() {
-  const { filters } = useFilters();
+export function useMonthlyTargetVsActual({
+  selectedYear,
+  selectedStations = [],
+}: {
+  selectedYear?: number;
+  selectedStations?: SelectedStation[];
+}) {
   const [rows, setRows] = React.useState<MonthlyTargetPoint[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  const reportyear = Number(filters.year) || new Date().getFullYear();
-  const reportmonth = React.useMemo(
-    () => resolveReportMonths(filters.interval, filters.period),
-    [filters.interval, filters.period],
-  );
-  const reportmonthKey = reportmonth.join(",");
+  const reportyear = selectedYear ?? new Date().getFullYear();
+  const stationnos = React.useMemo(() => selectedStations.map((s) => s.stationno), [selectedStations]);
+  const stationKey = stationnos.join(",");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -57,7 +60,10 @@ export function useMonthlyTargetVsActual() {
     (async () => {
       setLoading(true);
       const resp = await dashboardAPI.getMonthlyTargetVSInspection(
-        { reportyear, reportmonth, provinces: [] },
+        {
+          reportyear: [reportyear],
+          stationno: stationnos,
+        },
         {
           suppressGlobalLoading: true,
           suppressErrorToast: true,
@@ -73,19 +79,19 @@ export function useMonthlyTargetVsActual() {
         toast.error(isGenericError(error) ? "Unable to load monthly trend." : error);
         setRows([]);
       } else {
-        setRows(
-          (data ?? []).map((m) => {
-            const totals = (m.monthlytargetaccomList ?? []).reduce(
-              (acc, g) => ({
-                target: acc.target + (Number(g.totaltarget) || 0),
-                actual: acc.actual + (Number(g.totalaccomplish) || 0),
-              }),
-              { target: 0, actual: 0 },
-            );
-            const idx = Math.min(Math.max(Number(m.reportmonth) || 1, 1), 12) - 1;
-            return { name: MONTH_NAMES[idx], ...totals };
-          }),
-        );
+        const monthRows = MONTH_NAMES.map((name) => ({ name, target: 0, actual: 0 }));
+        (data ?? []).forEach((m) => {
+          const idx = Math.min(Math.max(Number(m.reportmonth) || 1, 1), 12) - 1;
+          const totals = (m.monthlytargetaccomList ?? []).reduce(
+            (acc, g) => ({
+              target: acc.target + (Number(g.totaltarget) || 0),
+              actual: acc.actual + (Number(g.totalaccomplish) || 0),
+            }),
+            { target: 0, actual: 0 },
+          );
+          monthRows[idx] = { name: MONTH_NAMES[idx], ...totals };
+        });
+        setRows(monthRows);
       }
       setLoading(false);
     })();
@@ -93,8 +99,7 @@ export function useMonthlyTargetVsActual() {
       cancelled = true;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportyear, reportmonthKey]);
+  }, [reportyear, stationKey]);
 
   return { rows, loading };
 }
