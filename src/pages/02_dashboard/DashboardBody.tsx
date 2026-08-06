@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   ClipboardList,
   Download,
+  ChevronDown,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
@@ -36,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
@@ -52,6 +54,7 @@ import { formatDateTime } from "@/lib/date-format";
 import type { JournalModel } from "@/types/journalType";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
 import type { SelectedStation } from "@/components/station-multi-select";
+import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import StationSearchSelect from "@/components/station-search-select";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
@@ -334,28 +337,67 @@ function NoticeCard({
   );
 }
 
-function YoYYearSelect({
-  value,
+function YoYYearMultiSelect({
+  selectedYears,
   onChange,
   options,
 }: {
-  value: number;
-  onChange: (next: number) => void;
+  selectedYears: number[];
+  onChange: (next: number[]) => void;
   options: number[];
 }) {
+  const label =
+    selectedYears.length > 0
+      ? selectedYears.join(", ")
+      : "Select years";
+
+  const toggleYear = (year: number) => {
+    const selected = selectedYears.includes(year);
+    if (selected) {
+      if (selectedYears.length <= 2) return;
+      onChange(selectedYears.filter((y) => y !== year));
+      return;
+    }
+    onChange([...selectedYears, year].sort((a, b) => a - b));
+  };
+
   return (
-    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
-      <SelectTrigger className="h-9 min-w-[120px]">
-        <SelectValue placeholder="Select year" />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((year) => (
-          <SelectItem key={year} value={String(year)}>
-            {year}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="min-w-[180px] justify-between">
+          <span className="truncate">{label}</span>
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[240px] p-3">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Choose years
+          </div>
+          <div className="space-y-1">
+            {options.map((year) => {
+              const checked = selectedYears.includes(year);
+              return (
+                <label
+                  key={year}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-muted"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={() => toggleYear(year)}
+                    aria-label={`Toggle ${year}`}
+                  />
+                  <span className="text-sm">{year}</span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
+            Select at least 2 years. Default is current year and previous 2 years.
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -770,14 +812,16 @@ export function DashboardBody() {
     selectedStations: monthlySectorSelectedStations,
   });
   const yoYYearOptions = useMemo(() => buildYears(), []);
-  const [yoYSelectedYear, setYoYSelectedYear] = useState<number>(currentYear);
-  const yoYSelectedYears = useMemo<number[]>(() => [yoYSelectedYear], [yoYSelectedYear]);
+  const [yoYSelectedYears, setYoYSelectedYears] = useState<number[]>([
+    currentYear - 2,
+    currentYear - 1,
+    currentYear,
+  ]);
   const [yoYSelectedStation, setYoYSelectedStation] = useState<SelectedStation | null>(null);
   const yoYSelectedStations = useMemo<SelectedStation[]>(
     () => (yoYSelectedStation ? [yoYSelectedStation] : []),
     [yoYSelectedStation],
   );
-  const yoYStationYear = useMemo(() => yoYSelectedYear, [yoYSelectedYear]);
   const { rows: yoYRows, years: yoYYears, loading: yoYLoading } = useYearlyComparison({
     selectedYears: yoYSelectedYears,
     selectedStations: yoYSelectedStations,
@@ -1175,8 +1219,14 @@ export function DashboardBody() {
         }
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <YoYYearSelect value={yoYSelectedYear} onChange={setYoYSelectedYear} options={yoYYearOptions} />
+          <div className="flex w-full items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <YoYYearMultiSelect
+                selectedYears={yoYSelectedYears}
+                onChange={setYoYSelectedYears}
+                options={yoYYearOptions}
+              />
+            </div>
             {isAuthenticated ? (
               scope.stationLocked ? (
                 <ReadOnlyField
