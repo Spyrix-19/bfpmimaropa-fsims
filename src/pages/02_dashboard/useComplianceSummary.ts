@@ -24,11 +24,11 @@ export function useComplianceSummary() {
   const [loading, setLoading] = React.useState(true);
 
   const reportyear = Number(filters.year) || new Date().getFullYear();
-  const reportmonth = React.useMemo(
-    () => resolveReportMonths(filters.interval, filters.period),
-    [filters.interval, filters.period],
+  const range = React.useMemo(
+    () => resolveDateRange(reportyear, filters.interval, filters.period),
+    [reportyear, filters.interval, filters.period],
   );
-  const reportmonthKey = reportmonth.join(",");
+  const rangeKey = `${range.interval}|${range.startdate}|${range.enddate}`;
 
   // Stable primitive key so the effect only refires on real filter changes.
   const provincesKey = React.useMemo(() => {
@@ -49,7 +49,9 @@ export function useComplianceSummary() {
       const resp = await dashboardAPI.getComplianceSummary(
         {
           reportyear,
-          reportmonth,
+          interval: range.interval,
+          startdate: range.startdate,
+          enddate: range.enddate,
           provinces: JSON.parse(provincesKey) as DashboardClass[],
         },
         {
