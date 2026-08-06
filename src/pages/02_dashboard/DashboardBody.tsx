@@ -987,6 +987,7 @@ export function DashboardBody() {
                     value={targetVsActualSelectedStation?.stationno}
                     valueName={targetVsActualSelectedStation?.stationname}
                     provinceno={scope.provinceLocked ? scope.provinceno : undefined}
+                    showAllOption
                     onChange={(stationno, stationname, province, station) => {
                       if (!stationno || !station) {
                         setTargetVsActualSelectedStation(null);
@@ -1067,6 +1068,7 @@ export function DashboardBody() {
                   value={monthlyTrendSelectedStation?.stationno}
                   valueName={monthlyTrendSelectedStation?.stationname}
                   provinceno={scope.provinceLocked ? scope.provinceno : undefined}
+                  showAllOption
                   onChange={(stationno, stationname, province, station) => {
                     if (!stationno || !station) {
                       setMonthlyTrendSelectedStation(null);
@@ -1157,6 +1159,7 @@ export function DashboardBody() {
                   value={monthlySectorSelectedStation?.stationno}
                   valueName={monthlySectorSelectedStation?.stationname}
                   provinceno={scope.provinceLocked ? scope.provinceno : undefined}
+                  showAllOption
                   onChange={(stationno, stationname, province, station) => {
                     if (!stationno || !station) {
                       setMonthlySectorSelectedStation(null);
@@ -1240,6 +1243,7 @@ export function DashboardBody() {
                   value={yoYSelectedStation?.stationno}
                   valueName={yoYSelectedStation?.stationname}
                   provinceno={scope.provinceLocked ? scope.provinceno : undefined}
+                  showAllOption
                   onChange={(stationno, stationname, province, station) => {
                     if (!stationno || !station) {
                       setYoYSelectedStation(null);
