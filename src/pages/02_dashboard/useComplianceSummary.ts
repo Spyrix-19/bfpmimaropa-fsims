@@ -3,7 +3,7 @@ import { toast } from "@/lib/toast";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
-import { useFilters, resolveReportMonths } from "@/lib/filters";
+import { useFilters, resolveDateRange } from "@/lib/filters";
 import type {
   DashboardClass,
   DashboardComplianceModel,
@@ -78,7 +78,7 @@ export function useComplianceSummary() {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportyear, reportmonthKey, provincesKey]);
+  }, [reportyear, rangeKey, provincesKey]);
 
   return { compliance: data, loading };
 }

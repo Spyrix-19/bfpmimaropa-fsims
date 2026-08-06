@@ -3,7 +3,7 @@ import { toast } from "@/lib/toast";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
-import { useFilters, resolveReportMonths } from "@/lib/filters";
+import { useFilters, resolveDateRange } from "@/lib/filters";
 import type { DashboardIssuanceGapModel } from "@/types/dashboardType";
 
 export interface IssuanceGapRow {
@@ -26,11 +26,11 @@ export function useIssuanceGap() {
   const [loading, setLoading] = React.useState(true);
 
   const reportyear = Number(filters.year) || new Date().getFullYear();
-  const reportmonth = React.useMemo(
-    () => resolveReportMonths(filters.interval, filters.period),
-    [filters.interval, filters.period],
+  const range = React.useMemo(
+    () => resolveDateRange(reportyear, filters.interval, filters.period),
+    [reportyear, filters.interval, filters.period],
   );
-  const reportmonthKey = reportmonth.join(",");
+  const rangeKey = `${range.interval}|${range.startdate}|${range.enddate}`;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -38,7 +38,13 @@ export function useIssuanceGap() {
     (async () => {
       setLoading(true);
       const resp = await dashboardAPI.getGapSummary(
-        { reportyear, reportmonth, provinces: [] },
+        {
+          reportyear,
+          interval: range.interval,
+          startdate: range.startdate,
+          enddate: range.enddate,
+          provinces: [],
+        },
         {
           suppressGlobalLoading: true,
           suppressErrorToast: true,
@@ -81,7 +87,7 @@ export function useIssuanceGap() {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportyear, reportmonthKey]);
+  }, [reportyear, rangeKey]);
 
   return { gapRows: rows, loading };
 }
