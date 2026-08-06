@@ -5,7 +5,12 @@ export interface DashboardClass {
 
 export interface DashboardDTO {
   reportyear: number;
-  reportmonth: number[];
+  /** 1 Daily, 2 Weekly, 3 Monthly, 4 Quarterly, 5 Semester, 6 Annual. */
+  interval: number;
+  /** `MM/dd/yyyy` */
+  startdate: string;
+  /** `MM/dd/yyyy` */
+  enddate: string;
   provinces: DashboardClass[];
 }
 

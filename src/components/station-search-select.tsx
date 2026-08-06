@@ -32,6 +32,9 @@ type Props = {
    * (backend receives stationno=EMPTY_GUID + provinceno=<login province>).
    */
   showAllOption?: boolean;
+  /** Optional report year context (accepted for API parity; not used by the search endpoint). */
+  reportyear?: number;
+
 };
 
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
