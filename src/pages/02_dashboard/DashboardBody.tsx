@@ -47,7 +47,8 @@ import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { formatDateTime } from "@/lib/date-format";
 import type { JournalModel } from "@/types/journalType";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
-import StationMultiSelect, { type SelectedStation } from "@/components/station-multi-select";
+import type { SelectedStation } from "@/components/station-multi-select";
+import StationSearchSelect from "@/components/station-search-select";
 import { useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
 
@@ -763,7 +764,11 @@ export function DashboardBody() {
     currentYear - 1,
     currentYear - 2,
   ]);
-  const [yoYSelectedStations, setYoYSelectedStations] = useState<SelectedStation[]>([]);
+  const [yoYSelectedStation, setYoYSelectedStation] = useState<SelectedStation | null>(null);
+  const yoYSelectedStations = useMemo<SelectedStation[]>(
+    () => (yoYSelectedStation ? [yoYSelectedStation] : []),
+    [yoYSelectedStation],
+  );
   const yoYStationYear = useMemo(
     () => (yoYSelectedYears.length ? Math.max(...yoYSelectedYears) : currentYear),
     [yoYSelectedYears, currentYear],
@@ -1001,14 +1006,22 @@ export function DashboardBody() {
               onChange={setYoYSelectedYears}
               options={yoYYearOptions}
             />
-            <StationMultiSelect
-              mode="station"
-              value={yoYSelectedStations}
-              provinces={[]}
-              reportyear={yoYStationYear}
-              onChange={setYoYSelectedStations}
-              placeholder="All stations"
-              alwaysEnabled
+            <StationSearchSelect
+              value={yoYSelectedStation?.stationno}
+              valueName={yoYSelectedStation?.stationname}
+              onChange={(stationno, stationname, province, station) => {
+                if (!stationno || !station) {
+                  setYoYSelectedStation(null);
+                  return;
+                }
+                setYoYSelectedStation({
+                  stationno,
+                  stationname: stationname || station.stationname,
+                  provinceno: station.provinceno ?? "",
+                  provincename: station.provincename ?? province ?? "",
+                });
+              }}
+              placeholder="Select station"
               className="w-[220px]"
             />
           </div>
