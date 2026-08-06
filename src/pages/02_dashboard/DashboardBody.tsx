@@ -987,7 +987,7 @@ export function DashboardBody() {
 
       {/* Row 5: Year-over-Year Comparison (100%) */}
       <ChartCard
-        title="Year-over-Year Comparison"
+        title="Year-over-Year Inspection Comparison"
         subtitle={
           yoYYears.length
             ? `${yoYYears.join(" vs ")} monthly actuals`
