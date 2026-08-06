@@ -57,7 +57,121 @@ export const DEFAULT_FILTERS: DashFilters = {
   category: empty,
 };
 
+/* ------------------------------------------------------------------ *
+ * Backend date-range resolution
+ * ------------------------------------------------------------------ */
+
+/** Backend interval codes: 1 Daily, 2 Weekly, 3 Monthly, 4 Quarterly, 5 Semester, 6 Annual. */
+export const INTERVAL_CODE: Record<DashInterval, number> = {
+  DAILY: 1,
+  WEEKLY: 2,
+  MONTHLY: 3,
+  QUARTERLY: 4,
+  SEMESTER: 5,
+  ANNUAL: 6,
+  ALL: 6,
+};
+
+/** `MM/dd/yyyy` (no leading zeros are required by the API, but kept padded). */
+export function toApiDate(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${m}/${day}/${d.getFullYear()}`;
+}
+
+/** Sunday–Saturday week ranges for a year, clipped to the year boundaries. */
+export function getYearWeekRanges(year: number): Array<{ week: number; start: Date; end: Date }> {
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
+  const ranges: Array<{ week: number; start: Date; end: Date }> = [];
+  const cursor = new Date(yearStart);
+  cursor.setDate(yearStart.getDate() - yearStart.getDay()); // back to Sunday
+  let week = 1;
+  while (cursor <= yearEnd && week <= 60) {
+    const end = new Date(cursor);
+    end.setDate(cursor.getDate() + 6);
+    ranges.push({
+      week,
+      start: new Date(cursor < yearStart ? yearStart : cursor),
+      end: new Date(end > yearEnd ? yearEnd : end),
+    });
+    cursor.setDate(cursor.getDate() + 7);
+    week += 1;
+  }
+  return ranges;
+}
+
+/**
+ * Resolves the current interval/period selection into the backend payload
+ * shape: `{ interval, startdate, enddate }` with `MM/dd/yyyy` dates.
+ * The range is always the smallest selected date -> largest selected date.
+ */
+export function resolveDateRange(
+  year: number,
+  interval: DashInterval,
+  period: string,
+): { interval: number; startdate: string; enddate: string } {
+  const code = INTERVAL_CODE[interval] ?? 6;
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
+  const monthRange = (months: number[]) => {
+    const valid = months.filter((m) => m >= 1 && m <= 12);
+    if (!valid.length) return { start: yearStart, end: yearEnd };
+    const min = Math.min(...valid);
+    const max = Math.max(...valid);
+    return { start: new Date(year, min - 1, 1), end: new Date(year, max, 0) };
+  };
+
+  let start = yearStart;
+  let end = yearEnd;
+
+  if (interval === "DAILY") {
+    const isAll = (period ?? "").startsWith("all:");
+    const iso = isAll ? period.slice(4) : period;
+    const d = fromISODate(iso);
+    if (d) {
+      if (isAll) {
+        // "All days" of the referenced month.
+        start = new Date(d.getFullYear(), d.getMonth(), 1);
+        end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      } else {
+        start = d;
+        end = d;
+      }
+    }
+  } else if (interval === "WEEKLY") {
+    const match = /^week:(\d{4}):([\d,]+)$/.exec(period ?? "");
+    const weekYear = match ? Number(match[1]) : year;
+    const weeks = match
+      ? match[2]
+          .split(",")
+          .map((v) => Number(v.trim()))
+          .filter((w) => w >= 1 && w <= 53)
+      : [];
+    const ranges = getYearWeekRanges(weekYear);
+    const picked = weeks.length ? ranges.filter((r) => weeks.includes(r.week)) : ranges;
+    if (picked.length) {
+      start = picked.reduce((a, r) => (r.start < a ? r.start : a), picked[0].start);
+      end = picked.reduce((a, r) => (r.end > a ? r.end : a), picked[0].end);
+    }
+  } else if (interval === "MONTHLY") {
+    const months =
+      !period || period === "all"
+        ? [1, 12]
+        : period
+            .split(",")
+            .map((v) => Number(v.trim()))
+            .filter((m) => m >= 1 && m <= 12);
+    ({ start, end } = monthRange(months));
+  } else if (interval === "QUARTERLY" || interval === "SEMESTER") {
+    ({ start, end } = monthRange(resolveReportMonths(interval, period)));
+  }
+
+  return { interval: code, startdate: toApiDate(start), enddate: toApiDate(end) };
+}
+
 /** Expands the interval/period selection into the concrete list of months. */
+
 export function resolveReportMonths(interval: DashInterval, period: string): number[] {
   const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   if (interval === "ALL" || interval === "ANNUAL") return ALL;
