@@ -49,7 +49,7 @@ const STATUS_CANCELLED = 155;
 
 /** Map source module → API RequestType. */
 function requestTypeFor(module: RevisionModule): string {
-  if (module === "monitoring") return "ISSUANCE";
+  if (module === "monitoring") return "COMPLIANCE";
   if (module === "notice") return "NOTICE";
   return "TARGET";
 }
