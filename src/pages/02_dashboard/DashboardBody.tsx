@@ -829,7 +829,7 @@ export function DashboardBody() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setTargetVsActualSelectedStation(null);
+      setTargetVsActualProvinces([]);
       setMonthlyTrendSelectedStation(null);
       setMonthlySectorSelectedStation(null);
       setYoYSelectedStation(null);
