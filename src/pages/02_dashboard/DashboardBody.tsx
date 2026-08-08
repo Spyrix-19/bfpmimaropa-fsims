@@ -972,36 +972,26 @@ export function DashboardBody() {
                 </SelectContent>
               </Select>
               {isAuthenticated ? (
-                scope.stationLocked ? (
+                scope.provinceLocked ? (
                   <ReadOnlyField
-                    value={scope.stationname}
-                    placeholder="Assigned station"
-                    title="Restricted to your assigned station"
+                    value={scope.provincename}
+                    placeholder="Assigned province"
+                    title="Restricted to your assigned province"
                     className="w-[260px]"
                   />
                 ) : (
-                  <StationSearchSelect
-                    value={targetVsActualSelectedStation?.stationno}
-                    valueName={targetVsActualSelectedStation?.stationname}
-                    provinceno={scope.provinceLocked ? scope.provinceno : undefined}
-                    showAllOption
-                    onChange={(stationno, stationname, province, station) => {
-                      if (!stationno || !station) {
-                        setTargetVsActualSelectedStation(null);
-                        return;
-                      }
-                      setTargetVsActualSelectedStation({
-                        stationno,
-                        stationname: stationname || station.stationname,
-                        provinceno: station.provinceno ?? "",
-                        provincename: station.provincename ?? province ?? "",
-                      });
-                    }}
-                    placeholder="Select station"
+                  <LocationMultiSelect
+                    mode="location"
+                    value={targetVsActualProvinces}
+                    locationtype="PROVINCE"
+                    parentcode={MIMAROPA_REGION_CODE}
+                    onChange={setTargetVsActualProvinces}
+                    placeholder="All provinces"
+                    hideCode
                     className="w-[260px]"
-                    reportyear={targetVsActualYear}
                   />
                 )
+
               ) : null}
             </div>
           }
