@@ -69,8 +69,11 @@ export interface NotificationDetailModel {
 
 export interface NotificationLedgerParams {
   searchkey: string;
+  memberno: string;
   systemno: string;
   stationno: string;
+  roleno: number;
+  stationtype: number;
   pagenumber: number;
   pagesize: number;
 }

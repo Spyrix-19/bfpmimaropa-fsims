@@ -28,6 +28,7 @@ export function NotificationsPopover() {
   const memberno = user?.memberno ?? "";
   const stationno = user?.stationno || EMPTY_GUID;
   const roleno = systemAccess?.roleno ?? 0;
+  const stationtype = Number(user?.stationtype ?? 0) || 0;
 
   const load = useCallback(async () => {
     if (!memberno) return;
@@ -35,8 +36,11 @@ export function NotificationsPopover() {
     const resp = await notificationAPI.getLedger(
       {
         searchkey: "",
+        memberno,
         systemno: FSIMS_SYSTEMNO,
         stationno,
+        roleno,
+        stationtype,
         pagenumber: 1,
         pagesize: PAGE_SIZE,
       },
@@ -53,7 +57,7 @@ export function NotificationsPopover() {
     }
 
     setLoading(false);
-  }, [memberno, stationno]);
+  }, [memberno, stationno, roleno, stationtype]);
 
   useEffect(() => {
     void load();
@@ -212,20 +216,20 @@ export function NotificationsPopover() {
                       <Bell className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-start gap-2">
                         <p
                           className={cn(
-                            "truncate text-sm",
+                            "whitespace-pre-wrap break-words text-sm",
                             !n.isread ? "font-semibold" : "font-medium text-foreground/90",
                           )}
                         >
                           {n.title}
                         </p>
                         {!n.isread && (
-                          <Circle className="h-2 w-2 shrink-0 fill-primary text-primary" />
+                          <Circle className="mt-1.5 h-2 w-2 shrink-0 fill-primary text-primary" />
                         )}
                       </div>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-muted-foreground">
                         {n.message}
                       </p>
                       <p className="mt-1 text-[11px] text-muted-foreground/80">

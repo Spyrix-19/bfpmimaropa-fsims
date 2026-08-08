@@ -77,6 +77,8 @@ export interface FSISEditRequestModel {
   statuscode: string;
   statusname: string;
   fullname?: string;
+  requestedby?: string;
+  requestedbyname?: string;
   daterequested?: string;
   dateinspected?: string;
 }

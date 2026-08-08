@@ -389,7 +389,9 @@ export default function TargetRevisionRequests({
                     <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
                       {["ISSUANCE", "NOTICE"].includes(String(r.requesttype ?? "").toUpperCase())
                         ? formatDate(r.dateinspected, "—")
-                        : monthYearLabel(r.reportyear, r.reportmonth)}
+                        : r.dateinspected
+                          ? formatDate(r.dateinspected, "—")
+                          : monthYearLabel(r.reportyear, r.reportmonth)}
                     </td>
 
                     <td className="px-3 py-2">
@@ -401,7 +403,7 @@ export default function TargetRevisionRequests({
                     </td>
 
                     <td className="px-3 py-2">
-                      <div className="font-medium">{r.fullname || "—"}</div>
+                      <div className="font-medium">{r.requestedbyname || r.fullname || "—"}</div>
                       <div className="text-[11px] text-muted-foreground">
                         {formatDateTime(r.daterequested, "—")}
                       </div>

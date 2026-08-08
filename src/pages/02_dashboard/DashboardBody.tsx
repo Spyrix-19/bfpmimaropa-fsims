@@ -367,7 +367,7 @@ function YoYYearMultiSelect({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="min-w-[180px] justify-between">
+        <Button variant="outline" size="sm" className="w-[176px] shrink-0 justify-between">
           <span className="truncate">{label}</span>
           <ChevronDown className="h-4 w-4" />
         </Button>
@@ -827,7 +827,7 @@ function ChartScopeFilters({
           value={scope.provincename}
           placeholder="All provinces"
           title="Restricted to your assigned province"
-          className="w-[220px]"
+          className="w-[240px] shrink-0"
         />
       ) : (
         <LocationMultiSelect
@@ -838,7 +838,7 @@ function ChartScopeFilters({
           onChange={handleProvinces}
           placeholder="All provinces"
           hideCode
-          className="w-[220px]"
+          className="w-[240px] shrink-0"
         />
       )}
 
@@ -847,7 +847,7 @@ function ChartScopeFilters({
           value={scope.stationname}
           placeholder="All stations"
           title="Restricted to your assigned station"
-          className="w-[220px]"
+          className="w-[240px] shrink-0"
         />
       ) : (
         <StationMultiSelect
@@ -858,7 +858,7 @@ function ChartScopeFilters({
           onChange={handleStations}
           placeholder="All stations"
           alwaysEnabled
-          className="w-[220px]"
+          className="w-[240px] shrink-0"
         />
       )}
     </>
@@ -1082,9 +1082,9 @@ export function DashboardBody() {
           subtitle="Provincial accomplishment"
           height="h-72"
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <Select value={String(targetVsActualYear)} onValueChange={(v) => setTargetVsActualYear(Number(v))}>
-                <SelectTrigger className="h-9 min-w-[120px]">
+                <SelectTrigger className="h-9 w-[96px] shrink-0">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1140,9 +1140,9 @@ export function DashboardBody() {
         subtitle="Target vs Actual per month"
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Select value={String(monthlyTrendYear)} onValueChange={(v) => setMonthlyTrendYear(Number(v))}>
-              <SelectTrigger className="h-9 min-w-[120px]">
+              <SelectTrigger className="h-9 w-[96px] shrink-0">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -1206,9 +1206,9 @@ export function DashboardBody() {
         subtitle="Actual inspections per sector"
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Select value={String(monthlySectorYear)} onValueChange={(v) => setMonthlySectorYear(Number(v))}>
-              <SelectTrigger className="h-9 min-w-[120px]">
+              <SelectTrigger className="h-9 w-[96px] shrink-0">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -1270,7 +1270,7 @@ export function DashboardBody() {
         }
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex w-full items-center justify-between gap-2">
+          <div className="flex w-full flex-wrap items-center justify-end gap-2">
             <div className="flex items-center gap-2">
               <YoYYearMultiSelect
                 selectedYears={yoYSelectedYears}
