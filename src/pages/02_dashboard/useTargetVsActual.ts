@@ -85,5 +85,12 @@ export function useTargetVsActual({
     };
   }, [reportyear, stationKey]);
 
-  return { rows, loading };
+  const filteredRows = React.useMemo(() => {
+    if (!provinceKey) return rows;
+    const allowed = new Set(provinceKey.split(","));
+    return rows.filter((r) => allowed.has(r.provinceno));
+  }, [rows, provinceKey]);
+
+  return { rows: filteredRows, loading };
+
 }
