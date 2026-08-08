@@ -53,6 +53,7 @@ export interface JournalDetailModel {
 
 export interface JournalLedgerParams {
   searchkey: string;
+  systemno: string;
   modulename: string;
   pagenumber: number;
   pagesize: number;
