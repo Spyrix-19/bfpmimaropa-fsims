@@ -17,9 +17,11 @@ export interface TargetVsActualRow {
 export function useTargetVsActual({
   selectedYear,
   selectedStations = [],
+  selectedProvinces = [],
 }: {
   selectedYear?: number;
   selectedStations?: SelectedStation[];
+  selectedProvinces?: { locationno: string }[];
 }) {
   const [rows, setRows] = React.useState<TargetVsActualRow[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -27,6 +29,11 @@ export function useTargetVsActual({
   const reportyear = selectedYear ?? new Date().getFullYear();
   const stationnos = React.useMemo(() => selectedStations.map((s) => s.stationno), [selectedStations]);
   const stationKey = stationnos.join(",");
+  const provinceKey = React.useMemo(
+    () => selectedProvinces.map((p) => p.locationno).join(","),
+    [selectedProvinces],
+  );
+
 
   React.useEffect(() => {
     let cancelled = false;
@@ -78,5 +85,12 @@ export function useTargetVsActual({
     };
   }, [reportyear, stationKey]);
 
-  return { rows, loading };
+  const filteredRows = React.useMemo(() => {
+    if (!provinceKey) return rows;
+    const allowed = new Set(provinceKey.split(","));
+    return rows.filter((r) => allowed.has(r.provinceno));
+  }, [rows, provinceKey]);
+
+  return { rows: filteredRows, loading };
+
 }

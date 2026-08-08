@@ -56,6 +56,9 @@ import type { DashboardComplianceModel } from "@/types/dashboardType";
 import type { SelectedStation } from "@/components/station-multi-select";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import StationSearchSelect from "@/components/station-search-select";
+import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
+import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
 
@@ -782,15 +785,12 @@ export function DashboardBody() {
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
   const [targetVsActualYear, setTargetVsActualYear] = useState<number>(currentYear);
-  const [targetVsActualSelectedStation, setTargetVsActualSelectedStation] = useState<SelectedStation | null>(null);
-  const targetVsActualSelectedStations = useMemo<SelectedStation[]>(
-    () => (targetVsActualSelectedStation ? [targetVsActualSelectedStation] : []),
-    [targetVsActualSelectedStation],
-  );
+  const [targetVsActualProvinces, setTargetVsActualProvinces] = useState<SelectedLocation[]>([]);
   const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual({
     selectedYear: targetVsActualYear,
-    selectedStations: targetVsActualSelectedStations,
+    selectedProvinces: targetVsActualProvinces,
   });
+
   const [monthlyTrendYear, setMonthlyTrendYear] = useState<number>(currentYear);
   const [monthlyTrendSelectedStation, setMonthlyTrendSelectedStation] = useState<SelectedStation | null>(null);
   const monthlyTrendSelectedStations = useMemo<SelectedStation[]>(
@@ -829,7 +829,7 @@ export function DashboardBody() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setTargetVsActualSelectedStation(null);
+      setTargetVsActualProvinces([]);
       setMonthlyTrendSelectedStation(null);
       setMonthlySectorSelectedStation(null);
       setYoYSelectedStation(null);
@@ -843,12 +843,10 @@ export function DashboardBody() {
         provinceno: scope.provinceno,
         provincename: scope.provincename,
       };
-      setTargetVsActualSelectedStation((prev) =>
-        prev?.stationno === scope.stationno ? prev : lockedStation,
-      );
       setMonthlyTrendSelectedStation((prev) =>
         prev?.stationno === scope.stationno ? prev : lockedStation,
       );
+
       setMonthlySectorSelectedStation((prev) =>
         prev?.stationno === scope.stationno ? prev : lockedStation,
       );
@@ -975,36 +973,26 @@ export function DashboardBody() {
                 </SelectContent>
               </Select>
               {isAuthenticated ? (
-                scope.stationLocked ? (
+                scope.provinceLocked ? (
                   <ReadOnlyField
-                    value={scope.stationname}
-                    placeholder="Assigned station"
-                    title="Restricted to your assigned station"
+                    value={scope.provincename}
+                    placeholder="Assigned province"
+                    title="Restricted to your assigned province"
                     className="w-[260px]"
                   />
                 ) : (
-                  <StationSearchSelect
-                    value={targetVsActualSelectedStation?.stationno}
-                    valueName={targetVsActualSelectedStation?.stationname}
-                    provinceno={scope.provinceLocked ? scope.provinceno : undefined}
-                    showAllOption
-                    onChange={(stationno, stationname, province, station) => {
-                      if (!stationno || !station) {
-                        setTargetVsActualSelectedStation(null);
-                        return;
-                      }
-                      setTargetVsActualSelectedStation({
-                        stationno,
-                        stationname: stationname || station.stationname,
-                        provinceno: station.provinceno ?? "",
-                        provincename: station.provincename ?? province ?? "",
-                      });
-                    }}
-                    placeholder="Select station"
+                  <LocationMultiSelect
+                    mode="location"
+                    value={targetVsActualProvinces}
+                    locationtype="PROVINCE"
+                    parentcode={MIMAROPA_REGION_CODE}
+                    onChange={setTargetVsActualProvinces}
+                    placeholder="All provinces"
+                    hideCode
                     className="w-[260px]"
-                    reportyear={targetVsActualYear}
                   />
                 )
+
               ) : null}
             </div>
           }
