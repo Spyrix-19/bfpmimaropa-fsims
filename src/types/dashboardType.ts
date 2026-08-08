@@ -16,7 +16,7 @@ export interface DashboardDTO {
 
 export interface DashboardYearToYearDTO {
   reportyear: number[];
-  stationno: string[];
+  Provinces: string[];
 }
 
 export interface DashboardComplianceModel {
