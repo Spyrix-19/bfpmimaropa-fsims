@@ -782,15 +782,12 @@ export function DashboardBody() {
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
   const [targetVsActualYear, setTargetVsActualYear] = useState<number>(currentYear);
-  const [targetVsActualSelectedStation, setTargetVsActualSelectedStation] = useState<SelectedStation | null>(null);
-  const targetVsActualSelectedStations = useMemo<SelectedStation[]>(
-    () => (targetVsActualSelectedStation ? [targetVsActualSelectedStation] : []),
-    [targetVsActualSelectedStation],
-  );
+  const [targetVsActualProvinces, setTargetVsActualProvinces] = useState<SelectedLocation[]>([]);
   const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual({
     selectedYear: targetVsActualYear,
-    selectedStations: targetVsActualSelectedStations,
+    selectedProvinces: targetVsActualProvinces,
   });
+
   const [monthlyTrendYear, setMonthlyTrendYear] = useState<number>(currentYear);
   const [monthlyTrendSelectedStation, setMonthlyTrendSelectedStation] = useState<SelectedStation | null>(null);
   const monthlyTrendSelectedStations = useMemo<SelectedStation[]>(
