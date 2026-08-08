@@ -843,9 +843,10 @@ export function DashboardBody() {
         provinceno: scope.provinceno,
         provincename: scope.provincename,
       };
-      setTargetVsActualSelectedStation((prev) =>
+      setMonthlyTrendSelectedStation((prev) =>
         prev?.stationno === scope.stationno ? prev : lockedStation,
       );
+
       setMonthlyTrendSelectedStation((prev) =>
         prev?.stationno === scope.stationno ? prev : lockedStation,
       );
