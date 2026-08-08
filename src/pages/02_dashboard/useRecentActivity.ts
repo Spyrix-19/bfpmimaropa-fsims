@@ -1,6 +1,7 @@
 import * as React from "react";
 import { journalAPI } from "@/services/journalAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { FSIMS_SYSTEMNO } from "@/lib/auth";
 import type { JournalModel } from "@/types/journalType";
 
 /**
@@ -33,7 +34,13 @@ export function useRecentActivity(enabled = true) {
     if (!background && !loadedOnce.current) setLoading(true);
 
     const resp = await journalAPI.getLedger(
-      { searchkey: "", modulename: "", pagenumber: 1, pagesize: PAGE_SIZE },
+      {
+        searchkey: "",
+        systemno: FSIMS_SYSTEMNO,
+        modulename: "",
+        pagenumber: 1,
+        pagesize: PAGE_SIZE,
+      },
       {
         suppressGlobalLoading: true,
         // The card renders its own inline error banner, so no toast here —
