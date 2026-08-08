@@ -847,9 +847,6 @@ export function DashboardBody() {
         prev?.stationno === scope.stationno ? prev : lockedStation,
       );
 
-      setMonthlyTrendSelectedStation((prev) =>
-        prev?.stationno === scope.stationno ? prev : lockedStation,
-      );
       setMonthlySectorSelectedStation((prev) =>
         prev?.stationno === scope.stationno ? prev : lockedStation,
       );
