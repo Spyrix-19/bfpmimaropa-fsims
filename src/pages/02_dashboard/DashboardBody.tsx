@@ -55,7 +55,7 @@ import type { JournalModel } from "@/types/journalType";
 import type { DashboardComplianceModel } from "@/types/dashboardType";
 import type { SelectedStation } from "@/components/station-multi-select";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
-import StationSearchSelect from "@/components/station-search-select";
+import { StationMultiSelect } from "@/components/station-multi-select";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 
@@ -774,6 +774,97 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
   );
 }
 
+/** Per-chart Province + Station scope (multi-select, searchable). */
+type ChartScope = { provinces: SelectedLocation[]; stations: SelectedStation[] };
+const EMPTY_CHART_SCOPE: ChartScope = { provinces: [], stations: [] };
+
+function ChartScopeFilters({
+  isAuthenticated,
+  scope,
+  value,
+  onChange,
+  reportyear,
+  provinceOnly = false,
+  forceProvinceLock = false,
+}: {
+  isAuthenticated: boolean;
+  scope: ReturnType<typeof resolveLocationScope>;
+  value: ChartScope;
+  onChange: (next: ChartScope) => void;
+  reportyear?: number;
+  /** Hide the Station picker (province-scoped charts). */
+  provinceOnly?: boolean;
+  /** Lock the Province picker to the signed-in user's province. */
+  forceProvinceLock?: boolean;
+}) {
+  if (!isAuthenticated) return null;
+  const provinceLocked = scope.provinceLocked || forceProvinceLock;
+
+  const handleProvinces = (provinces: SelectedLocation[]) => {
+    if (provinces.length === 0) {
+      onChange({ provinces: [], stations: [] });
+      return;
+    }
+    const allowed = new Set(provinces.map((p) => p.locationno));
+    onChange({ provinces, stations: value.stations.filter((s) => allowed.has(s.provinceno)) });
+  };
+
+  const handleStations = (stations: SelectedStation[]) => {
+    const merged = [...value.provinces];
+    const known = new Set(merged.map((p) => p.locationno));
+    stations.forEach((s) => {
+      if (!s.provinceno || known.has(s.provinceno)) return;
+      known.add(s.provinceno);
+      merged.push({ locationno: s.provinceno, locationname: s.provincename });
+    });
+    onChange({ provinces: merged, stations });
+  };
+
+  return (
+    <>
+      {provinceLocked ? (
+        <ReadOnlyField
+          value={scope.provincename}
+          placeholder="All provinces"
+          title="Restricted to your assigned province"
+          className="w-[220px]"
+        />
+      ) : (
+        <LocationMultiSelect
+          mode="location"
+          value={value.provinces}
+          locationtype="PROVINCE"
+          parentcode={MIMAROPA_REGION_CODE}
+          onChange={handleProvinces}
+          placeholder="All provinces"
+          hideCode
+          className="w-[220px]"
+        />
+      )}
+
+      {provinceOnly ? null : scope.stationLocked ? (
+        <ReadOnlyField
+          value={scope.stationname}
+          placeholder="All stations"
+          title="Restricted to your assigned station"
+          className="w-[220px]"
+        />
+      ) : (
+        <StationMultiSelect
+          mode="station"
+          value={value.stations}
+          provinces={value.provinces.map((p) => ({ provinceno: p.locationno }))}
+          reportyear={reportyear}
+          onChange={handleStations}
+          placeholder="All stations"
+          alwaysEnabled
+          className="w-[220px]"
+        />
+      )}
+    </>
+  );
+}
+
 export function DashboardBody() {
   const { user, systemAccess, isAuthenticated } = useAuth();
   const scope = useMemo(
@@ -784,32 +875,41 @@ export function DashboardBody() {
   const { compliance } = useComplianceSummary();
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
+  // Target vs Actual is province-scoped only; station types 27–31 are pinned
+  // to the signed-in user's province (read-only).
+  const targetProvinceLocked =
+    isAuthenticated && [27, 28, 29, 30, 31].includes(Number(user?.stationtype ?? 0));
   const [targetVsActualYear, setTargetVsActualYear] = useState<number>(currentYear);
-  const [targetVsActualProvinces, setTargetVsActualProvinces] = useState<SelectedLocation[]>([]);
+  const [targetVsActualScope, setTargetVsActualScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
+  useEffect(() => {
+    if (targetProvinceLocked && scope.provinceno) {
+      setTargetVsActualScope({
+        provinces: [{ locationno: scope.provinceno, locationname: scope.provincename }],
+        stations: [],
+      });
+    } else {
+      setTargetVsActualScope(EMPTY_CHART_SCOPE);
+    }
+  }, [targetProvinceLocked, scope.provinceno, scope.provincename]);
   const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual({
     selectedYear: targetVsActualYear,
-    selectedProvinces: targetVsActualProvinces,
+    selectedProvinces: targetVsActualScope.provinces,
+    selectedStations: [],
   });
 
   const [monthlyTrendYear, setMonthlyTrendYear] = useState<number>(currentYear);
-  const [monthlyTrendSelectedStation, setMonthlyTrendSelectedStation] = useState<SelectedStation | null>(null);
-  const monthlyTrendSelectedStations = useMemo<SelectedStation[]>(
-    () => (monthlyTrendSelectedStation ? [monthlyTrendSelectedStation] : []),
-    [monthlyTrendSelectedStation],
-  );
+  const [monthlyTrendScope, setMonthlyTrendScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
   const { rows: monthlyTrendRows, loading: monthlyTrendLoading } = useMonthlyTargetVsActual({
     selectedYear: monthlyTrendYear,
-    selectedStations: monthlyTrendSelectedStations,
+    selectedProvinces: monthlyTrendScope.provinces,
+    selectedStations: monthlyTrendScope.stations,
   });
   const [monthlySectorYear, setMonthlySectorYear] = useState<number>(currentYear);
-  const [monthlySectorSelectedStation, setMonthlySectorSelectedStation] = useState<SelectedStation | null>(null);
-  const monthlySectorSelectedStations = useMemo<SelectedStation[]>(
-    () => (monthlySectorSelectedStation ? [monthlySectorSelectedStation] : []),
-    [monthlySectorSelectedStation],
-  );
+  const [monthlySectorScope, setMonthlySectorScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
   const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend({
     selectedYear: monthlySectorYear,
-    selectedStations: monthlySectorSelectedStations,
+    selectedProvinces: monthlySectorScope.provinces,
+    selectedStations: monthlySectorScope.stations,
   });
   const yoYYearOptions = useMemo(() => buildYears(), []);
   const [yoYSelectedYears, setYoYSelectedYears] = useState<number[]>([
@@ -817,42 +917,65 @@ export function DashboardBody() {
     currentYear - 1,
     currentYear,
   ]);
-  const [yoYSelectedStation, setYoYSelectedStation] = useState<SelectedStation | null>(null);
-  const yoYSelectedStations = useMemo<SelectedStation[]>(
-    () => (yoYSelectedStation ? [yoYSelectedStation] : []),
-    [yoYSelectedStation],
-  );
+  const [yoYScope, setYoYScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
   const { rows: yoYRows, years: yoYYears, loading: yoYLoading } = useYearlyComparison({
     selectedYears: yoYSelectedYears,
-    selectedStations: yoYSelectedStations,
+    selectedProvinces: yoYScope.provinces,
+    selectedStations: yoYScope.stations,
   });
 
+  // Seed / enforce the user's assigned scope on every chart-level filter.
   useEffect(() => {
     if (!isAuthenticated) {
-      setTargetVsActualProvinces([]);
-      setMonthlyTrendSelectedStation(null);
-      setMonthlySectorSelectedStation(null);
-      setYoYSelectedStation(null);
+      setTargetVsActualScope(EMPTY_CHART_SCOPE);
+      setMonthlyTrendScope(EMPTY_CHART_SCOPE);
+      setMonthlySectorScope(EMPTY_CHART_SCOPE);
+      setYoYScope(EMPTY_CHART_SCOPE);
       return;
     }
 
-    if (scope.stationLocked && scope.stationno) {
-      const lockedStation: SelectedStation = {
-        stationno: scope.stationno,
-        stationname: scope.stationname,
-        provinceno: scope.provinceno,
-        provincename: scope.provincename,
-      };
-      setMonthlyTrendSelectedStation((prev) =>
-        prev?.stationno === scope.stationno ? prev : lockedStation,
-      );
+    const lockedProvinces: SelectedLocation[] =
+      scope.provinceLocked && scope.provinceno
+        ? [{ locationno: scope.provinceno, locationname: scope.provincename }]
+        : [];
+    const lockedStations: SelectedStation[] =
+      scope.stationLocked && scope.stationno
+        ? [
+            {
+              stationno: scope.stationno,
+              stationname: scope.stationname,
+              provinceno: scope.provinceno,
+              provincename: scope.provincename,
+            },
+          ]
+        : [];
+    if (!lockedProvinces.length && !lockedStations.length) return;
 
-      setMonthlySectorSelectedStation((prev) =>
-        prev?.stationno === scope.stationno ? prev : lockedStation,
-      );
-      setYoYSelectedStation((prev) => (prev?.stationno === scope.stationno ? prev : lockedStation));
-    }
-  }, [isAuthenticated, scope.stationLocked, scope.stationno, scope.stationname, scope.provinceno, scope.provincename]);
+    const apply = (prev: ChartScope): ChartScope => {
+      const provinces = lockedProvinces.length ? lockedProvinces : prev.provinces;
+      const stations = lockedStations.length ? lockedStations : prev.stations;
+      const sameProvinces =
+        provinces.length === prev.provinces.length &&
+        provinces.every((p, i) => p.locationno === prev.provinces[i]?.locationno);
+      const sameStations =
+        stations.length === prev.stations.length &&
+        stations.every((s, i) => s.stationno === prev.stations[i]?.stationno);
+      return sameProvinces && sameStations ? prev : { provinces, stations };
+    };
+
+    setTargetVsActualScope(apply);
+    setMonthlyTrendScope(apply);
+    setMonthlySectorScope(apply);
+    setYoYScope(apply);
+  }, [
+    isAuthenticated,
+    scope.provinceLocked,
+    scope.stationLocked,
+    scope.stationno,
+    scope.stationname,
+    scope.provinceno,
+    scope.provincename,
+  ]);
   const {
     activity: recentActivity,
     loading: recentActivityLoading,
@@ -972,28 +1095,15 @@ export function DashboardBody() {
                   ))}
                 </SelectContent>
               </Select>
-              {isAuthenticated ? (
-                scope.provinceLocked ? (
-                  <ReadOnlyField
-                    value={scope.provincename}
-                    placeholder="Assigned province"
-                    title="Restricted to your assigned province"
-                    className="w-[260px]"
-                  />
-                ) : (
-                  <LocationMultiSelect
-                    mode="location"
-                    value={targetVsActualProvinces}
-                    locationtype="PROVINCE"
-                    parentcode={MIMAROPA_REGION_CODE}
-                    onChange={setTargetVsActualProvinces}
-                    placeholder="All provinces"
-                    hideCode
-                    className="w-[260px]"
-                  />
-                )
-
-              ) : null}
+              <ChartScopeFilters
+                isAuthenticated={isAuthenticated}
+                scope={scope}
+                value={targetVsActualScope}
+                onChange={setTargetVsActualScope}
+                reportyear={targetVsActualYear}
+                provinceOnly
+                forceProvinceLock={targetProvinceLocked}
+              />
             </div>
           }
         >
@@ -1043,38 +1153,13 @@ export function DashboardBody() {
                 ))}
               </SelectContent>
             </Select>
-            {isAuthenticated ? (
-              scope.stationLocked ? (
-                <ReadOnlyField
-                  value={scope.stationname}
-                  placeholder="Assigned station"
-                  title="Restricted to your assigned station"
-                  className="w-[260px]"
-                />
-              ) : (
-                <StationSearchSelect
-                  value={monthlyTrendSelectedStation?.stationno}
-                  valueName={monthlyTrendSelectedStation?.stationname}
-                  provinceno={scope.provinceLocked ? scope.provinceno : undefined}
-                  showAllOption
-                  onChange={(stationno, stationname, province, station) => {
-                    if (!stationno || !station) {
-                      setMonthlyTrendSelectedStation(null);
-                      return;
-                    }
-                    setMonthlyTrendSelectedStation({
-                      stationno,
-                      stationname: stationname || station.stationname,
-                      provinceno: station.provinceno ?? "",
-                      provincename: station.provincename ?? province ?? "",
-                    });
-                  }}
-                  placeholder="Select station"
-                  className="w-[260px]"
-                  reportyear={monthlyTrendYear}
-                />
-              )
-            ) : null}
+            <ChartScopeFilters
+              isAuthenticated={isAuthenticated}
+              scope={scope}
+              value={monthlyTrendScope}
+              onChange={setMonthlyTrendScope}
+              reportyear={monthlyTrendYear}
+            />
           </div>
         }
       >
@@ -1134,38 +1219,13 @@ export function DashboardBody() {
                 ))}
               </SelectContent>
             </Select>
-            {isAuthenticated ? (
-              scope.stationLocked ? (
-                <ReadOnlyField
-                  value={scope.stationname}
-                  placeholder="Assigned station"
-                  title="Restricted to your assigned station"
-                  className="w-[260px]"
-                />
-              ) : (
-                <StationSearchSelect
-                  value={monthlySectorSelectedStation?.stationno}
-                  valueName={monthlySectorSelectedStation?.stationname}
-                  provinceno={scope.provinceLocked ? scope.provinceno : undefined}
-                  showAllOption
-                  onChange={(stationno, stationname, province, station) => {
-                    if (!stationno || !station) {
-                      setMonthlySectorSelectedStation(null);
-                      return;
-                    }
-                    setMonthlySectorSelectedStation({
-                      stationno,
-                      stationname: stationname || station.stationname,
-                      provinceno: station.provinceno ?? "",
-                      provincename: station.provincename ?? province ?? "",
-                    });
-                  }}
-                  placeholder="Select station"
-                  className="w-[260px]"
-                  reportyear={monthlySectorYear}
-                />
-              )
-            ) : null}
+            <ChartScopeFilters
+              isAuthenticated={isAuthenticated}
+              scope={scope}
+              value={monthlySectorScope}
+              onChange={setMonthlySectorScope}
+              reportyear={monthlySectorYear}
+            />
           </div>
         }
       >
@@ -1218,37 +1278,13 @@ export function DashboardBody() {
                 options={yoYYearOptions}
               />
             </div>
-            {isAuthenticated ? (
-              scope.stationLocked ? (
-                <ReadOnlyField
-                  value={scope.stationname}
-                  placeholder="Assigned station"
-                  title="Restricted to your assigned station"
-                  className="w-[260px]"
-                />
-              ) : (
-                <StationSearchSelect
-                  value={yoYSelectedStation?.stationno}
-                  valueName={yoYSelectedStation?.stationname}
-                  provinceno={scope.provinceLocked ? scope.provinceno : undefined}
-                  showAllOption
-                  onChange={(stationno, stationname, province, station) => {
-                    if (!stationno || !station) {
-                      setYoYSelectedStation(null);
-                      return;
-                    }
-                    setYoYSelectedStation({
-                      stationno,
-                      stationname: stationname || station.stationname,
-                      provinceno: station.provinceno ?? "",
-                      provincename: station.provincename ?? province ?? "",
-                    });
-                  }}
-                  placeholder="Select station"
-                  className="w-[260px]"
-                />
-              )
-            ) : null}
+            <ChartScopeFilters
+              isAuthenticated={isAuthenticated}
+              scope={scope}
+              value={yoYScope}
+              onChange={setYoYScope}
+              reportyear={yoYSelectedYears[yoYSelectedYears.length - 1] ?? currentYear}
+            />
           </div>
         }
       >

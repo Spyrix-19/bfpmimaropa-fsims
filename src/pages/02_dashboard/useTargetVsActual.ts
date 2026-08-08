@@ -5,6 +5,11 @@ import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
 import type { SelectedStation } from "@/components/station-multi-select";
 import type { DashboardTargetAccomplishModel } from "@/types/dashboardType";
+import {
+  buildDashboardProvinces,
+  provincesPayloadKey,
+  type ProvinceSelection,
+} from "@/pages/02_dashboard/buildProvincesPayload";
 
 export interface TargetVsActualRow {
   name: string;
@@ -21,19 +26,17 @@ export function useTargetVsActual({
 }: {
   selectedYear?: number;
   selectedStations?: SelectedStation[];
-  selectedProvinces?: { locationno: string }[];
+  selectedProvinces?: ProvinceSelection[];
 }) {
   const [rows, setRows] = React.useState<TargetVsActualRow[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   const reportyear = selectedYear ?? new Date().getFullYear();
-  const stationnos = React.useMemo(() => selectedStations.map((s) => s.stationno), [selectedStations]);
-  const stationKey = stationnos.join(",");
-  const provinceKey = React.useMemo(
-    () => selectedProvinces.map((p) => p.locationno).join(","),
-    [selectedProvinces],
+  const provincesPayload = React.useMemo(
+    () => buildDashboardProvinces(selectedProvinces, selectedStations),
+    [selectedProvinces, selectedStations],
   );
-
+  const payloadKey = provincesPayloadKey(provincesPayload);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -43,7 +46,7 @@ export function useTargetVsActual({
       const resp = await dashboardAPI.getTargetVSInspection(
         {
           reportyear: [reportyear],
-          stationno: stationnos,
+          Provinces: provincesPayload,
         },
         {
           suppressGlobalLoading: true,
@@ -83,14 +86,8 @@ export function useTargetVsActual({
       cancelled = true;
       controller.abort();
     };
-  }, [reportyear, stationKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportyear, payloadKey]);
 
-  const filteredRows = React.useMemo(() => {
-    if (!provinceKey) return rows;
-    const allowed = new Set(provinceKey.split(","));
-    return rows.filter((r) => allowed.has(r.provinceno));
-  }, [rows, provinceKey]);
-
-  return { rows: filteredRows, loading };
-
+  return { rows, loading };
 }

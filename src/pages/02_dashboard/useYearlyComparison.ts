@@ -5,6 +5,11 @@ import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
 import type { SelectedStation } from "@/components/station-multi-select";
 import type { DashboardYearlyInspectionModel, DashboardYearToYearDTO } from "@/types/dashboardType";
+import {
+  buildDashboardProvinces,
+  provincesPayloadKey,
+  type ProvinceSelection,
+} from "@/pages/02_dashboard/buildProvincesPayload";
 
 const MONTH_NAMES = [
   "Jan",
@@ -26,10 +31,12 @@ export type YearlyPoint = { name: string } & Record<string, number | string>;
 /** Year-over-Year Comparison (monthly actuals per report year). */
 export function useYearlyComparison({
   selectedYears,
-  selectedStations,
+  selectedStations = [],
+  selectedProvinces = [],
 }: {
   selectedYears: number[];
-  selectedStations: SelectedStation[];
+  selectedStations?: SelectedStation[];
+  selectedProvinces?: ProvinceSelection[];
 }) {
   const [rows, setRows] = React.useState<YearlyPoint[]>([]);
   const [years, setYears] = React.useState<number[]>([]);
@@ -39,27 +46,21 @@ export function useYearlyComparison({
     () => [...selectedYears].sort((a, b) => a - b).join(","),
     [selectedYears],
   );
-  const selectedStationKey = React.useMemo(
-    () => selectedStations.map((s) => s.stationno).sort().join(","),
-    [selectedStations],
+  const provincesPayload = React.useMemo(
+    () => buildDashboardProvinces(selectedProvinces, selectedStations),
+    [selectedProvinces, selectedStations],
   );
-
-  const stationnos = React.useMemo(
-    () => selectedStations.map((s) => s.stationno),
-    [selectedStations],
-  );
+  const payloadKey = provincesPayloadKey(provincesPayload);
 
   React.useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
     (async () => {
       setLoading(true);
-      const yearsToQuery = selectedYears.length
-        ? [...selectedYears].sort((a, b) => a - b)
-        : [];
+      const yearsToQuery = selectedYears.length ? [...selectedYears].sort((a, b) => a - b) : [];
       const body: DashboardYearToYearDTO = {
         reportyear: yearsToQuery,
-        stationno: stationnos,
+        Provinces: provincesPayload,
       };
 
       const resp = await dashboardAPI.getYearlyInspection(body, {
@@ -106,7 +107,8 @@ export function useYearlyComparison({
       cancelled = true;
       controller.abort();
     };
-  }, [selectedYearKey, selectedStationKey, stationnos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYearKey, payloadKey]);
 
   return { rows, years, loading };
 }

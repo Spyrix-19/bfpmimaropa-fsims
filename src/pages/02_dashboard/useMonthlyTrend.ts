@@ -3,12 +3,16 @@ import { toast } from "@/lib/toast";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { isGenericError } from "@/lib/api-messages";
-import { useFilters, resolveReportMonths } from "@/lib/filters";
 import type { SelectedStation } from "@/components/station-multi-select";
 import type {
   DashboardMonthlyTargetAccomplishModel,
   DashboardMonthlySectorInspectionModel,
 } from "@/types/dashboardType";
+import {
+  buildDashboardProvinces,
+  provincesPayloadKey,
+  type ProvinceSelection,
+} from "@/pages/02_dashboard/buildProvincesPayload";
 
 const MONTH_NAMES = [
   "Jan",
@@ -43,16 +47,21 @@ export interface MonthlySectorPoint {
 export function useMonthlyTargetVsActual({
   selectedYear,
   selectedStations = [],
+  selectedProvinces = [],
 }: {
   selectedYear?: number;
   selectedStations?: SelectedStation[];
+  selectedProvinces?: ProvinceSelection[];
 }) {
   const [rows, setRows] = React.useState<MonthlyTargetPoint[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   const reportyear = selectedYear ?? new Date().getFullYear();
-  const stationnos = React.useMemo(() => selectedStations.map((s) => s.stationno), [selectedStations]);
-  const stationKey = stationnos.join(",");
+  const provincesPayload = React.useMemo(
+    () => buildDashboardProvinces(selectedProvinces, selectedStations),
+    [selectedProvinces, selectedStations],
+  );
+  const payloadKey = provincesPayloadKey(provincesPayload);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -62,7 +71,7 @@ export function useMonthlyTargetVsActual({
       const resp = await dashboardAPI.getMonthlyTargetVSInspection(
         {
           reportyear: [reportyear],
-          stationno: stationnos,
+          Provinces: provincesPayload,
         },
         {
           suppressGlobalLoading: true,
@@ -99,7 +108,8 @@ export function useMonthlyTargetVsActual({
       cancelled = true;
       controller.abort();
     };
-  }, [reportyear, stationKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportyear, payloadKey]);
 
   return { rows, loading };
 }
@@ -108,16 +118,21 @@ export function useMonthlyTargetVsActual({
 export function useMonthlySectorTrend({
   selectedYear,
   selectedStations = [],
+  selectedProvinces = [],
 }: {
   selectedYear?: number;
   selectedStations?: SelectedStation[];
+  selectedProvinces?: ProvinceSelection[];
 }) {
   const [rows, setRows] = React.useState<MonthlySectorPoint[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   const reportyear = selectedYear ?? new Date().getFullYear();
-  const stationnos = React.useMemo(() => selectedStations.map((s) => s.stationno), [selectedStations]);
-  const stationKey = stationnos.join(",");
+  const provincesPayload = React.useMemo(
+    () => buildDashboardProvinces(selectedProvinces, selectedStations),
+    [selectedProvinces, selectedStations],
+  );
+  const payloadKey = provincesPayloadKey(provincesPayload);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -127,7 +142,7 @@ export function useMonthlySectorTrend({
       const resp = await dashboardAPI.getMonthlySectorInspection(
         {
           reportyear: [reportyear],
-          stationno: stationnos,
+          Provinces: provincesPayload,
         },
         {
           suppressGlobalLoading: true,
@@ -166,7 +181,8 @@ export function useMonthlySectorTrend({
       cancelled = true;
       controller.abort();
     };
-  }, [reportyear, stationKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportyear, payloadKey]);
 
   return { rows, loading };
 }
