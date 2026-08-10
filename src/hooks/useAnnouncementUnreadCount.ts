@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { announcementAPI } from "@/services/announcementAPI";
-import { useAuth } from "@/lib/auth";
+import { useAuth, FSIMS_SYSTEMNO } from "@/lib/auth";
+import type { AnnouncementLedgerModel } from "@/types/announcementType";
 
 /** How often the unread badge re-syncs with the backend (ms). */
 const POLL_INTERVAL_MS = 120_000;
@@ -23,6 +24,7 @@ const listeners = new Set<() => void>();
 
 let count = 0;
 let memberno = "";
+let stationno = "";
 let inFlight: Promise<void> | null = null;
 let lastFetchedAt = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -52,7 +54,18 @@ function toCount(data: unknown): number {
   if (Array.isArray(data)) return data.length;
   if (data && typeof data === "object") {
     const record = data as Record<string, unknown>;
-    for (const key of ["unreadcount", "unreadCount", "count", "total", "totalcount"]) {
+    for (const key of [
+      "unreadcount",
+      "unreadCount",
+      "unread",
+      "totalunread",
+      "totalUnread",
+      "unreadtotal",
+      "count",
+      "total",
+      "totalcount",
+      "totalCount",
+    ]) {
       const value = record[key];
       if (typeof value === "number" && Number.isFinite(value)) return value;
       if (typeof value === "string" && Number.isFinite(Number(value))) return Number(value);
@@ -80,11 +93,49 @@ function countFromResponse(resp: {
   return toCount(payload);
 }
 
+/**
+ * Counts unread rows from the ledger. Used when `UnreadCount` is unavailable
+ * or reports 0 while unread announcements still exist.
+ */
+async function unreadFromLedger(fallback: number): Promise<number> {
+  const resp = await announcementAPI.getLedger(
+    {
+      readstatus: "UNREAD",
+      systemno: FSIMS_SYSTEMNO,
+      stationno,
+      memberno,
+      pagenumber: 1,
+      pagesize: 100,
+    },
+    {
+      retries: 0,
+      timeout: 8000,
+      suppressGlobalLoading: true,
+      suppressErrorToast: true,
+      noDedupe: true,
+    },
+  );
+  if (!resp?.isSuccess) return fallback;
+  const payload = resp.data as unknown;
+  const rows = Array.isArray(payload)
+    ? (payload as AnnouncementLedgerModel[])
+    : Array.isArray((payload as { data?: unknown })?.data)
+      ? ((payload as { data: AnnouncementLedgerModel[] }).data)
+      : null;
+  if (!rows) return fallback;
+  return rows.filter((r) => !r.isread).length;
+}
+
 /** Single throttled + de-duplicated fetch. `force` skips only the throttle. */
 function fetchCount(force = false): Promise<void> {
   if (!memberno) return Promise.resolve();
-  if (inFlight) return inFlight;
   if (typeof navigator !== "undefined" && navigator.onLine === false) return Promise.resolve();
+  if (inFlight) {
+    // A forced refresh (after create / delete / mark read) must not reuse a
+    // request that started before the mutation — chain a fresh one instead.
+    if (!force) return inFlight;
+    return inFlight.then(() => fetchCount(true));
+  }
   if (!force && Date.now() - lastFetchedAt < MIN_FETCH_GAP_MS) return Promise.resolve();
 
   inFlight = (async () => {
@@ -96,10 +147,17 @@ function fetchCount(force = false): Promise<void> {
         timeout: 8000,
         suppressGlobalLoading: true,
         suppressErrorToast: true,
+        noDedupe: true,
       },
     );
     const next = countFromResponse(resp);
-    if (next !== null) setCount(next);
+    if (next !== null && next > 0) {
+      setCount(next);
+    } else {
+      // Fallback: some deployments don't implement UnreadCount (or return 0
+      // for it), so derive the badge from the unread ledger instead.
+      setCount(await unreadFromLedger(next ?? 0));
+    }
     lastFetchedAt = Date.now();
   })()
     .catch(() => {
@@ -157,6 +215,7 @@ export function refreshAnnouncementUnreadCount() {
 /** Reset the badge, e.g. on sign-out. */
 function reset() {
   memberno = "";
+  stationno = "";
   lastFetchedAt = 0;
   setCount(0);
 }
@@ -170,6 +229,7 @@ function reset() {
 export function useAnnouncementUnreadCount() {
   const { user, isAuthenticated } = useAuth();
   const currentMember = user?.memberno ?? "";
+  const currentStation = user?.stationno ?? "";
   const value = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   useEffect(() => {
@@ -177,13 +237,14 @@ export function useAnnouncementUnreadCount() {
       reset();
       return;
     }
+    stationno = currentStation;
     if (memberno !== currentMember) {
       memberno = currentMember;
       lastFetchedAt = 0;
       setCount(0);
     }
     void fetchCount();
-  }, [isAuthenticated, currentMember]);
+  }, [isAuthenticated, currentMember, currentStation]);
 
   const refresh = useCallback(async () => {
     await fetchCount(true);

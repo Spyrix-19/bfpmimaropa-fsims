@@ -9,12 +9,13 @@ export interface AnnouncementRequestDTO {
   ispinned: boolean;
   ispopup: boolean;
   isactive: boolean;
-  startdate: string;
-  enddate: string;
+  startdate?: string;
+  enddate?: string;
   systemnos: string[];
   viewers: AnnouncementViewerRequestClass[];
   encodedby: string;
 }
+
 
 export interface AnnouncementViewerRequestClass {
   viewertype: string;
@@ -42,11 +43,12 @@ export interface AnnouncementDetailModel {
   ispinned: boolean;
   ispopup: boolean;
   isactive: boolean;
-  startdate: string;
-  enddate: string;
+  startdate?: string;
+  enddate?: string;
   systems: string[];
   viewers: AnnouncementViewerRequestClass[];
 }
+
 
 // Ledger Models
 export interface AnnouncementLedgerParams {
@@ -76,11 +78,12 @@ export interface AnnouncementLedgerModel {
   encodedbyname?: string;
   fullname?: string;
   stationname?: string;
-  startdate: string;
-  enddate: string;
+  startdate?: string;
+  enddate?: string;
   dateencoded: string;
   dateupdated: string;
 }
+
 
 //Delete
 export interface AnnouncementDeleteParams {

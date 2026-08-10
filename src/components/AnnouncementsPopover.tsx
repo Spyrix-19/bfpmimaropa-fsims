@@ -4,7 +4,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  CalendarDays,
   Users,
   Globe2,
   Map as MapIcon,
@@ -15,6 +14,7 @@ import {
   CheckCheck,
   Circle,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -103,13 +103,21 @@ function RecipientChips({
   );
 }
 
-type AnnouncementRow = AnnouncementLedgerModel & {
+type AnnouncementRow = Partial<AnnouncementLedgerModel> & {
+  announcementno: string;
+  title: string;
   message: string;
   audience: AudienceScope;
   createdbyno: string;
   createdbyname: string;
   stationname: string;
+  dateposted: string;
+  dateupdated?: string;
+  provinces?: SelectedLocation[];
+  stations?: SelectedStation[];
+  personnel?: SelectedPersonnel[];
 };
+
 
 /**
  * Can this user create announcements?
@@ -125,12 +133,16 @@ function canManageAnnouncements(
 }
 
 /**
- * Edit/delete is limited to the author's own records.
+ * Edit/delete is limited to the author's own records, and only for users who
+ * are allowed to manage announcements in the first place.
  */
 function canModifyAnnouncement(
   record: AnnouncementRow,
   memberno: string | null | undefined,
+  roleno?: number | null,
+  stationtype?: number | null,
 ): boolean {
+  if (!canManageAnnouncements(roleno, stationtype)) return false;
   const me = String(memberno ?? "").trim().toLowerCase();
   const owner = String(record.createdbyno ?? "").trim().toLowerCase();
   return !!me && !!owner && me === owner;
@@ -154,8 +166,6 @@ export function AnnouncementsPopover() {
   const [deleting, setDeleting] = useState<AnnouncementRow | null>(null);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [startdate, setStartdate] = useState("");
-  const [enddate, setEnddate] = useState("");
   const [audience, setAudience] = useState<AudienceScope>("ALL");
   const [provinces, setProvinces] = useState<SelectedLocation[]>([]);
   const [stations, setStations] = useState<SelectedStation[]>([]);
@@ -163,6 +173,7 @@ export function AnnouncementsPopover() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
+
 
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -179,22 +190,24 @@ export function AnnouncementsPopover() {
   );
 
   /**
-   * Ledger is filtered server-side: `readstatus` mirrors the All | Unread | Read
-   * tabs, while `memberno` / `stationno` always come from the logged-in user.
+   * The ledger is always fetched unfiltered (`readstatus: "ALL"`) so the
+   * All | Unread | Read tabs and their counts stay consistent with one another.
+   * Read state comes from each row's `isread` flag, so a refetch after any
+   * mutation (create / delete / mark read) always reflects the server truth.
    */
   const loadLedger = useCallback(async () => {
     if (!memberno) return;
     setLoadingLedger(true);
     const resp = await announcementAPI.getLedger(
       {
-        readstatus: filter.toUpperCase(),
+        readstatus: "ALL",
         systemno: FSIMS_SYSTEMNO,
         stationno,
         memberno,
         pagenumber: 1,
-        pagesize: 20,
+        pagesize: 50,
       },
-      { suppressErrorToast: true },
+      { suppressErrorToast: true, noDedupe: true, retries: 0 },
     );
     const { ok, data } = unwrap<AnnouncementLedgerModel[]>(resp);
     setLoadingLedger(false);
@@ -207,8 +220,6 @@ export function AnnouncementsPopover() {
         announcementno: row.announcementno,
         title: row.title,
         message: row.content || row.summary || "",
-        startdate: row.startdate,
-        enddate: row.enddate,
         audience: "ALL" as AudienceScope,
         createdbyno: row.encodedby || row.memberno || "",
         createdbyname: row.encodedbyname || row.fullname || "",
@@ -217,15 +228,13 @@ export function AnnouncementsPopover() {
         dateupdated: row.dateupdated || undefined,
       })),
     );
-    setReadIds((prev) => {
-      const next = new Set(prev);
-      data.forEach((row) => {
-        if (row.isread || filter === "read") next.add(row.announcementno);
-        else if (filter === "unread") next.delete(row.announcementno);
-      });
-      return next;
-    });
-  }, [filter, memberno, stationno]);
+
+    // Rebuild read state from the server payload instead of merging into the
+    // previous set — stale entries were what kept the tabs out of sync.
+    setReadIds(
+      new Set(data.filter((row) => !!row.isread).map((row) => row.announcementno)),
+    );
+  }, [memberno, stationno]);
 
   useEffect(() => {
     if (!open) return;
@@ -234,7 +243,6 @@ export function AnnouncementsPopover() {
 
   const source = ledger ?? [];
 
-  const count = source.length;
   const unreadCount = useMemo(
     () => source.filter((a) => !readIds.has(a.announcementno)).length,
     [source, readIds],
@@ -262,18 +270,15 @@ export function AnnouncementsPopover() {
     setEditing(null);
     setTitle("");
     setMessage("");
-    setStartdate("");
-    setEnddate("");
     resetAudience();
     setFormOpen(true);
   };
+
 
   const openEdit = (record: AnnouncementRow) => {
     setEditing(record);
     setTitle(record.title);
     setMessage(record.message);
-    setStartdate(toDateInput(record.startdate));
-    setEnddate(toDateInput(record.enddate));
     setAudience(record.audience ?? "ALL");
     setProvinces((record.provinces ?? []) as SelectedLocation[]);
     setStations((record.stations ?? []) as SelectedStation[]);
@@ -281,12 +286,11 @@ export function AnnouncementsPopover() {
     setFormOpen(true);
   };
 
+
   /** The exact payload used for both create + update so nothing is dropped. */
   const formPayload = () => ({
     title: title.trim(),
     message: message.trim(),
-    startdate,
-    enddate,
     audience,
     provinces: provinces.map((p) => ({
       locationno: p.locationno,
@@ -295,6 +299,7 @@ export function AnnouncementsPopover() {
     stations: stations.map((s) => ({ stationno: s.stationno, stationname: s.stationname })),
     personnel: personnel.map((p) => ({ memberno: p.memberno, fullname: p.fullname })),
   });
+
 
   const buildViewers = (): AnnouncementViewerRequestClass[] => {
     if (audience === "PROVINCE")
@@ -309,14 +314,6 @@ export function AnnouncementsPopover() {
   const submit = async () => {
     if (!title.trim() || !message.trim()) {
       toast.error("Title and message are required.", { id: "announcement-form" });
-      return;
-    }
-    if (!startdate || !enddate) {
-      toast.error("Start and end dates are required.", { id: "announcement-form" });
-      return;
-    }
-    if (new Date(enddate) < new Date(startdate)) {
-      toast.error("End date cannot be before the start date.", { id: "announcement-form" });
       return;
     }
     const viewers = buildViewers();
@@ -337,12 +334,11 @@ export function AnnouncementsPopover() {
       ispinned: false,
       ispopup: false,
       isactive: true,
-      startdate,
-      enddate,
       systemnos: [FSIMS_SYSTEMNO],
       viewers,
       encodedby: memberno,
     });
+
     const { ok, error } = unwrap(resp);
     setSaving(false);
 
@@ -354,12 +350,14 @@ export function AnnouncementsPopover() {
     toast.success(editing ? "Announcement updated." : "Announcement posted.", {
       id: "announcement-form",
     });
-    refreshAnnouncementUnreadCount();
-    void loadLedger();
-
     setFormOpen(false);
     setEditing(null);
+    // Refresh badge + ledger from the server so the new record shows up
+    // immediately in All / Unread and in the counts.
+    await Promise.all([refreshUnread(), loadLedger()]);
   };
+
+
 
   const confirmDelete = async () => {
     if (!deleting || busy) return;
@@ -378,6 +376,7 @@ export function AnnouncementsPopover() {
     toast.success("Announcement deleted.", { id: "announcement-form" });
     setDeleting(null);
     refreshAnnouncementUnreadCount();
+
     await refreshUnread();
     await loadLedger();
   };
@@ -448,11 +447,6 @@ export function AnnouncementsPopover() {
           <div className="flex items-center justify-between border-b border-border/60 px-3 py-2.5">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Announcements</span>
-              {unreadCount > 0 && (
-                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  {unreadCount} new
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-1">
               <Button
@@ -629,8 +623,9 @@ export function AnnouncementsPopover() {
                     {editing ? "Edit announcement" : "New announcement"}
                   </DialogTitle>
                   <DialogDescription className="text-xs">
-                    Set the message, how long it stays visible, and who receives it.
+                    Set the message and who receives it.
                   </DialogDescription>
+
                 </div>
               </div>
             </DialogHeader>
@@ -680,47 +675,12 @@ export function AnnouncementsPopover() {
 
             <section className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3.5">
               <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-primary" />
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Display duration
-                </span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="announcement-start" className="text-xs text-muted-foreground">
-                    From
-                  </Label>
-                  <Input
-                    id="announcement-start"
-                    type="date"
-                    value={startdate}
-                    onChange={(e) => setStartdate(e.target.value)}
-                    className="bg-background"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="announcement-end" className="text-xs text-muted-foreground">
-                    Until
-                  </Label>
-                  <Input
-                    id="announcement-end"
-                    type="date"
-                    value={enddate}
-                    min={startdate || undefined}
-                    onChange={(e) => setEnddate(e.target.value)}
-                    className="bg-background"
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3.5">
-              <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Audience
                 </span>
               </div>
+
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {AUDIENCE_OPTIONS.map((o) => {
