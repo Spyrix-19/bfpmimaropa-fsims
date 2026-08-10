@@ -153,7 +153,7 @@ export default function Settings({ onClose }: { onClose?: () => void } = {}) {
             <InfoRow label="Version" value="1.0.0" />
             <InfoRow label="Region" value={REGION_NAME} />
             <InfoRow label="Build" value={new Date().toISOString().slice(0, 10)} />
-            <InfoRow label="Support" value="ict@bfpmimaropa.gov.ph" />
+            <InfoRow label="Support" value="itcu.region4b@bfp.gov.ph" />
           </Section>
         </TabsContent>
       </Tabs>
