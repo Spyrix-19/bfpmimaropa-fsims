@@ -29,6 +29,7 @@ type Props = {
 };
 
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+import { resolvePageCount } from "@/lib/page-count";
 
 /**
  * Searchable + paginated picker backed by `gentableAPI.search`. Mirrors
@@ -53,6 +54,7 @@ export default function GentableSearchSelect({
   const [page, setPage] = React.useState(1);
   const [rows, setRows] = React.useState<SearchGentableModel[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(1);
   const [label, setLabel] = React.useState<string>(valueName ?? "");
 
   React.useEffect(() => {
@@ -77,10 +79,19 @@ export default function GentableSearchSelect({
         },
         { suppressGlobalLoading: true },
       );
-      const { ok, data } = unwrap<SearchGentableModel[]>(resp);
+      const { ok, data, total, totalPages } = unwrap<SearchGentableModel[]>(resp);
       if (cancelled) return;
       const loadedRows = ok && Array.isArray(data) ? data : [];
       setRows(rowFilter ? rowFilter(loadedRows) : loadedRows);
+      setPageCount(
+        resolvePageCount({
+          total,
+          totalPages,
+          pageSize: PAGE_SIZE,
+          page,
+          rowCount: loadedRows.length,
+        }),
+      );
       setLoading(false);
     })();
     return () => {
@@ -96,7 +107,7 @@ export default function GentableSearchSelect({
   };
 
   const showPrev = page > 1;
-  const showNext = rows.length === PAGE_SIZE;
+  const showNext = page < pageCount;
 
   // Disabled + read-only render as a plain read-only field — no dropdown
   // chevron, no interaction affordance — while preserving size/spacing/type.
@@ -197,7 +208,9 @@ export default function GentableSearchSelect({
           >
             <ChevronLeft className="h-4 w-4" /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground">Page {page}</span>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pageCount}
+          </span>
           <Button
             type="button"
             variant="outline"

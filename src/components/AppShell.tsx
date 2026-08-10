@@ -204,7 +204,8 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogContent
             hideCloseButton
-            className="w-full max-w-[min(100vw-1rem,48rem)] max-h-[calc(100vh-1rem)] overflow-y-auto"
+            className="w-full max-w-[min(100vw-1rem,48rem)] max-h-[calc(100vh-1rem)] overflow-y-auto focus:outline-none focus:ring-0"
+            onOpenAutoFocus={(e) => e.preventDefault()}
           >
             <Suspense fallback={null}>
               <SettingsPage onClose={() => setSettingsOpen(false)} />
@@ -231,7 +232,11 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
         <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
       </Suspense>
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent hideCloseButton className="max-w-3xl w-full max-h-[90vh] overflow-hidden">
+        <DialogContent
+          hideCloseButton
+          className="max-w-3xl w-full max-h-[90vh] overflow-hidden focus:outline-none focus:ring-0"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <Suspense fallback={null}>
             <SettingsPage onClose={() => setSettingsOpen(false)} />
           </Suspense>

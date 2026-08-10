@@ -14,6 +14,8 @@ import {
   CheckCheck,
   Circle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -61,6 +63,9 @@ import {
 
 /** Who the announcement is addressed to. */
 type AudienceScope = "ALL" | "PROVINCE" | "STATION" | "PERSONNEL";
+
+/** Announcements shown per page inside the popover list. */
+const ANNOUNCEMENTS_PAGE_SIZE = 5;
 
 const AUDIENCE_OPTIONS: {
   value: AudienceScope;
@@ -184,6 +189,7 @@ export function AnnouncementsPopover() {
 
 
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+  const [page, setPage] = useState(1);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [ledger, setLedger] = useState<AnnouncementRow[] | null>(null);
   const [loadingLedger, setLoadingLedger] = useState(false);
@@ -259,11 +265,27 @@ export function AnnouncementsPopover() {
     () => source.filter((a) => readIds.has(a.announcementno)).length,
     [source, readIds],
   );
-  const visible = useMemo(() => {
+  const filtered = useMemo(() => {
     if (filter === "unread") return source.filter((a) => !readIds.has(a.announcementno));
     if (filter === "read") return source.filter((a) => readIds.has(a.announcementno));
     return source;
   }, [source, filter, readIds]);
+
+  // Client-side pagination — 5 announcements per page.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / ANNOUNCEMENTS_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const visible = useMemo(
+    () =>
+      filtered.slice(
+        (safePage - 1) * ANNOUNCEMENTS_PAGE_SIZE,
+        safePage * ANNOUNCEMENTS_PAGE_SIZE,
+      ),
+    [filtered, safePage],
+  );
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
 
   if (!isAuthenticated) return null;
 
@@ -488,7 +510,10 @@ export function AnnouncementsPopover() {
               <button
                 key={f}
                 type="button"
-                onClick={() => setFilter(f)}
+                onClick={() => {
+                  setFilter(f);
+                  setPage(1);
+                }}
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors",
                   filter === f
@@ -542,7 +567,6 @@ export function AnnouncementsPopover() {
                       <div
                         className={cn(
                           "flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors",
-                          mine ? "pr-[5.5rem]" : "pr-4",
                           !isRead && "bg-primary/5",
                           "hover:bg-muted/60",
                         )}
@@ -595,11 +619,43 @@ export function AnnouncementsPopover() {
                               />
                             </button>
                           )}
-                          <p className="mt-1 break-words text-[11px] tracking-tight text-muted-foreground/70">
-                            {a.createdbyname}
-                            {a.stationname ? ` · ${a.stationname}` : ""} ·{" "}
-                            {formatDateTime(a.dateposted, "—")}
-                          </p>
+                          <div className="mt-1 flex items-center justify-between gap-2">
+                            <p className="min-w-0 flex-1 break-words text-[11px] tracking-tight text-muted-foreground/70">
+                              {a.createdbyname}
+                              {a.stationname ? ` · ${a.stationname}` : ""} ·{" "}
+                              {formatDateTime(a.dateposted, "—")}
+                            </p>
+                            {mine && (
+                              <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Edit announcement"
+                                  className="h-7 w-7 rounded-md text-primary hover:bg-primary/10 hover:text-primary"
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    openEdit(a);
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Delete announcement"
+                                  className="h-7 w-7 rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setDeleting(a);
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
 
 
                           {!isRead && (
@@ -621,42 +677,46 @@ export function AnnouncementsPopover() {
                           )}
                         </div>
                       </div>
-                      {mine && (
-                        <div className="absolute right-2 top-2 flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                            aria-label="Edit announcement"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEdit(a);
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                            aria-label="Delete announcement"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleting(a);
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
                     </li>
                   );
                 })}
               </ul>
             )}
           </ScrollArea>
+
+          {filtered.length > 0 && (
+            <div className="grid grid-cols-3 items-center border-t border-border/60 px-3 py-2">
+              <div className="flex justify-start">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label="Previous page"
+                  className="h-7 gap-1 rounded-full px-2.5 text-xs"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Prev
+                </Button>
+              </div>
+              <span className="text-center text-xs text-muted-foreground">{`Page ${safePage} of ${pageCount}`}</span>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label="Next page"
+                  className="h-7 gap-1 rounded-full px-2.5 text-xs"
+                  disabled={safePage >= pageCount}
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                >
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
 

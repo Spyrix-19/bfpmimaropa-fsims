@@ -10,6 +10,7 @@ import { unwrap } from "@/lib/api-envelope";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { cn } from "@/lib/utils";
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+import { resolvePageCount } from "@/lib/page-count";
 
 export interface SelectedPersonnel {
   memberno: string;
@@ -61,6 +62,7 @@ export function PersonnelMultiSelect({
   const [page, setPage] = React.useState(1);
   const [rows, setRows] = React.useState<ReturnType<typeof normalize>[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(1);
 
   React.useEffect(() => {
     setPage(1);
@@ -75,9 +77,13 @@ export function PersonnelMultiSelect({
         { searchKey: debounced || "", pageNumber: page, pageSize: PAGE_SIZE },
         { suppressGlobalLoading: true },
       );
-      const { ok, data } = unwrap<RawMember[]>(resp);
+      const { ok, data, total, totalPages } = unwrap<RawMember[]>(resp);
       if (cancelled) return;
-      setRows(ok && Array.isArray(data) ? data.map(normalize) : []);
+      const loaded = ok && Array.isArray(data) ? data.map(normalize) : [];
+      setRows(loaded);
+      setPageCount(
+        resolvePageCount({ total, totalPages, pageSize: PAGE_SIZE, page, rowCount: loaded.length }),
+      );
       setLoading(false);
     })();
     return () => {
@@ -103,7 +109,7 @@ export function PersonnelMultiSelect({
         : `${value.length} selected`;
 
   const showPrev = page > 1;
-  const showNext = rows.length === PAGE_SIZE;
+  const showNext = page < pageCount;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -195,7 +201,9 @@ export function PersonnelMultiSelect({
           >
             <ChevronLeft className="h-4 w-4" /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground">Page {page}</span>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pageCount}
+          </span>
           <Button
             type="button"
             variant="outline"

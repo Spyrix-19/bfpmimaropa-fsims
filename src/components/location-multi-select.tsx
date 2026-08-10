@@ -11,6 +11,7 @@ import { unwrap } from "@/lib/api-envelope";
 import type { SearchLocationModel } from "@/types/locationType";
 import { cn } from "@/lib/utils";
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+import { resolvePageCount } from "@/lib/page-count";
 
 export type LocationType = "REGION" | "PROVINCE" | "CITY" | "BARANGAY";
 
@@ -51,6 +52,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
   const [page, setPage] = React.useState(1);
   const [rows, setRows] = React.useState<SearchLocationModel[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(1);
 
   React.useEffect(() => {
     setPage(1);
@@ -71,7 +73,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
           { Pagenumber: page, Pagesize: PAGE_SIZE },
           { suppressGlobalLoading: true },
         );
-        const { ok, data } = unwrap<unknown[]>(resp);
+        const { ok, data, total, totalPages } = unwrap<unknown[]>(resp);
         if (cancelled) return;
         const provinceRows = Array.isArray(data)
           ? Array.from(
@@ -90,6 +92,15 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
             )
           : [];
         setRows(provinceRows);
+        setPageCount(
+          resolvePageCount({
+            total,
+            totalPages,
+            pageSize: PAGE_SIZE,
+            page,
+            rowCount: provinceRows.length,
+          }),
+        );
         setLoading(false);
         return;
       }
@@ -104,9 +115,13 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
         },
         { suppressGlobalLoading: true },
       );
-      const { ok, data } = unwrap<SearchLocationModel[]>(resp);
+      const { ok, data, total, totalPages } = unwrap<SearchLocationModel[]>(resp);
       if (cancelled) return;
-      setRows(ok && Array.isArray(data) ? data : []);
+      const loaded = ok && Array.isArray(data) ? data : [];
+      setRows(loaded);
+      setPageCount(
+        resolvePageCount({ total, totalPages, pageSize: PAGE_SIZE, page, rowCount: loaded.length }),
+      );
       setLoading(false);
     })();
     return () => {
@@ -135,7 +150,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
         : `${value.length} selected`;
 
   const showPrev = page > 1;
-  const showNext = rows.length === PAGE_SIZE;
+  const showNext = page < pageCount;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -232,7 +247,9 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
           >
             <ChevronLeft className="h-4 w-4" /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground">Page {page}</span>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pageCount}
+          </span>
           <Button
             type="button"
             variant="outline"

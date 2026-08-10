@@ -21,6 +21,7 @@ type Props = {
 };
 
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+import { resolvePageCount } from "@/lib/page-count";
 
 /** Searchable + paginated picker for BFP offices backed by `officeAPI.search`. */
 export default function OfficeSearchSelect({
@@ -38,6 +39,7 @@ export default function OfficeSearchSelect({
   const [page, setPage] = React.useState(1);
   const [rows, setRows] = React.useState<SearchOfficeModel[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(1);
   const [label, setLabel] = React.useState<string>(valueName ?? "");
 
   React.useEffect(() => {
@@ -57,9 +59,13 @@ export default function OfficeSearchSelect({
         { searchKey: debounced || "", pageNumber: page, pageSize: PAGE_SIZE },
         { suppressGlobalLoading: true },
       );
-      const { ok, data } = unwrap<SearchOfficeModel[]>(resp);
+      const { ok, data, total, totalPages } = unwrap<SearchOfficeModel[]>(resp);
       if (cancelled) return;
-      setRows(ok && Array.isArray(data) ? data : []);
+      const loaded = ok && Array.isArray(data) ? data : [];
+      setRows(loaded);
+      setPageCount(
+        resolvePageCount({ total, totalPages, pageSize: PAGE_SIZE, page, rowCount: loaded.length }),
+      );
       setLoading(false);
     })();
     return () => {
@@ -99,7 +105,7 @@ export default function OfficeSearchSelect({
   }
 
   const showPrev = page > 1;
-  const showNext = rows.length === PAGE_SIZE;
+  const showNext = page < pageCount;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -176,7 +182,9 @@ export default function OfficeSearchSelect({
           >
             <ChevronLeft className="h-4 w-4" /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground">Page {page}</span>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pageCount}
+          </span>
           <Button
             type="button"
             variant="outline"

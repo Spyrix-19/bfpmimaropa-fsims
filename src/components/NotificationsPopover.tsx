@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, CheckCheck, RefreshCw, Trash2, Circle, Loader2 } from "lucide-react";
+import {
+  Bell,
+  CheckCheck,
+  RefreshCw,
+  Trash2,
+  Circle,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,7 +20,9 @@ import { formatDateTime } from "@/lib/date-format";
 import { notificationAPI } from "@/services/notificationAPI";
 import type { NotificationModel } from "@/types/notificationType";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
+/** Notifications shown per page inside the popover list. */
+const VIEW_PAGE_SIZE = 5;
 
 /**
  * Notifications — backed by the live `/api/v1/Notification/*` endpoints.
@@ -24,6 +35,7 @@ export function NotificationsPopover() {
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const memberno = user?.memberno ?? "";
   const stationno = user?.stationno || EMPTY_GUID;
@@ -70,6 +82,21 @@ export function NotificationsPopover() {
     if (filter === "read") return items.filter((i) => i.isread);
     return items;
   }, [items, filter]);
+
+  const pageCount = Math.max(1, Math.ceil(visible.length / VIEW_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const paged = useMemo(
+    () => visible.slice((safePage - 1) * VIEW_PAGE_SIZE, safePage * VIEW_PAGE_SIZE),
+    [visible, safePage],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
 
   const markRead = async (list: NotificationModel[]) => {
     const targets = list.filter((n) => !n.isread);
@@ -201,7 +228,7 @@ export function NotificationsPopover() {
             </div>
           ) : (
             <ul className="divide-y divide-border/60">
-              {visible.map((n) => (
+              {paged.map((n) => (
                 <li key={n.notificationno} className="group relative">
                   <button
                     type="button"
@@ -258,15 +285,40 @@ export function NotificationsPopover() {
           )}
         </ScrollArea>
 
-        <div className="border-t border-border/60 px-3 py-2 text-center">
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline"
-            onClick={() => setOpen(false)}
-          >
-            Close
-          </button>
-        </div>
+        {!loading && (
+          <div className="grid grid-cols-3 items-center border-t border-border/60 px-3 py-2">
+            <div className="flex justify-start">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="Previous page"
+                className="h-7 gap-1 rounded-full px-2.5 text-xs"
+                disabled={safePage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Prev
+              </Button>
+            </div>
+            <span className="text-center text-xs text-muted-foreground">{`Page ${safePage} of ${pageCount}`}</span>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="Next page"
+                className="h-7 gap-1 rounded-full px-2.5 text-xs"
+                disabled={safePage >= pageCount}
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+              >
+                Next
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+
       </PopoverContent>
     </Popover>
   );

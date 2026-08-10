@@ -62,7 +62,7 @@ export default function Settings({ onClose }: { onClose?: () => void } = {}) {
   };
 
   // Keep mobile behavior unchanged; on large screens allow inner scroll instead of forcing a very tall modal
-  const tabContentClass = "mt-4 space-y-4 h-64 overflow-auto lg:max-h-[68vh] lg:overflow-auto";
+  const tabContentClass = "mt-4 space-y-4 h-64 overflow-auto lg:max-h-[72vh] lg:overflow-auto";
 
   return (
     <div className="space-y-6">

@@ -34,10 +34,10 @@ type Props = {
   showAllOption?: boolean;
   /** Optional report year context (accepted for API parity; not used by the search endpoint). */
   reportyear?: number;
-
 };
 
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+import { resolvePageCount } from "@/lib/page-count";
 
 /**
  * Searchable + paginated station/unit picker.
@@ -60,6 +60,7 @@ export default function StationSearchSelect({
   const [page, setPage] = React.useState(1);
   const [rows, setRows] = React.useState<SearchStationModel[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(1);
   const [label, setLabel] = React.useState<string>(valueName ?? "");
 
   React.useEffect(() => {
@@ -85,7 +86,7 @@ export default function StationSearchSelect({
         },
         { suppressGlobalLoading: true },
       );
-      const { ok, data } = unwrap<any[]>(resp);
+      const { ok, data, total, totalPages } = unwrap<any[]>(resp);
       if (cancelled) return;
       // Map to StationCodeModel. Per spec: use `logourl` directly for the
       // logo — do NOT fall back to filetype/imagedata base64 anymore.
@@ -111,6 +112,9 @@ export default function StationSearchSelect({
           }) as any,
       );
       setRows(mapped);
+      setPageCount(
+        resolvePageCount({ total, totalPages, pageSize: PAGE_SIZE, page, rowCount: mapped.length }),
+      );
       setLoading(false);
     })();
     return () => {
@@ -134,7 +138,7 @@ export default function StationSearchSelect({
     showAllOption && (value === EMPTY_GUID || value === "" || value === undefined);
 
   const showPrev = page > 1;
-  const showNext = rows.length === PAGE_SIZE; // best-effort: full page means there might be more
+  const showNext = page < pageCount;
 
   // Disabled + read-only render as a plain read-only field — no dropdown
   // chevron, no interaction affordance — while preserving size/spacing/type.
@@ -262,7 +266,9 @@ export default function StationSearchSelect({
           >
             <ChevronLeft className="h-4 w-4" /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground">Page {page}</span>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pageCount}
+          </span>
           <Button
             type="button"
             variant="outline"

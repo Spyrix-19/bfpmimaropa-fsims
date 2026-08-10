@@ -15,6 +15,7 @@ import type {
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { cn } from "@/lib/utils";
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+import { resolvePageCount } from "@/lib/page-count";
 
 export interface SelectedStation {
   stationno: string;
@@ -53,6 +54,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
   const [page, setPage] = React.useState(1);
   const [rows, setRows] = React.useState<SearchStationModel[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(1);
 
   React.useEffect(() => {
     setPage(1);
@@ -89,6 +91,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
     if (!open) return;
     if (noProvince && !alwaysEnabled) {
       setRows([]);
+      setPageCount(1);
       setLoading(false);
       return;
     }
@@ -105,9 +108,13 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
         { Pagenumber: page, Pagesize: PAGE_SIZE },
         { suppressGlobalLoading: true },
       );
-      const { ok, data } = unwrap<SearchStationModel[]>(resp);
+      const { ok, data, total, totalPages } = unwrap<SearchStationModel[]>(resp);
       if (cancelled) return;
-      setRows(ok && Array.isArray(data) ? data : []);
+      const loaded = ok && Array.isArray(data) ? data : [];
+      setRows(loaded);
+      setPageCount(
+        resolvePageCount({ total, totalPages, pageSize: PAGE_SIZE, page, rowCount: loaded.length }),
+      );
       setLoading(false);
     })();
     return () => {
@@ -145,7 +152,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
         : `${value.length} selected`;
 
   const showPrev = page > 1;
-  const showNext = rows.length === PAGE_SIZE;
+  const showNext = page < pageCount;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -249,7 +256,9 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
           >
             <ChevronLeft className="h-4 w-4" /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground">Page {page}</span>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pageCount}
+          </span>
           <Button
             type="button"
             variant="outline"

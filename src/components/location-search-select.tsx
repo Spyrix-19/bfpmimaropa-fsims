@@ -34,6 +34,7 @@ type Props = {
 };
 
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
+import { resolvePageCount } from "@/lib/page-count";
 
 /**
  * Searchable + paginated location picker backed by `locationAPI.search`.
@@ -59,6 +60,7 @@ export default function LocationSearchSelect({
   const [page, setPage] = React.useState(1);
   const [rows, setRows] = React.useState<SearchLocationModel[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(1);
   const [label, setLabel] = React.useState<string>(valueName ?? "");
 
   React.useEffect(() => {
@@ -85,9 +87,13 @@ export default function LocationSearchSelect({
         },
         { suppressGlobalLoading: true },
       );
-      const { ok, data } = unwrap<SearchLocationModel[]>(resp);
+      const { ok, data, total, totalPages } = unwrap<SearchLocationModel[]>(resp);
       if (cancelled) return;
-      setRows(ok && Array.isArray(data) ? data : []);
+      const loaded = ok && Array.isArray(data) ? data : [];
+      setRows(loaded);
+      setPageCount(
+        resolvePageCount({ total, totalPages, pageSize: PAGE_SIZE, page, rowCount: loaded.length }),
+      );
       setLoading(false);
     })();
     return () => {
@@ -111,7 +117,7 @@ export default function LocationSearchSelect({
     showAllOption && (value === EMPTY_GUID || value === "" || value === undefined);
 
   const showPrev = page > 1;
-  const showNext = rows.length === PAGE_SIZE;
+  const showNext = page < pageCount;
 
   // Disabled + read-only render as a plain read-only field — no dropdown
   // chevron, no interaction affordance — while preserving size/spacing/type.
@@ -231,7 +237,9 @@ export default function LocationSearchSelect({
           >
             <ChevronLeft className="h-4 w-4" /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground">Page {page}</span>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pageCount}
+          </span>
           <Button
             type="button"
             variant="outline"
