@@ -437,9 +437,14 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   const [month, setMonth] = React.useState(1);
   const [year, setYear] = React.useState(new Date().getFullYear());
   const [days, setDays] = React.useState<DayRow[]>([]);
+  /** date → signature of the loaded values, used to send only changed rows. */
+  const [baselineRows, setBaselineRows] = React.useState<Map<string, string>>(new Map());
   const [generalRemarks, setGeneralRemarks] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+
+
+
 
   /* --------------------------- Revision requests -------------------------- */
   const [revisionOpen, setRevisionOpen] = React.useState(false);
@@ -477,7 +482,25 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     return map;
   }, []);
 
+  /** Stable signature of a row's editable values (counts + remarks). */
+  const rowSignature = React.useCallback(
+    (entry: DayRow) =>
+      JSON.stringify([
+        NOTICE_CATEGORIES.map((c) => Number(entry.modes.manual[c] ?? 0)),
+        NOTICE_CATEGORIES.map((c) => Number(entry.modes.fsis[c] ?? 0)),
+        String(entry.remarks ?? "").trim(),
+      ]),
+    [],
+  );
+
+  const captureBaseline = React.useCallback(
+    (rows: DayRow[]) => new Map(rows.map((r) => [r.date, rowSignature(r)] as const)),
+    [rowSignature],
+  );
+
   const buildDays = React.useCallback(
+
+
     (source: Map<string, DaySource>, y: number, m: number): DayRow[] => {
       const monthLocked = hasPstLockActivated(y, m);
       const total = calendarDaysInMonth(y, m);
@@ -509,10 +532,13 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     if (!record || !open) return;
     setMonth(record.reportMonth);
     setYear(record.reportYear);
-    setDays(buildDays(seedFromRecord(record), record.reportYear, record.reportMonth));
+    const seeded = buildDays(seedFromRecord(record), record.reportYear, record.reportMonth);
+    setDays(seeded);
+    setBaselineRows(captureBaseline(seeded));
     setGeneralRemarks("");
     setSaveError(null);
-  }, [record, open, buildDays, seedFromRecord]);
+  }, [record, open, buildDays, seedFromRecord, captureBaseline]);
+
 
   const stationno = record?.stationno ?? "";
   const provinceno = record?.provinceno ?? "";
@@ -536,12 +562,15 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       const detail = Array.isArray(data)
         ? (data.find((d) => d?.stationno === stationno) ?? data[0] ?? null)
         : data;
-      setDays(buildDays(parseDetailToDays(detail), year, month));
+      const loaded = buildDays(parseDetailToDays(detail), year, month);
+      setDays(loaded);
+      setBaselineRows(captureBaseline(loaded));
+
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, stationno, year, month, buildDays]);
+  }, [open, stationno, year, month, buildDays, captureBaseline]);
 
   React.useEffect(() => {
     if (!open || !stationno || !year || !month) {
@@ -685,7 +714,20 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     try {
       // One payload per accomplishment date, with a MANUAL (96) and FSIS (97)
       // row each, so counts are plotted on the correct date and station.
-      const editable = days.filter((entry) => !entry.isLocked || rowTotal(entry) > 0);
+      // Only rows whose values actually changed are sent — untouched days
+      // (e.g. future dates with no values) are skipped entirely.
+      const editable = days.filter((entry) => {
+        const baseline = baselineRows.get(entry.date);
+        const changed = baseline === undefined ? rowTotal(entry) > 0 : rowSignature(entry) !== baseline;
+        if (!changed) return false;
+        return !entry.isLocked || rowTotal(entry) > 0;
+      });
+      if (editable.length === 0) {
+        toast.info("No changes to save.");
+        onOpenChange(false);
+        return;
+      }
+
       for (const entry of editable) {
         const payload = {
           noticeno: EMPTY_GUID,

@@ -679,7 +679,11 @@ export default function TargetReferenceForm({
       }
     }
 
-    const list: TargetReferenceClass[] = days.map((d) => {
+    // Only send days that actually changed against the loaded baseline.
+    // Untouched days (typically future dates with no value) are skipped so the
+    // backend does not count them as encoded/accomplished days.
+    const list: TargetReferenceClass[] = [];
+    days.forEach((d) => {
       const bploKey = `${d}-${SECTOR_NO.BPLO}`;
       const govKey = `${d}-${SECTOR_NO.GOV}`;
       const pezaKey = `${d}-${SECTOR_NO.PEZA}`;
@@ -695,8 +699,9 @@ export default function TargetReferenceForm({
         govtotal !== Number(baselineCells[govKey] ?? 0) ||
         pezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
         tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
+      if (!isaccomplished) return;
       const existingTargetNo = resolvedExistingTargetNos[String(d)];
-      return {
+      list.push({
         targetno:
           existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
         targetdate: toTargetDate(Number(year), Number(month), Number(d)),
@@ -705,8 +710,15 @@ export default function TargetReferenceForm({
         pezatotal,
         tiezatotal,
         isaccomplished,
-      } as TargetReferenceClass;
+      } as TargetReferenceClass);
     });
+
+    if (list.length === 0) {
+      toast.info("No changes to save.");
+      onOpenChange(false);
+      return;
+    }
+
 
     setSaving(true);
     try {

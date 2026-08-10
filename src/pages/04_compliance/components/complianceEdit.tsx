@@ -528,7 +528,45 @@ function ComplianceEditBody({
     });
   }, []);
 
+  /** True when a day (with no saved baseline) carries any encoded value. */
+  const dayHasAnyValue = React.useCallback((day: EditableDay) => {
+    const inspKeys: (keyof FSISComplianceDetailItem)[] = [
+      "inspectduringcount",
+      "inspectaftercount",
+      "inspectbplocount",
+      "inspectgovcount",
+      "inspectpezacount",
+      "inspecttiezacount",
+    ];
+    if (inspKeys.some((k) => Number(day.inspection?.[k] ?? 0) !== 0)) return true;
+    if (String(day.inspection?.remarks ?? "").trim() !== "") return true;
+
+    const issKeys: (keyof EditableIssuance)[] = [
+      "fsecbuildingcount",
+      "fsecgovcount",
+      "fsecpezacount",
+      "fsectiezacount",
+      "fsicoccupancycount",
+      "fsicbplonewcount",
+      "fsicbplorenewcount",
+      "fsicgovcount",
+      "fsicpezacount",
+      "fsictiezacount",
+      "nodcount",
+      "ntccount",
+      "ntcvcount",
+      "abatementcount",
+      "closurecount",
+    ];
+    return issKeys.some(
+      (k) =>
+        Number((day.manual as EditableIssuance)[k] ?? 0) !== 0 ||
+        Number((day.fsis as EditableIssuance)[k] ?? 0) !== 0,
+    );
+  }, []);
+
   const isDayModified = React.useCallback((originalSerialized: string, day: EditableDay) => {
+
     try {
       const orig = JSON.parse(originalSerialized) as {
         inspection: Partial<FSISComplianceDetailItem>;
@@ -929,19 +967,18 @@ function ComplianceEditBody({
 
     setSaving(true);
     try {
-      // Prepare updates for the full reporting month.
-      // Send every day from the 1st through the last day, with zero/empty
-      // values for unchanged rows and `isaccomplished: true` only for
-      // rows that were actually modified.
+      // Only send days that were actually modified. Days left untouched
+      // (typically future dates with no values) are skipped so the backend
+      // does not treat them as encoded/accomplished days.
       const updates: FSISComplianceClass[] = [];
       let hasAnyChange = false;
 
       for (const [, day] of editableDays) {
         const original = baselineMap.get(day.key);
-        const isRowModified = !original || isDayModified(original, day);
-        if (isRowModified) {
-          hasAnyChange = true;
-        }
+        const isRowModified = original ? isDayModified(original, day) : dayHasAnyValue(day);
+        if (!isRowModified) continue;
+        hasAnyChange = true;
+
 
         // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes.
         // Always send both entries so the update payload matches the create structure.
