@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { announcementAPI } from "@/services/announcementAPI";
-import { unwrap } from "@/lib/api-envelope";
 import { useAuth } from "@/lib/auth";
 
 /** How often the unread badge re-syncs with the backend (ms). */
@@ -62,6 +61,25 @@ function toCount(data: unknown): number {
   return 0;
 }
 
+/**
+ * UnreadCount is typed as `apiGet<number>`, while some deployments still wrap
+ * that number in the standard API envelope. Accept both response shapes so a
+ * successful direct `2` response is not mistaken for a failed envelope.
+ */
+function countFromResponse(resp: {
+  isSuccess?: boolean;
+  data?: unknown;
+} | null | undefined): number | null {
+  if (!resp?.isSuccess) return null;
+  const payload = resp.data;
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const envelope = payload as Record<string, unknown>;
+    if ("isSuccess" in envelope && envelope.isSuccess === false) return null;
+    if ("data" in envelope) return toCount(envelope.data);
+  }
+  return toCount(payload);
+}
+
 /** Single throttled + de-duplicated fetch. `force` skips only the throttle. */
 function fetchCount(force = false): Promise<void> {
   if (!memberno) return Promise.resolve();
@@ -80,8 +98,8 @@ function fetchCount(force = false): Promise<void> {
         suppressErrorToast: true,
       },
     );
-    const { ok, data } = unwrap<unknown>(resp);
-    if (ok) setCount(toCount(data));
+    const next = countFromResponse(resp);
+    if (next !== null) setCount(next);
     lastFetchedAt = Date.now();
   })()
     .catch(() => {

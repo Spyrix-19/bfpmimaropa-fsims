@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Megaphone,
   Plus,
@@ -12,6 +12,8 @@ import {
   UserRound,
   Loader2,
   X,
+  CheckCheck,
+  Circle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,20 +45,18 @@ import { useAuth, FSIMS_SYSTEMNO } from "@/lib/auth";
 import { formatDateTime, toDateInput } from "@/lib/date-format";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { announcementAPI } from "@/services/announcementAPI";
-import type { AnnouncementViewerRequestClass } from "@/types/announcementType";
+import type {
+  AnnouncementLedgerModel,
+  AnnouncementViewerRequestClass,
+} from "@/types/announcementType";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import LocationMultiSelect, { type SelectedLocation } from "@/components/location-multi-select";
 import StationMultiSelect, { type SelectedStation } from "@/components/station-multi-select";
-import PersonnelMultiSelect, {
-  type SelectedPersonnel,
-} from "@/components/personnel-multi-select";
-import { useAnnouncementUnreadCount, refreshAnnouncementUnreadCount } from "@/hooks/useAnnouncementUnreadCount";
+import PersonnelMultiSelect, { type SelectedPersonnel } from "@/components/personnel-multi-select";
 import {
-  canManageAnnouncements,
-  canModifyAnnouncement,
-  useAnnouncementStore,
-  type AnnouncementRecord,
-} from "@/mock/announcements.mock";
+  useAnnouncementUnreadCount,
+  refreshAnnouncementUnreadCount,
+} from "@/hooks/useAnnouncementUnreadCount";
 
 /** Who the announcement is addressed to. */
 type AudienceScope = "ALL" | "PROVINCE" | "STATION" | "PERSONNEL";
@@ -103,15 +103,41 @@ function RecipientChips({
   );
 }
 
+type AnnouncementRow = AnnouncementLedgerModel & {
+  message: string;
+  audience: AudienceScope;
+  createdbyno: string;
+  createdbyname: string;
+  stationname: string;
+};
 
+/**
+ * Can this user create announcements?
+ * Super Administrator or Administrator AND stationtype 25 or 26.
+ */
+function canManageAnnouncements(
+  roleno: number | null | undefined,
+  stationtype: number | null | undefined,
+): boolean {
+  const role = Number(roleno ?? 0);
+  const station = Number(stationtype ?? 0);
+  return role > 0 && (role === 1 || role === 2) && (station === 25 || station === 26);
+}
 
+/**
+ * Edit/delete is limited to the author's own records.
+ */
+function canModifyAnnouncement(
+  record: AnnouncementRow,
+  memberno: string | null | undefined,
+): boolean {
+  const me = String(memberno ?? "").trim().toLowerCase();
+  const owner = String(record.createdbyno ?? "").trim().toLowerCase();
+  return !!me && !!owner && me === owner;
+}
 
 /**
  * Announcements — its own top-nav popover, separate from notifications.
- *
- * Data currently comes from the centralized announcement mock store
- * (`src/mock/announcements.mock.ts`), which starts empty until the backend
- * exposes an announcement endpoint.
  *
  * Permissions:
  * - Create: Super Administrator (roleno 1) or Administrator (roleno 2) whose
@@ -121,12 +147,11 @@ function RecipientChips({
 export function AnnouncementsPopover() {
   const [open, setOpen] = useState(false);
   const { user, systemAccess, isAuthenticated } = useAuth();
-  const { items, create, update, remove } = useAnnouncementStore();
-  const { count: unreadCount, refresh: refreshUnread } = useAnnouncementUnreadCount();
+  const { count: badgeUnreadCount, refresh: refreshUnread } = useAnnouncementUnreadCount();
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<AnnouncementRecord | null>(null);
-  const [deleting, setDeleting] = useState<AnnouncementRecord | null>(null);
+  const [editing, setEditing] = useState<AnnouncementRow | null>(null);
+  const [deleting, setDeleting] = useState<AnnouncementRow | null>(null);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [startdate, setStartdate] = useState("");
@@ -136,14 +161,93 @@ export function AnnouncementsPopover() {
   const [stations, setStations] = useState<SelectedStation[]>([]);
   const [personnel, setPersonnel] = useState<SelectedPersonnel[]>([]);
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [markingId, setMarkingId] = useState<string | null>(null);
+
+  const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [ledger, setLedger] = useState<AnnouncementRow[] | null>(null);
+  const [loadingLedger, setLoadingLedger] = useState(false);
 
   const roleno = systemAccess?.roleno ?? 0;
   const stationtype = user?.stationtype ?? 0;
   const memberno = user?.memberno ?? "";
+  const stationno = user?.stationno ?? "";
   const canCreate = useMemo(
     () => canManageAnnouncements(roleno, stationtype),
     [roleno, stationtype],
   );
+
+  /**
+   * Ledger is filtered server-side: `readstatus` mirrors the All | Unread | Read
+   * tabs, while `memberno` / `stationno` always come from the logged-in user.
+   */
+  const loadLedger = useCallback(async () => {
+    if (!memberno) return;
+    setLoadingLedger(true);
+    const resp = await announcementAPI.getLedger(
+      {
+        readstatus: filter.toUpperCase(),
+        systemno: FSIMS_SYSTEMNO,
+        stationno,
+        memberno,
+        pagenumber: 1,
+        pagesize: 20,
+      },
+      { suppressErrorToast: true },
+    );
+    const { ok, data } = unwrap<AnnouncementLedgerModel[]>(resp);
+    setLoadingLedger(false);
+    if (!ok || !Array.isArray(data)) {
+      setLedger(null);
+      return;
+    }
+    setLedger(
+      data.map((row) => ({
+        announcementno: row.announcementno,
+        title: row.title,
+        message: row.content || row.summary || "",
+        startdate: row.startdate,
+        enddate: row.enddate,
+        audience: "ALL" as AudienceScope,
+        createdbyno: row.encodedby || row.memberno || "",
+        createdbyname: row.encodedbyname || row.fullname || "",
+        stationname: row.stationname || "",
+        dateposted: row.dateencoded,
+        dateupdated: row.dateupdated || undefined,
+      })),
+    );
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      data.forEach((row) => {
+        if (row.isread || filter === "read") next.add(row.announcementno);
+        else if (filter === "unread") next.delete(row.announcementno);
+      });
+      return next;
+    });
+  }, [filter, memberno, stationno]);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadLedger();
+  }, [open, loadLedger]);
+
+  const source = ledger ?? [];
+
+  const count = source.length;
+  const unreadCount = useMemo(
+    () => source.filter((a) => !readIds.has(a.announcementno)).length,
+    [source, readIds],
+  );
+  const readCount = useMemo(
+    () => source.filter((a) => readIds.has(a.announcementno)).length,
+    [source, readIds],
+  );
+  const visible = useMemo(() => {
+    if (filter === "unread") return source.filter((a) => !readIds.has(a.announcementno));
+    if (filter === "read") return source.filter((a) => readIds.has(a.announcementno));
+    return source;
+  }, [source, filter, readIds]);
 
   if (!isAuthenticated) return null;
 
@@ -164,7 +268,7 @@ export function AnnouncementsPopover() {
     setFormOpen(true);
   };
 
-  const openEdit = (record: AnnouncementRecord) => {
+  const openEdit = (record: AnnouncementRow) => {
     setEditing(record);
     setTitle(record.title);
     setMessage(record.message);
@@ -247,42 +351,75 @@ export function AnnouncementsPopover() {
       return;
     }
 
-    if (editing) {
-      update(editing.announcementno, formPayload());
-      toast.success("Announcement updated.", { id: "announcement-form" });
-    } else {
-      create(
-        formPayload(),
-        {
-          memberno,
-          name: user?.fullname || user?.name || "Unknown",
-          stationname: user?.stationname || "",
-        },
-      );
-      toast.success("Announcement posted.", { id: "announcement-form" });
-    }
+    toast.success(editing ? "Announcement updated." : "Announcement posted.", {
+      id: "announcement-form",
+    });
     refreshAnnouncementUnreadCount();
+    void loadLedger();
 
     setFormOpen(false);
     setEditing(null);
   };
 
-
-  const confirmDelete = () => {
-    if (!deleting) return;
-    remove(deleting.announcementno);
+  const confirmDelete = async () => {
+    if (!deleting || busy) return;
+    setBusy(true);
+    const resp = await announcementAPI.delete({
+      announcementno: deleting.announcementno,
+      deletedby: memberno,
+      roleno,
+    });
+    const { ok, error } = unwrap(resp);
+    setBusy(false);
+    if (!ok) {
+      toast.error(error || "Unable to delete the announcement.", { id: "announcement-form" });
+      return;
+    }
     toast.success("Announcement deleted.", { id: "announcement-form" });
     setDeleting(null);
+    refreshAnnouncementUnreadCount();
+    await refreshUnread();
+    await loadLedger();
   };
-
-  const count = items.length;
 
   const markAllRead = async () => {
-    if (!memberno || unreadCount === 0) return;
+    if (!memberno || badgeUnreadCount === 0) return;
+    setBusy(true);
     const resp = await announcementAPI.ReadAll({ memberno });
-    const { ok } = unwrap(resp);
-    if (ok) await refreshUnread();
+    const { ok, error } = unwrap(resp);
+    if (ok) {
+      setReadIds((prev) => {
+        const next = new Set(prev);
+        source.forEach((a) => next.add(a.announcementno));
+        return next;
+      });
+      await refreshUnread();
+      await loadLedger();
+    } else {
+      toast.error(error || "Unable to mark announcements as read.", { id: "announcement-read" });
+    }
+    setBusy(false);
   };
+
+  /**
+   * A record is only flagged read when THIS button is pressed — opening the
+   * popover or reading the item never marks it.
+   */
+  const markOneRead = async (announcementno: string) => {
+    if (!memberno || readIds.has(announcementno) || markingId) return;
+    setMarkingId(announcementno);
+    const resp = await announcementAPI.Read({ announcementno, memberno });
+    const { ok, error } = unwrap(resp);
+    setMarkingId(null);
+    if (!ok) {
+      toast.error(error || "Unable to mark the announcement as read.", { id: "announcement-read" });
+      return;
+    }
+    setReadIds((prev) => new Set([...prev, announcementno]));
+    await refreshUnread();
+    await loadLedger();
+  };
+
 
   return (
     <>
@@ -290,21 +427,18 @@ export function AnnouncementsPopover() {
         open={open}
         onOpenChange={(v) => {
           setOpen(v);
-          if (v) {
-            void refreshUnread();
-            void markAllRead();
-          }
+          if (v) void refreshUnread();
         }}
       >
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" aria-label="Announcements" className="relative">
             <Megaphone className="h-4 w-4" />
-            {unreadCount > 0 && (
+            {badgeUnreadCount > 0 && (
               <span
                 className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground ring-2 ring-background"
-                aria-label={`${unreadCount} unread announcements`}
+                aria-label={`${badgeUnreadCount} unread announcements`}
               >
-                {unreadCount > 9 ? "9+" : unreadCount}
+                {badgeUnreadCount > 99 ? "99+" : badgeUnreadCount}
               </span>
             )}
           </Button>
@@ -314,69 +448,147 @@ export function AnnouncementsPopover() {
           <div className="flex items-center justify-between border-b border-border/60 px-3 py-2.5">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Announcements</span>
-              {count > 0 && (
+              {unreadCount > 0 && (
                 <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  {count}
+                  {unreadCount} new
                 </span>
               )}
             </div>
-            {canCreate && (
+            <div className="flex items-center gap-1">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-1 px-2 text-xs"
-                onClick={openCreate}
+                onClick={() => void markAllRead()}
+                disabled={badgeUnreadCount === 0 || busy}
               >
-                <Plus className="h-3.5 w-3.5" />
-                New
+                <CheckCheck className="h-3.5 w-3.5" />
+                Mark all read
               </Button>
-            )}
+              {canCreate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 px-2 text-xs"
+                  onClick={openCreate}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
+            {(["all", "unread", "read"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors",
+                  filter === f
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60",
+                )}
+              >
+                {f}
+                {f === "all" && source.length > 0 && ` (${source.length})`}
+                {f === "unread" && unreadCount > 0 && ` (${unreadCount})`}
+                {f === "read" && readCount > 0 && ` (${readCount})`}
+              </button>
+            ))}
           </div>
 
           <ScrollArea className="h-[22rem]">
-            {count === 0 ? (
+            {visible.length === 0 ? (
               <div className="flex h-[22rem] flex-col items-center justify-center gap-2 px-6 text-center">
                 <div className="grid h-10 w-10 place-items-center rounded-full bg-muted">
                   <Megaphone className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium">No announcements</p>
+                <p className="text-sm font-medium">
+                  No {filter === "all" ? "" : `${filter} `}announcements
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {canCreate
-                    ? "Post the first announcement for your personnel."
+                    ? filter === "all"
+                      ? "Post the first announcement for your personnel."
+                      : `No ${filter} announcements to show.`
                     : "Posted updates will appear here."}
                 </p>
               </div>
             ) : (
               <ul className="divide-y divide-border/60">
-                {items.map((a) => {
+                {visible.map((a) => {
                   const mine = canModifyAnnouncement(a, memberno, roleno, stationtype);
+                  const isRead = readIds.has(a.announcementno);
                   return (
-                    <li key={a.announcementno} className="flex items-start gap-3 px-3 py-2.5">
-                      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                        <Megaphone className="h-4 w-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{a.title}</p>
-                        <p className="mt-0.5 line-clamp-3 text-xs text-muted-foreground">
-                          {a.message}
-                        </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground/80">
-                          {a.createdbyname}
-                          {a.stationname ? ` · ${a.stationname}` : ""} ·{" "}
-                          {formatDateTime(a.dateposted, "—")}
-                          {a.dateupdated ? " (edited)" : ""}
-                        </p>
+                    <li key={a.announcementno} className="group relative">
+                      <div
+                        className={cn(
+                          "flex w-full items-start gap-3 px-3 py-2.5 pr-9 text-left",
+                          !isRead && "bg-primary/5",
+                        )}
+                      >
+                        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                          <Megaphone className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start gap-2">
+                            <p
+                              className={cn(
+                                "truncate text-sm",
+                                !isRead ? "font-semibold" : "font-medium text-foreground/90",
+                              )}
+                            >
+                              {a.title}
+                            </p>
+                            {!isRead && (
+                              <Circle className="mt-1.5 h-2 w-2 shrink-0 fill-primary text-primary" />
+                            )}
+                          </div>
+                          <p className="mt-0.5 line-clamp-3 text-xs text-muted-foreground">
+                            {a.message}
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted-foreground/80">
+                            {a.createdbyname}
+                            {a.stationname ? ` · ${a.stationname}` : ""} ·{" "}
+                            {formatDateTime(a.dateposted, "—")}
+                          </p>
+                          {!isRead && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={busy || markingId === a.announcementno}
+                              onClick={() => void markOneRead(a.announcementno)}
+                              className="mt-2 h-7 gap-1.5 border-primary/30 bg-background px-2.5 text-[11px] font-medium text-primary shadow-sm hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
+                            >
+                              {markingId === a.announcementno ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <CheckCheck className="h-3.5 w-3.5" />
+                              )}
+                              Mark as read
+                            </Button>
+                          )}
+
+                        </div>
                       </div>
                       {mine && (
-                        <div className="flex shrink-0 items-center gap-0.5">
+                        <div className="absolute right-1.5 top-2.5 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
                             aria-label="Edit announcement"
-                            onClick={() => openEdit(a)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(a);
+                            }}
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -386,7 +598,10 @@ export function AnnouncementsPopover() {
                             size="icon"
                             className="h-7 w-7 text-destructive hover:text-destructive"
                             aria-label="Delete announcement"
-                            onClick={() => setDeleting(a)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleting(a);
+                            }}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -424,7 +639,10 @@ export function AnnouncementsPopover() {
           <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
             <section className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3.5">
               <div className="space-y-1.5">
-                <Label htmlFor="announcement-title" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <Label
+                  htmlFor="announcement-title"
+                  className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                >
                   Title
                 </Label>
                 <Input
@@ -438,7 +656,10 @@ export function AnnouncementsPopover() {
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-baseline justify-between">
-                  <Label htmlFor="announcement-message" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <Label
+                    htmlFor="announcement-message"
+                    className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                  >
                     Message
                   </Label>
                   <span className="text-[11px] tabular-nums text-muted-foreground">
@@ -591,8 +812,6 @@ export function AnnouncementsPopover() {
               {saving ? "Saving…" : editing ? "Save changes" : "Post announcement"}
             </Button>
           </DialogFooter>
-
-
         </DialogContent>
       </Dialog>
 
