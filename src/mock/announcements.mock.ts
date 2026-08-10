@@ -9,10 +9,23 @@ import * as React from "react";
  * `useAnnouncementStore()` so swapping this file for a real API later touches
  * nothing else.
  */
-export interface AnnouncementRecord {
+export type AnnouncementAudience = "ALL" | "PROVINCE" | "STATION" | "PERSONNEL";
+
+/** Recipient selections kept so the edit form can be re-plotted exactly. */
+export interface AnnouncementAudienceData {
+  audience: AnnouncementAudience;
+  provinces?: { locationno: string; locationname: string }[];
+  stations?: { stationno: string; stationname: string }[];
+  personnel?: { memberno: string; fullname: string }[];
+}
+
+export interface AnnouncementRecord extends AnnouncementAudienceData {
   announcementno: string;
   title: string;
   message: string;
+  /** yyyy-MM-dd display window. */
+  startdate: string;
+  enddate: string;
   /** memberno of the author — used for "own record only" edit/delete rules. */
   createdbyno: string;
   createdbyname: string;
@@ -21,9 +34,11 @@ export interface AnnouncementRecord {
   dateupdated?: string; // ISO
 }
 
-export interface AnnouncementInput {
+export interface AnnouncementInput extends AnnouncementAudienceData {
   title: string;
   message: string;
+  startdate: string;
+  enddate: string;
 }
 
 /** Station types allowed to manage announcements (national / regional office). */
@@ -97,6 +112,12 @@ const store = {
         announcementno: `ann-${now}-${Math.random().toString(36).slice(2, 8)}`,
         title: input.title.trim(),
         message: input.message.trim(),
+        startdate: input.startdate,
+        enddate: input.enddate,
+        audience: input.audience,
+        provinces: input.provinces ?? [],
+        stations: input.stations ?? [],
+        personnel: input.personnel ?? [],
         createdbyno: author.memberno,
         createdbyname: author.name,
         stationname: author.stationname,
@@ -114,6 +135,12 @@ const store = {
               ...r,
               title: input.title.trim(),
               message: input.message.trim(),
+              startdate: input.startdate,
+              enddate: input.enddate,
+              audience: input.audience,
+              provinces: input.provinces ?? [],
+              stations: input.stations ?? [],
+              personnel: input.personnel ?? [],
               dateupdated: new Date().toISOString(),
             }
           : r,

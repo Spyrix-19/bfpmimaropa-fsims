@@ -41,7 +41,7 @@ export const announcementAPI = {
   },
 
   async UnreadCount(params?: AnnouncementMemberParams, options?: import("@/lib/api").ApiOptions) {
-    return await apiGet<AnnouncementLedgerModel[]>("/api/v1/Announcement/UnreadCount", {
+    return await apiGet<number>("/api/v1/Announcement/UnreadCount", {
       params,
       ...GET_RETRY,
       ...options,

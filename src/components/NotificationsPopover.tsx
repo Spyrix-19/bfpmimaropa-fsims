@@ -22,7 +22,7 @@ export function NotificationsPopover() {
   const [items, setItems] = useState<NotificationModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [open, setOpen] = useState(false);
 
   const memberno = user?.memberno ?? "";
@@ -64,10 +64,12 @@ export function NotificationsPopover() {
   }, [load]);
 
   const unreadCount = useMemo(() => items.filter((i) => !i.isread).length, [items]);
-  const visible = useMemo(
-    () => (filter === "unread" ? items.filter((i) => !i.isread) : items),
-    [items, filter],
-  );
+  const readCount = useMemo(() => items.filter((i) => i.isread).length, [items]);
+  const visible = useMemo(() => {
+    if (filter === "unread") return items.filter((i) => !i.isread);
+    if (filter === "read") return items.filter((i) => i.isread);
+    return items;
+  }, [items, filter]);
 
   const markRead = async (list: NotificationModel[]) => {
     const targets = list.filter((n) => !n.isread);
@@ -162,7 +164,7 @@ export function NotificationsPopover() {
         </div>
 
         <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
-          {(["all", "unread"] as const).map((f) => (
+          {(["all", "unread", "read"] as const).map((f) => (
             <button
               key={f}
               type="button"
@@ -175,7 +177,9 @@ export function NotificationsPopover() {
               )}
             >
               {f}
+              {f === "all" && items.length > 0 && ` (${items.length})`}
               {f === "unread" && unreadCount > 0 && ` (${unreadCount})`}
+              {f === "read" && readCount > 0 && ` (${readCount})`}
             </button>
           ))}
         </div>
@@ -192,7 +196,7 @@ export function NotificationsPopover() {
               </div>
               <p className="text-sm font-medium">You're all caught up</p>
               <p className="text-xs text-muted-foreground">
-                No {filter === "unread" ? "unread " : ""}notifications right now.
+                No {filter === "all" ? "" : `${filter} `}notifications right now.
               </p>
             </div>
           ) : (

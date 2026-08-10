@@ -80,6 +80,6 @@ export interface AnnouncementDeleteParams {
 }
 
 export interface AnnouncementMemberParams {
-  memberno: number;
+  memberno: string;
 }
 
