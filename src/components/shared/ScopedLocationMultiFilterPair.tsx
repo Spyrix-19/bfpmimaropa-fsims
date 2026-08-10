@@ -159,7 +159,7 @@ export function ScopedLocationMultiFilterPair({
 
   return (
     <>
-      <Field label="Province">
+      <Field label="Provinces">
         {scope.provinceLocked ? (
           <ReadOnlyField
             value={scope.provincename}
@@ -180,7 +180,7 @@ export function ScopedLocationMultiFilterPair({
         )}
       </Field>
 
-      <Field label="Station">
+      <Field label="Stations">
         {scope.stationLocked ? (
           <ReadOnlyField
             value={scope.stationname}

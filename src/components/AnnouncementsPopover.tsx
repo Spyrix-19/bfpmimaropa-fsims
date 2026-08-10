@@ -13,6 +13,7 @@ import {
   X,
   CheckCheck,
   Circle,
+  ChevronDown,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -144,9 +145,14 @@ function canModifyAnnouncement(
 ): boolean {
   if (!canManageAnnouncements(roleno, stationtype)) return false;
   const me = String(memberno ?? "").trim().toLowerCase();
+  if (!me) return false;
   const owner = String(record.createdbyno ?? "").trim().toLowerCase();
-  return !!me && !!owner && me === owner;
+  // Some ledger payloads omit / zero-out the author id — managers still get
+  // the controls in that case instead of the row silently going read-only.
+  if (!owner || owner === EMPTY_GUID.toLowerCase()) return true;
+  return me === owner;
 }
+
 
 /**
  * Announcements — its own top-nav popover, separate from notifications.
@@ -173,6 +179,8 @@ export function AnnouncementsPopover() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [clampedIds, setClampedIds] = useState<Set<string>>(new Set());
 
 
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
@@ -518,12 +526,25 @@ export function AnnouncementsPopover() {
                 {visible.map((a) => {
                   const mine = canModifyAnnouncement(a, memberno, roleno, stationtype);
                   const isRead = readIds.has(a.announcementno);
+                  const isExpanded = expandedIds.has(a.announcementno);
+                  const messageRef = (node: HTMLParagraphElement | null) => {
+                    if (!node) return;
+                    const isClamped = node.scrollHeight > node.clientHeight + 1;
+                    setClampedIds((prev) => {
+                      if (isClamped && !prev.has(a.announcementno)) {
+                        return new Set([...prev, a.announcementno]);
+                      }
+                      return prev;
+                    });
+                  };
                   return (
                     <li key={a.announcementno} className="group relative">
                       <div
                         className={cn(
-                          "flex w-full items-start gap-3 px-3 py-2.5 pr-9 text-left",
+                          "flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors",
+                          mine ? "pr-[5.5rem]" : "pr-4",
                           !isRead && "bg-primary/5",
+                          "hover:bg-muted/60",
                         )}
                       >
                         <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
@@ -533,7 +554,7 @@ export function AnnouncementsPopover() {
                           <div className="flex items-start gap-2">
                             <p
                               className={cn(
-                                "truncate text-sm",
+                                "min-w-0 flex-1 break-words text-sm",
                                 !isRead ? "font-semibold" : "font-medium text-foreground/90",
                               )}
                             >
@@ -543,14 +564,44 @@ export function AnnouncementsPopover() {
                               <Circle className="mt-1.5 h-2 w-2 shrink-0 fill-primary text-primary" />
                             )}
                           </div>
-                          <p className="mt-0.5 line-clamp-3 text-xs text-muted-foreground">
+                          <p
+                            ref={messageRef}
+                            className={cn(
+                              "mt-1 text-xs leading-snug text-muted-foreground [overflow-wrap:anywhere]",
+                              !isExpanded && "line-clamp-3",
+                            )}
+                          >
                             {a.message}
                           </p>
-                          <p className="mt-1 text-[11px] text-muted-foreground/80">
+                          {clampedIds.has(a.announcementno) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(a.announcementno)) next.delete(a.announcementno);
+                                  else next.add(a.announcementno);
+                                  return next;
+                                })
+                              }
+                              className="mt-0.5 inline-flex items-center gap-0.5 rounded-md text-[11px] font-semibold text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-primary/40"
+                            >
+                              {isExpanded ? "Show less" : "Show more"}
+                              <ChevronDown
+                                className={cn(
+                                  "h-3 w-3 transition-transform",
+                                  isExpanded && "rotate-180",
+                                )}
+                              />
+                            </button>
+                          )}
+                          <p className="mt-1 break-words text-[11px] tracking-tight text-muted-foreground/70">
                             {a.createdbyname}
                             {a.stationname ? ` · ${a.stationname}` : ""} ·{" "}
                             {formatDateTime(a.dateposted, "—")}
                           </p>
+
+
                           {!isRead && (
                             <Button
                               type="button"
@@ -558,7 +609,7 @@ export function AnnouncementsPopover() {
                               size="sm"
                               disabled={busy || markingId === a.announcementno}
                               onClick={() => void markOneRead(a.announcementno)}
-                              className="mt-2 h-7 gap-1.5 border-primary/30 bg-background px-2.5 text-[11px] font-medium text-primary shadow-sm hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
+                              className="mt-1.5 h-6 gap-1.5 rounded-md border-border bg-background px-2 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                             >
                               {markingId === a.announcementno ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -568,16 +619,15 @@ export function AnnouncementsPopover() {
                               Mark as read
                             </Button>
                           )}
-
                         </div>
                       </div>
                       {mine && (
-                        <div className="absolute right-1.5 top-2.5 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                        <div className="absolute right-2 top-2 flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                             aria-label="Edit announcement"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -590,7 +640,7 @@ export function AnnouncementsPopover() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            className="h-7 w-7 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             aria-label="Delete announcement"
                             onClick={(e) => {
                               e.stopPropagation();

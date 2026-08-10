@@ -473,7 +473,6 @@ export default function TargetReferenceIndexPage() {
         onReset={handleResetFilters}
       >
         <ScopedLocationMultiFilterPair
-          hideLabels
           scope={scope}
           selection={locationSel}
           reportyear={Number(year)}

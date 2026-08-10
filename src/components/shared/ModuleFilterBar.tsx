@@ -2,6 +2,7 @@ import * as React from "react";
 import { addDays, endOfWeek, startOfWeek } from "date-fns";
 import { CalendarIcon, ChevronDown, Check } from "lucide-react";
 import ResetFiltersButton from "@/components/reset-filters-button";
+import FilterField from "@/components/filter-field";
 
 import {
   Select,
@@ -643,28 +644,45 @@ export function ModuleFilterBar({
   /** DAILY only: when false, the "All (whole month)" shortcut is hidden. */
   allowAllDays?: boolean;
 }) {
+  const subFilterLabel: Record<string, string> = {
+    DAILY: "Date",
+    WEEKLY: "Week",
+    MONTHLY: "Month",
+    QUARTERLY: "Quarter",
+    SEMESTER: "Semester",
+  };
+  const subLabel = subFilterLabel[state.interval];
+
   return (
     <div className="glass-panel rounded-2xl p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="grid flex-1 grid-cols-2 gap-2 md:grid-cols-5">
           {leading}
 
-          <Select value={state.year} onValueChange={(v) => onChange({ year: v })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterField label="Year">
+            <Select value={state.year} onValueChange={(v) => onChange({ year: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
 
-          <PeriodSelect value={state.interval} onChange={onChange} intervals={intervals} />
+          <FilterField label="Period">
+            <PeriodSelect value={state.interval} onChange={onChange} intervals={intervals} />
+          </FilterField>
 
-          <SubFilterControl state={state} onChange={onChange} allowAllDays={allowAllDays} />
+          {subLabel ? (
+            <FilterField label={subLabel}>
+              <SubFilterControl state={state} onChange={onChange} allowAllDays={allowAllDays} />
+            </FilterField>
+          ) : null}
 
           {children}
         </div>

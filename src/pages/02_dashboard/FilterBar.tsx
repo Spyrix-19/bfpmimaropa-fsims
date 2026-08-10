@@ -13,6 +13,7 @@ import { LocationMultiSelect, type SelectedLocation } from "@/components/locatio
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
+import FilterField from "@/components/filter-field";
 import { ModuleFilterBar, type ModuleFilterState } from "@/components/shared/ModuleFilterBar";
 
 /**
@@ -217,42 +218,46 @@ export function FilterBar() {
       onReset={reset}
       intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
     >
-      {scope.provinceLocked ? (
-        <ReadOnlyField
-          value={scope.provincename}
-          placeholder="All provinces"
-          title="Restricted to your assigned province"
-        />
-      ) : (
-        <LocationMultiSelect
-          mode="location"
-          value={filters.provinces}
-          locationtype="PROVINCE"
-          parentcode={MIMAROPA_REGION_CODE}
-          onChange={handleProvincesChange}
-          placeholder="All provinces"
-          hideCode
-          className="w-full"
-        />
-      )}
+      <FilterField label="Provinces">
+        {scope.provinceLocked ? (
+          <ReadOnlyField
+            value={scope.provincename}
+            placeholder="All provinces"
+            title="Restricted to your assigned province"
+          />
+        ) : (
+          <LocationMultiSelect
+            mode="location"
+            value={filters.provinces}
+            locationtype="PROVINCE"
+            parentcode={MIMAROPA_REGION_CODE}
+            onChange={handleProvincesChange}
+            placeholder="All provinces"
+            hideCode
+            className="w-full"
+          />
+        )}
+      </FilterField>
 
-      {scope.stationLocked ? (
-        <ReadOnlyField
-          value={scope.stationname}
-          placeholder="All stations"
-          title="Restricted to your assigned station"
-        />
-      ) : (
-        <StationMultiSelect
-          mode="station"
-          value={filters.stations}
-          provinces={filters.provinces.map((p) => ({ provinceno: p.locationno }))}
-          reportyear={Number(filters.year)}
-          onChange={handleStationsChange}
-          placeholder="All stations"
-          alwaysEnabled
-        />
-      )}
+      <FilterField label="Stations">
+        {scope.stationLocked ? (
+          <ReadOnlyField
+            value={scope.stationname}
+            placeholder="All stations"
+            title="Restricted to your assigned station"
+          />
+        ) : (
+          <StationMultiSelect
+            mode="station"
+            value={filters.stations}
+            provinces={filters.provinces.map((p) => ({ provinceno: p.locationno }))}
+            reportyear={Number(filters.year)}
+            onChange={handleStationsChange}
+            placeholder="All stations"
+            alwaysEnabled
+          />
+        )}
+      </FilterField>
     </ModuleFilterBar>
   );
 }

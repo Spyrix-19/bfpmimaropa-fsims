@@ -854,7 +854,6 @@ export default function AccomplishedNotice() {
         allowAllDays
       >
         <ScopedLocationMultiFilterPair
-          hideLabels
           scope={scope}
           selection={locationSel}
           reportyear={Number(year)}

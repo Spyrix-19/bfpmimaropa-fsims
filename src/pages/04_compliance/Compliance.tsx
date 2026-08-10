@@ -178,15 +178,28 @@ function mapMonthlyItemToRow(
     notices: sumOf(breakdown.notices),
   };
 
-  // COUNT(DISTINCT dateinspected) — skip the 1900 sentinel used by empty rows.
+  // Days with data — mirrors Target Reference / Notices: only count a date
+  // when that day actually carries non-zero values (skip the 1900 sentinel
+  // and skip seeded/empty daily rows, which would otherwise report 31 / 31).
+  const ALL_DAILY_KEYS = [
+    ...Object.values(LEDGER_FIELD_MAP.inspection),
+    ...Object.values(LEDGER_FIELD_MAP.fsec),
+    ...Object.values(LEDGER_FIELD_MAP.fsic),
+    ...Object.values(LEDGER_FIELD_MAP.notices),
+  ] as (keyof FSISComplianceLedgerDailyItem)[];
+  const rowHasData = (d: FSISComplianceLedgerDailyItem) =>
+    ALL_DAILY_KEYS.some((k) => (Number(d?.[k] ?? 0) || 0) !== 0);
+
   const dateSet = new Set<string>();
   let latestDate = "";
   for (const d of daily) {
     const iso = String(d?.dateinspected ?? "").slice(0, 10);
     if (!iso || iso.startsWith("1900")) continue;
+    if (!rowHasData(d)) continue;
     dateSet.add(iso);
     if (iso > latestDate) latestDate = iso;
   }
+
   if (!latestDate) {
     const iso = String((item as { dateinspected?: string | Date }).dateinspected ?? "").slice(
       0,
@@ -761,7 +774,6 @@ export default function FireSafetyCompliancePage() {
         allowAllDays
       >
         <ScopedLocationMultiFilterPair
-          hideLabels
           scope={scope}
           selection={locationSel}
           reportyear={Number(year)}
