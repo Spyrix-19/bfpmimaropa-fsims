@@ -2,6 +2,8 @@ import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
+import { AutoFitText } from "@/components/auto-fit-text";
+
 import { Trophy, BadgeCheck, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -24,8 +26,13 @@ function MonthlyBreakdown({ station }: { station: RankedStation }) {
       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Monthly Performance
       </div>
-      <div className="w-full max-w-full overflow-x-auto rounded-md border border-border/40 bg-card/40">
-        <table className="w-full min-w-[320px] text-[9px] sm:text-[10px]">
+      {/* No inner scrollbar: the font auto-shrinks so the table always fits. */}
+      <AutoFitText
+        className="w-full max-w-full rounded-md border border-border/40 bg-card/40"
+        baseFontSize={10}
+        minFontSize={5}
+      >
+        <table className="w-full table-auto">
           <thead className="bg-card/95 backdrop-blur">
             <tr className="text-muted-foreground">
               <th className="px-1.5 py-1 text-left font-medium">Month</th>
@@ -42,18 +49,26 @@ function MonthlyBreakdown({ station }: { station: RankedStation }) {
                 <td className="whitespace-nowrap px-1.5 py-1 text-left text-foreground">
                   {MONTH_NAMES[Math.min(Math.max(Number(m.month), 1), 12) - 1]}
                 </td>
-                <td className="px-1.5 py-1 text-right">{formatPct(Number(m.bploPercentage))}</td>
-                <td className="px-1.5 py-1 text-right">{formatPct(Number(m.govPercentage))}</td>
-                <td className="px-1.5 py-1 text-right">{formatPct(Number(m.pezaPercentage))}</td>
-                <td className="px-1.5 py-1 text-right">{formatPct(Number(m.tiezaPercentage))}</td>
-                <td className="px-1.5 py-1 text-right font-semibold text-foreground">
+                <td className="whitespace-nowrap px-1.5 py-1 text-right">
+                  {formatPct(Number(m.bploPercentage))}
+                </td>
+                <td className="whitespace-nowrap px-1.5 py-1 text-right">
+                  {formatPct(Number(m.govPercentage))}
+                </td>
+                <td className="whitespace-nowrap px-1.5 py-1 text-right">
+                  {formatPct(Number(m.pezaPercentage))}
+                </td>
+                <td className="whitespace-nowrap px-1.5 py-1 text-right">
+                  {formatPct(Number(m.tiezaPercentage))}
+                </td>
+                <td className="whitespace-nowrap px-1.5 py-1 text-right font-semibold text-foreground">
                   {formatPct(Number(m.overallPercentage))}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </AutoFitText>
     </div>
   );
 }
@@ -262,7 +277,8 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
         ) : topStations.length === 0 ? (
           <EmptyState>No station performance data is available for the current reporting period.</EmptyState>
         ) : (
-          <div className="w-full overflow-hidden">
+          <div className="w-full max-h-[26rem] overflow-y-auto overflow-x-hidden overscroll-contain">
+
             <ol>
               {topStations.map((s, i) => (
                 <TopStationRow key={s.stationno || s.stationcode || i} station={s} rank={s.rank} />
@@ -289,7 +305,7 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
             period.
           </EmptyState>
         ) : (
-          <div className="w-full overflow-hidden">
+          <div className="w-full max-h-[26rem] overflow-y-auto overflow-x-hidden overscroll-contain">
             <ul>
               {perfectStations.map((s, i) => (
                 <PerfectStationRow

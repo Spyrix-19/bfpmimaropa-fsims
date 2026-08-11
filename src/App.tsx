@@ -5,6 +5,8 @@ import { AuthProvider, useAuth, moduleForPath, type AppModule } from "@/lib/auth
 import { FiltersProvider } from "@/lib/filters";
 import { AppShell } from "@/components/AppShell";
 import { Toaster } from "@/components/ui/sonner";
+import { PwaStatus } from "@/components/PwaStatus";
+
 
 const Dashboard = lazy(() => import("@/pages/02_dashboard/Dashboard"));
 const Monitoring = lazy(() => import("./pages/04_compliance/Compliance.tsx"));
@@ -238,6 +240,8 @@ export default function App() {
               </Suspense>
             </AppShell>
             <Toaster richColors position="top-right" />
+            <PwaStatus />
+
           </BrowserRouter>
         </FiltersProvider>
       </AuthProvider>
