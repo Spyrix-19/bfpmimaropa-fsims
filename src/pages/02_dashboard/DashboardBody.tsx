@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Download,
   ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
@@ -109,9 +110,16 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
     ? Math.round((sectorTotals.accomplished / sectorTotals.target) * 100)
     : 0;
 
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
-      <div className="flex items-start justify-between gap-3">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
         <div className="min-w-0">
           <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Inspections
@@ -126,63 +134,72 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
             <span className="text-sm font-semibold text-success tabular-nums">{completion}%</span>
           </div>
         </div>
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Target className="h-5 w-5" />
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+            <Target className="h-5 w-5" />
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
         </div>
-      </div>
+      </button>
 
-      <div className="mt-3 overflow-x-auto border-t border-border/60 pt-3">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <th className="py-1 text-left">Sector</th>
-              <th className="py-1 text-center">Target</th>
-              <th className="py-1 text-center">Accomplished</th>
-              <th className="py-1 text-center">Remaining</th>
-              <th className="py-1 text-center">Positive Listing</th>
-              <th className="py-1 text-center">%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sectorProgress.map((s) => {
-              const remaining = s.target - s.accomplished;
-              const positive = Math.max(s.accomplished - s.target, 0);
-              const pct = s.target ? Math.round((s.accomplished / s.target) * 100) : 0;
-              return (
-                <tr key={s.name} className="border-t border-border/40">
-                  <td className="py-1.5 text-left font-semibold">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ background: SECTOR_COLORS[s.name] }}
-                      />
-                      {s.name}
-                    </span>
-                  </td>
-                  <td className="py-1.5 text-center tabular-nums">{s.target.toLocaleString()}</td>
-                  <td className="py-1.5 text-center font-semibold tabular-nums text-success">
-                    {s.accomplished.toLocaleString()}
-                  </td>
-                  <td
-                    className={`py-1.5 text-center tabular-nums ${remaining < 0 ? "text-success" : "text-warning"}`}
-                    title={remaining < 0 ? "Accomplishment exceeded target" : undefined}
-                  >
-                    {remaining.toLocaleString()}
-                  </td>
-                  <td className="py-1.5 text-center tabular-nums text-success">
-                    {positive ? positive.toLocaleString() : "—"}
-                  </td>
-                  <td
-                    className={`py-1.5 text-center font-semibold tabular-nums ${pct >= 100 ? "text-success" : ""}`}
-                  >
-                    {pct}%
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {expanded && (
+        <div className="mt-3 overflow-x-auto border-t border-border/60 pt-3">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <th className="py-1 text-left">Sector</th>
+                <th className="py-1 text-center">Target</th>
+                <th className="py-1 text-center">Accomplished</th>
+                <th className="py-1 text-center">Remaining</th>
+                <th className="py-1 text-center">Positive Listing</th>
+                <th className="py-1 text-center">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sectorProgress.map((s) => {
+                const remaining = s.target - s.accomplished;
+                const positive = Math.max(s.accomplished - s.target, 0);
+                const pct = s.target ? Math.round((s.accomplished / s.target) * 100) : 0;
+                return (
+                  <tr key={s.name} className="border-t border-border/40">
+                    <td className="py-1.5 text-left font-semibold">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ background: SECTOR_COLORS[s.name] }}
+                        />
+                        {s.name}
+                      </span>
+                    </td>
+                    <td className="py-1.5 text-center tabular-nums">{s.target.toLocaleString()}</td>
+                    <td className="py-1.5 text-center font-semibold tabular-nums text-success">
+                      {s.accomplished.toLocaleString()}
+                    </td>
+                    <td
+                      className={`py-1.5 text-center tabular-nums ${remaining < 0 ? "text-success" : "text-warning"}`}
+                      title={remaining < 0 ? "Accomplishment exceeded target" : undefined}
+                    >
+                      {remaining.toLocaleString()}
+                    </td>
+                    <td className="py-1.5 text-center tabular-nums text-success">
+                      {positive ? positive.toLocaleString() : "—"}
+                    </td>
+                    <td
+                      className={`py-1.5 text-center font-semibold tabular-nums ${pct >= 100 ? "text-success" : ""}`}
+                    >
+                      {pct}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 }
@@ -199,9 +216,15 @@ function BreakdownCard({
   rows: { label: string; value: number }[];
 }) {
   const total = rows.reduce((a, r) => a + r.value, 0);
+  const [expanded, setExpanded] = useState(false);
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
-      <div className="flex items-start justify-between gap-3">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
         <div className="min-w-0">
           <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {label}
@@ -210,23 +233,32 @@ function BreakdownCard({
             {total.toLocaleString()}
           </div>
         </div>
-        <div
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-            accent ?? "bg-primary/10 text-primary"
-          }`}
-        >
-          {icon}
-        </div>
-      </div>
-
-      <div className="mt-3 divide-y divide-border/40 border-t border-border/60 pt-1">
-        {rows.map((r) => (
-          <div key={r.label} className="flex items-center justify-between gap-2 py-1.5">
-            <span className="truncate text-xs text-muted-foreground">{r.label}</span>
-            <span className="text-sm font-semibold tabular-nums">{r.value.toLocaleString()}</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <div
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
+              accent ?? "bg-primary/10 text-primary"
+            }`}
+          >
+            {icon}
           </div>
-        ))}
-      </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="mt-3 divide-y divide-border/40 border-t border-border/60 pt-1">
+          {rows.map((r) => (
+            <div key={r.label} className="flex items-center justify-between gap-2 py-1.5">
+              <span className="truncate text-xs text-muted-foreground">{r.label}</span>
+              <span className="text-sm font-semibold tabular-nums">{r.value.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
@@ -280,62 +312,92 @@ function NoticeCard({
   const total = data.pending;
   const remaining = data.pending - data.accomplished;
   const pct = total ? Math.round((data.accomplished / total) * 100) : 0;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
-      <div className="flex items-start justify-between gap-3">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
         <div className="min-w-0">
           <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {label}
           </div>
           <div className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums">
-            {total.toLocaleString()}
+            {expanded ? (
+              total.toLocaleString()
+            ) : (
+              <>
+                {data.accomplished.toLocaleString()}
+                <span className="mx-1 text-muted-foreground">/</span>
+                {data.pending.toLocaleString()}
+              </>
+            )}
           </div>
+          {!expanded && (
+            <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Accomplished / Issued
+            </div>
+          )}
         </div>
-        <div
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-            accent ?? "bg-primary/10 text-primary"
-          }`}
-        >
-          {icon}
-        </div>
-      </div>
-
-      <div className="mt-3 space-y-1.5 border-t border-border/60 pt-3">
-        {[
-          { k: "Pending", v: data.pending, dot: "bg-warning", text: "text-warning" },
-          { k: "Accomplished", v: data.accomplished, dot: "bg-success", text: "text-success" },
-          {
-            k: remaining < 0 ? "Over Target" : "Remaining",
-            v: remaining,
-            dot: remaining < 0 ? "bg-success" : "bg-destructive",
-            text: remaining < 0 ? "text-success" : "text-destructive",
-          },
-        ].map((row) => (
-          <div key={row.k} className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${row.dot}`} />
-              <span className="truncate">{row.k}</span>
-            </span>
-            <span className={`text-sm font-bold tabular-nums ${row.text}`}>
-              {row.v.toLocaleString()}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3">
-        <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Accomplishment</span>
-          <span className="tabular-nums text-foreground">{pct}%</span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className="flex shrink-0 items-center gap-2">
           <div
-            className="h-full rounded-full bg-success transition-all"
-            style={{ width: `${Math.min(pct, 100)}%` }}
-          />
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
+              accent ?? "bg-primary/10 text-primary"
+            }`}
+          >
+            {icon}
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
         </div>
-      </div>
+      </button>
+
+      {expanded && (
+        <>
+          <div className="mt-3 space-y-1.5 border-t border-border/60 pt-3">
+            {[
+              { k: "Issued", v: data.pending, dot: "bg-warning", text: "text-warning" },
+              { k: "Accomplished", v: data.accomplished, dot: "bg-success", text: "text-success" },
+              {
+                k: remaining < 0 ? "Over Target" : "Remaining",
+                v: remaining,
+                dot: remaining < 0 ? "bg-success" : "bg-destructive",
+                text: remaining < 0 ? "text-success" : "text-destructive",
+              },
+            ].map((row) => (
+              <div key={row.k} className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${row.dot}`} />
+                  <span className="truncate">{row.k}</span>
+                </span>
+                <span className={`text-sm font-bold tabular-nums ${row.text}`}>
+                  {row.v.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3">
+            <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>Accomplishment</span>
+              <span className="tabular-nums text-foreground">{pct}%</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-success transition-all"
+                style={{ width: `${Math.min(pct, 100)}%` }}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </Card>
   );
 }
@@ -349,10 +411,7 @@ function YoYYearMultiSelect({
   onChange: (next: number[]) => void;
   options: number[];
 }) {
-  const label =
-    selectedYears.length > 0
-      ? selectedYears.join(", ")
-      : "Select years";
+  const label = selectedYears.length > 0 ? selectedYears.join(", ") : "Select years";
 
   const toggleYear = (year: number) => {
     const selected = selectedYears.includes(year);
@@ -797,7 +856,7 @@ function ChartScopeFilters({
   /** Lock the Province picker to the signed-in user's province. */
   forceProvinceLock?: boolean;
 }) {
-  if (!isAuthenticated) return null;
+  // Visible to everyone; role-based locks below still apply when signed in.
   const provinceLocked = scope.provinceLocked || forceProvinceLock;
 
   const handleProvinces = (provinces: SelectedLocation[]) => {
@@ -918,7 +977,11 @@ export function DashboardBody() {
     currentYear,
   ]);
   const [yoYScope, setYoYScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
-  const { rows: yoYRows, years: yoYYears, loading: yoYLoading } = useYearlyComparison({
+  const {
+    rows: yoYRows,
+    years: yoYYears,
+    loading: yoYLoading,
+  } = useYearlyComparison({
     selectedYears: yoYSelectedYears,
     selectedProvinces: yoYScope.provinces,
     selectedStations: yoYScope.stations,
@@ -927,10 +990,7 @@ export function DashboardBody() {
   // Seed / enforce the user's assigned scope on every chart-level filter.
   useEffect(() => {
     if (!isAuthenticated) {
-      setTargetVsActualScope(EMPTY_CHART_SCOPE);
-      setMonthlyTrendScope(EMPTY_CHART_SCOPE);
-      setMonthlySectorScope(EMPTY_CHART_SCOPE);
-      setYoYScope(EMPTY_CHART_SCOPE);
+      // Public view: chart filters are freely selectable, nothing to enforce.
       return;
     }
 
@@ -1010,7 +1070,7 @@ export function DashboardBody() {
       <SectorProgressCard compliance={compliance} />
 
       {/* Breakdowns — Inspection / FSEC / FSIC */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <BreakdownCard
           label="Other Inspections"
           icon={<ClipboardList className="h-5 w-5" />}
@@ -1031,7 +1091,7 @@ export function DashboardBody() {
       </div>
 
       {/* Running notices — pending / accomplished / remaining */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <NoticeCard
           label="NTC"
           icon={<AlertCircle className="h-5 w-5" />}
@@ -1079,7 +1139,10 @@ export function DashboardBody() {
           height="h-72"
           actions={
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Select value={String(targetVsActualYear)} onValueChange={(v) => setTargetVsActualYear(Number(v))}>
+              <Select
+                value={String(targetVsActualYear)}
+                onValueChange={(v) => setTargetVsActualYear(Number(v))}
+              >
                 <SelectTrigger className="h-9 w-[96px] shrink-0">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
@@ -1137,7 +1200,10 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
         actions={
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Select value={String(monthlyTrendYear)} onValueChange={(v) => setMonthlyTrendYear(Number(v))}>
+            <Select
+              value={String(monthlyTrendYear)}
+              onValueChange={(v) => setMonthlyTrendYear(Number(v))}
+            >
               <SelectTrigger className="h-9 w-[96px] shrink-0">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
@@ -1203,7 +1269,10 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
         actions={
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Select value={String(monthlySectorYear)} onValueChange={(v) => setMonthlySectorYear(Number(v))}>
+            <Select
+              value={String(monthlySectorYear)}
+              onValueChange={(v) => setMonthlySectorYear(Number(v))}
+            >
               <SelectTrigger className="h-9 w-[96px] shrink-0">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
@@ -1322,14 +1391,14 @@ export function DashboardBody() {
 
       {/* Row 6: Recent Dashboard Activity (100%) — signed-in users only */}
       {isAuthenticated && (
-      <ActivityCard
-        title="Recent Dashboard Activity"
-        subtitle="Latest system journal entries · auto-refreshes every 60s"
-        items={recentActivity}
-        loading={recentActivityLoading}
-        error={recentActivityError}
-        onRetry={refreshRecentActivity}
-      />
+        <ActivityCard
+          title="Recent Dashboard Activity"
+          subtitle="Latest system journal entries · auto-refreshes every 60s"
+          items={recentActivity}
+          loading={recentActivityLoading}
+          error={recentActivityError}
+          onRetry={refreshRecentActivity}
+        />
       )}
 
       {/* Announcements now live in the top-nav notifications popover. */}

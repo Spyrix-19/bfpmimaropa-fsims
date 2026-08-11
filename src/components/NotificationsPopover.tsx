@@ -318,7 +318,6 @@ export function NotificationsPopover() {
             </div>
           </div>
         )}
-
       </PopoverContent>
     </Popover>
   );

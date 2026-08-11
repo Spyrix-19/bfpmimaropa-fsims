@@ -1,5 +1,13 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
-import { CheckExistParams, FSISBWCDeleteParams, FSISBWCDetailModel, FSISBWCDetailParams, FSISBWCDTO, FSISBWCLedgerParams, FSISBWCModel } from "@/types/bwcType";
+import {
+  CheckExistParams,
+  FSISBWCDeleteParams,
+  FSISBWCDetailModel,
+  FSISBWCDetailParams,
+  FSISBWCDTO,
+  FSISBWCLedgerParams,
+  FSISBWCModel,
+} from "@/types/bwcType";
 
 export const bwcAPI = {
   async create(params: FSISBWCDTO) {
@@ -22,19 +30,15 @@ export const bwcAPI = {
     });
   },
 
-   async getLedger(request: FSISBWCLedgerParams, options?: import("@/lib/api").ApiOptions) {
-      return await apiPost<FSISBWCModel[]>(
-        "/api/v1/FSISBWC/Ledger",
-        request.parameters,
-        {
-          params: {
-            Pagenumber: request.pagenumber ?? 1,
-            Pagesize: request.pagesize ?? 10,
-          },
-          ...options,
-        },
-      );
-    },
+  async getLedger(request: FSISBWCLedgerParams, options?: import("@/lib/api").ApiOptions) {
+    return await apiPost<FSISBWCModel[]>("/api/v1/FSISBWC/Ledger", request.parameters, {
+      params: {
+        Pagenumber: request.pagenumber ?? 1,
+        Pagesize: request.pagesize ?? 10,
+      },
+      ...options,
+    });
+  },
 
   async delete(params?: FSISBWCDeleteParams) {
     return await apiDelete("/api/v1/FSISBWC/Delete", undefined, {
@@ -42,6 +46,4 @@ export const bwcAPI = {
       ...MUTATION_RETRY_LIGHT,
     });
   },
-
-
 };

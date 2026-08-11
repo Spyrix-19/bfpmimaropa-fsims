@@ -16,7 +16,6 @@ export interface AnnouncementRequestDTO {
   encodedby: string;
 }
 
-
 export interface AnnouncementViewerRequestClass {
   viewertype: string;
   viewerno: string;
@@ -48,7 +47,6 @@ export interface AnnouncementDetailModel {
   systems: string[];
   viewers: AnnouncementViewerRequestClass[];
 }
-
 
 // Ledger Models
 export interface AnnouncementLedgerParams {
@@ -83,7 +81,6 @@ export interface AnnouncementLedgerModel {
   dateencoded: string;
   dateupdated: string;
 }
-
 
 //Delete
 export interface AnnouncementDeleteParams {

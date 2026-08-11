@@ -80,6 +80,7 @@ import type {
 } from "@/types/complianceType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 /* ========================================================================== */
 /*  Shared field definitions (mirror from monitoringView CATEGORY_FIELDS)   */
@@ -294,6 +295,7 @@ function hasPstLockActivated(
   reportmonth: number,
   now: Date = new Date(),
 ): boolean {
+  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
   const y = Number(reportyear);
   const m = Number(reportmonth);
   if (!y || !m || m < 1 || m > 12) return false;
@@ -306,6 +308,7 @@ function hasPstLockActivated(
  * Check if a given date has already passed (is before today at midnight).
  */
 function isDayPassed(dateStr: string): boolean {
+  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
   try {
     const d = new Date(dateStr);
     const today = new Date();
@@ -566,7 +569,6 @@ function ComplianceEditBody({
   }, []);
 
   const isDayModified = React.useCallback((originalSerialized: string, day: EditableDay) => {
-
     try {
       const orig = JSON.parse(originalSerialized) as {
         inspection: Partial<FSISComplianceDetailItem>;
@@ -979,7 +981,6 @@ function ComplianceEditBody({
         if (!isRowModified) continue;
         hasAnyChange = true;
 
-
         // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes.
         // Always send both entries so the update payload matches the create structure.
         const issuancelist: FSISIssuanceClassDTO[] = [
@@ -1150,7 +1151,6 @@ function ComplianceEditBody({
         </div>
         <PastDatesLockedNote />
       </Card>
-
 
       {/* Station Information ------------------------------------------------- */}
       <StationInfoCard
@@ -2045,15 +2045,17 @@ export function ComplianceEditModal({
                 {stationName ? `${stationName} · ` : ""}
                 {monthName} {year}
               </DialogDescription>
-              <p className="mt-1 text-[11px] text-muted-foreground/90">
-                <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
-                Each month locks on the{" "}
-                <span className="font-semibold">
-                  4th day of the following month at 12:00 AM (PST)
-                </span>
-                . The current and next month remain editable — past months require a revision
-                request once locked.
-              </p>
+              {IS_PAST_DATE_LOCK_ENABLED && (
+                <p className="mt-1 text-[11px] text-muted-foreground/90">
+                  <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                  Each month locks on the{" "}
+                  <span className="font-semibold">
+                    4th day of the following month at 12:00 AM (PST)
+                  </span>
+                  . The current and next month remain editable — past months require a revision
+                  request once locked.
+                </p>
+              )}
             </div>
           </div>
         </DialogHeader>

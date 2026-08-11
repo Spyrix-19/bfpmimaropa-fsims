@@ -345,8 +345,6 @@ export async function exportTargetReferenceWorkbook(opts: {
     cursor++;
   }
 
-
-
   const footerStart = cursor + 2;
   ws.mergeCells(footerStart, 1, footerStart, 6);
   const genCell = ws.getCell(footerStart, 1);

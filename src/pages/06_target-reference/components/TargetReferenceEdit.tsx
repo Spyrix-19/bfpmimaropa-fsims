@@ -56,6 +56,7 @@ import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 interface Props {
   open: boolean;
@@ -123,6 +124,7 @@ function isPastTargetDate(
   day: number,
   now: Date = new Date(),
 ): boolean {
+  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
   const targetDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 0, 0, 0));
   const todayAtMidnight = new Date(
     Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0),
@@ -719,7 +721,6 @@ export default function TargetReferenceForm({
       return;
     }
 
-
     setSaving(true);
     try {
       const resp = await targetreferenceAPI.create({
@@ -804,192 +805,193 @@ export default function TargetReferenceForm({
     setDuplicateDialogOpen(newOpen);
   };
 
-  const tableBody = loadingGrid && !gridLoadedOnce ? (
-    <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-      <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-    </div>
-  ) : sectors.length === 0 ? (
-    <div className="py-10 text-center text-sm text-muted-foreground">
-      No government sectors available.
-    </div>
-  ) : (
-    <div className="w-full max-w-full overflow-auto" style={{ maxHeight: "70vh" }}>
-      <table className="min-w-full border-collapse text-xs">
-        <thead className="sticky top-0 z-10 bg-card">
-          <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
-            <th className="min-w-[96px] border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">
-              ACTION
-            </th>
-            <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Date</th>
-            {sectors.map((s) => (
-              <th
-                key={s.detno}
-                className="border-b border-border/60 bg-card px-3 py-2 text-center font-semibold"
-                title={s.description}
-              >
-                {s.recordcode || s.description}
+  const tableBody =
+    loadingGrid && !gridLoadedOnce ? (
+      <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      </div>
+    ) : sectors.length === 0 ? (
+      <div className="py-10 text-center text-sm text-muted-foreground">
+        No government sectors available.
+      </div>
+    ) : (
+      <div className="w-full max-w-full overflow-auto" style={{ maxHeight: "70vh" }}>
+        <table className="min-w-full border-collapse text-xs">
+          <thead className="sticky top-0 z-10 bg-card">
+            <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
+              <th className="min-w-[96px] border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">
+                ACTION
               </th>
-            ))}
-            <th className="border-b border-l border-border/60 bg-card px-3 py-2 text-center font-semibold">
-              TOTAL
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d, i) => {
-            const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
-            const activeReq = revisionRequests.find(
-              (req) =>
-                Number(req.reportmonth) === Number(month) &&
-                Number((req as { reportday?: number }).reportday ?? d) === Number(d) &&
-                req.statuscode?.toUpperCase() === "PENDING",
-            );
-            // Server-driven flags (only source of truth for editability + action state)
-            const editablestatus = Number(existingEditableStatus[String(d)] ?? 0);
-            const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
-            const serverIsEditable = editablestatus === 153;
-            const hasPendingRevisionRequest = Boolean(activeReq) || serverIsRevisionRequest;
-            const isPastDate = isPastTargetDate(Number(year), Number(month), Number(d));
-            const isEditable = serverIsEditable || !isPastDate;
-            const row = {
-              isrevisionrequest: hasPendingRevisionRequest,
-            };
+              <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Date</th>
+              {sectors.map((s) => (
+                <th
+                  key={s.detno}
+                  className="border-b border-border/60 bg-card px-3 py-2 text-center font-semibold"
+                  title={s.description}
+                >
+                  {s.recordcode || s.description}
+                </th>
+              ))}
+              <th className="border-b border-l border-border/60 bg-card px-3 py-2 text-center font-semibold">
+                TOTAL
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {days.map((d, i) => {
+              const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
+              const activeReq = revisionRequests.find(
+                (req) =>
+                  Number(req.reportmonth) === Number(month) &&
+                  Number((req as { reportday?: number }).reportday ?? d) === Number(d) &&
+                  req.statuscode?.toUpperCase() === "PENDING",
+              );
+              // Server-driven flags (only source of truth for editability + action state)
+              const editablestatus = Number(existingEditableStatus[String(d)] ?? 0);
+              const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
+              const serverIsEditable = editablestatus === 153;
+              const hasPendingRevisionRequest = Boolean(activeReq) || serverIsRevisionRequest;
+              const isPastDate = isPastTargetDate(Number(year), Number(month), Number(d));
+              const isEditable = serverIsEditable || !isPastDate;
+              const row = {
+                isrevisionrequest: hasPendingRevisionRequest,
+              };
 
-            // Pick a referencekey (targetno) for the row.
-            const rowReferenceKey = existingTargetNos?.[String(d)] || "";
-            return (
-              <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-                <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
-                  {serverIsEditable ? null : row.isrevisionrequest ? (
-                    <div className="flex items-center justify-center gap-1.5">
-                      <EditButton
-                        variant="square"
-                        tooltip="Cancel Revision Request"
-                        ariaLabel="Cancel Revision Request"
-                        icon={<Ban className="h-4 w-4" />}
-                        onClick={() => {
-                          if (activeReq) setCancelRequestId(activeReq.requestno);
-                          else toast.info("No active revision request to cancel.");
-                        }}
-                      />
-                      <DeleteButton
-                        variant="square"
-                        tooltip="Delete Revision Request"
-                        ariaLabel="Delete Revision Request"
-                        icon={<Trash2 className="h-4 w-4" />}
-                        onClick={() => {
-                          if (activeReq) setDeleteRequestId(activeReq.requestno);
-                          else toast.info("No revision request to delete.");
-                        }}
-                      />
-                    </div>
-                  ) : isPastDate ? (
-                    <div className="flex items-center justify-center gap-1.5">
-                      <EditButton
-                        variant="square"
-                        tooltip={
-                          !revStation
-                            ? "Select a station to request a revision"
-                            : "Request Revision"
-                        }
-                        ariaLabel={
-                          !revStation
-                            ? "Select a station to request a revision"
-                            : "Request Revision"
-                        }
-                        disabled={!revStation}
-                        icon={<FilePen className="h-4 w-4" />}
-                        onClick={() => setRevisionDay(Number(d))}
-                      />
-                    </div>
-                  ) : null}
-                </td>
-                <td className="whitespace-nowrap px-3 py-1.5 font-medium">
-                  <div className="flex items-center gap-2">
-                    {!isEditable && (
-                      <Lock className="h-3 w-3 text-warning" aria-label="Locked day" />
-                    )}
-                    <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
-                    {activeReq ? (
-                      <RevisionStatusBadge
-                        status={
-                          activeReq.statuscode?.toUpperCase() === "PENDING"
-                            ? "PENDING"
-                            : activeReq.statuscode?.toUpperCase() === "APPROVED"
-                              ? "APPROVED"
-                              : "CANCELLED"
-                        }
-                      />
+              // Pick a referencekey (targetno) for the row.
+              const rowReferenceKey = existingTargetNos?.[String(d)] || "";
+              return (
+                <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                  <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
+                    {serverIsEditable ? null : row.isrevisionrequest ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        <EditButton
+                          variant="square"
+                          tooltip="Cancel Revision Request"
+                          ariaLabel="Cancel Revision Request"
+                          icon={<Ban className="h-4 w-4" />}
+                          onClick={() => {
+                            if (activeReq) setCancelRequestId(activeReq.requestno);
+                            else toast.info("No active revision request to cancel.");
+                          }}
+                        />
+                        <DeleteButton
+                          variant="square"
+                          tooltip="Delete Revision Request"
+                          ariaLabel="Delete Revision Request"
+                          icon={<Trash2 className="h-4 w-4" />}
+                          onClick={() => {
+                            if (activeReq) setDeleteRequestId(activeReq.requestno);
+                            else toast.info("No revision request to delete.");
+                          }}
+                        />
+                      </div>
+                    ) : isPastDate ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        <EditButton
+                          variant="square"
+                          tooltip={
+                            !revStation
+                              ? "Select a station to request a revision"
+                              : "Request Revision"
+                          }
+                          ariaLabel={
+                            !revStation
+                              ? "Select a station to request a revision"
+                              : "Request Revision"
+                          }
+                          disabled={!revStation}
+                          icon={<FilePen className="h-4 w-4" />}
+                          onClick={() => setRevisionDay(Number(d))}
+                        />
+                      </div>
                     ) : null}
-                  </div>
-                </td>
-                {sectors.map((s) => {
-                  const key = `${d}-${s.detno}`;
-                  const hasErr = Boolean(errors[key]);
-                  const val = cells[key] ?? "";
-                  const locked = !isEditable;
-                  return (
-                    <td key={s.detno} className="px-2 py-1">
-                      <input
-                        inputMode="numeric"
-                        value={val}
-                        readOnly={locked}
-                        tabIndex={locked ? -1 : 0}
-                        onFocus={(e) => {
-                          if (locked) return;
-                          e.target.select();
-                        }}
-                        onBlur={(e) => {
-                          if (locked) return;
-                          if (e.target.value === "") setCell(d, Number(s.detno), "0");
-                        }}
-                        onChange={(e) => {
-                          if (locked) return;
-                          setCell(d, Number(s.detno), e.target.value);
-                        }}
-                        aria-invalid={hasErr}
-                        aria-readonly={locked}
-                        title={locked ? "This row is not editable." : undefined}
-                        className={cn(
-                          "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-center text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                          hasErr &&
-                            "border-destructive focus:border-destructive focus:ring-destructive",
-                          locked &&
-                            "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
-                        )}
-                      />
-                    </td>
-                  );
-                })}
-                <td className="border-l border-border/60 bg-card px-3 py-1.5 text-center font-semibold tabular-nums text-primary">
-                  {dayTotal(d).toLocaleString()}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot className="sticky bottom-0 bg-card">
-          <tr className="text-primary bg-card">
-            <td className="border-r border-t border-border/60 bg-card px-3 py-2" />
-            <td className="border-t border-border/60 px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] bg-card">
-              TOTAL
-            </td>
-            {sectors.map((s) => (
-              <td
-                key={s.detno}
-                className="border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums"
-              >
-                {sectorTotal(Number(s.detno)).toLocaleString()}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-1.5 font-medium">
+                    <div className="flex items-center gap-2">
+                      {!isEditable && (
+                        <Lock className="h-3 w-3 text-warning" aria-label="Locked day" />
+                      )}
+                      <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
+                      {activeReq ? (
+                        <RevisionStatusBadge
+                          status={
+                            activeReq.statuscode?.toUpperCase() === "PENDING"
+                              ? "PENDING"
+                              : activeReq.statuscode?.toUpperCase() === "APPROVED"
+                                ? "APPROVED"
+                                : "CANCELLED"
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  </td>
+                  {sectors.map((s) => {
+                    const key = `${d}-${s.detno}`;
+                    const hasErr = Boolean(errors[key]);
+                    const val = cells[key] ?? "";
+                    const locked = !isEditable;
+                    return (
+                      <td key={s.detno} className="px-2 py-1">
+                        <input
+                          inputMode="numeric"
+                          value={val}
+                          readOnly={locked}
+                          tabIndex={locked ? -1 : 0}
+                          onFocus={(e) => {
+                            if (locked) return;
+                            e.target.select();
+                          }}
+                          onBlur={(e) => {
+                            if (locked) return;
+                            if (e.target.value === "") setCell(d, Number(s.detno), "0");
+                          }}
+                          onChange={(e) => {
+                            if (locked) return;
+                            setCell(d, Number(s.detno), e.target.value);
+                          }}
+                          aria-invalid={hasErr}
+                          aria-readonly={locked}
+                          title={locked ? "This row is not editable." : undefined}
+                          className={cn(
+                            "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-center text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                            hasErr &&
+                              "border-destructive focus:border-destructive focus:ring-destructive",
+                            locked &&
+                              "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
+                          )}
+                        />
+                      </td>
+                    );
+                  })}
+                  <td className="border-l border-border/60 bg-card px-3 py-1.5 text-center font-semibold tabular-nums text-primary">
+                    {dayTotal(d).toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot className="sticky bottom-0 bg-card">
+            <tr className="text-primary bg-card">
+              <td className="border-r border-t border-border/60 bg-card px-3 py-2" />
+              <td className="border-t border-border/60 px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] bg-card">
+                TOTAL
               </td>
-            ))}
-            <td className="border-l border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">
-              {grandTotal.toLocaleString()}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
+              {sectors.map((s) => (
+                <td
+                  key={s.detno}
+                  className="border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums"
+                >
+                  {sectorTotal(Number(s.detno)).toLocaleString()}
+                </td>
+              ))}
+              <td className="border-l border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">
+                {grandTotal.toLocaleString()}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    );
 
   return (
     <>
@@ -1004,14 +1006,16 @@ export default function TargetReferenceForm({
               {isEdit ? "Edit Target Reference" : "Target Reference Entry"}
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
-              Record target references per station and reporting period — monthly, quarterly, semi-annual, and annual totals are
-              auto-computed.
+              Record target references per station and reporting period — monthly, quarterly,
+              semi-annual, and annual totals are auto-computed.
             </p>
-            <p className="mt-1 text-[11px] text-muted-foreground/90">
-              <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
-              Past dates are locked until a revision request is approved. Current and future dates
-              remain editable.
-            </p>
+            {IS_PAST_DATE_LOCK_ENABLED && (
+              <p className="mt-1 text-[11px] text-muted-foreground/90">
+                <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                Past dates are locked until a revision request is approved. Current and future dates
+                remain editable.
+              </p>
+            )}
           </DialogHeader>
 
           <div className="flex flex-col gap-4 px-5 py-4">
@@ -1075,8 +1079,6 @@ export default function TargetReferenceForm({
               </div>
               <PastDatesLockedNote />
             </Card>
-
-
 
             {/* Station Information card */}
             <StationInfoCard

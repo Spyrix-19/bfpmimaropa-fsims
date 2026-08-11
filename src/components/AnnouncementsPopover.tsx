@@ -124,7 +124,6 @@ type AnnouncementRow = Partial<AnnouncementLedgerModel> & {
   personnel?: SelectedPersonnel[];
 };
 
-
 /**
  * Can this user create announcements?
  * Super Administrator or Administrator AND stationtype 25 or 26.
@@ -149,15 +148,18 @@ function canModifyAnnouncement(
   stationtype?: number | null,
 ): boolean {
   if (!canManageAnnouncements(roleno, stationtype)) return false;
-  const me = String(memberno ?? "").trim().toLowerCase();
+  const me = String(memberno ?? "")
+    .trim()
+    .toLowerCase();
   if (!me) return false;
-  const owner = String(record.createdbyno ?? "").trim().toLowerCase();
+  const owner = String(record.createdbyno ?? "")
+    .trim()
+    .toLowerCase();
   // Some ledger payloads omit / zero-out the author id — managers still get
   // the controls in that case instead of the row silently going read-only.
   if (!owner || owner === EMPTY_GUID.toLowerCase()) return true;
   return me === owner;
 }
-
 
 /**
  * Announcements — its own top-nav popover, separate from notifications.
@@ -186,7 +188,6 @@ export function AnnouncementsPopover() {
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [clampedIds, setClampedIds] = useState<Set<string>>(new Set());
-
 
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [page, setPage] = useState(1);
@@ -245,9 +246,7 @@ export function AnnouncementsPopover() {
 
     // Rebuild read state from the server payload instead of merging into the
     // previous set — stale entries were what kept the tabs out of sync.
-    setReadIds(
-      new Set(data.filter((row) => !!row.isread).map((row) => row.announcementno)),
-    );
+    setReadIds(new Set(data.filter((row) => !!row.isread).map((row) => row.announcementno)));
   }, [memberno, stationno]);
 
   useEffect(() => {
@@ -276,10 +275,7 @@ export function AnnouncementsPopover() {
   const safePage = Math.min(page, pageCount);
   const visible = useMemo(
     () =>
-      filtered.slice(
-        (safePage - 1) * ANNOUNCEMENTS_PAGE_SIZE,
-        safePage * ANNOUNCEMENTS_PAGE_SIZE,
-      ),
+      filtered.slice((safePage - 1) * ANNOUNCEMENTS_PAGE_SIZE, safePage * ANNOUNCEMENTS_PAGE_SIZE),
     [filtered, safePage],
   );
 
@@ -304,7 +300,6 @@ export function AnnouncementsPopover() {
     setFormOpen(true);
   };
 
-
   const openEdit = (record: AnnouncementRow) => {
     setEditing(record);
     setTitle(record.title);
@@ -315,7 +310,6 @@ export function AnnouncementsPopover() {
     setPersonnel((record.personnel ?? []) as SelectedPersonnel[]);
     setFormOpen(true);
   };
-
 
   /** The exact payload used for both create + update so nothing is dropped. */
   const formPayload = () => ({
@@ -329,7 +323,6 @@ export function AnnouncementsPopover() {
     stations: stations.map((s) => ({ stationno: s.stationno, stationname: s.stationname })),
     personnel: personnel.map((p) => ({ memberno: p.memberno, fullname: p.fullname })),
   });
-
 
   const buildViewers = (): AnnouncementViewerRequestClass[] => {
     if (audience === "PROVINCE")
@@ -386,8 +379,6 @@ export function AnnouncementsPopover() {
     // immediately in All / Unread and in the counts.
     await Promise.all([refreshUnread(), loadLedger()]);
   };
-
-
 
   const confirmDelete = async () => {
     if (!deleting || busy) return;
@@ -448,7 +439,6 @@ export function AnnouncementsPopover() {
     await refreshUnread();
     await loadLedger();
   };
-
 
   return (
     <>
@@ -657,7 +647,6 @@ export function AnnouncementsPopover() {
                             )}
                           </div>
 
-
                           {!isRead && (
                             <Button
                               type="button"
@@ -735,7 +724,6 @@ export function AnnouncementsPopover() {
                   <DialogDescription className="text-xs">
                     Set the message and who receives it.
                   </DialogDescription>
-
                 </div>
               </div>
             </DialogHeader>
@@ -790,7 +778,6 @@ export function AnnouncementsPopover() {
                   Audience
                 </span>
               </div>
-
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {AUDIENCE_OPTIONS.map((o) => {

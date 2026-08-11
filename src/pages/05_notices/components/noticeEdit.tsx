@@ -64,6 +64,7 @@ import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -102,10 +103,7 @@ const CATEGORY_COUNT_KEY: Record<NoticeCategory, string> = {
 type ModeCounts = Record<NoticeCategory, number>;
 
 function emptyModeCounts(): ModeCounts {
-  return NOTICE_CATEGORIES.reduce(
-    (acc, category) => ({ ...acc, [category]: 0 }),
-    {} as ModeCounts,
-  );
+  return NOTICE_CATEGORIES.reduce((acc, category) => ({ ...acc, [category]: 0 }), {} as ModeCounts);
 }
 
 function emptyModes(): Record<ModeKey, ModeCounts> {
@@ -166,6 +164,7 @@ const SERIES = {
  * A month locks on day 4 of the following calendar month at 00:00 PST.
  */
 function hasPstLockActivated(year: number, month: number, now: Date = new Date()): boolean {
+  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
   const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
   const lockActivationMs = Date.UTC(year, month, 4, 0, 0, 0);
   return manilaNowMs >= lockActivationMs;
@@ -173,6 +172,7 @@ function hasPstLockActivated(year: number, month: number, now: Date = new Date()
 
 /** Check if a given date (YYYY-MM-DD) has already passed. */
 function isDayPassed(dateStr: string): boolean {
+  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
   try {
     const [y, m, d] = dateStr.split("-").map(Number);
     if (!y || !m || !d) return false;
@@ -443,9 +443,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
 
-
-
-
   /* --------------------------- Revision requests -------------------------- */
   const [revisionOpen, setRevisionOpen] = React.useState(false);
   const [revisionReferenceKey, setRevisionReferenceKey] = React.useState(EMPTY_GUID);
@@ -499,8 +496,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   );
 
   const buildDays = React.useCallback(
-
-
     (source: Map<string, DaySource>, y: number, m: number): DayRow[] => {
       const monthLocked = hasPstLockActivated(y, m);
       const total = calendarDaysInMonth(y, m);
@@ -539,7 +534,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     setSaveError(null);
   }, [record, open, buildDays, seedFromRecord, captureBaseline]);
 
-
   const stationno = record?.stationno ?? "";
   const provinceno = record?.provinceno ?? "";
 
@@ -565,7 +559,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       const loaded = buildDays(parseDetailToDays(detail), year, month);
       setDays(loaded);
       setBaselineRows(captureBaseline(loaded));
-
     })();
     return () => {
       cancelled = true;
@@ -697,7 +690,10 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     );
 
   const columnTotal = (category: NoticeCategory) =>
-    days.reduce((sum, d) => sum + (d.modes.manual[category] ?? 0) + (d.modes.fsis[category] ?? 0), 0);
+    days.reduce(
+      (sum, d) => sum + (d.modes.manual[category] ?? 0) + (d.modes.fsis[category] ?? 0),
+      0,
+    );
 
   /** Issued totals come from the ledger record, not the encoded daily rows. */
   const issuedByCategory = NOTICE_CATEGORIES.reduce((acc, category) => {
@@ -718,7 +714,8 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       // (e.g. future dates with no values) are skipped entirely.
       const editable = days.filter((entry) => {
         const baseline = baselineRows.get(entry.date);
-        const changed = baseline === undefined ? rowTotal(entry) > 0 : rowSignature(entry) !== baseline;
+        const changed =
+          baseline === undefined ? rowTotal(entry) > 0 : rowSignature(entry) !== baseline;
         if (!changed) return false;
         return !entry.isLocked || rowTotal(entry) > 0;
       });
@@ -774,22 +771,22 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
               <Table2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">
-                Accomplished Notices Editor
-              </DialogTitle>
+              <DialogTitle className="text-base font-bold">Accomplished Notices Editor</DialogTitle>
               <DialogDescription>
                 {record.stationname ? `${record.stationname} · ` : ""}
                 {monthName} {year}
               </DialogDescription>
-              <p className="mt-1 text-[11px] text-muted-foreground/90">
-                <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
-                Each month locks on the{" "}
-                <span className="font-semibold">
-                  4th day of the following month at 12:00 AM (PST)
-                </span>
-                . The current and next month remain editable — past months require a revision
-                request once locked.
-              </p>
+              {IS_PAST_DATE_LOCK_ENABLED && (
+                <p className="mt-1 text-[11px] text-muted-foreground/90">
+                  <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                  Each month locks on the{" "}
+                  <span className="font-semibold">
+                    4th day of the following month at 12:00 AM (PST)
+                  </span>
+                  . The current and next month remain editable — past months require a revision
+                  request once locked.
+                </p>
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -853,8 +850,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             </div>
             <PastDatesLockedNote />
           </Card>
-
-
 
           {/* Station Information ------------------------------------------- */}
           <StationInfoCard

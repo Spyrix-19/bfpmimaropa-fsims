@@ -61,13 +61,25 @@ export default function ConfirmDialog({
   dismissible = true,
 }: ConfirmDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v && !dismissible) return; onOpenChange(v); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v && !dismissible) return;
+        onOpenChange(v);
+      }}
+    >
       <DialogContent
         className="max-w-lg"
         hideCloseButton={!!headerTitle || !dismissible}
-        onEscapeKeyDown={(e) => { if (!dismissible) e.preventDefault(); }}
-        onPointerDownOutside={(e) => { if (!dismissible) e.preventDefault(); }}
-        onInteractOutside={(e) => { if (!dismissible) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => {
+          if (!dismissible) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (!dismissible) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (!dismissible) e.preventDefault();
+        }}
       >
         <div className="flex flex-col items-stretch gap-4 p-4 md:p-5">
           {headerTitle ? (

@@ -350,7 +350,10 @@ export async function exportNoticeWorkbook(opts: {
       const modeCell = row.getCell(modeCol);
       modeCell.value = mode;
       modeCell.fill = fill(modeIdx === 0 ? "FFBAE6FD" : "FFFDE68A");
-      Object.assign(modeCell, opts2.isTotal || opts2.isGrand ? provinceRowStyle() : modeHeaderStyle());
+      Object.assign(
+        modeCell,
+        opts2.isTotal || opts2.isGrand ? provinceRowStyle() : modeHeaderStyle(),
+      );
       if (opts2.isTotal) modeCell.fill = fill(modeIdx === 0 ? "FFBAE6FD" : "FFFDE68A");
       if (opts2.isGrand) {
         modeCell.fill = fill("FF0F766E");
@@ -462,9 +465,6 @@ export async function exportNoticeWorkbook(opts: {
     );
     cursor = gEnd + 1;
   }
-
-
-
 
   const footerStart = cursor + 2;
   ws.mergeCells(footerStart, 1, footerStart, 6);

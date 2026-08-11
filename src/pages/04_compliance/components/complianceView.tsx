@@ -16,7 +16,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Calendar as CalendarIcon, Eye, Loader2, Lock, Pencil, RotateCcw, Target } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar as CalendarIcon,
+  Eye,
+  Loader2,
+  Lock,
+  Pencil,
+  RotateCcw,
+  Target,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -742,10 +751,7 @@ function ComplianceViewBody({
           </div>
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">Year</span>
-            <Select
-              value={String(selectedYear)}
-              onValueChange={(v) => setSelectedYear(Number(v))}
-            >
+            <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
               <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>

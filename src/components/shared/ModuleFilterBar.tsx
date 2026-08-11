@@ -15,12 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatLongDate } from "@/lib/date-format";
 import { MONTHS } from "@/lib/fsims-constants";
@@ -112,7 +107,6 @@ function getYearWeekRanges(year: number) {
 
   return ranges;
 }
-
 
 export function isAllDays(date: string): boolean {
   return typeof date === "string" && date.startsWith(ALL_DAYS_PREFIX);
@@ -325,7 +319,9 @@ function WeekMultiSelect({
     const nextWeeks = selectedWeeks.includes(weekNumber)
       ? selectedWeeks.filter((week) => week !== weekNumber)
       : [...selectedWeeks, weekNumber].sort((a, b) => a - b);
-    const anchorWeek = weekRanges.find((range) => range.weekNumber === (nextWeeks[0] ?? weekNumber));
+    const anchorWeek = weekRanges.find(
+      (range) => range.weekNumber === (nextWeeks[0] ?? weekNumber),
+    );
     const anchorDate = anchorWeek?.start ?? new Date(year, 0, 1);
     onChange({
       week: serializeSelectedWeeks(nextWeeks),
@@ -384,9 +380,7 @@ function WeekMultiSelect({
                       onClick={() => handleWeekToggle(weekRange.weekNumber)}
                       className={cn(
                         "flex h-9 items-center justify-center rounded-md border text-sm font-medium transition-colors hover:bg-muted",
-                        isSelected
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "bg-background",
+                        isSelected ? "border-primary bg-primary/10 text-primary" : "bg-background",
                       )}
                     >
                       {weekRange.weekNumber}
@@ -404,7 +398,6 @@ function WeekMultiSelect({
     </Popover>
   );
 }
-
 
 /* ------------------------------------------------------------------ *
  * PERIOD select + SUB FILTER control (shared by the filter bar and the

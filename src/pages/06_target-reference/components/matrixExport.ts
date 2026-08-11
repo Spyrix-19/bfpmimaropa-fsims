@@ -356,7 +356,6 @@ export async function exportTargetMatrix(opts: {
     cursor++;
   }
 
-
   // -------------------------------------------------- Column widths
   ws.getColumn(COL.NO).width = 5;
   ws.getColumn(COL.PROV).width = 22;

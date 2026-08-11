@@ -159,7 +159,13 @@ export function useMonthlySectorTrend({
         toast.error(isGenericError(error) ? "Unable to load monthly trend by sector." : error);
         setRows([]);
       } else {
-        const monthRows = MONTH_NAMES.map((name) => ({ name, BPLO: 0, GOVT: 0, PEZA: 0, TIEZA: 0 }));
+        const monthRows = MONTH_NAMES.map((name) => ({
+          name,
+          BPLO: 0,
+          GOVT: 0,
+          PEZA: 0,
+          TIEZA: 0,
+        }));
         (data ?? []).forEach((m) => {
           const totals = (m.monthlysectorinspectionList ?? []).reduce(
             (acc, g) => ({

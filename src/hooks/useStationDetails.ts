@@ -67,9 +67,7 @@ export function useStationDetails({
     (async () => {
       setLoading(true);
       const key =
-        searchKey ||
-        (isOwnStation ? user?.stationcode || user?.stationname || "" : "") ||
-        "";
+        searchKey || (isOwnStation ? user?.stationcode || user?.stationname || "" : "") || "";
       const resp = await stationAPI.search(
         {
           searchKey: key,
