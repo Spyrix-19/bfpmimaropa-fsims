@@ -110,47 +110,90 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
     ? Math.round((sectorTotals.accomplished / sectorTotals.target) * 100)
     : 0;
 
+  const remaining = sectorTotals.target - sectorTotals.accomplished;
+  const positive = Math.max(sectorTotals.accomplished - sectorTotals.target, 0);
+
   const [expanded, setExpanded] = useState(false);
 
+  const metrics = [
+    { label: "Total Target", value: sectorTotals.target.toLocaleString(), tone: "text-foreground" },
+    {
+      label: "Total Accomplished",
+      value: sectorTotals.accomplished.toLocaleString(),
+      tone: "text-success",
+    },
+    {
+      label: "Remaining",
+      value: remaining.toLocaleString(),
+      tone: remaining < 0 ? "text-success" : "text-warning",
+    },
+    {
+      label: "Positive Listing",
+      value: positive ? positive.toLocaleString() : "—",
+      tone: "text-success",
+    },
+  ];
+
   return (
-    <Card className="border-border/60 bg-card p-4 shadow-soft">
+    <Card className="overflow-hidden border-border/60 bg-card p-0 shadow-soft transition-shadow hover:shadow-elegant">
       <button
         type="button"
         aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-start justify-between gap-3 text-left"
+        className="flex w-full items-start justify-between gap-4 px-5 pb-4 pt-4 text-left"
       >
-        <div className="min-w-0">
-          <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Inspections
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight tabular-nums">
-              {sectorTotals.accomplished.toLocaleString()}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-soft">
+              <Target className="h-4.5 w-4.5" />
+            </div>
+            <div className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Inspections
+            </div>
+            <span
+              className={`ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
+                completion >= 100 ? "tone-success-soft" : "tone-info-soft"
+              }`}
+            >
+              {completion}%
             </span>
-            <span className="text-sm text-muted-foreground tabular-nums">
-              / {sectorTotals.target.toLocaleString()} target
-            </span>
-            <span className="text-sm font-semibold text-success tabular-nums">{completion}%</span>
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-            <Target className="h-5 w-5" />
+
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gradient-primary transition-[width] duration-500"
+              style={{ width: `${Math.min(completion, 100)}%` }}
+            />
           </div>
-          {expanded ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+
+          {!expanded && (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {metrics.map((m) => (
+                <div
+                  key={m.label}
+                  className="rounded-lg border border-border/60 bg-card p-3 shadow-soft"
+                >
+                  <div className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {m.label}
+                  </div>
+                  <div className={`mt-1 text-base font-semibold tabular-nums ${m.tone}`}>
+                    {m.value}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
+        </div>
+        <div className="mt-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted">
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </button>
 
       {expanded && (
-        <div className="mt-3 overflow-x-auto border-t border-border/60 pt-3">
+        <div className="overflow-x-auto border-t border-border/60 bg-muted/20 px-5 py-3">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="py-1 text-left">Sector</th>
                 <th className="py-1 text-center">Target</th>
                 <th className="py-1 text-center">Accomplished</th>
@@ -160,6 +203,33 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
               </tr>
             </thead>
             <tbody>
+              <tr className="border-t-2 border-border bg-primary/5 font-semibold">
+                <td className="py-1.5 text-left">Overall Total</td>
+                <td className="py-1.5 text-center tabular-nums">
+                  {sectorTotals.target.toLocaleString()}
+                </td>
+                <td className="py-1.5 text-center font-semibold tabular-nums text-success">
+                  {sectorTotals.accomplished.toLocaleString()}
+                </td>
+                <td
+                  className={`py-1.5 text-center tabular-nums ${
+                    remaining < 0 ? "text-success" : "text-warning"
+                  }`}
+                  title={remaining < 0 ? "Accomplishment exceeded target" : undefined}
+                >
+                  {remaining.toLocaleString()}
+                </td>
+                <td className="py-1.5 text-center tabular-nums text-success">
+                  {positive ? positive.toLocaleString() : "—"}
+                </td>
+                <td
+                  className={`py-1.5 text-center font-semibold tabular-nums ${
+                    completion >= 100 ? "text-success" : ""
+                  }`}
+                >
+                  {completion}%
+                </td>
+              </tr>
               {sectorProgress.map((s) => {
                 const remaining = s.target - s.accomplished;
                 const positive = Math.max(s.accomplished - s.target, 0);
@@ -180,7 +250,9 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
                       {s.accomplished.toLocaleString()}
                     </td>
                     <td
-                      className={`py-1.5 text-center tabular-nums ${remaining < 0 ? "text-success" : "text-warning"}`}
+                      className={`py-1.5 text-center tabular-nums ${
+                        remaining < 0 ? "text-success" : "text-warning"
+                      }`}
                       title={remaining < 0 ? "Accomplishment exceeded target" : undefined}
                     >
                       {remaining.toLocaleString()}
@@ -189,7 +261,9 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
                       {positive ? positive.toLocaleString() : "—"}
                     </td>
                     <td
-                      className={`py-1.5 text-center font-semibold tabular-nums ${pct >= 100 ? "text-success" : ""}`}
+                      className={`py-1.5 text-center font-semibold tabular-nums ${
+                        pct >= 100 ? "text-success" : ""
+                      }`}
                     >
                       {pct}%
                     </td>
