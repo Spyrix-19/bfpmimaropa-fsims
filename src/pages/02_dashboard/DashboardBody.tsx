@@ -59,6 +59,7 @@ import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField"
 import { StationMultiSelect } from "@/components/station-multi-select";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+import StationPerformanceSections from "@/pages/02_dashboard/components/StationPerformanceSections";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
@@ -1434,7 +1435,10 @@ export function DashboardBody() {
         )}
       </ChartCard>
 
-      {/* Row 6: Recent Dashboard Activity (100%) — signed-in users only */}
+      {/* Row 6: Station performance leaderboards */}
+      <StationPerformanceSections selectedYear={currentYear} />
+
+      {/* Row 7: Recent Dashboard Activity (100%) — signed-in users only */}
       {isAuthenticated && (
         <ActivityCard
           title="Recent Dashboard Activity"
