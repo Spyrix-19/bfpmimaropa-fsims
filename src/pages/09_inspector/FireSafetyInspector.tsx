@@ -50,8 +50,9 @@ export interface InspectorField {
 }
 
 /** An inspector row: station identity + record key + numeric metrics. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type InspectorRow = StationInfo & Record<string, any> & { recordno: string; remarks?: string };
+
+export type InspectorRow = StationInfo &
+  Record<string, any> & { recordno: string; remarks?: string };
 
 /** Maps an API ledger/detail model into the flat row shape used by the UI. */
 function toInspectorRow(model: unknown): InspectorRow {

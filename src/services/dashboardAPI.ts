@@ -41,7 +41,10 @@ export const dashboardAPI = {
     );
   },
 
-  async getTargetVSInspection(body: DashboardYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
+  async getTargetVSInspection(
+    body: DashboardYearToYearDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     return await apiPost<DashboardTargetAccomplishModel>(
       "/api/v1/Dashboard/FSIMS/TargetVSInspection/Summary",
       body,
@@ -52,7 +55,10 @@ export const dashboardAPI = {
     );
   },
 
-  async getMonthlyTargetVSInspection(body: DashboardYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
+  async getMonthlyTargetVSInspection(
+    body: DashboardYearToYearDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     return await apiPost<DashboardMonthlyTargetAccomplishModel>(
       "/api/v1/Dashboard/FSIMS/MonthlyTargetVSInspection/Summary",
       body,
@@ -63,7 +69,10 @@ export const dashboardAPI = {
     );
   },
 
-  async getMonthlySectorInspection(body: DashboardYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
+  async getMonthlySectorInspection(
+    body: DashboardYearToYearDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     return await apiPost<DashboardMonthlySectorInspectionModel>(
       "/api/v1/Dashboard/FSIMS/MonthlySectorInspection/Summary",
       body,
@@ -74,7 +83,10 @@ export const dashboardAPI = {
     );
   },
 
-  async getYearlyInspection(body: DashboardYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
+  async getYearlyInspection(
+    body: DashboardYearToYearDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     return await apiPost<DashboardYearlyInspectionModel>(
       "/api/v1/Dashboard/FSIMS/YearlyInspection/Summary",
       body,

@@ -331,7 +331,9 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
   const { user, systemAccess } = useAuth();
   const canEdit = canShowEditAction(user, systemAccess);
   const [viewMonth, setViewMonth] = React.useState<number>(record?.reportMonth ?? 1);
-  const [viewYear, setViewYear] = React.useState<number>(record?.reportYear ?? new Date().getFullYear());
+  const [viewYear, setViewYear] = React.useState<number>(
+    record?.reportYear ?? new Date().getFullYear(),
+  );
 
   // Reset to the record's period whenever a new record is opened.
   React.useEffect(() => {
@@ -433,248 +435,252 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
         </DialogHeader>
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20">
-        <div
-          ref={scrollRef}
-          className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-5 py-5"
-        >
-          {/* Reporting Period ---------------------------------------------- */}
-          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
-              {isPeriodChanged && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setViewMonth(record.reportMonth);
-                    setViewYear(record.reportYear);
-                  }}
-                  className="h-8 gap-1.5 text-xs"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Reset to {MONTHS.find((mo) => mo.value === record.reportMonth)?.name} {record.reportYear}
-                </Button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Month</span>
-                <Select
-                  value={String(viewMonth)}
-                  onValueChange={(value) => setViewMonth(Number(value))}
-                >
-                  <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
-                    <SelectValue placeholder="Select month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map((mo) => (
-                      <SelectItem key={mo.value} value={String(mo.value)}>
-                        {mo.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <div
+            ref={scrollRef}
+            className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-5 py-5"
+          >
+            {/* Reporting Period ---------------------------------------------- */}
+            <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <SectionTitle
+                  icon={<CalendarIcon className="h-4 w-4" />}
+                  title="Reporting Period"
+                />
+                {isPeriodChanged && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setViewMonth(record.reportMonth);
+                      setViewYear(record.reportYear);
+                    }}
+                    className="h-8 gap-1.5 text-xs"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset to {MONTHS.find((mo) => mo.value === record.reportMonth)?.name}{" "}
+                    {record.reportYear}
+                  </Button>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Year</span>
-                <Select
-                  value={String(viewYear)}
-                  onValueChange={(value) => setViewYear(Number(value))}
-                >
-                  <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {YEAR_OPTIONS.map((yr) => (
-                      <SelectItem key={yr} value={String(yr)}>
-                        {yr}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Month</span>
+                  <Select
+                    value={String(viewMonth)}
+                    onValueChange={(value) => setViewMonth(Number(value))}
+                  >
+                    <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((mo) => (
+                        <SelectItem key={mo.value} value={String(mo.value)}>
+                          {mo.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Year</span>
+                  <Select
+                    value={String(viewYear)}
+                    onValueChange={(value) => setViewYear(Number(value))}
+                  >
+                    <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YEAR_OPTIONS.map((yr) => (
+                        <SelectItem key={yr} value={String(yr)}>
+                          {yr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
 
-          {/* Station Information ------------------------------------------- */}
-          <StationInfoCard
-            stationName={record.stationname || ""}
-            unitCode={record.stationcode || ""}
-            logoUrl={record.logourl || null}
-            fields={[
-              { label: "Station Code", value: record.stationcode ?? "" },
-              { label: "City / Municipality", value: record.cityname ?? "" },
-              { label: "Province", value: record.provincename || record.province || "" },
-            ]}
-          />
+            {/* Station Information ------------------------------------------- */}
+            <StationInfoCard
+              stationName={record.stationname || ""}
+              unitCode={record.stationcode || ""}
+              logoUrl={record.logourl || null}
+              fields={[
+                { label: "Station Code", value: record.stationcode ?? "" },
+                { label: "City / Municipality", value: record.cityname ?? "" },
+                { label: "Province", value: record.provincename || record.province || "" },
+              ]}
+            />
 
-          {/* Issued vs. Accomplished ---------------------------------------- */}
-          <NoticeAccomplishmentPanel days={days} periodLabel={`${monthName} ${year}`} />
+            {/* Issued vs. Accomplished ---------------------------------------- */}
+            <NoticeAccomplishmentPanel days={days} periodLabel={`${monthName} ${year}`} />
 
-          {/* Daily Accomplished Notices Details ------------------------------------------- */}
-          <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <SectionTitle
-                title="Daily Accomplished Notices Details"
-                subtitle="Accomplished Notices per day"
-              />
-              <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {monthName} {year}
+            {/* Daily Accomplished Notices Details ------------------------------------------- */}
+            <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <SectionTitle
+                  title="Daily Accomplished Notices Details"
+                  subtitle="Accomplished Notices per day"
+                />
+                <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {monthName} {year}
+                </div>
               </div>
-            </div>
 
-            <div
-              className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
-              style={{ maxHeight: "70vh" }}
-            >
-              <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
-                <thead className="sticky top-0 z-30">
-                  <tr>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "sticky left-0 top-0 z-40 min-w-[170px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerPrimary,
-                      )}
-                    >
-                      Date
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "sticky left-[170px] top-0 z-40 min-w-[140px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerPrimary,
-                      )}
-                    >
-                      Mode of Issuance
-                    </th>
-                    <th
-                      colSpan={NOTICE_CATEGORIES.length}
-                      className={cn(
-                        "border-b border-r px-2 py-2 text-center font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerGroup,
-                      )}
-                    >
-                      Other Accomplished Notices
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "min-w-[80px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerPrimary,
-                      )}
-                    >
-                      Total
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "min-w-[220px] border-b px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerSub,
-                      )}
-                    >
-                      Remarks
-                    </th>
-                  </tr>
-                  <tr>
-                    {NOTICE_CATEGORIES.map((category) => (
+              <div
+                className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
+                style={{ maxHeight: "70vh" }}
+              >
+                <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
+                  <thead className="sticky top-0 z-30">
+                    <tr>
                       <th
-                        key={category}
+                        rowSpan={2}
                         className={cn(
-                          "min-w-[86px] border-b border-r px-2 py-1.5 text-center font-semibold uppercase tracking-wider",
-                          MONITORING_THEME.headerSoft,
+                          "sticky left-0 top-0 z-40 min-w-[170px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerPrimary,
                         )}
                       >
-                        {CATEGORY_LABEL[category]}
+                        Date
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {days.map((entry, index) => {
-                    const zebra = index % 2 === 1;
-                    const cellBg = zebra ? MONITORING_THEME.rowOdd : MONITORING_THEME.rowEven;
-                    return (
-                      <React.Fragment key={entry.day}>
-                        {MODE_ROWS.map((mode, modeIndex) => (
-                          <tr key={`${entry.day}-${mode.key}`} className={cellBg}>
-                            {modeIndex === 0 && (
+                      <th
+                        rowSpan={2}
+                        className={cn(
+                          "sticky left-[170px] top-0 z-40 min-w-[140px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerPrimary,
+                        )}
+                      >
+                        Mode of Issuance
+                      </th>
+                      <th
+                        colSpan={NOTICE_CATEGORIES.length}
+                        className={cn(
+                          "border-b border-r px-2 py-2 text-center font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerGroup,
+                        )}
+                      >
+                        Other Accomplished Notices
+                      </th>
+                      <th
+                        rowSpan={2}
+                        className={cn(
+                          "min-w-[80px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerPrimary,
+                        )}
+                      >
+                        Total
+                      </th>
+                      <th
+                        rowSpan={2}
+                        className={cn(
+                          "min-w-[220px] border-b px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerSub,
+                        )}
+                      >
+                        Remarks
+                      </th>
+                    </tr>
+                    <tr>
+                      {NOTICE_CATEGORIES.map((category) => (
+                        <th
+                          key={category}
+                          className={cn(
+                            "min-w-[86px] border-b border-r px-2 py-1.5 text-center font-semibold uppercase tracking-wider",
+                            MONITORING_THEME.headerSoft,
+                          )}
+                        >
+                          {CATEGORY_LABEL[category]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {days.map((entry, index) => {
+                      const zebra = index % 2 === 1;
+                      const cellBg = zebra ? MONITORING_THEME.rowOdd : MONITORING_THEME.rowEven;
+                      return (
+                        <React.Fragment key={entry.day}>
+                          {MODE_ROWS.map((mode, modeIndex) => (
+                            <tr key={`${entry.day}-${mode.key}`} className={cellBg}>
+                              {modeIndex === 0 && (
+                                <td
+                                  rowSpan={2}
+                                  className={cn(
+                                    "sticky left-0 z-20 min-w-[170px] border-b border-r px-3 py-1.5 align-middle font-medium",
+                                    cellBg,
+                                  )}
+                                >
+                                  <span className="whitespace-nowrap">{entry.label}</span>
+                                </td>
+                              )}
                               <td
-                                rowSpan={2}
                                 className={cn(
-                                  "sticky left-0 z-20 min-w-[170px] border-b border-r px-3 py-1.5 align-middle font-medium",
+                                  "sticky left-[170px] z-20 min-w-[140px] border-b border-r px-3 py-1.5 text-center align-middle font-semibold uppercase tracking-wide text-primary",
                                   cellBg,
                                 )}
                               >
-                                <span className="whitespace-nowrap">{entry.label}</span>
+                                {mode.label}
                               </td>
-                            )}
-                            <td
-                              className={cn(
-                                "sticky left-[170px] z-20 min-w-[140px] border-b border-r px-3 py-1.5 text-center align-middle font-semibold uppercase tracking-wide text-primary",
-                                cellBg,
+                              {NOTICE_CATEGORIES.map((category) => {
+                                const value = entry.modes[mode.key][category] ?? 0;
+                                return (
+                                  <td
+                                    key={`${entry.day}-${category}-${mode.key}`}
+                                    className="border-b border-r px-1.5 py-1.5 text-center tabular-nums"
+                                  >
+                                    {value.toLocaleString()}
+                                  </td>
+                                );
+                              })}
+                              {modeIndex === 0 && (
+                                <>
+                                  <td
+                                    rowSpan={2}
+                                    className="border-b border-r px-3 py-1.5 text-center align-middle font-bold tabular-nums"
+                                  >
+                                    {rowTotal(entry).toLocaleString()}
+                                  </td>
+                                  <td
+                                    rowSpan={2}
+                                    className="border-b px-2 py-1.5 align-middle text-muted-foreground"
+                                  >
+                                    {entry.remarks || "—"}
+                                  </td>
+                                </>
                               )}
-                            >
-                              {mode.label}
-                            </td>
-                            {NOTICE_CATEGORIES.map((category) => {
-                              const value = entry.modes[mode.key][category] ?? 0;
-                              return (
-                                <td
-                                  key={`${entry.day}-${category}-${mode.key}`}
-                                  className="border-b border-r px-1.5 py-1.5 text-center tabular-nums"
-                                >
-                                  {value.toLocaleString()}
-                                </td>
-                              );
-                            })}
-                            {modeIndex === 0 && (
-                              <>
-                                <td
-                                  rowSpan={2}
-                                  className="border-b border-r px-3 py-1.5 text-center align-middle font-bold tabular-nums"
-                                >
-                                  {rowTotal(entry).toLocaleString()}
-                                </td>
-                                <td
-                                  rowSpan={2}
-                                  className="border-b px-2 py-1.5 align-middle text-muted-foreground"
-                                >
-                                  {entry.remarks || "—"}
-                                </td>
-                              </>
-                            )}
-                          </tr>
-                        ))}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-                <tfoot className="sticky bottom-0 z-20">
-                  <tr className="total-row font-bold text-foreground">
-                    <td className="sticky left-0 z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2 text-left uppercase tracking-wide">
-                      Total
-                    </td>
-                    <td className="sticky left-[170px] z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2" />
-                    {NOTICE_CATEGORIES.map((category) => (
-                      <td
-                        key={`total-${category}`}
-                        className="total-row border-r border-t-2 border-grid-strong px-2 py-2 text-center tabular-nums"
-                      >
-                        {columnTotal(category).toLocaleString()}
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="sticky bottom-0 z-20">
+                    <tr className="total-row font-bold text-foreground">
+                      <td className="sticky left-0 z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2 text-left uppercase tracking-wide">
+                        Total
                       </td>
-                    ))}
-                    <td className="total-row-strong border-r border-t-2 border-grid-strong px-3 py-2 text-center tabular-nums">
-                      {grandTotal.toLocaleString()}
-                    </td>
-                    <td className="total-row border-t-2 border-grid-strong px-3 py-2" />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </Card>
-        </div>
+                      <td className="sticky left-[170px] z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2" />
+                      {NOTICE_CATEGORIES.map((category) => (
+                        <td
+                          key={`total-${category}`}
+                          className="total-row border-r border-t-2 border-grid-strong px-2 py-2 text-center tabular-nums"
+                        >
+                          {columnTotal(category).toLocaleString()}
+                        </td>
+                      ))}
+                      <td className="total-row-strong border-r border-t-2 border-grid-strong px-3 py-2 text-center tabular-nums">
+                        {grandTotal.toLocaleString()}
+                      </td>
+                      <td className="total-row border-t-2 border-grid-strong px-3 py-2" />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Card>
+          </div>
 
           {canScroll && (
             <div className="pointer-events-none absolute bottom-3 right-4 flex flex-col gap-1.5">
@@ -701,7 +707,6 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
             </div>
           )}
         </div>
-
 
         <DialogFooter className="border-t bg-background px-5 py-3">
           {onEdit && canEdit && (

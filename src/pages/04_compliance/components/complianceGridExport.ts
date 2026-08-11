@@ -338,7 +338,9 @@ const addCellset = (a: Cellset, b: Cellset): Cellset => {
     if (f.category === "INSPECTION") {
       bump(merged.inspection, f.key, (a.inspection[f.key] ?? 0) + (b.inspection[f.key] ?? 0));
     } else {
-      [0, 1].forEach((m) => bump(merged.modes[m], f.key, (a.modes[m][f.key] ?? 0) + (b.modes[m][f.key] ?? 0)));
+      [0, 1].forEach((m) =>
+        bump(merged.modes[m], f.key, (a.modes[m][f.key] ?? 0) + (b.modes[m][f.key] ?? 0)),
+      );
     }
   });
   return merged;
@@ -439,7 +441,13 @@ export async function exportComplianceGridWorkbook(opts: {
     else catRuns.push({ category: f.category, start: i, end: i });
   });
 
-  type GroupRun = { label: string; category: Category; start: number; end: number; grouped: boolean };
+  type GroupRun = {
+    label: string;
+    category: Category;
+    start: number;
+    end: number;
+    grouped: boolean;
+  };
   const groupRuns: GroupRun[] = [];
   FIELDS.forEach((f, i) => {
     const last = groupRuns[groupRuns.length - 1];
@@ -539,7 +547,12 @@ export async function exportComplianceGridWorkbook(opts: {
   const grandCells: Cellset[] = Array.from({ length: blockCount }, emptyCellset);
   let cursor = HR_LEAF + 1;
 
-  const writeValue = (r: number, c: number, value: number, style?: { fillArgb?: string; bold?: boolean; fontArgb?: string }) => {
+  const writeValue = (
+    r: number,
+    c: number,
+    value: number,
+    style?: { fillArgb?: string; bold?: boolean; fontArgb?: string },
+  ) => {
     const cell = ws.getCell(r, c);
     cell.value = Number(value) || 0;
     cell.numFmt = NUMBER_FMT;

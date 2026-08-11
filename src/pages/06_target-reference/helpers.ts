@@ -15,6 +15,7 @@ import {
   type ModuleFilterState,
 } from "@/components/shared/ModuleFilterBar";
 import { fromISODate } from "@/lib/filters";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 /* ------------------------------------------------------------------ *
  * Ledger request builder (POST /FSISTargetReference/Ledger)
@@ -133,6 +134,7 @@ export function isReportMonthLocked(
   reportMonth: number,
   now: Date = new Date(),
 ) {
+  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
   const cy = now.getFullYear();
   const cm = now.getMonth() + 1;
   const y = Number(reportYear) || 0;

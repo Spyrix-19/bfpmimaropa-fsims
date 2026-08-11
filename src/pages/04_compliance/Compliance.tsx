@@ -44,10 +44,7 @@ import {
   resolveModuleMonths,
   resolveSelectedDay,
 } from "@/components/shared/ModuleFilterBar";
-import {
-  type CompliancePeriod,
-  type ComplianceExportRecord,
-} from "./components/complianceExport";
+import { type CompliancePeriod, type ComplianceExportRecord } from "./components/complianceExport";
 import { exportComplianceGridWorkbook } from "./components/complianceGridExport";
 
 import FilterField from "@/components/filter-field";

@@ -83,6 +83,7 @@ import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 interface Props {
   open: boolean;
@@ -123,6 +124,7 @@ function hasPstLockActivated(
   reportmonth: number,
   now: Date = new Date(),
 ): boolean {
+  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
   const y = Number(reportyear);
   const m = Number(reportmonth);
   if (!y || !m || m < 1 || m > 12) return false;
@@ -239,7 +241,7 @@ export default function TargetReferenceForm({
   );
 
   const [station, setStation] = React.useState<SearchStationModel | null>(null);
-  
+
   const [selectedStationLabel, setSelectedStationLabel] = React.useState<string>("");
   const [initializedForOpen, setInitializedForOpen] = React.useState(false);
 
@@ -297,7 +299,6 @@ export default function TargetReferenceForm({
     provinceno: scope.provinceLocked ? scope.provinceno : provinceno,
     enabled: open,
   });
-
 
   // Fixed sector constants live in @/lib/fsims-constants (SECTORS).
   // 111=BPLO, 112=GOV, 113=PEZA, 114=TIEZA (OGA=115 intentionally excluded).
@@ -480,7 +481,8 @@ export default function TargetReferenceForm({
           editablestatus: Number(record.editablestatus ?? 0),
         });
 
-        const isPast = parseDateInputValue(selectedDate).getTime() < startOfToday();
+        const isPast =
+          IS_PAST_DATE_LOCK_ENABLED && parseDateInputValue(selectedDate).getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(record.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -513,7 +515,6 @@ export default function TargetReferenceForm({
         });
         setBaselineCells({});
         setRemarks("");
-
       }
     })();
 
@@ -611,14 +612,15 @@ export default function TargetReferenceForm({
   const cityName = stationDetails.cityName;
   const provinceLabel = stationDetails.provinceName;
 
-
   const selectedYear = Number(selectedDate.slice(0, 4));
   const selectedMonth = Number(selectedDate.slice(5, 7));
   const selectedDay = Number(selectedDate.slice(8, 10));
 
   /* ── Past-date lock rules (Add mode, single date) ───────────────────────── */
   const isPastSelectedDate =
-    !!selectedDate && parseDateInputValue(selectedDate).getTime() < startOfToday();
+    IS_PAST_DATE_LOCK_ENABLED &&
+    !!selectedDate &&
+    parseDateInputValue(selectedDate).getTime() < startOfToday();
   const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
   /** Pending revision request for the selected date (used for cancel/delete). */
   const activeAddRequest = React.useMemo(() => {
@@ -767,9 +769,7 @@ export default function TargetReferenceForm({
   const changePeriod = (nextMonth: number, nextYear: number) => {
     if (nextMonth === month && nextYear === year) return;
     if (isDirty) {
-      toast.error(
-        "Save or discard your changes before switching the reporting period.",
-      );
+      toast.error("Save or discard your changes before switching the reporting period.");
       return;
     }
     setMonth(nextMonth);
@@ -1142,8 +1142,8 @@ export default function TargetReferenceForm({
                   {isEdit ? "Edit Target Reference" : "Target Reference Entry"}
                 </DialogTitle>
                 <DialogDescription className="text-sm">
-                  Record target references per station and reporting period  — monthly, quarterly, semi-annual, and annual totals are
-              auto-computed.
+                  Record target references per station and reporting period — monthly, quarterly,
+                  semi-annual, and annual totals are auto-computed.
                 </DialogDescription>
               </div>
             </div>
@@ -1235,9 +1235,7 @@ export default function TargetReferenceForm({
                       <CalendarPicker
                         mode="single"
                         selected={selectedDate ? parseDateInputValue(selectedDate) : undefined}
-                        defaultMonth={
-                          selectedDate ? parseDateInputValue(selectedDate) : new Date()
-                        }
+                        defaultMonth={selectedDate ? parseDateInputValue(selectedDate) : new Date()}
                         month={calendarMonth}
                         onMonthChange={setCalendarMonth}
                         onSelect={(d) => {
@@ -1261,7 +1259,6 @@ export default function TargetReferenceForm({
               )}
               <PastDatesLockedNote />
             </Card>
-
 
             {/* Station Information card */}
             <StationInfoCard
@@ -1287,30 +1284,29 @@ export default function TargetReferenceForm({
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Station</Label>
                   <StationSearchSelect
-                  value={stationNo}
-                  valueName={selectedStationLabel}
-                  provinceno={scope.provinceLocked ? scope.provinceno : provinceno || undefined}
-                  onChange={(stationno, stationname, province, station) => {
-                    setStationNo(stationno);
-                    setStation(station ?? null);
-                    if (station?.provinceno) {
-                      setProvinceno(station.provinceno);
-                      setProvincename(station.provincename || province || "");
+                    value={stationNo}
+                    valueName={selectedStationLabel}
+                    provinceno={scope.provinceLocked ? scope.provinceno : provinceno || undefined}
+                    onChange={(stationno, stationname, province, station) => {
+                      setStationNo(stationno);
+                      setStation(station ?? null);
+                      if (station?.provinceno) {
+                        setProvinceno(station.provinceno);
+                        setProvincename(station.provincename || province || "");
+                      }
+                      setSelectedStationLabel(
+                        province ? `${stationname} — ${province}` : stationname,
+                      );
+                    }}
+                    readOnly={isEdit || scope.stationLocked}
+                    showAllOption={canShowAllStationOption}
+                    placeholder={
+                      scope.stationLocked ? "Restricted to your assigned station" : "Select station"
                     }
-                    setSelectedStationLabel(
-                      province ? `${stationname} — ${province}` : stationname,
-                    );
-                  }}
-                  readOnly={isEdit || scope.stationLocked}
-                  showAllOption={canShowAllStationOption}
-                  placeholder={
-                    scope.stationLocked ? "Restricted to your assigned station" : "Select station"
-                  }
-                />
+                  />
                 </div>
               )}
             </StationInfoCard>
-
 
             <div className="flex flex-col rounded-lg border border-border/60 overflow-hidden">
               <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">

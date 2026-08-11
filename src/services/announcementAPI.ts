@@ -1,13 +1,17 @@
 import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
-import { AnnouncementDeleteParams, AnnouncementLedgerModel, AnnouncementLedgerParams, AnnouncementMemberParams, AnnouncementReadDTO, AnnouncementRequestDTO } from "@/types/announcementType";
-
+import {
+  AnnouncementDeleteParams,
+  AnnouncementLedgerModel,
+  AnnouncementLedgerParams,
+  AnnouncementMemberParams,
+  AnnouncementReadDTO,
+  AnnouncementRequestDTO,
+} from "@/types/announcementType";
 
 export const announcementAPI = {
-
   async create(params: AnnouncementRequestDTO) {
     return await apiPost("/api/v1/Announcement/Create", params, { ...NO_RETRY });
   },
-
 
   async getDetail(params?: AnnouncementLedgerParams, options?: import("@/lib/api").ApiOptions) {
     return await apiGet<AnnouncementLedgerModel>("/api/v1/Announcement/Detail", {
@@ -47,5 +51,4 @@ export const announcementAPI = {
       ...options,
     });
   },
-
 };

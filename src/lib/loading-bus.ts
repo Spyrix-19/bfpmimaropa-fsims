@@ -29,7 +29,6 @@ function armSafety() {
   if (typeof window === "undefined") return;
   safetyTimer = setTimeout(() => {
     if (count > 0) {
-      // eslint-disable-next-line no-console
       console.warn("[loadingBus] safety cap reached, force-resetting");
       count = 0;
       emit();

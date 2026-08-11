@@ -63,6 +63,7 @@ import type {
 } from "@/types/noticeType";
 import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceTheme";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 /* -------------------------------------------------------------------------- */
 /*  Mode of Issuance — 96 = MANUAL, 97 = FSIS                                 */
@@ -523,7 +524,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     enabled: open,
   });
 
-
   /** Reset the form whenever the modal opens — the period defaults to today. */
   React.useEffect(() => {
     if (!open) return;
@@ -608,7 +608,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           isrevisionrequest: Boolean(entry.isrevisionrequest),
           editablestatus: Number(entry.editablestatus ?? 0),
         });
-        const isPast = reportingDate.getTime() < startOfToday();
+        const isPast = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
         const unlocked = Number(entry.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(entry.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -632,7 +632,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
         setManualValues(emptyCounts());
         setFsisValues(emptyCounts());
         setRemarks("");
-
       }
     })();
 
@@ -673,7 +672,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   }, [open, stationno, record?.provinceno, reportingDate.getFullYear(), reloadNonce]);
 
   /* ── Lock rules for the selected date ───────────────────────────────────── */
-  const isPastSelectedDate = reportingDate.getTime() < startOfToday();
+  const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
   const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
   const activeRequest = React.useMemo(() => {
     return (
@@ -786,10 +785,9 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                 Accomplished Notices Entry
               </DialogTitle>
               <DialogDescription className="text-sm">
-                Record notice accomplishments per station and reporting period — monthly, quarterly, semi-annual, and annual totals are
-              auto-computed.
+                Record notice accomplishments per station and reporting period — monthly, quarterly,
+                semi-annual, and annual totals are auto-computed.
               </DialogDescription>
-              
             </div>
           </div>
         </DialogHeader>
@@ -847,8 +845,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
             </div>
 
             <PastDatesLockedNote />
-
-
           </Card>
 
           {/* 2. Station Information ------------------------------------------ */}
@@ -864,7 +860,8 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               {
                 label: "City / Municipality",
                 value:
-                  record.cityname || stationDetails.cityName ||
+                  record.cityname ||
+                  stationDetails.cityName ||
                   (stationDetails.loading ? "Loading…" : ""),
               },
               {
@@ -876,7 +873,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                   (stationDetails.loading ? "Loading…" : ""),
               },
             ]}
-
           />
 
           {/* 3. Issued vs. Accomplished -------------------------------------- */}

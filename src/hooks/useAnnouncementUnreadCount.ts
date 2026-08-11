@@ -79,10 +79,15 @@ function toCount(data: unknown): number {
  * that number in the standard API envelope. Accept both response shapes so a
  * successful direct `2` response is not mistaken for a failed envelope.
  */
-function countFromResponse(resp: {
-  isSuccess?: boolean;
-  data?: unknown;
-} | null | undefined): number | null {
+function countFromResponse(
+  resp:
+    | {
+        isSuccess?: boolean;
+        data?: unknown;
+      }
+    | null
+    | undefined,
+): number | null {
   if (!resp?.isSuccess) return null;
   const payload = resp.data;
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
@@ -120,7 +125,7 @@ async function unreadFromLedger(fallback: number): Promise<number> {
   const rows = Array.isArray(payload)
     ? (payload as AnnouncementLedgerModel[])
     : Array.isArray((payload as { data?: unknown })?.data)
-      ? ((payload as { data: AnnouncementLedgerModel[] }).data)
+      ? (payload as { data: AnnouncementLedgerModel[] }).data
       : null;
   if (!rows) return fallback;
   return rows.filter((r) => !r.isread).length;

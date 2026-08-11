@@ -1,5 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 /**
  * Emphasized inline advisory shown under the reporting-period date explaining
@@ -8,6 +9,7 @@ import { cn } from "@/lib/utils";
  * wording and treatment stay identical across the app.
  */
 export function PastDatesLockedNote({ className }: { className?: string }) {
+  if (!IS_PAST_DATE_LOCK_ENABLED) return null;
   return (
     <div
       role="note"

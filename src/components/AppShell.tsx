@@ -14,7 +14,10 @@ const AppSidebar = lazy(() =>
 const LoginModal = lazy(() =>
   import("../pages/01_index/LoginModal").then((module) => ({ default: module.LoginModal })),
 );
-const SettingsPage = lazy(() => import("@/pages/11_settings/Settings"));
+const importSettings = () => import("@/pages/11_settings/Settings");
+const SettingsPage = lazy(importSettings);
+let settingsPreload: Promise<unknown> | null = null;
+const preloadSettings = () => (settingsPreload ??= importSettings());
 
 function useDarkMode() {
   const [dark, setDark] = useState(false);
@@ -52,6 +55,9 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
   const [loginOpen, setLoginOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { dark, toggle } = useDarkMode();
+  useEffect(() => {
+    void preloadSettings();
+  }, []);
   const now = useCurrentDate();
   const dateLabel = now.toLocaleDateString("en-US", {
     weekday: "short",
@@ -138,7 +144,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => void preloadSettings().then(() => setSettingsOpen(true))}
               aria-label="Settings"
             >
               <SettingsIcon className="h-4 w-4" />
@@ -167,7 +173,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
             className="sm:hidden"
             variant="ghost"
             size="icon"
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => void preloadSettings().then(() => setSettingsOpen(true))}
             aria-label="Settings"
           >
             <SettingsIcon className="h-4 w-4" />
@@ -179,7 +185,9 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
 
   const footer = (
     <footer className="px-4 py-6 text-center text-xs text-muted-foreground sm:px-6">
-      <div>© {new Date().getFullYear()} FSIMS · Fire Safety Inspection Monitoring · MIMAROPA Region</div>
+      <div>
+        © {new Date().getFullYear()} FSIMS · Fire Safety Inspection Monitoring · MIMAROPA Region
+      </div>
       <div className="mt-1">Powered by Spyrix - ICT MIMAROPA Regional Office</div>
     </footer>
   );

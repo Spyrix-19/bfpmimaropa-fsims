@@ -144,9 +144,7 @@ export default function TargetReferenceDetails({
 
   const dailyDerived = React.useMemo(
     () =>
-      detail
-        ? computeDailyFromList(detail.targetreferencelist, selectedYear, selectedMonth)
-        : null,
+      detail ? computeDailyFromList(detail.targetreferencelist, selectedYear, selectedMonth) : null,
     [detail, selectedYear, selectedMonth],
   );
 
@@ -165,7 +163,6 @@ export default function TargetReferenceDetails({
     : null;
 
   const completeAddress = detail ? detail.provincename : "";
-
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -195,199 +192,199 @@ export default function TargetReferenceDetails({
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20">
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-5">
-        {loading && !detail ? (
-          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-          </div>
-        ) : detail && derived ? (
-          <>
-
-            <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  <CalendarIcon className="h-4 w-4" />
-                  Reporting Period
-                </h2>
-                {isPeriodChanged && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedMonth(baseMonth);
-                      setSelectedYear(baseYear);
-                    }}
-                    className="h-8 gap-1.5 text-xs"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Reset to {MONTHS[baseMonth - 1]?.name} {baseYear}
-                  </Button>
-                )}
+            {loading && !detail ? (
+              <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Month</span>
-                  <Select
-                    value={String(selectedMonth)}
-                    onValueChange={(next) => setSelectedMonth(Number(next))}
-                  >
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue placeholder="Select month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MONTHS.map((m) => (
-                        <SelectItem key={m.value} value={String(m.value)}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Year</span>
-                  <Select
-                    value={String(selectedYear)}
-                    onValueChange={(next) => setSelectedYear(Number(next))}
-                  >
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue placeholder="Select year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {YEARS.map((yearOption) => (
-                        <SelectItem key={yearOption} value={String(yearOption)}>
-                          {yearOption}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </Card>
-
-            <StationInfoCard
-              className="rounded-xl"
-              stationName={detail.stationname}
-              unitCode={detail.stationcode}
-              logoUrl={detail.logourl || null}
-              fields={[
-                { label: "Station Code", value: detail.stationcode },
-                { label: "Station Name", value: detail.stationname },
-                { label: "Province", value: detail.provincename },
-              ]}
-            />
-
-            <div className="flex h-[360px] min-h-[360px] flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
-              <div className="border-b bg-card px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-primary">
-                {period === "DAILY" && "Daily Targets"}
-                {period === "MONTHLY" && "Monthly Targets"}
-                {period === "QUARTERLY" && "Quarterly Targets"}
-                {period === "SEMI-ANNUAL" && "Semi-Annual Targets"}
-                {period === "ANNUAL" && "Annual Targets"}
-              </div>
-              <div className="min-h-0 flex-1 overflow-auto">
-
-                <table className="min-w-full text-sm">
-                  <thead className="sticky top-0 z-10 bg-card">
-                    <tr className="bg-card text-left text-xs uppercase tracking-[0.15em] text-primary">
-                      <th className="px-3 py-2 font-semibold bg-card">
-                        {period === "DAILY"
-                          ? "Date"
-                          : period === "MONTHLY"
-                            ? "Month"
-                            : period === "QUARTERLY"
-                              ? "Quarter"
-                              : period === "SEMI-ANNUAL"
-                                ? "Period"
-                                : "Annual Total"}
-                      </th>
-                      <th className="px-3 py-2 text-center font-semibold bg-card">BPLO</th>
-                      <th className="px-3 py-2 text-center font-semibold bg-card">Government</th>
-                      <th className="px-3 py-2 text-center font-semibold bg-card">PEZA</th>
-                      <th className="px-3 py-2 text-center font-semibold bg-card">TIEZA</th>
-                      <th className="px-3 py-2 text-center font-semibold bg-card">TOTAL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {period === "DAILY" &&
-                      dailyDerived &&
-                      dailyDerived.days.map((d) => (
-                        <Row
-                          key={d}
-                          label={formatDayLabel(selectedYear, selectedMonth, d)}
-                          b={dailyDerived.daily[d]}
-                        />
-                      ))}
-                    {period === "MONTHLY" &&
-                      MONTHS.map((m) => (
-                        <Row key={m.value} label={m.name} b={derived.monthly[m.value]} />
-                      ))}
-                    {period === "QUARTERLY" &&
-                      QUARTERS.map((q, i) => <Row key={q} label={q} b={derived.quarters[i]} />)}
-                    {period === "SEMI-ANNUAL" &&
-                      HALVES.map((h, i) => <Row key={h} label={h} b={derived.halves[i]} />)}
-                    {period === "ANNUAL" && (
-                      <Row label="Annual Total" b={derived.annual} emphasize />
+            ) : detail && derived ? (
+              <>
+                <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                      <CalendarIcon className="h-4 w-4" />
+                      Reporting Period
+                    </h2>
+                    {isPeriodChanged && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedMonth(baseMonth);
+                          setSelectedYear(baseYear);
+                        }}
+                        className="h-8 gap-1.5 text-xs"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Reset to {MONTHS[baseMonth - 1]?.name} {baseYear}
+                      </Button>
                     )}
-                  </tbody>
-                  {period === "DAILY" && dailyDerived ? (
-                    <tfoot className="sticky bottom-0 bg-card">
-                      <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
-                        <td className="border-t px-3 py-2 bg-card">TOTAL</td>
-                        {(["bplo", "gov", "peza", "tieza"] as const).map((k) => (
-                          <td
-                            key={k}
-                            className="border-t px-3 py-2 text-center bg-card tabular-nums"
-                          >
-                            {dailyDerived.total[k].toLocaleString()}
-                          </td>
-                        ))}
-                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                          {(
-                            dailyDerived.total.bplo +
-                            dailyDerived.total.gov +
-                            dailyDerived.total.peza +
-                            dailyDerived.total.tieza
-                          ).toLocaleString()}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  ) : null}
-                  {period === "MONTHLY" && overallTotals ? (
-                    <tfoot className="sticky bottom-0 bg-card">
-                      <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
-                        <td className="border-t px-3 py-2 bg-card">TOTAL</td>
-                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                          {overallTotals.bplo.toLocaleString()}
-                        </td>
-                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                          {overallTotals.gov.toLocaleString()}
-                        </td>
-                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                          {overallTotals.peza.toLocaleString()}
-                        </td>
-                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                          {overallTotals.tieza.toLocaleString()}
-                        </td>
-                        <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                          {(
-                            overallTotals.bplo +
-                            overallTotals.gov +
-                            overallTotals.peza +
-                            overallTotals.tieza
-                          ).toLocaleString()}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  ) : null}
-                </table>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Month</span>
+                      <Select
+                        value={String(selectedMonth)}
+                        onValueChange={(next) => setSelectedMonth(Number(next))}
+                      >
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue placeholder="Select month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MONTHS.map((m) => (
+                            <SelectItem key={m.value} value={String(m.value)}>
+                              {m.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Year</span>
+                      <Select
+                        value={String(selectedYear)}
+                        onValueChange={(next) => setSelectedYear(Number(next))}
+                      >
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue placeholder="Select year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {YEARS.map((yearOption) => (
+                            <SelectItem key={yearOption} value={String(yearOption)}>
+                              {yearOption}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </Card>
+
+                <StationInfoCard
+                  className="rounded-xl"
+                  stationName={detail.stationname}
+                  unitCode={detail.stationcode}
+                  logoUrl={detail.logourl || null}
+                  fields={[
+                    { label: "Station Code", value: detail.stationcode },
+                    { label: "Station Name", value: detail.stationname },
+                    { label: "Province", value: detail.provincename },
+                  ]}
+                />
+
+                <div className="flex h-[360px] min-h-[360px] flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
+                  <div className="border-b bg-card px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-primary">
+                    {period === "DAILY" && "Daily Targets"}
+                    {period === "MONTHLY" && "Monthly Targets"}
+                    {period === "QUARTERLY" && "Quarterly Targets"}
+                    {period === "SEMI-ANNUAL" && "Semi-Annual Targets"}
+                    {period === "ANNUAL" && "Annual Targets"}
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="sticky top-0 z-10 bg-card">
+                        <tr className="bg-card text-left text-xs uppercase tracking-[0.15em] text-primary">
+                          <th className="px-3 py-2 font-semibold bg-card">
+                            {period === "DAILY"
+                              ? "Date"
+                              : period === "MONTHLY"
+                                ? "Month"
+                                : period === "QUARTERLY"
+                                  ? "Quarter"
+                                  : period === "SEMI-ANNUAL"
+                                    ? "Period"
+                                    : "Annual Total"}
+                          </th>
+                          <th className="px-3 py-2 text-center font-semibold bg-card">BPLO</th>
+                          <th className="px-3 py-2 text-center font-semibold bg-card">
+                            Government
+                          </th>
+                          <th className="px-3 py-2 text-center font-semibold bg-card">PEZA</th>
+                          <th className="px-3 py-2 text-center font-semibold bg-card">TIEZA</th>
+                          <th className="px-3 py-2 text-center font-semibold bg-card">TOTAL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {period === "DAILY" &&
+                          dailyDerived &&
+                          dailyDerived.days.map((d) => (
+                            <Row
+                              key={d}
+                              label={formatDayLabel(selectedYear, selectedMonth, d)}
+                              b={dailyDerived.daily[d]}
+                            />
+                          ))}
+                        {period === "MONTHLY" &&
+                          MONTHS.map((m) => (
+                            <Row key={m.value} label={m.name} b={derived.monthly[m.value]} />
+                          ))}
+                        {period === "QUARTERLY" &&
+                          QUARTERS.map((q, i) => <Row key={q} label={q} b={derived.quarters[i]} />)}
+                        {period === "SEMI-ANNUAL" &&
+                          HALVES.map((h, i) => <Row key={h} label={h} b={derived.halves[i]} />)}
+                        {period === "ANNUAL" && (
+                          <Row label="Annual Total" b={derived.annual} emphasize />
+                        )}
+                      </tbody>
+                      {period === "DAILY" && dailyDerived ? (
+                        <tfoot className="sticky bottom-0 bg-card">
+                          <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+                            <td className="border-t px-3 py-2 bg-card">TOTAL</td>
+                            {(["bplo", "gov", "peza", "tieza"] as const).map((k) => (
+                              <td
+                                key={k}
+                                className="border-t px-3 py-2 text-center bg-card tabular-nums"
+                              >
+                                {dailyDerived.total[k].toLocaleString()}
+                              </td>
+                            ))}
+                            <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
+                              {(
+                                dailyDerived.total.bplo +
+                                dailyDerived.total.gov +
+                                dailyDerived.total.peza +
+                                dailyDerived.total.tieza
+                              ).toLocaleString()}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      ) : null}
+                      {period === "MONTHLY" && overallTotals ? (
+                        <tfoot className="sticky bottom-0 bg-card">
+                          <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+                            <td className="border-t px-3 py-2 bg-card">TOTAL</td>
+                            <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
+                              {overallTotals.bplo.toLocaleString()}
+                            </td>
+                            <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
+                              {overallTotals.gov.toLocaleString()}
+                            </td>
+                            <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
+                              {overallTotals.peza.toLocaleString()}
+                            </td>
+                            <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
+                              {overallTotals.tieza.toLocaleString()}
+                            </td>
+                            <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
+                              {(
+                                overallTotals.bplo +
+                                overallTotals.gov +
+                                overallTotals.peza +
+                                overallTotals.tieza
+                              ).toLocaleString()}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      ) : null}
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                No details available.
               </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-            No details available.
-          </div>
-        )}
+            )}
           </div>
         </div>
 
@@ -412,4 +409,3 @@ export default function TargetReferenceDetails({
     </Dialog>
   );
 }
-

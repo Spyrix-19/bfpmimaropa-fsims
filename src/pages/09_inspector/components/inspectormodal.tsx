@@ -122,7 +122,11 @@ export default function InspectorModal({
         provincename: user?.provincename ?? scope.provincename,
         logourl: null,
       });
-      void onStationSelected?.(scope.stationno, user?.stationname ?? scope.stationname, user?.provincename ?? scope.provincename);
+      void onStationSelected?.(
+        scope.stationno,
+        user?.stationname ?? scope.stationname,
+        user?.provincename ?? scope.provincename,
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, row, fields, stationLocked, scope.stationno]);
@@ -198,34 +202,34 @@ export default function InspectorModal({
             <SectionTitle icon={<Building2 className="h-4 w-4" />} title="Station Information" />
             {(isEdit || (stationLocked && station)) && station ? (
               <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <AvatarWithFallback
-                  name={station.stationname}
-                  src={station.logourl ?? null}
-                  alt={station.stationname}
-                  className="h-11 w-11 shrink-0 border border-border/60"
-                />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">{station.stationname}</div>
-                  <div className="text-xs font-medium text-primary">{station.unitcode}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {[station.cityname, station.provincename].filter(Boolean).join(", ")}
+                <div className="flex items-start gap-3">
+                  <AvatarWithFallback
+                    name={station.stationname}
+                    src={station.logourl ?? null}
+                    alt={station.stationname}
+                    className="h-11 w-11 shrink-0 border border-border/60"
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold">{station.stationname}</div>
+                    <div className="text-xs font-medium text-primary">{station.unitcode}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {[station.cityname, station.provincename].filter(Boolean).join(", ")}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {!isEdit && (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {[
-                    { label: "Station Code", value: station.unitcode },
-                    { label: "Station Name", value: station.stationname },
-                    { label: "Province", value: station.provincename },
-                  ].map((f) => (
-                    <FilterField key={f.label} label={f.label}>
-                      <Input value={f.value ?? ""} readOnly className="h-10 bg-muted/40" />
-                    </FilterField>
-                  ))}
-                </div>
-              )}
+                {!isEdit && (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[
+                      { label: "Station Code", value: station.unitcode },
+                      { label: "Station Name", value: station.stationname },
+                      { label: "Province", value: station.provincename },
+                    ].map((f) => (
+                      <FilterField key={f.label} label={f.label}>
+                        <Input value={f.value ?? ""} readOnly className="h-10 bg-muted/40" />
+                      </FilterField>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <>

@@ -187,27 +187,8 @@ export function FilterBar() {
     set({ stations: next, provinces: merged });
   };
 
-  // Public (not logged in): only the Year filter is exposed.
-  if (!isAuthenticated) {
-    return (
-      <div className="glass-panel rounded-2xl p-4">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-          <Select value={filters.year} onValueChange={(v) => set({ year: v })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {YEARS.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    );
-  }
+  // Public (not logged in): the full filter bar is exposed. Role-based
+  // province/station locking below still applies once signed in.
 
   return (
     <ModuleFilterBar

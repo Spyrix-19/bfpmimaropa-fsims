@@ -69,6 +69,7 @@ import RevisionRequestDialog from "@/pages/06_target-reference/revision/Revision
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import { formatLongDate } from "@/lib/date-format";
 import { Ban, FilePen, Trash2, Lock } from "lucide-react";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 /** Row shape returned by the compliance "detail by date" endpoint. */
 type ComplianceRow = FSISComplianceDetailClassModel & { isdeleted?: boolean };
@@ -506,7 +507,6 @@ function InspectionsNewBody({
     setDateSummary(null);
   }, []);
 
-
   /* Existence check — runs whenever station / date changes. */
   React.useEffect(() => {
     const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
@@ -563,7 +563,7 @@ function InspectionsNewBody({
           totalAccomplishmentpeza: Number(record.inspectpezacount ?? 0),
           totalAccomplishmenttieza: Number(record.inspecttiezacount ?? 0),
         });
-        const isPast = reportingDate.getTime() < startOfToday();
+        const isPast = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(record.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -663,7 +663,7 @@ function InspectionsNewBody({
   /* ── Lock rules for the selected (single) date ───────────────────────────── */
   /* Driven by the Detail/Date fields `isrevisionrequest` + `editablestatus`
      (153 = approved / temporarily unlocked), same as complianceEdit.tsx. */
-  const isPastSelectedDate = reportingDate.getTime() < startOfToday();
+  const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
   const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
   const activeRequest = React.useMemo(() => {
     return (
@@ -926,7 +926,6 @@ function InspectionsNewBody({
         <PastDatesLockedNote />
       </Card>
 
-
       {/* 2. Station Information -------------------------------------------- */}
       <StationInfoCard
         stationName={stationDetails.stationName || station.name || ""}
@@ -1007,9 +1006,7 @@ function InspectionsNewBody({
             />
           </div>
         )}
-
       </StationInfoCard>
-
 
       {/* 3. Daily Inspection Activities ------------------------------------ */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
@@ -1179,7 +1176,6 @@ function InspectionsNewBody({
             </div>
           )}
         </Card>
-
       </Card>
 
       {/* 4. Daily Issuance Activities -------------------------------------- */}
@@ -1209,7 +1205,6 @@ function InspectionsNewBody({
             locked={fieldsLocked}
           />
         </TooltipProvider>
-
 
         <Field label="Remarks">
           <Textarea
@@ -1416,8 +1411,8 @@ export default function InspectionsNew() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance Entry</h1>
           <p className="text-sm text-muted-foreground">
-            Record fire safety compliance accomplishments per station and reporting period  — monthly, quarterly, semi-annual, and annual totals are
-              auto-computed.
+            Record fire safety compliance accomplishments per station and reporting period —
+            monthly, quarterly, semi-annual, and annual totals are auto-computed.
           </p>
         </div>
       </div>
@@ -1465,7 +1460,6 @@ export function InspectionsNewModal({
               <DialogDescription>
                 Select a reporting period and station, then encode daily accomplishments.
               </DialogDescription>
-              
             </div>
           </div>
         </DialogHeader>

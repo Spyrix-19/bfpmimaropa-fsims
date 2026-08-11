@@ -392,7 +392,6 @@ export async function exportComplianceMatrix(opts: {
         row.getCell(COL.PROV).value = provinceName;
         row.getCell(COL.CITY).value = station.stationCode || "";
         row.getCell(COL.STATION).value = station.stationName;
-
       }
       row.getCell(COL.MODE).value = mode.label;
 
@@ -569,7 +568,6 @@ export async function exportComplianceMatrix(opts: {
     cursor++;
     writeGrandTotals(provinceTotalStarts, grandModeLabels);
   }
-
 
   // Column widths
   ws.getColumn(COL.NO).width = 5;

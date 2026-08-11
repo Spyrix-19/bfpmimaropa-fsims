@@ -13,7 +13,8 @@ export interface RefFilter {
   code?: string; // optional (e.g. locationcode for scoping children)
 }
 
-export type DashInterval = "ALL" | "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
+export type DashInterval =
+  "ALL" | "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
 
 export interface DashFilters {
   year: string;
@@ -49,8 +50,8 @@ export function fromISODate(v: string): Date | null {
 
 export const DEFAULT_FILTERS: DashFilters = {
   year: String(new Date().getFullYear()),
-  interval: "DAILY",
-  period: `all:${toISODate(new Date())}`,
+  interval: "MONTHLY",
+  period: String(new Date().getMonth() + 1),
   provinces: [],
   stations: [],
   city: empty,
