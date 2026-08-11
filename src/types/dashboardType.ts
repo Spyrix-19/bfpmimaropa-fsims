@@ -138,3 +138,25 @@ export interface DashboardYearlyInspectionClass {
   reportmonth: number;
   totalaccomplish: number;
 }
+
+export interface StationMonthlyPerformanceModel {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  cityno: string;
+  cityname: string;
+  logourl: string;
+  monthlyperformanceList: StationMonthlyPerformanceClass[];
+}
+
+export interface StationMonthlyPerformanceClass {
+  year: number;
+  month: number;
+  bploPercentage: number;
+  govPercentage: number;
+  pezaPercentage: number;
+  tiezaPercentage: number;
+  overallPercentage: number;
+}

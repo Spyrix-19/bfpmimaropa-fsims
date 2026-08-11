@@ -9,6 +9,7 @@ import {
   DashboardMonthlySectorInspectionModel,
   DashboardYearlyInspectionModel,
   DashboardYearToYearDTO,
+  StationMonthlyPerformanceModel,
 } from "@/types/dashboardType";
 
 export const dashboardAPI = {
@@ -96,4 +97,14 @@ export const dashboardAPI = {
       },
     );
   },
+
+
+   async getStationPerformance(
+      options?: import("@/lib/api").ApiOptions,
+    ) {
+      return await apiGet<StationMonthlyPerformanceModel>("/api/v1/Dashboard/FSIMS/StationMonthlyPerformance", {
+        ...GET_RETRY,
+        ...options,
+      });
+    },
 };
