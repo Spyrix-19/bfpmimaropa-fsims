@@ -20,33 +20,33 @@ function MonthlyBreakdown({ station }: { station: RankedStation }) {
     );
   }
   return (
-    <div className="border-t border-border/60 bg-muted/20 px-4 py-3">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="border-t border-border/60 bg-muted/20 px-3 py-2.5">
+      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Monthly Performance
       </div>
-      <div className="max-h-64 w-full max-w-full overflow-x-auto overflow-y-auto overscroll-contain rounded-md border border-border/40 bg-card/40">
-        <table className="w-full min-w-[380px] text-[10px] sm:text-[11px]">
-          <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
+      <div className="w-full max-w-full overflow-x-auto rounded-md border border-border/40 bg-card/40">
+        <table className="w-full min-w-[320px] text-[9px] sm:text-[10px]">
+          <thead className="bg-card/95 backdrop-blur">
             <tr className="text-muted-foreground">
-              <th className="px-2 py-1 text-left font-medium">Month</th>
-              <th className="px-2 py-1 text-right font-medium">BPLO</th>
-              <th className="px-2 py-1 text-right font-medium">GOV</th>
-              <th className="px-2 py-1 text-right font-medium">PEZA</th>
-              <th className="px-2 py-1 text-right font-medium">TIEZA</th>
-              <th className="px-2 py-1 text-right font-medium">Overall</th>
+              <th className="px-1.5 py-1 text-left font-medium">Month</th>
+              <th className="px-1.5 py-1 text-right font-medium">BPLO</th>
+              <th className="px-1.5 py-1 text-right font-medium">GOV</th>
+              <th className="px-1.5 py-1 text-right font-medium">PEZA</th>
+              <th className="px-1.5 py-1 text-right font-medium">TIEZA</th>
+              <th className="px-1.5 py-1 text-right font-medium">Overall</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
             {station.months.map((m) => (
               <tr key={`${m.year}-${m.month}`} className="tabular-nums">
-                <td className="whitespace-nowrap px-2 py-1.5 text-left text-foreground">
+                <td className="whitespace-nowrap px-1.5 py-1 text-left text-foreground">
                   {MONTH_NAMES[Math.min(Math.max(Number(m.month), 1), 12) - 1]}
                 </td>
-                <td className="px-2 py-1.5 text-right">{formatPct(Number(m.bploPercentage))}</td>
-                <td className="px-2 py-1.5 text-right">{formatPct(Number(m.govPercentage))}</td>
-                <td className="px-2 py-1.5 text-right">{formatPct(Number(m.pezaPercentage))}</td>
-                <td className="px-2 py-1.5 text-right">{formatPct(Number(m.tiezaPercentage))}</td>
-                <td className="px-2 py-1.5 text-right font-semibold text-foreground">
+                <td className="px-1.5 py-1 text-right">{formatPct(Number(m.bploPercentage))}</td>
+                <td className="px-1.5 py-1 text-right">{formatPct(Number(m.govPercentage))}</td>
+                <td className="px-1.5 py-1 text-right">{formatPct(Number(m.pezaPercentage))}</td>
+                <td className="px-1.5 py-1 text-right">{formatPct(Number(m.tiezaPercentage))}</td>
+                <td className="px-1.5 py-1 text-right font-semibold text-foreground">
                   {formatPct(Number(m.overallPercentage))}
                 </td>
               </tr>
@@ -137,11 +137,11 @@ function TopStationRow({ station, rank }: { station: RankedStation; rank: number
         type="button"
         aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-left sm:flex-nowrap"
+        className="flex w-full flex-wrap items-center gap-x-2.5 gap-y-2 px-3 py-2 text-left sm:flex-nowrap"
       >
         <span
           className={cn(
-            "grid h-6 w-6 shrink-0 place-items-center rounded-md text-[11px] font-semibold tabular-nums",
+            "grid h-5 w-5 shrink-0 place-items-center rounded-md text-[10px] font-semibold tabular-nums",
             style?.badge ?? "bg-muted text-muted-foreground",
           )}
         >
@@ -150,18 +150,18 @@ function TopStationRow({ station, rank }: { station: RankedStation; rank: number
         <AvatarWithFallback
           src={station.logoSrc}
           name={station.stationname}
-          className="h-8 w-8 shrink-0 border border-border/60 text-[10px]"
+          className="h-7 w-7 shrink-0 border border-border/60 text-[9px]"
         />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-medium text-foreground">
+          <div className="truncate text-[11px] font-medium text-foreground">
             {station.stationname || "—"}
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div className="truncate text-[10px] text-muted-foreground">
             {[station.stationcode, station.provincename].filter(Boolean).join(" • ") || "—"}
           </div>
         </div>
-        <div className="order-last w-full shrink-0 sm:order-none sm:w-32">
-          <div className="text-right text-sm font-semibold tabular-nums text-foreground">
+        <div className="order-last w-full shrink-0 sm:order-none sm:w-28">
+          <div className="text-right text-[11px] font-semibold tabular-nums text-foreground">
             {formatPct(station.averageOverallPercentage)}
           </div>
           <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -262,7 +262,7 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
         ) : topStations.length === 0 ? (
           <EmptyState>No station performance data is available for the current reporting period.</EmptyState>
         ) : (
-          <div className="max-h-[420px] w-full overflow-y-auto overscroll-contain sm:max-h-[520px]">
+          <div className="w-full overflow-hidden">
             <ol>
               {topStations.map((s, i) => (
                 <TopStationRow key={s.stationno || s.stationcode || i} station={s} rank={s.rank} />
@@ -289,7 +289,7 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
             period.
           </EmptyState>
         ) : (
-          <div className="max-h-[420px] w-full overflow-y-auto overscroll-contain sm:max-h-[520px]">
+          <div className="w-full overflow-hidden">
             <ul>
               {perfectStations.map((s, i) => (
                 <PerfectStationRow
