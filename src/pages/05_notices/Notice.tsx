@@ -1080,7 +1080,7 @@ function NoticeLedgerCard({
                     rowSpan={2}
                     className={`${headCell} sticky left-[11rem] top-0 z-40 min-w-[9rem] border-r-2 border-r-border/60`}
                   >
-                    Mode of Issuance
+                    Mode of Complied Notices
                   </th>
 
                   <th

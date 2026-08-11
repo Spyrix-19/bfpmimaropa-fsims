@@ -339,7 +339,7 @@ function NoticeCard({
           </div>
           {!expanded && (
             <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Accomplished / Issued
+              Complied / Issued
             </div>
           )}
         </div>
