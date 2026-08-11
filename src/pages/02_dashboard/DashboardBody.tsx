@@ -114,7 +114,7 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Inspections by Sector
+            Inspections
           </div>
           <div className="mt-1.5 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight tabular-nums">
@@ -718,7 +718,7 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
 
   return (
     <ChartCard
-      title="Inspections by Sector"
+      title="Inspections"
       subtitle={
         groupBy === "province"
           ? "Actual inspections per province · line per sector"
@@ -984,12 +984,8 @@ export function DashboardBody() {
   } = useRecentActivity(isAuthenticated);
 
   const inspectionBreakdown = [
-    { label: "During", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
-    { label: "After", value: sumBy(compliance?.inspectionList, (r) => r.totalafter) },
-    { label: "1st BPLO", value: sumBy(compliance?.inspectionList, (r) => r.totalbplo) },
-    { label: "1st GOV", value: sumBy(compliance?.inspectionList, (r) => r.totalgov) },
-    { label: "1st PEZA", value: sumBy(compliance?.inspectionList, (r) => r.totalpeza) },
-    { label: "1st TIEZA", value: sumBy(compliance?.inspectionList, (r) => r.totaltieza) },
+    { label: "During Construction", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
+    { label: "After Completion", value: sumBy(compliance?.inspectionList, (r) => r.totalafter) },
   ];
 
   const fsecBreakdown = [
@@ -1016,7 +1012,7 @@ export function DashboardBody() {
       {/* Breakdowns — Inspection / FSEC / FSIC */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <BreakdownCard
-          label="Inspection"
+          label="Other Inspections"
           icon={<ClipboardList className="h-5 w-5" />}
           rows={inspectionBreakdown}
         />
@@ -1068,7 +1064,7 @@ export function DashboardBody() {
         />
       </div>
 
-      {/* Row 1: Target Gap by Province | Inspections by Sector (50/50) */}
+      {/* Row 1: Target Gap by Province | Inspections (50/50) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <GapChartCard rows={gapRows} loading={gapLoading} />
 

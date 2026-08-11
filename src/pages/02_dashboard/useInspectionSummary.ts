@@ -60,7 +60,7 @@ export function useInspectionSummary() {
       const { ok, data, error, canceled } = unwrap<DashboardInspectionAccomplishModel[]>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
-        toast.error(isGenericError(error) ? "Unable to load inspections by sector." : error);
+        toast.error(isGenericError(error) ? "Unable to load inspections." : error);
         setRows([]);
       } else {
         setRows(
