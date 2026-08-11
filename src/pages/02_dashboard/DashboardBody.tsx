@@ -166,23 +166,21 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
             />
           </div>
 
-          {!expanded && (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {metrics.map((m) => (
-                <div
-                  key={m.label}
-                  className="rounded-lg border border-border/60 bg-card p-3 shadow-soft"
-                >
-                  <div className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {m.label}
-                  </div>
-                  <div className={`mt-1 text-base font-semibold tabular-nums ${m.tone}`}>
-                    {m.value}
-                  </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {metrics.map((m) => (
+              <div
+                key={m.label}
+                className="rounded-lg border border-border/60 bg-card p-3 shadow-soft"
+              >
+                <div className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {m.label}
                 </div>
-              ))}
-            </div>
-          )}
+                <div className={`mt-1 text-base font-semibold tabular-nums ${m.tone}`}>
+                  {m.value}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="mt-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted">
           {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -203,33 +201,6 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
               </tr>
             </thead>
             <tbody>
-              <tr className="border-t-2 border-border bg-primary/5 font-semibold">
-                <td className="py-1.5 text-left">Overall Total</td>
-                <td className="py-1.5 text-center tabular-nums">
-                  {sectorTotals.target.toLocaleString()}
-                </td>
-                <td className="py-1.5 text-center font-semibold tabular-nums text-success">
-                  {sectorTotals.accomplished.toLocaleString()}
-                </td>
-                <td
-                  className={`py-1.5 text-center tabular-nums ${
-                    remaining < 0 ? "text-success" : "text-warning"
-                  }`}
-                  title={remaining < 0 ? "Accomplishment exceeded target" : undefined}
-                >
-                  {remaining.toLocaleString()}
-                </td>
-                <td className="py-1.5 text-center tabular-nums text-success">
-                  {positive ? positive.toLocaleString() : "—"}
-                </td>
-                <td
-                  className={`py-1.5 text-center font-semibold tabular-nums ${
-                    completion >= 100 ? "text-success" : ""
-                  }`}
-                >
-                  {completion}%
-                </td>
-              </tr>
               {sectorProgress.map((s) => {
                 const remaining = s.target - s.accomplished;
                 const positive = Math.max(s.accomplished - s.target, 0);
