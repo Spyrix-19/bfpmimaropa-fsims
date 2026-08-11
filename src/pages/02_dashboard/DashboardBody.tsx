@@ -189,18 +189,19 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
       </button>
 
       {expanded && (
-        <div className="overflow-x-auto border-t border-border/60 bg-muted/20 px-5 py-3">
-          <table className="w-full text-sm">
+        <div className="border-t border-border/60 bg-muted/20 px-3 py-3 sm:px-5">
+          <table className="w-full table-fixed text-[11px] sm:text-sm">
             <thead>
-              <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="py-1 text-left">Sector</th>
-                <th className="py-1 text-center">Target</th>
-                <th className="py-1 text-center">Accomplished</th>
-                <th className="py-1 text-center">Remaining</th>
-                <th className="py-1 text-center">Positive Listing</th>
-                <th className="py-1 text-center">%</th>
+              <tr className="text-[9px] font-semibold uppercase leading-tight tracking-tight text-muted-foreground sm:text-[10px] sm:tracking-wider">
+                <th className="w-[22%] px-0.5 py-1 text-left">Sector</th>
+                <th className="px-0.5 py-1 text-center">Target</th>
+                <th className="px-0.5 py-1 text-center">Accompl.</th>
+                <th className="px-0.5 py-1 text-center">Remain.</th>
+                <th className="px-0.5 py-1 text-center">Positive</th>
+                <th className="w-[12%] px-0.5 py-1 text-center">%</th>
               </tr>
             </thead>
+
             <tbody>
               {sectorProgress.map((s) => {
                 const remaining = s.target - s.accomplished;
@@ -472,7 +473,7 @@ function YoYYearMultiSelect({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="w-[176px] shrink-0 justify-between">
+        <Button variant="outline" size="sm" className="w-full shrink-0 justify-between sm:w-[176px]">
           <span className="truncate">{label}</span>
           <ChevronDown className="h-4 w-4" />
         </Button>
@@ -550,13 +551,20 @@ function ChartCard({
 
   return (
     <Card ref={ref} className={`border-border/60 bg-card p-5 shadow-soft ${className ?? ""}`}>
-      <div className="mb-4 flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="mb-4 flex flex-wrap items-start gap-2">
+        <div className="order-1 min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold">{title}</h3>
           {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        <div className="flex shrink-0 items-center gap-2" data-html2canvas-ignore="true">
-          {actions}
+        {actions && (
+          <div
+            className="order-3 flex w-full flex-wrap items-center gap-2 sm:order-2 sm:w-auto sm:shrink-0"
+            data-html2canvas-ignore="true"
+          >
+            {actions}
+          </div>
+        )}
+        <div className="order-2 shrink-0 sm:order-3" data-html2canvas-ignore="true">
           <Button
             variant="ghost"
             size="icon"
@@ -568,6 +576,7 @@ function ChartCard({
           </Button>
         </div>
       </div>
+
       <div className={`${height} w-full`}>{children}</div>
     </Card>
   );
@@ -748,13 +757,13 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
       }
       height="h-72"
       actions={
-        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+        <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
           {(["province", "sector"] as const).map((g) => (
             <Button
               key={g}
               variant={groupBy === g ? "secondary" : "ghost"}
               size="sm"
-              className="h-6 px-2 text-[11px] capitalize"
+              className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
               onClick={() => setGroupBy(g)}
             >
               By {g}
@@ -831,13 +840,13 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
       }
       height="h-72"
       actions={
-        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+        <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
           {(["province", "sector"] as const).map((g) => (
             <Button
               key={g}
               variant={groupBy === g ? "secondary" : "ghost"}
               size="sm"
-              className="h-6 px-2 text-[11px] capitalize"
+              className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
               onClick={() => setGroupBy(g)}
             >
               By {g}
@@ -932,7 +941,7 @@ function ChartScopeFilters({
           value={scope.provincename}
           placeholder="All provinces"
           title="Restricted to your assigned province"
-          className="w-[240px] shrink-0"
+          className="w-full shrink-0 sm:w-[240px]"
         />
       ) : (
         <LocationMultiSelect
@@ -943,7 +952,7 @@ function ChartScopeFilters({
           onChange={handleProvinces}
           placeholder="All provinces"
           hideCode
-          className="w-[240px] shrink-0"
+          className="w-full shrink-0 sm:w-[240px]"
         />
       )}
 
@@ -952,7 +961,7 @@ function ChartScopeFilters({
           value={scope.stationname}
           placeholder="All stations"
           title="Restricted to your assigned station"
-          className="w-[240px] shrink-0"
+          className="w-full shrink-0 sm:w-[240px]"
         />
       ) : (
         <StationMultiSelect
@@ -963,7 +972,7 @@ function ChartScopeFilters({
           onChange={handleStations}
           placeholder="All stations"
           alwaysEnabled
-          className="w-[240px] shrink-0"
+          className="w-full shrink-0 sm:w-[240px]"
         />
       )}
     </>
@@ -1184,12 +1193,12 @@ export function DashboardBody() {
           subtitle="Provincial accomplishment"
           height="h-72"
           actions={
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
               <Select
                 value={String(targetVsActualYear)}
                 onValueChange={(v) => setTargetVsActualYear(Number(v))}
               >
-                <SelectTrigger className="h-9 w-[96px] shrink-0">
+                <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1245,12 +1254,12 @@ export function DashboardBody() {
         subtitle="Target vs Actual per month"
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <Select
               value={String(monthlyTrendYear)}
               onValueChange={(v) => setMonthlyTrendYear(Number(v))}
             >
-              <SelectTrigger className="h-9 w-[96px] shrink-0">
+              <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -1314,12 +1323,12 @@ export function DashboardBody() {
         subtitle="Actual inspections per sector"
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <Select
               value={String(monthlySectorYear)}
               onValueChange={(v) => setMonthlySectorYear(Number(v))}
             >
-              <SelectTrigger className="h-9 w-[96px] shrink-0">
+              <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -1381,14 +1390,15 @@ export function DashboardBody() {
         }
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex w-full flex-wrap items-center justify-end gap-2">
-            <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
               <YoYYearMultiSelect
                 selectedYears={yoYSelectedYears}
                 onChange={setYoYSelectedYears}
                 options={yoYYearOptions}
               />
             </div>
+
             <ChartScopeFilters
               isAuthenticated={isAuthenticated}
               scope={scope}

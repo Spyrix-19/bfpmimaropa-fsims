@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Trophy, BadgeCheck, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
@@ -25,29 +24,29 @@ function MonthlyBreakdown({ station }: { station: RankedStation }) {
       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Monthly Performance
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] text-[11px]">
-          <thead>
+      <div className="max-h-64 w-full max-w-full overflow-x-auto overflow-y-auto overscroll-contain rounded-md border border-border/40 bg-card/40">
+        <table className="w-full min-w-[380px] text-[10px] sm:text-[11px]">
+          <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
             <tr className="text-muted-foreground">
-              <th className="py-1 text-left font-medium">Month</th>
-              <th className="py-1 text-right font-medium">BPLO</th>
-              <th className="py-1 text-right font-medium">GOV</th>
-              <th className="py-1 text-right font-medium">PEZA</th>
-              <th className="py-1 text-right font-medium">TIEZA</th>
-              <th className="py-1 text-right font-medium">Overall</th>
+              <th className="px-2 py-1 text-left font-medium">Month</th>
+              <th className="px-2 py-1 text-right font-medium">BPLO</th>
+              <th className="px-2 py-1 text-right font-medium">GOV</th>
+              <th className="px-2 py-1 text-right font-medium">PEZA</th>
+              <th className="px-2 py-1 text-right font-medium">TIEZA</th>
+              <th className="px-2 py-1 text-right font-medium">Overall</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
             {station.months.map((m) => (
               <tr key={`${m.year}-${m.month}`} className="tabular-nums">
-                <td className="py-1.5 text-left text-foreground">
+                <td className="whitespace-nowrap px-2 py-1.5 text-left text-foreground">
                   {MONTH_NAMES[Math.min(Math.max(Number(m.month), 1), 12) - 1]}
                 </td>
-                <td className="py-1.5 text-right">{formatPct(Number(m.bploPercentage))}</td>
-                <td className="py-1.5 text-right">{formatPct(Number(m.govPercentage))}</td>
-                <td className="py-1.5 text-right">{formatPct(Number(m.pezaPercentage))}</td>
-                <td className="py-1.5 text-right">{formatPct(Number(m.tiezaPercentage))}</td>
-                <td className="py-1.5 text-right font-semibold text-foreground">
+                <td className="px-2 py-1.5 text-right">{formatPct(Number(m.bploPercentage))}</td>
+                <td className="px-2 py-1.5 text-right">{formatPct(Number(m.govPercentage))}</td>
+                <td className="px-2 py-1.5 text-right">{formatPct(Number(m.pezaPercentage))}</td>
+                <td className="px-2 py-1.5 text-right">{formatPct(Number(m.tiezaPercentage))}</td>
+                <td className="px-2 py-1.5 text-right font-semibold text-foreground">
                   {formatPct(Number(m.overallPercentage))}
                 </td>
               </tr>
@@ -58,6 +57,7 @@ function MonthlyBreakdown({ station }: { station: RankedStation }) {
     </div>
   );
 }
+
 
 
 function SectionCard({
@@ -137,7 +137,7 @@ function TopStationRow({ station, rank }: { station: RankedStation; rank: number
         type="button"
         aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left"
+        className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-left sm:flex-nowrap"
       >
         <span
           className={cn(
@@ -160,7 +160,7 @@ function TopStationRow({ station, rank }: { station: RankedStation; rank: number
             {[station.stationcode, station.provincename].filter(Boolean).join(" • ") || "—"}
           </div>
         </div>
-        <div className="w-28 shrink-0 sm:w-32">
+        <div className="order-last w-full shrink-0 sm:order-none sm:w-32">
           <div className="text-right text-sm font-semibold tabular-nums text-foreground">
             {formatPct(station.averageOverallPercentage)}
           </div>
@@ -201,7 +201,7 @@ function PerfectStationRow({
         type="button"
         aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left"
+        className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-left sm:flex-nowrap"
       >
         <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
         <AvatarWithFallback
@@ -262,13 +262,13 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
         ) : topStations.length === 0 ? (
           <EmptyState>No station performance data is available for the current reporting period.</EmptyState>
         ) : (
-          <ScrollArea className="max-h-[520px]">
+          <div className="max-h-[420px] w-full overflow-y-auto overscroll-contain sm:max-h-[520px]">
             <ol>
               {topStations.map((s, i) => (
                 <TopStationRow key={s.stationno || s.stationcode || i} station={s} rank={s.rank} />
               ))}
             </ol>
-          </ScrollArea>
+          </div>
         )}
       </SectionCard>
 
@@ -289,7 +289,7 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
             period.
           </EmptyState>
         ) : (
-          <ScrollArea className="max-h-[520px]">
+          <div className="max-h-[420px] w-full overflow-y-auto overscroll-contain sm:max-h-[520px]">
             <ul>
               {perfectStations.map((s, i) => (
                 <PerfectStationRow
@@ -300,7 +300,7 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
                 />
               ))}
             </ul>
-          </ScrollArea>
+          </div>
         )}
       </SectionCard>
     </div>
