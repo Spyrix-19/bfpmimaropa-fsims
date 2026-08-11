@@ -364,9 +364,9 @@ function NoticeCard({
           <div className="mt-3 space-y-1.5 border-t border-border/60 pt-3">
             {[
               { k: "Issued", v: data.pending, dot: "bg-warning", text: "text-warning" },
-              { k: "Accomplished", v: data.accomplished, dot: "bg-success", text: "text-success" },
+              { k: "Complied", v: data.accomplished, dot: "bg-success", text: "text-success" },
               {
-                k: remaining < 0 ? "Over Target" : "Remaining",
+                k: remaining < 0 ? "Over Target" : "Pending",
                 v: remaining,
                 dot: remaining < 0 ? "bg-success" : "bg-destructive",
                 text: remaining < 0 ? "text-success" : "text-destructive",
