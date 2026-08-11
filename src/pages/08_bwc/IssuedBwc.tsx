@@ -85,15 +85,15 @@ const ICON = <Radio className="h-5 w-5 text-primary" />;
 const FIELDS: BwcField[] = [
   {
     key: "operationalcount",
-    label: "Working",
+    label: "Serviceable",
     tone: "success",
-    hint: "Units currently serviceable.",
+    hint: "Units that are serviceable and ready for deployment.",
   },
   {
     key: "nonoperationalcount",
-    label: "BER",
+    label: "Unserviceable",
     tone: "destructive",
-    hint: "Beyond economical repair.",
+    hint: "Units that are defective or unavailable for use.",
   },
 ];
 
