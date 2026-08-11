@@ -699,7 +699,7 @@ export default function AccomplishedNotice() {
         toast.error(error || "Unable to delete notice ledger.");
         return;
       }
-      toast.success("Accomplished Notices ledger deleted.");
+      toast.success("Complied Notices ledger deleted.");
       setDeleteTarget(null);
       refresh();
     } finally {
@@ -765,10 +765,10 @@ export default function AccomplishedNotice() {
           designation: user?.designation ?? "",
         },
       });
-      toast.success("Accomplished Notices exported.");
+      toast.success("Complied Notices exported.");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to export Accomplished Notices.");
+      toast.error("Failed to export Complied Notices.");
     } finally {
       setExporting(false);
     }
@@ -803,10 +803,10 @@ export default function AccomplishedNotice() {
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5 text-primary" />
-            Accomplished Notices
+            Complied Notices
           </h1>
           <p className="text-xs text-muted-foreground">
-            Accomplished Notices grouped by station, month, and year.
+            Complied Notices grouped by station, month, and year.
           </p>
         </div>
         <div
@@ -833,11 +833,11 @@ export default function AccomplishedNotice() {
             }}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
-            <LayoutGrid className="h-4 w-4" /> Accomplished Notices Matrix
+            <LayoutGrid className="h-4 w-4" /> Complied Notices Matrix
           </Button>
           {canManage && (
             <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
-              <Plus className="h-4 w-4" /> Add Accomplished Notice
+              <Plus className="h-4 w-4" /> Add Complied Notice
             </Button>
           )}
         </div>
@@ -906,7 +906,7 @@ export default function AccomplishedNotice() {
       <SecureDeleteDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
-        title="Delete Accomplished Notices Ledger?"
+        title="Delete Complied Notices Ledger?"
         subject={
           deleteTarget ? (
             <>
@@ -1050,7 +1050,7 @@ function NoticeLedgerCard({
         </div>
         <div
           className="grid h-10 w-14 place-items-center rounded-lg bg-blue-100 dark:bg-slate-600 text-center text-blue-700 dark:text-blue-300"
-          title="Total accomplished notices"
+          title="Total Complied notices"
         >
           <div className="text-[8px] font-bold uppercase leading-none">Total</div>
           <div className="text-xs font-bold leading-none">{grandTotal.toLocaleString()}</div>
@@ -1087,7 +1087,7 @@ function NoticeLedgerCard({
                     colSpan={NOTICE_CATEGORIES.length}
                     className={`${headCell} sticky top-0 z-30`}
                   >
-                    Accomplished Notices
+                    Complied Notices
                   </th>
                 </tr>
                 <tr>
@@ -1200,8 +1200,8 @@ function NoticeLedgerCard({
         <button
           type="button"
           onClick={onMatrix}
-          aria-label="Accomplished Notices Matrix"
-          title="Accomplished Notices Matrix"
+          aria-label="Complied Notices Matrix"
+          title="Complied Notices Matrix"
           className="rounded-md p-2 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
         >
           <LayoutGrid className="h-4 w-4" />

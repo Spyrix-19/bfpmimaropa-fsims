@@ -246,7 +246,7 @@ function NoticesTable({
                   MONITORING_THEME.headerGroup,
                 )}
               >
-                Accomplished Notices
+                Complied Notices
               </th>
             </tr>
             <tr>
@@ -351,7 +351,7 @@ function NoticeAccomplishmentPanel({
           <Target className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-sm font-semibold">Accomplished Notices vs. Issued</div>
+          <div className="text-sm font-semibold">Complied Notices vs. Issued</div>
           <div className="text-[11px] text-muted-foreground">{periodLabel}</div>
         </div>
       </div>
@@ -764,7 +764,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
         toast.error(error || "Unable to save notice entry.");
         return;
       }
-      toast.success("Accomplished Notices saved.");
+      toast.success("Complied Notices saved.");
       onSaved();
       onOpenChange(false);
     } finally {
@@ -782,7 +782,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
             </span>
             <div>
               <DialogTitle className="text-base font-semibold">
-                Accomplished Notices Entry
+                Complied Notices Entry
               </DialogTitle>
               <DialogDescription className="text-sm">
                 Record notice accomplishments per station and reporting period — monthly, quarterly,
@@ -875,19 +875,19 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
             ]}
           />
 
-          {/* 3. Issued vs. Accomplished -------------------------------------- */}
+          {/* 3. Issued vs. Complied -------------------------------------- */}
           <NoticeAccomplishmentPanel
             issued={panelIssued}
             accomplished={issuedTotals}
             periodLabel={format(reportingDate, "PPP")}
           />
 
-          {/* 4. Daily Accomplished Notices --------------------------------- */}
+          {/* 4. Daily Complied Notices --------------------------------- */}
 
           <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
             <SectionTitle
-              title="Daily Accomplished Notices"
-              subtitle="Encode accomplished notices separately for MANUAL and FSIS"
+              title="Daily Complied Notices"
+              subtitle="Encode complied notices separately for MANUAL and FSIS"
             />
 
             <NoticesTable
@@ -898,7 +898,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               locked={fieldsLocked}
             />
 
-            <Field label="Accomplishment Remarks">
+            <Field label="Compliance Remarks">
               <Textarea
                 rows={3}
                 value={remarks}
@@ -907,7 +907,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
                   if (fieldsLocked) return;
                   setRemarks(e.target.value.slice(0, 1000));
                 }}
-                placeholder="Notes on the notices accomplished (compliance, closure, abatement) for this period…"
+                placeholder="Notes on the notices complied (compliance, closure, abatement) for this period…"
               />
             </Field>
           </Card>
@@ -987,7 +987,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           ContentIcon={AlertTriangle}
           contentIconBgClass="tone-warning-soft"
           contentIconColorClass="text-warning"
-          title="Accomplished Notices Already Exists"
+          title="Complied Notices Already Exists"
           description={`A notice accomplishment record already exists for ${
             record.stationname || "this station"
           } on ${formatLongDate(reportingDate)}.\n\n${

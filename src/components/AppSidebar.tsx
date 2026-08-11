@@ -86,7 +86,7 @@ const GROUPS: NavGroup[] = [
       },
       {
         to: "/accomplished-notice",
-        label: "Accomplished Notices",
+        label: "Complied Notices",
         icon: <ClipboardCheck className="h-4 w-4" />,
         module: "monitoring",
       },

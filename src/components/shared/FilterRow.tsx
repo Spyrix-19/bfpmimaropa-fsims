@@ -4,7 +4,7 @@ import ResetFiltersButton from "@/components/reset-filters-button";
 
 /**
  * Inline pill-style filter bar shared by Fire Safety Compliance,
- * Accomplished Notices and Target Reference. Controls render as rounded
+ * Complied Notices and Target Reference. Controls render as rounded
  * pills in a single wrapping row, with a text "Reset" action at the end.
  */
 export function FilterRow({

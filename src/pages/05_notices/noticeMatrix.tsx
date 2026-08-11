@@ -359,7 +359,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
       const { ok, data, error } = unwrap<NoticeLedgerResultModel | NoticeDetailModel[]>(response);
       if (cancelled) return;
       if (!ok) {
-        toast.error(error || "Unable to load the Accomplished Notices Matrix.");
+        toast.error(error || "Unable to load the Complied Notices Matrix.");
         setGroups([]);
         setLoading(false);
         return;
@@ -436,13 +436,13 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
 
       const { ok, data, error } = unwrap<NoticeDetailModel[]>(resp);
       if (!ok) {
-        toast.error(error || "Unable to export Accomplished Notices Matrix.");
+        toast.error(error || "Unable to export Complied Notices Matrix.");
         return;
       }
 
       const stations = Array.isArray(data) ? data : [];
       if (stations.length === 0) {
-        toast.info("No accomplished notices to export.");
+        toast.info("No complied notices to export.");
         return;
       }
 
@@ -494,8 +494,8 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
           stations: list.sort((a, b) => (a.stationCode || "").localeCompare(b.stationCode || "")),
         })),
         fields: EXPORT_FIELDS,
-        categoryLabels: { NOTICES: "Accomplished Notices" },
-        title: `ACCOMPLISHED NOTICES MATRIX — ${year}`,
+        categoryLabels: { NOTICES: "Complied Notices" },
+        title: `COMPLIED NOTICES MATRIX — ${year}`,
         sheetName: `Notices Matrix ${year}`,
         signatory: {
           rank:
@@ -505,12 +505,12 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
           fullname: user?.fullname ?? user?.name ?? "",
           designation: (user as unknown as { designation?: string })?.designation ?? "",
         },
-        filename: `AccomplishedNoticesMatrix_${year}.xlsx`,
+        filename: `CompliedNoticesMatrix_${year}.xlsx`,
       });
-      toast.success("Accomplished Notices Matrix exported.");
+      toast.success("Complied Notices Matrix exported.");
     } catch (err) {
       console.error(err);
-      toast.error("Failed to export Accomplished Notices Matrix.");
+      toast.error("Failed to export Complied Notices Matrix.");
     } finally {
       setExporting(false);
     }
@@ -533,7 +533,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
               <LayoutGrid className="h-4 w-4" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold">Accomplished Notices Matrix</DialogTitle>
+              <DialogTitle className="text-lg font-bold">Complied Notices Matrix</DialogTitle>
               <p className="text-xs text-muted-foreground">Manual and FSIS issuance — {year}</p>
             </div>
           </div>
@@ -681,7 +681,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
                     colSpan={totalCols}
                     className="border-b bg-card px-4 py-10 text-center text-sm text-muted-foreground"
                   >
-                    No accomplished notices for {year}.
+                    No complied notices for {year}.
                   </td>
                 </tr>
               )}

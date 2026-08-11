@@ -280,7 +280,7 @@ export async function exportNoticeWorkbook(opts: {
       ? `FOR THE MONTH OF ${dailyMonthName.toUpperCase()} ${year}`
       : `FOR THE YEAR ${year}`;
   const intervalWord = interval === "SEMI-ANNUAL" ? "SEMESTER" : intervalTitle.toUpperCase();
-  titleCell.value = `ACCOMPLISHED NOTICES — ${intervalWord} ACCOMPLISHMENT ${titleScope}`;
+  titleCell.value = `COMPLIED NOTICES — ${intervalWord} ACCOMPLISHMENT ${titleScope}`;
   Object.assign(titleCell, titleStyle());
   titleCell.fill = fill("FFF8FAFC");
 

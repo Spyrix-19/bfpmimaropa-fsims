@@ -90,7 +90,7 @@ export async function exportComplianceMatrix(opts: {
   fields: ComplianceField[];
   signatory?: ComplianceExportSignatory;
   filename?: string;
-  /** Per-category label overrides, e.g. { NOTICES: "Accomplished Notices" }. */
+  /** Per-category label overrides, e.g. { NOTICES: "Complied Notices" }. */
   categoryLabels?: Record<string, string>;
   /** Workbook title row — defaults to the compliance matrix caption. */
   title?: string;
