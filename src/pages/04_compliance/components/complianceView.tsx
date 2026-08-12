@@ -127,6 +127,106 @@ const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
   FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [String(f.key), g.category] as const)),
 );
 
+const INSPECTION_PLAIN_COLS = [
+  { key: "inspectduringcount", label: "During" },
+  { key: "inspectaftercount", label: "After" },
+] as const;
+
+const INSPECTION_TARGET_COLS = [
+  {
+    key: "inspectbplocount",
+    label: "BPLO",
+    targetKey: "dailytargetbplo",
+    reKey: "reinspectbplocount",
+  },
+  {
+    key: "inspectgovcount",
+    label: "GOV",
+    targetKey: "dailytargetgov",
+    reKey: "reinspectgovcount",
+  },
+  {
+    key: "inspectpezacount",
+    label: "PEZA",
+    targetKey: "dailytargetpeza",
+    reKey: "reinspectpezacount",
+  },
+  {
+    key: "inspecttiezacount",
+    label: "TIEZA",
+    targetKey: "dailytargettieza",
+    reKey: "reinspecttiezacount",
+  },
+] as const;
+
+const ISSUANCE_GROUPS = [
+  {
+    title: "FSEC",
+    cols: [
+      { key: "fsecbuildingcount", label: "Building" },
+      { key: "fsecgovcount", label: "GOV" },
+      { key: "fsecpezacount", label: "PEZA" },
+      { key: "fsectiezacount", label: "TIEZA" },
+    ],
+  },
+  {
+    title: "FSIC",
+    cols: [
+      { key: "fsicoccupancycount", label: "Occupancy" },
+      { key: "fsicbplonewcount", label: "BPLO New" },
+      { key: "fsicbplorenewcount", label: "BPLO Renew" },
+      { key: "fsicgovcount", label: "GOV" },
+      { key: "fsicpezacount", label: "PEZA" },
+      { key: "fsictiezacount", label: "TIEZA" },
+    ],
+  },
+  {
+    title: "Issued Notices",
+    cols: [
+      { key: "nodcount", label: "NOD" },
+      { key: "ntccount", label: "NTC" },
+      { key: "ntcvcount", label: "NTCV" },
+      { key: "abatementcount", label: "Abatement" },
+      { key: "closurecount", label: "Closure" },
+    ],
+  },
+] as const;
+
+const FSIC_SECTORS = [
+  { key: "fsicoccupancycount", reKey: "refsicoccupancycount", label: "Occupancy" },
+  { key: "fsicbplonewcount", reKey: "refsicbplonewcount", label: "BPLO New" },
+  { key: "fsicbplorenewcount", reKey: "refsicbplorenewcount", label: "BPLO Renew" },
+  { key: "fsicgovcount", reKey: "refsicgovcount", label: "GOV" },
+  { key: "fsicpezacount", reKey: "refsicpezacount", label: "PEZA" },
+  { key: "fsictiezacount", reKey: "refsictiezacount", label: "TIEZA" },
+] as const;
+
+const NOTICE_GROUPS = [
+  { key: "ntcvcount", reKey: "rentcvcount", label: "NTCV" },
+  { key: "abatementcount", reKey: "reabatementcount", label: "Abatement" },
+  { key: "closurecount", reKey: "reclosurecount", label: "Closure" },
+] as const;
+
+const ISSUANCE_COLS = ISSUANCE_GROUPS.flatMap((g) => g.cols);
+
+const STRONG_RIGHT_BORDER_KEYS = new Set([
+  ...INSPECTION_PLAIN_COLS.slice(-1).map((c) => c.key),
+  ...INSPECTION_TARGET_COLS.slice(-1).map((c) => c.key),
+  ...ISSUANCE_GROUPS.flatMap((g) => g.cols.slice(-1).map((c) => c.key)),
+  "fsectiezacount",
+  "fsicoccupancycount",
+  "nodcount",
+  "ntccount",
+  "ntcvcount",
+]);
+
+const headCell =
+  "border-b border-border/40 bg-blue-50/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-blue-700/90 dark:text-blue-300/90 whitespace-nowrap text-center";
+const bodyCell =
+  "border-b border-border/25 px-2.5 py-1.5 text-xs tabular-nums text-center text-foreground/90";
+const footCell =
+  "border-t border-border/50 bg-blue-100/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
+
 /** Flat inspection record extracted from a Monthly ledger row. */
 interface InspectionCounts {
   remarks: string;
@@ -222,10 +322,7 @@ const INSP_TARGET_FIELDS: Record<string, keyof InspectionCounts> = {
   insp_tieza: "dailytargettieza",
 };
 
-const INSPECTION_COLSPAN = CATEGORY_FIELDS.INSPECTION.reduce(
-  (n, f) => n + (INSP_TARGET_FIELDS[String(f.key)] ? 2 : 1),
-  0,
-);
+const INSPECTION_COLSPAN = INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 3;
 
 type DayTotals = Partial<Record<keyof ComplianceDailyCounts, number>>;
 
@@ -884,112 +981,199 @@ function ComplianceViewBody({
 
       <Card className="overflow-hidden border-border/60 shadow-soft">
         <div className="max-h-[65vh] w-full max-w-full overflow-auto">
-          <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
+          <table className="w-full min-w-[1400px] border-separate border-spacing-0 text-xs">
             <thead className="sticky top-0 z-30">
               <tr>
                 <th
                   rowSpan={3}
-                  className={`sticky left-0 top-0 z-40 min-w-[120px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+                  className={`${headCell} sticky left-0 top-0 z-40 min-w-[120px] h-[34px] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)] ${MONITORING_THEME.headerPrimary}`}
                 >
                   Date
                 </th>
                 <th
                   colSpan={INSPECTION_COLSPAN}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
+                  className={`${headCell} sticky top-0 z-30 h-[34px] border-r-2 border-r-border/80 ${GROUP_TONE.INSPECTION}`}
                 >
                   Inspection
                 </th>
                 <th
-                  colSpan={4}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.REINSPECTION}`}
-                >
-                  Reinspection
-                </th>
-                <th
                   rowSpan={3}
-                  className={`border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
+                  className={`${headCell} sticky top-0 z-30 h-[34px] min-w-[90px] border-r-2 border-r-border/80 ${MONITORING_THEME.headerSoft}`}
                 >
                   Mode of
                   <br />
                   Issuance
                 </th>
-                <th
-                  colSpan={4}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSEC}`}
-                >
-                  FSEC
-                </th>
-                <th
-                  colSpan={6}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSIC}`}
-                >
-                  FSIC
-                </th>
-                <th
-                  colSpan={5}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
-                >
-                  Issued Notices
-                </th>
-                <th
-                  colSpan={6}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.REFSIC}`}
-                >
-                  Re-FSIC
-                </th>
-                <th
-                  colSpan={3}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.RENOTICES}`}
-                >
-                  Re-Notices
-                </th>
+                {ISSUANCE_GROUPS.map((g, idx) => {
+                  const colSpan =
+                    g.title === "FSIC"
+                      ? g.cols.length * 2
+                      : g.title === "Issued Notices"
+                      ? 2 + NOTICE_GROUPS.length * 2
+                      : g.cols.length;
+                  return (
+                    <th
+                      key={g.title}
+                      colSpan={colSpan}
+                      className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
+                    >
+                      {g.title}
+                    </th>
+                  );
+                })}
                 <th
                   rowSpan={3}
-                  className={`border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
+                  className={`${headCell} sticky top-0 z-30 h-[34px] min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
                 >
                   Total
                 </th>
                 <th
                   rowSpan={3}
-                  className={`border-b px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px] ${MONITORING_THEME.headerSoft}`}
+                  className={`${headCell} sticky top-0 z-30 h-[34px] min-w-[160px] ${MONITORING_THEME.headerSoft} text-left`}
                 >
                   Remarks
                 </th>
               </tr>
               <tr>
-                {DETAIL_FIELDS.map((field) => {
-                  const key = String(field.key);
-                  const cat = FIELD_CATEGORY.get(key) ?? "INSPECTION";
-                  const split = Boolean(INSP_TARGET_FIELDS[key]);
-                  return (
+                {INSPECTION_PLAIN_COLS.map((c, idx) => (
+                  <th
+                    key={c.key}
+                    rowSpan={2}
+                    className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${idx === 0 || idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
+                  >
+                    {c.label}
+                  </th>
+                ))}
+                {INSPECTION_TARGET_COLS.map((c, idx) => (
+                  <th
+                    key={c.key}
+                    colSpan={3}
+                    className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[10rem] ${idx < INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
+                  >
+                    {c.label}
+                  </th>
+                ))}
+                {ISSUANCE_GROUPS.map((group) => {
+                  if (group.title === "FSIC") {
+                    return FSIC_SECTORS.map((sector) => (
+                      <th
+                        key={sector.key}
+                        colSpan={2}
+                        className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[7rem] border-r-2 border-r-border/80`}
+                      >
+                        {sector.label}
+                      </th>
+                    ));
+                  }
+
+                  if (group.title === "Issued Notices") {
+                    return [
+                      <th
+                        key="nodcount"
+                        rowSpan={2}
+                        className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] border-r-2 border-r-border/80`}
+                      >
+                        NOD
+                      </th>,
+                      <th
+                        key="ntccount"
+                        rowSpan={2}
+                        className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] border-r-2 border-r-border/80`}
+                      >
+                        NTC
+                      </th>,
+                      ...NOTICE_GROUPS.map((groupItem) => (
+                        <th
+                          key={groupItem.key}
+                          colSpan={2}
+                          className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[7rem] border-r-2 border-r-border/80`}
+                        >
+                          {groupItem.label}
+                        </th>
+                      )),
+                    ];
+                  }
+
+                  return group.cols.map((c) => (
                     <th
-                      key={key}
-                      rowSpan={split ? 1 : 2}
-                      colSpan={split ? 2 : 1}
-                      className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[60px] ${SUB_TONE[cat]}`}
+                      key={c.key}
+                      rowSpan={2}
+                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
                     >
-                      {field.label}
+                      {c.label}
                     </th>
-                  );
+                  ));
                 })}
               </tr>
               <tr>
-                {DETAIL_FIELDS.filter((f) => INSP_TARGET_FIELDS[String(f.key)]).flatMap((field) => {
-                  const key = String(field.key);
-                  return [
+                {INSPECTION_TARGET_COLS.map((c, idx) => (
+                  <React.Fragment key={c.key}>
                     <th
-                      key={`${key}__target`}
-                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[56px] ${SUB_TONE.INSPECTION}`}
+                      title="Target"
+                      className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
                     >
-                      Target
-                    </th>,
+                      <span className="block leading-[1.1]">TARGET</span>
+                    </th>
                     <th
-                      key={`${key}__compliance`}
-                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[70px] ${SUB_TONE.INSPECTION}`}
+                      title="1st Inspection"
+                      className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
                     >
-                      Compliance
-                    </th>,
-                  ];
+                      <span className="block leading-[1.1]">1ST</span>
+                      <span className="block leading-[1.1]">INSPECTION</span>
+                    </th>
+                    <th
+                      title="Re-inspection"
+                      className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
+                    >
+                      <span className="block leading-[1.1]">RE-</span>
+                      <span className="block leading-[1.1]">INSPECTION</span>
+                    </th>
+                  </React.Fragment>
+                ))}
+                {ISSUANCE_GROUPS.map((group) => {
+                  if (group.title === "FSIC") {
+                    return FSIC_SECTORS.flatMap((sector) => [
+                      <th
+                        key={`${sector.key}-first`}
+                        title="1st Inspection"
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
+                      >
+                        <span className="block leading-[1.1]">1ST</span>
+                        <span className="block leading-[1.1]">INSPECTION</span>
+                      </th>,
+                      <th
+                        key={`${sector.key}-re`}
+                        title="Re-inspection"
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
+                      >
+                        <span className="block leading-[1.1]">RE-</span>
+                        <span className="block leading-[1.1]">INSPECTION</span>
+                      </th>,
+                    ]);
+                  }
+
+                  if (group.title === "Issued Notices") {
+                    return NOTICE_GROUPS.flatMap((groupItem) => [
+                      <th
+                        key={`${groupItem.key}-first`}
+                        title="1st Inspection"
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
+                      >
+                        <span className="block leading-[1.1]">1ST</span>
+                        <span className="block leading-[1.1]">INSPECTION</span>
+                      </th>,
+                      <th
+                        key={`${groupItem.key}-re`}
+                        title="Re-inspection"
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
+                      >
+                        <span className="block leading-[1.1]">RE-</span>
+                        <span className="block leading-[1.1]">INSPECTION</span>
+                      </th>,
+                    ]);
+                  }
+
+                  return null;
                 })}
               </tr>
             </thead>
@@ -1007,7 +1191,7 @@ function ComplianceViewBody({
                     <tr className={rowBg}>
                       <td
                         rowSpan={2}
-                        className={`sticky left-0 z-20 border-b border-r border-grid px-3 py-1.5 align-middle text-[11px] font-semibold ${rowBg}`}
+                        className={`sticky left-0 z-20 ${bodyCell} border-r ${rowBg} text-left font-semibold`}
                       >
                         <span
                           className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300" : ""}
@@ -1030,7 +1214,7 @@ function ComplianceViewBody({
                             <td
                               key={`${key}__target`}
                               rowSpan={2}
-                              className="border-b border-r border-grid px-2 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
+                              className={`${bodyCell} border-r text-muted-foreground`}
                             >
                               {displayNumber(t).toLocaleString()}
                             </td>,
@@ -1040,7 +1224,7 @@ function ComplianceViewBody({
                           <td
                             key={key}
                             rowSpan={2}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center align-middle tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>,
@@ -1049,7 +1233,7 @@ function ComplianceViewBody({
                       })}
 
                       <td
-                        className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                        className={`${headCell} border-r ${MONITORING_THEME.headerSoft} text-[11px] font-bold uppercase`}
                       >
                         MANUAL
                       </td>
@@ -1062,7 +1246,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>
@@ -1077,7 +1261,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>
@@ -1092,7 +1276,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>
@@ -1108,7 +1292,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={k}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>
@@ -1118,7 +1302,7 @@ function ComplianceViewBody({
                       {/* Total — merged across MANUAL/FSIS rows */}
                       <td
                         rowSpan={2}
-                        className="border-b border-r border-grid px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
+                        className={`${bodyCell} border-r font-semibold`}
                       >
                         {displayNumber(rowTotal).toLocaleString()}
                       </td>
@@ -1135,7 +1319,7 @@ function ComplianceViewBody({
                     <tr className={rowBg}>
                       {/* Inspection cells merged with MANUAL row above */}
                       <td
-                        className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                        className={`${headCell} border-r ${MONITORING_THEME.headerSoft} text-[11px] font-bold uppercase`}
                       >
                         FSIS
                       </td>
@@ -1148,7 +1332,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>
@@ -1163,7 +1347,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>
@@ -1178,7 +1362,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>
@@ -1194,7 +1378,7 @@ function ComplianceViewBody({
                         return (
                           <td
                             key={k}
-                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                            className={`${bodyCell} border-r`}
                           >
                             {displayNumber(v).toLocaleString()}
                           </td>
@@ -1208,7 +1392,7 @@ function ComplianceViewBody({
             </tbody>
             <tfoot className="sticky bottom-0 z-20">
               <tr className="total-row font-bold text-foreground">
-                <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
+                <td className={`${footCell} sticky left-0 z-30 border-r border-t-2 border-grid-strong text-left uppercase tracking-wide`}>
                   Total
                 </td>
                 {DETAIL_FIELDS.map((field, idx) => {
@@ -1220,7 +1404,7 @@ function ComplianceViewBody({
                     cells.push(
                       <td
                         key="__mode_spacer__"
-                        className="border-r border-t-2 border-grid-strong total-row px-2 py-2"
+                        className={`${footCell} border-r border-t-2 border-grid-strong`}
                       />,
                     );
                   }
@@ -1233,7 +1417,7 @@ function ComplianceViewBody({
                     cells.push(
                       <td
                         key={`${key}__target`}
-                        className="border-r border-t-2 border-grid-strong total-row px-2 py-2 text-center text-[11px] font-bold tabular-nums"
+                        className={`${footCell} border-r border-t-2 border-grid-strong`}
                       >
                         {displayNumber(targetTotal).toLocaleString()}
                       </td>,
@@ -1242,17 +1426,17 @@ function ComplianceViewBody({
                   cells.push(
                     <td
                       key={key}
-                      className="border-r border-t-2 border-grid-strong total-row px-2 py-2 text-center text-[11px] font-bold tabular-nums"
+                      className={`${footCell} border-r border-t-2 border-grid-strong`}
                     >
                       {displayNumber(columnTotal).toLocaleString()}
                     </td>,
                   );
                   return cells;
                 })}
-                <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
+                <td className={`${footCell} border-r border-t-2 border-grid-strong`}> 
                   {displayNumber(grandTotal).toLocaleString()}
                 </td>
-                <td className="border-t-2 border-grid-strong total-row px-3 py-2" />
+                <td className={`${footCell} border-t-2 border-grid-strong`} />
               </tr>
             </tfoot>
           </table>
