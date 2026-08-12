@@ -5,6 +5,8 @@ import { z } from "zod";
 import {
   AlertTriangle,
   CalendarIcon,
+  ChevronDown,
+  ChevronUp,
   FilePlus2,
   Loader2,
   Save,
@@ -334,6 +336,11 @@ function InspectionsNewBody({
     if (dateOpen) setCalendarMonth(reportingDate);
   }, [dateOpen, reportingDate]);
 
+  // Collapsible section state for the three daily activity panels.
+  const [inspectionExpanded, setInspectionExpanded] = React.useState(false);
+  const [issuanceExpanded, setIssuanceExpanded] = React.useState(false);
+  const [reinspectionExpanded, setReinspectionExpanded] = React.useState(false);
+
   const [province, setProvince] = React.useState<{ no: string; name: string; code: string }>(
     scope.provinceLocked
       ? { no: scope.provinceno, name: scope.provincename, code: "" }
@@ -387,6 +394,16 @@ function InspectionsNewBody({
   const [manualIssuance, setManualIssuance] =
     React.useState<Record<string, number>>(defaultIssuance);
   const [fsisIssuance, setFsisIssuance] = React.useState<Record<string, number>>(defaultIssuance);
+  // Daily Reinspection Activities — mirrors the issuance state shape.
+  const [reinspection, setReinspection] = React.useState<Record<string, number>>(() => ({
+    ...defaultReinspectionPanel,
+  }));
+  const [manualReinspection, setManualReinspection] = React.useState<Record<string, number>>(
+    () => ({ ...defaultReinspection }),
+  );
+  const [fsisReinspection, setFsisReinspection] = React.useState<Record<string, number>>(() => ({
+    ...defaultReinspection,
+  }));
   // Mode of Issuance is fixed per column: MANUAL = 96, FSIS = 97 (see FSIC_MODE).
   const [remarks, setRemarks] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -448,6 +465,13 @@ function InspectionsNewBody({
       insp_1st_tieza: Number(rec.inspecttiezacount ?? 0),
     });
 
+    setReinspection({
+      reinsp_bplo: Number(rec.reinspectbplocount ?? 0),
+      reinsp_gov: Number(rec.reinspectgovcount ?? 0),
+      reinsp_peza: Number(rec.reinspectpezacount ?? 0),
+      reinsp_tieza: Number(rec.reinspecttiezacount ?? 0),
+    });
+
     const fromIssuance = (row?: { [k: string]: unknown }) => ({
       fsec_new_building: Number(row?.fsecbuildingcount ?? 0),
       fsec_new_gov: Number(row?.fsecgovcount ?? 0),
@@ -466,6 +490,18 @@ function InspectionsNewBody({
       not_closure: Number(row?.closurecount ?? 0),
     });
 
+    const fromReinspection = (row?: { [k: string]: unknown }) => ({
+      fsic_occupancy: Number(row?.refsicoccupancycount ?? 0),
+      fsic_business_new: Number(row?.refsicbplonewcount ?? 0),
+      fsic_business_renewal: Number(row?.refsicbplorenewcount ?? 0),
+      fsic_gov: Number(row?.refsicgovcount ?? 0),
+      fsic_peza: Number(row?.refsicpezacount ?? 0),
+      fsic_tieza: Number(row?.refsictiezacount ?? 0),
+      not_ntcv: Number(row?.rentcvcount ?? 0),
+      not_abatement: Number(row?.reabatementcount ?? 0),
+      not_closure: Number(row?.reclosurecount ?? 0),
+    });
+
     // Bind each issuance row to its column strictly by Mode of Issuance:
     // 96 = MANUAL, 97 = FSIS. Rows with any other mode are ignored.
     const list = Array.isArray(rec.issuancelist) ? rec.issuancelist : [];
@@ -479,6 +515,8 @@ function InspectionsNewBody({
     }
     setManualIssuance(fromIssuance(manualRow as unknown as Record<string, unknown>));
     setFsisIssuance(fromIssuance(fsisRow as unknown as Record<string, unknown>));
+    setManualReinspection(fromReinspection(manualRow as unknown as Record<string, unknown>));
+    setFsisReinspection(fromReinspection(fsisRow as unknown as Record<string, unknown>));
 
     // Keep the DATABASE identifiers — never regenerate them.
     setExistingIssuanceNos({
@@ -495,6 +533,9 @@ function InspectionsNewBody({
     setNumeric({ ...defaultNumeric });
     setManualIssuance({ ...defaultIssuance });
     setFsisIssuance({ ...defaultIssuance });
+    setReinspection({ ...defaultReinspectionPanel });
+    setManualReinspection({ ...defaultReinspection });
+    setFsisReinspection({ ...defaultReinspection });
     setRemarks("");
     setErrors({});
   }, []);
@@ -775,7 +816,19 @@ function InspectionsNewBody({
         return;
       }
 
-      const buildIssuance = (mode: number, vals: Record<string, number>): FSISIssuanceClassDTO => {
+      // `encodedby` is a GUID on the API — an empty string fails model binding.
+      const encodedby = user?.memberno ? String(user.memberno) : "";
+      if (!encodedby || encodedby === EMPTY_GUID) {
+        toast.error("Your session is missing an encoder ID. Please sign in again.");
+        return;
+      }
+
+
+      const buildIssuance = (
+        mode: number,
+        vals: Record<string, number>,
+        revals: Record<string, number>,
+      ): FSISIssuanceClassDTO => {
         return {
           // Always reuse the database issuance id when editing an existing row.
           issuanceno: existingIssuanceNos[String(mode)] || EMPTY_GUID,
@@ -795,6 +848,15 @@ function InspectionsNewBody({
           ntcvcount: vals.not_ntcv ?? 0,
           abatementcount: vals.not_abatement ?? 0,
           closurecount: vals.not_closure ?? 0,
+          refsicoccupancycount: revals.fsic_occupancy ?? 0,
+          refsicbplonewcount: revals.fsic_business_new ?? 0,
+          refsicbplorenewcount: revals.fsic_business_renewal ?? 0,
+          refsicgovcount: revals.fsic_gov ?? 0,
+          refsicpezacount: revals.fsic_peza ?? 0,
+          refsictiezacount: revals.fsic_tieza ?? 0,
+          rentcvcount: revals.not_ntcv ?? 0,
+          reabatementcount: revals.not_abatement ?? 0,
+          reclosurecount: revals.not_closure ?? 0,
         };
       };
 
@@ -808,18 +870,22 @@ function InspectionsNewBody({
         inspectgovcount: numeric.insp_1st_gov ?? 0,
         inspectpezacount: numeric.insp_1st_peza ?? 0,
         inspecttiezacount: numeric.insp_1st_tieza ?? 0,
+        reinspectbplocount: reinspection.reinsp_bplo ?? 0,
+        reinspectgovcount: reinspection.reinsp_gov ?? 0,
+        reinspectpezacount: reinspection.reinsp_peza ?? 0,
+        reinspecttiezacount: reinspection.reinsp_tieza ?? 0,
         isaccomplished: Boolean(existingFsisno),
         remarks: remarks ?? "",
         issuancelist: [
           // 96 → MANUAL column, 97 → FSIS column.
-          buildIssuance(FSIC_MODE.MANUAL, manualIssuance),
-          buildIssuance(FSIC_MODE.FSIS, fsisIssuance),
+          buildIssuance(FSIC_MODE.MANUAL, manualIssuance, manualReinspection),
+          buildIssuance(FSIC_MODE.FSIS, fsisIssuance, fsisReinspection),
         ],
       };
 
       const payload: FSISComplianceDTO = {
         stationno: submitStationNo,
-        encodedby: user?.memberno ?? "",
+        encodedby,
         compliancelist: [compliance],
       };
 
@@ -1014,169 +1080,173 @@ function InspectionsNewBody({
         <SectionTitle
           title="Daily Inspection Activities"
           subtitle={`Reporting month · ${monthName} ${year}`}
+          expanded={inspectionExpanded}
+          onToggle={() => setInspectionExpanded((v) => !v)}
         />
 
-        <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
-          <div className="flex items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3">
-            <div className="flex items-center gap-2">
-              <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
-                <Target className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="text-sm font-semibold">Daily Target vs. Inspected</div>
-                <div className="text-[11px] text-muted-foreground">
-                  {station.no ? format(reportingDate, "PPP") : "Select a station to load"}
+        {inspectionExpanded && (
+          <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
+            <div className="flex items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Target className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">Daily Target vs. Inspected</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {station.no ? format(reportingDate, "PPP") : "Select a station to load"}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {station.no ? (
-            <>
-              <div className="border-b border-border/50 bg-card/40 p-4">
-                <div className="h-64 w-full">
-                  <ResponsiveContainer>
-                    <BarChart
-                      data={dailySummaryRows.chartData}
-                      margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                      <XAxis dataKey="name" {...axisProps} allowDecimals={false} />
-                      <YAxis {...axisProps} allowDecimals={false} />
-                      <RechartsTooltip contentStyle={tooltipStyle} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="Target" fill={DAILY_SERIES.target} radius={[4, 4, 0, 0]} />
-                      <Bar
-                        dataKey="Accomplishment"
-                        fill={DAILY_SERIES.inspected}
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      <th className="px-4 py-2 text-left">Category</th>
-                      <th className="px-4 py-2 text-center">
-                        <DailyDot color={DAILY_SERIES.target} />
-                        Daily Target
-                      </th>
-                      <th className="px-4 py-2 text-center">
-                        <DailyDot color={DAILY_SERIES.inspected} />
-                        Daily Inspected
-                      </th>
-                      <th className="px-4 py-2 text-center">
-                        <DailyDot color={DAILY_SERIES.variance} />
-                        Variance
-                      </th>
-                      <th className="px-4 py-2 text-center">
-                        <DailyDot color={DAILY_SERIES.positive} />
-                        Positive Listing
-                      </th>
-                      <th className="px-4 py-2 text-center">% Accomplishment</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dailySummaryRows.rows.map((r, i) => (
-                      <tr
-                        key={r.key}
-                        className={cn("border-t border-border/50", i % 2 === 1 && "bg-muted/20")}
+            {station.no ? (
+              <>
+                <div className="border-b border-border/50 bg-card/40 p-4">
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer>
+                      <BarChart
+                        data={dailySummaryRows.chartData}
+                        margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
                       >
-                        <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                        <XAxis dataKey="name" {...axisProps} allowDecimals={false} />
+                        <YAxis {...axisProps} allowDecimals={false} />
+                        <RechartsTooltip contentStyle={tooltipStyle} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Bar dataKey="Target" fill={DAILY_SERIES.target} radius={[4, 4, 0, 0]} />
+                        <Bar
+                          dataKey="Accomplishment"
+                          fill={DAILY_SERIES.inspected}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <th className="px-4 py-2 text-left">Category</th>
+                        <th className="px-4 py-2 text-center">
+                          <DailyDot color={DAILY_SERIES.target} />
+                          Daily Target
+                        </th>
+                        <th className="px-4 py-2 text-center">
+                          <DailyDot color={DAILY_SERIES.inspected} />
+                          Daily Inspected
+                        </th>
+                        <th className="px-4 py-2 text-center">
+                          <DailyDot color={DAILY_SERIES.variance} />
+                          Variance
+                        </th>
+                        <th className="px-4 py-2 text-center">
+                          <DailyDot color={DAILY_SERIES.positive} />
+                          Positive Listing
+                        </th>
+                        <th className="px-4 py-2 text-center">% Accomplishment</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailySummaryRows.rows.map((r, i) => (
+                        <tr
+                          key={r.key}
+                          className={cn("border-t border-border/50", i % 2 === 1 && "bg-muted/20")}
+                        >
+                          <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
+                          <td
+                            className="px-4 py-2 text-center tabular-nums"
+                            style={{ color: DAILY_SERIES.target }}
+                          >
+                            {r.target.toLocaleString()}
+                          </td>
+                          <td
+                            className="px-4 py-2 text-center tabular-nums"
+                            style={{ color: DAILY_SERIES.inspected }}
+                          >
+                            {r.inspected.toLocaleString()}
+                          </td>
+                          <td
+                            className="px-4 py-2 text-center tabular-nums font-medium"
+                            style={r.variance > 0 ? { color: DAILY_SERIES.variance } : undefined}
+                          >
+                            {r.variance.toLocaleString()}
+                          </td>
+                          <td
+                            className="px-4 py-2 text-center tabular-nums font-medium"
+                            style={r.positive > 0 ? { color: DAILY_SERIES.positive } : undefined}
+                          >
+                            {r.positive.toLocaleString()}
+                          </td>
+                          <td
+                            className="px-4 py-2 text-center tabular-nums font-medium"
+                            style={{
+                              color:
+                                r.percentage >= 100 ? DAILY_SERIES.positive : DAILY_SERIES.inspected,
+                            }}
+                          >
+                            {`${r.percentage.toFixed(2)}%`}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-border bg-primary/5 font-semibold">
+                        <td className="px-4 py-2">Total</td>
                         <td
                           className="px-4 py-2 text-center tabular-nums"
                           style={{ color: DAILY_SERIES.target }}
                         >
-                          {r.target.toLocaleString()}
+                          {dailySummaryRows.totals.target.toLocaleString()}
                         </td>
                         <td
                           className="px-4 py-2 text-center tabular-nums"
                           style={{ color: DAILY_SERIES.inspected }}
                         >
-                          {r.inspected.toLocaleString()}
+                          {dailySummaryRows.totals.inspected.toLocaleString()}
                         </td>
                         <td
-                          className="px-4 py-2 text-center tabular-nums font-medium"
-                          style={r.variance > 0 ? { color: DAILY_SERIES.variance } : undefined}
+                          className="px-4 py-2 text-center tabular-nums"
+                          style={
+                            dailySummaryRows.totalVariance > 0
+                              ? { color: DAILY_SERIES.variance }
+                              : undefined
+                          }
                         >
-                          {r.variance.toLocaleString()}
+                          {dailySummaryRows.totalVariance.toLocaleString()}
                         </td>
                         <td
-                          className="px-4 py-2 text-center tabular-nums font-medium"
-                          style={r.positive > 0 ? { color: DAILY_SERIES.positive } : undefined}
+                          className="px-4 py-2 text-center tabular-nums"
+                          style={
+                            dailySummaryRows.totalPositive > 0
+                              ? { color: DAILY_SERIES.positive }
+                              : undefined
+                          }
                         >
-                          {r.positive.toLocaleString()}
+                          {dailySummaryRows.totalPositive.toLocaleString()}
                         </td>
                         <td
-                          className="px-4 py-2 text-center tabular-nums font-medium"
+                          className="px-4 py-2 text-center tabular-nums"
                           style={{
                             color:
-                              r.percentage >= 100 ? DAILY_SERIES.positive : DAILY_SERIES.inspected,
+                              dailySummaryRows.totalPct >= 100
+                                ? DAILY_SERIES.positive
+                                : DAILY_SERIES.inspected,
                           }}
                         >
-                          {`${r.percentage.toFixed(2)}%`}
+                          {`${dailySummaryRows.totalPct.toFixed(2)}%`}
                         </td>
                       </tr>
-                    ))}
-                    <tr className="border-t-2 border-border bg-primary/5 font-semibold">
-                      <td className="px-4 py-2">Total</td>
-                      <td
-                        className="px-4 py-2 text-center tabular-nums"
-                        style={{ color: DAILY_SERIES.target }}
-                      >
-                        {dailySummaryRows.totals.target.toLocaleString()}
-                      </td>
-                      <td
-                        className="px-4 py-2 text-center tabular-nums"
-                        style={{ color: DAILY_SERIES.inspected }}
-                      >
-                        {dailySummaryRows.totals.inspected.toLocaleString()}
-                      </td>
-                      <td
-                        className="px-4 py-2 text-center tabular-nums"
-                        style={
-                          dailySummaryRows.totalVariance > 0
-                            ? { color: DAILY_SERIES.variance }
-                            : undefined
-                        }
-                      >
-                        {dailySummaryRows.totalVariance.toLocaleString()}
-                      </td>
-                      <td
-                        className="px-4 py-2 text-center tabular-nums"
-                        style={
-                          dailySummaryRows.totalPositive > 0
-                            ? { color: DAILY_SERIES.positive }
-                            : undefined
-                        }
-                      >
-                        {dailySummaryRows.totalPositive.toLocaleString()}
-                      </td>
-                      <td
-                        className="px-4 py-2 text-center tabular-nums"
-                        style={{
-                          color:
-                            dailySummaryRows.totalPct >= 100
-                              ? DAILY_SERIES.positive
-                              : DAILY_SERIES.inspected,
-                        }}
-                      >
-                        {`${dailySummaryRows.totalPct.toFixed(2)}%`}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                Select a station to view target vs. accomplishment.
               </div>
-            </>
-          ) : (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              Select a station to view target vs. accomplishment.
-            </div>
-          )}
-        </Card>
+            )}
+          </Card>
+        )}
       </Card>
 
       {/* 4. Daily Issuance Activities -------------------------------------- */}
@@ -1184,29 +1254,34 @@ function InspectionsNewBody({
         <SectionTitle
           title="Daily Issuance Activities"
           subtitle="Encode issuances separately for MANUAL and FSIS"
+          expanded={issuanceExpanded}
+          onToggle={() => setIssuanceExpanded((v) => !v)}
         />
 
-        <div className="space-y-4">
-          <InspectionMatrix
-            constructionFields={DAILY_INSPECTION_CONSTRUCTION_FIELDS}
-            firstFields={DAILY_INSPECTION_FIRST_FIELDS}
-            values={numeric}
-            errors={errors}
-            onChange={setNumericField}
-            locked={fieldsLocked}
-          />
-        </div>
+        {issuanceExpanded && (
+          <>
+            <div className="space-y-4">
+              <InspectionMatrix
+                constructionFields={DAILY_INSPECTION_CONSTRUCTION_FIELDS}
+                firstFields={DAILY_INSPECTION_FIRST_FIELDS}
+                values={numeric}
+                errors={errors}
+                onChange={setNumericField}
+                locked={fieldsLocked}
+              />
+            </div>
 
-        <TooltipProvider delayDuration={150}>
-          <IssuanceTable
-            manualValues={manualIssuance}
-            fsisValues={fsisIssuance}
-            setManualValues={setManualIssuance}
-            setFsisValues={setFsisIssuance}
-            locked={fieldsLocked}
-          />
-        </TooltipProvider>
-
+            <TooltipProvider delayDuration={150}>
+              <IssuanceTable
+                manualValues={manualIssuance}
+                fsisValues={fsisIssuance}
+                setManualValues={setManualIssuance}
+                setFsisValues={setFsisIssuance}
+                locked={fieldsLocked}
+              />
+            </TooltipProvider>
+          </>
+        )}
       </Card>
 
       {/* 5. Daily Reinspection Activities ----------------------------------- */}
@@ -1214,13 +1289,29 @@ function InspectionsNewBody({
         <SectionTitle
           title="Daily Reinspection Activities"
           subtitle="Encode reinspections separately for MANUAL and FSIS"
+          expanded={reinspectionExpanded}
+          onToggle={() => setReinspectionExpanded((v) => !v)}
         />
 
-        <ReinspectionPanel locked={fieldsLocked} />
+        {reinspectionExpanded && (
+          <>
+            <ReinspectionPanel
+              locked={fieldsLocked}
+              values={reinspection}
+              setValues={setReinspection}
+            />
 
-        <TooltipProvider delayDuration={150}>
-          <ReinspectionTable locked={fieldsLocked} />
-        </TooltipProvider>
+            <TooltipProvider delayDuration={150}>
+              <ReinspectionTable
+                locked={fieldsLocked}
+                manualValues={manualReinspection}
+                fsisValues={fsisReinspection}
+                setManualValues={setManualReinspection}
+                setFsisValues={setFsisReinspection}
+              />
+            </TooltipProvider>
+          </>
+        )}
       </Card>
 
       {/* 6. Remarks --------------------------------------------------------- */}
@@ -1238,7 +1329,6 @@ function InspectionsNewBody({
           />
         </Field>
       </Card>
-
 
       {/* Actions ----------------------------------------------------------- */}
       <div className="flex flex-wrap justify-end gap-2">
@@ -1512,18 +1602,47 @@ function SectionTitle({
   title,
   subtitle,
   icon,
+  expanded,
+  onToggle,
 }: {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
+  const ToggleIcon = expanded ? ChevronUp : ChevronDown;
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3",
+        onToggle && "cursor-pointer select-none",
+      )}
+      onClick={onToggle}
+      role={onToggle ? "button" : undefined}
+      aria-expanded={onToggle ? expanded : undefined}
+      tabIndex={onToggle ? 0 : undefined}
+      onKeyDown={
+        onToggle
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggle();
+              }
+            }
+          : undefined
+      }
+    >
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         {icon}
         {title}
       </h2>
-      {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+      <div className="flex items-center gap-2">
+        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+        {onToggle && (
+          <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+        )}
+      </div>
     </div>
   );
 }
@@ -1746,11 +1865,19 @@ const REINSPECTION_PANEL_FIELDS: NumericFieldSpec[] = [
   { key: "reinsp_tieza", label: "Reinspection TIEZA" },
 ];
 
-function ReinspectionPanel({ locked }: { locked?: boolean }) {
-  const [values, setValues] = React.useState<Record<string, number>>(() =>
-    Object.fromEntries(REINSPECTION_PANEL_FIELDS.map((f) => [f.key, 0])),
-  );
+const defaultReinspectionPanel = Object.fromEntries(
+  REINSPECTION_PANEL_FIELDS.map((f) => [f.key, 0]),
+) as Record<string, number>;
 
+function ReinspectionPanel({
+  locked,
+  values,
+  setValues,
+}: {
+  locked?: boolean;
+  values: Record<string, number>;
+  setValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+}) {
   return (
     <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
       <div className="mb-3 text-sm font-semibold text-foreground">Reinspection</div>
@@ -1780,14 +1907,19 @@ function ReinspectionPanel({ locked }: { locked?: boolean }) {
   );
 }
 
-function ReinspectionTable({ locked }: { locked?: boolean }) {
-  const [manualValues, setManualValues] = React.useState<Record<string, number>>({
-    ...defaultReinspection,
-  });
-  const [fsisValues, setFsisValues] = React.useState<Record<string, number>>({
-    ...defaultReinspection,
-  });
-
+function ReinspectionTable({
+  locked,
+  manualValues,
+  fsisValues,
+  setManualValues,
+  setFsisValues,
+}: {
+  locked?: boolean;
+  manualValues: Record<string, number>;
+  fsisValues: Record<string, number>;
+  setManualValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  setFsisValues: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+}) {
   const makeHandler = React.useCallback(
     (setter: React.Dispatch<React.SetStateAction<Record<string, number>>>) =>
       (key: string, raw: string) => {
@@ -1798,8 +1930,14 @@ function ReinspectionTable({ locked }: { locked?: boolean }) {
     [],
   );
 
-  const onManualChange = React.useMemo(() => makeHandler(setManualValues), [makeHandler]);
-  const onFsisChange = React.useMemo(() => makeHandler(setFsisValues), [makeHandler]);
+  const onManualChange = React.useMemo(
+    () => makeHandler(setManualValues),
+    [makeHandler, setManualValues],
+  );
+  const onFsisChange = React.useMemo(
+    () => makeHandler(setFsisValues),
+    [makeHandler, setFsisValues],
+  );
 
   const groups: {
     title: string;
@@ -1949,8 +2087,6 @@ function ReinspectionTable({ locked }: { locked?: boolean }) {
     </div>
   );
 }
-
-
 
 function Field({
   label,

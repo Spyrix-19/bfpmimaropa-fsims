@@ -67,7 +67,6 @@ import {
   addBucket,
   emptyBucket,
   daysInMonth,
-  sumBucket,
   type TargetPeriod,
   type TargetBucket,
 } from "./helpers";
@@ -668,10 +667,7 @@ function TargetCard({
       ),
     [group.row.targetreferencelist, group.year, month, selectedDay],
   );
-  const daysWithData = React.useMemo(() => {
-    const d = dailyDerived.daily;
-    return dailyDerived.days.reduce((acc, day) => (sumBucket(d[day]) > 0 ? acc + 1 : acc), 0);
-  }, [dailyDerived.days, dailyDerived.daily]);
+  const daysWithData = dailyDerived.daysWithData;
   const monthTotalDays = React.useMemo(() => daysInMonth(group.year, month), [group.year, month]);
   const monthSet = React.useMemo(() => new Set(months), [months]);
   const monthlyTotal = React.useMemo(

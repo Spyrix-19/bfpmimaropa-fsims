@@ -18,7 +18,7 @@ import { useAuth, resolveLocationScope } from "@/lib/auth";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import { MONTHS } from "@/lib/fsims-constants";
-import { calendarDaysInMonth } from "@/lib/complianceHelpers";
+import { calendarDaysInMonth, countDaysWithData, isValidRecordId } from "@/lib/complianceHelpers";
 import {
   ScopedLocationMultiFilterPair,
   useScopedLocationMulti,
@@ -362,7 +362,20 @@ function mapDetailToRecord(
     breakdown[category].pending = issued || accomplishedTotals[category];
   }
 
-  const dates = new Set(dailyEntries.map((entry) => entry.date).filter(Boolean));
+  // A date counts once when it carries a real notice record (valid GUID) or at
+  // least one non-zero accomplished count. Targets never make a day count.
+  const daysRecorded = countDaysWithData(
+    scoped,
+    (entry) => entry?.dateaccomplish,
+    (entry) =>
+      isValidRecordId(entry?.noticeno) ||
+      (Array.isArray(entry?.noticeaccomlist) ? entry.noticeaccomlist : []).some((accom) =>
+        NOTICE_CATEGORIES.some(
+          (category) =>
+            num((accom as unknown as Record<string, unknown>)?.[CATEGORY_COUNT_KEY[category]]) !== 0,
+        ),
+      ),
+  );
   const lastupdated = dailyEntries.length ? dailyEntries[dailyEntries.length - 1].date : "";
   const primaryMonth = months[0] ?? 1;
   const daysInPeriod = months.reduce((acc, month) => acc + calendarDaysInMonth(year, month), 0);
@@ -383,7 +396,7 @@ function mapDetailToRecord(
     breakdown,
     dailyEntries,
     lines,
-    daysRecorded: dates.size,
+    daysRecorded,
     daysInPeriod,
     lastupdated,
   };

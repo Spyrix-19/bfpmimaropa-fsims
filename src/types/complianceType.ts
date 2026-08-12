@@ -36,6 +36,10 @@ export interface FSISComplianceClass {
   inspectgovcount: number;
   inspectpezacount: number;
   inspecttiezacount: number;
+  reinspectbplocount: number;
+  reinspectgovcount: number;
+  reinspectpezacount: number;
+  reinspecttiezacount: number;
   isaccomplished: boolean;
   remarks: string;
   issuancelist: FSISIssuanceClassDTO[];
@@ -59,6 +63,15 @@ export interface FSISIssuanceClassDTO {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+  refsicoccupancycount: number;
+  refsicbplonewcount: number;
+  refsicbplorenewcount: number;
+  refsicgovcount: number;
+  refsicpezacount: number;
+  refsictiezacount: number;
+  rentcvcount: number;
+  reabatementcount: number;
+  reclosurecount: number;
 }
 
 // Detail Models
@@ -86,6 +99,15 @@ export interface FSISIssuanceDetailClassModel {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+  refsicoccupancycount?: number;
+  refsicbplonewcount?: number;
+  refsicbplorenewcount?: number;
+  refsicgovcount?: number;
+  refsicpezacount?: number;
+  refsictiezacount?: number;
+  rentcvcount?: number;
+  reabatementcount?: number;
+  reclosurecount?: number;
 }
 
 //Detail by Date
@@ -102,6 +124,10 @@ export interface FSISComplianceDetailByDateClassModel {
   inspectgovcount: number;
   inspectpezacount: number;
   inspecttiezacount: number;
+  reinspectbplocount?: number;
+  reinspectgovcount?: number;
+  reinspectpezacount?: number;
+  reinspecttiezacount?: number;
   isrevisionrequest: boolean;
   editablestatus: number;
   remarks: string;
@@ -135,6 +161,10 @@ export interface FSISComplianceDetailClassModel {
   inspectgovcount: number;
   inspectpezacount: number;
   inspecttiezacount: number;
+  reinspectbplocount?: number;
+  reinspectgovcount?: number;
+  reinspectpezacount?: number;
+  reinspecttiezacount?: number;
   isrevisionrequest: boolean;
   editablestatus: number;
   remarks: string;
@@ -204,6 +234,10 @@ export interface FSISComplianceClassModel {
   inspectgovcount: number;
   inspectpezacount: number;
   inspecttiezacount: number;
+  reinspectbplocount?: number;
+  reinspectgovcount?: number;
+  reinspectpezacount?: number;
+  reinspecttiezacount?: number;
   remarks: string;
   dateinspected: string; // ISO Date string
   issuancelist: FSISIssuanceClassModel[];
@@ -230,6 +264,15 @@ export interface FSISIssuanceClassModel {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+  refsicoccupancycount?: number;
+  refsicbplonewcount?: number;
+  refsicbplorenewcount?: number;
+  refsicgovcount?: number;
+  refsicpezacount?: number;
+  refsictiezacount?: number;
+  rentcvcount?: number;
+  reabatementcount?: number;
+  reclosurecount?: number;
 }
 
 //Delete
@@ -280,6 +323,11 @@ export interface FSISComplianceLedgerClass {
   inspectpezacount: number;
   inspecttiezacount: number;
 
+  reinspectbplocount?: number;
+  reinspectgovcount?: number;
+  reinspectpezacount?: number;
+  reinspecttiezacount?: number;
+
   dailytargetbplo: number;
   dailytargetgov: number;
   dailytargetpeza: number;
@@ -305,6 +353,15 @@ export interface FSISComplianceLedgerClass {
   ntcvcount?: number;
   abatementcount?: number;
   closurecount?: number;
+  refsicoccupancycount?: number;
+  refsicbplonewcount?: number;
+  refsicbplorenewcount?: number;
+  refsicgovcount?: number;
+  refsicpezacount?: number;
+  refsictiezacount?: number;
+  rentcvcount?: number;
+  reabatementcount?: number;
+  reclosurecount?: number;
 }
 
 /** Alias kept for the monthly ledger screens. */
@@ -389,6 +446,22 @@ export interface ComplianceDailyCounts {
   not_ntcv: number;
   not_abatement: number;
   not_closure: number;
+
+  reinsp_bplo?: number;
+  reinsp_gov?: number;
+  reinsp_peza?: number;
+  reinsp_tieza?: number;
+
+  refsic_occupancy?: number;
+  refsic_bplo_new?: number;
+  refsic_bplo_renewal?: number;
+  refsic_gov?: number;
+  refsic_peza?: number;
+  refsic_tieza?: number;
+
+  renot_ntcv?: number;
+  renot_abatement?: number;
+  renot_closure?: number;
 
   remarks: string;
   encodedby: string;

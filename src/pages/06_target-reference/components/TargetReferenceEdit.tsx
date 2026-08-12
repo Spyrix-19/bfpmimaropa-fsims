@@ -566,17 +566,38 @@ export default function TargetReferenceForm({
     }
   };
 
-  /** Returns the invalid cell keys (empty array = valid). */
+  /**
+   * Returns the invalid cell keys (empty array = valid).
+   * Values are normalized first (commas, spaces, trailing ".0", "0.00", empty
+   * decimals) so formatting quirks never block a save. Only genuinely
+   * non-numeric or negative entries are reported.
+   */
   const validate = (): string[] => {
     const next: Record<string, string> = {};
+    const normalized: CellMap = {};
+    let changed = false;
+
     Object.entries(cells).forEach(([k, v]) => {
-      if (v === "") return;
-      const n = Number(v);
-      if (!Number.isInteger(n) || n < 0) next[k] = "Invalid";
+      const raw = String(v ?? "").trim();
+      if (raw === "") return;
+      const cleaned = raw.replace(/[,\s_]/g, "");
+      const n = Number(cleaned);
+      if (!Number.isFinite(n) || n < 0) {
+        next[k] = "Invalid";
+        return;
+      }
+      const whole = String(Math.trunc(n));
+      if (whole !== v) {
+        normalized[k] = whole;
+        changed = true;
+      }
     });
+
+    if (changed) setCells((prev) => ({ ...prev, ...normalized }));
     setErrors(next);
     return Object.keys(next);
   };
+
 
 
   const buildExistingTargetData = (detail: TargetReferenceDetailModel | null) => {

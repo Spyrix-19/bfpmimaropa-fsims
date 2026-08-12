@@ -7,6 +7,7 @@
 import type { TargetReferenceClassModel } from "@/types/targetreferenceType";
 import type { AuthUser } from "@/types/authType";
 import { resolveLocationScope } from "@/lib/auth";
+import { isValidRecordId } from "@/lib/complianceHelpers";
 import type { TargetReferenceParams, TargetReferenceParamClass } from "@/types/targetreferenceType";
 import {
   isAllDays,
@@ -263,9 +264,13 @@ export function computeDailyFromList(
   onlyDays?: number[] | null,
 ) {
   const daily: Record<number, TargetBucket> = {};
+  const recorded: Record<number, boolean> = {};
   const allDays = buildDays(reportYear, reportMonth);
   const days = onlyDays && onlyDays.length ? allDays.filter((d) => onlyDays.includes(d)) : allDays;
-  days.forEach((d) => (daily[d] = emptyBucket()));
+  days.forEach((d) => {
+    daily[d] = emptyBucket();
+    recorded[d] = false;
+  });
 
   (list ?? []).forEach((raw) => {
     const it = normalizeTargetDate(raw);
@@ -273,9 +278,14 @@ export function computeDailyFromList(
     if (Number(it.reportmonth) !== Number(reportMonth)) return;
     const d = Number(it.reportday ?? 1);
     if (!daily[d]) return;
-    daily[d] = addBucket(daily[d], resolveBucket(it));
+    const bucket = resolveBucket(it);
+    daily[d] = addBucket(daily[d], bucket);
+    // A day counts as "has data" when a real record exists (valid, non-empty
+    // GUID) or when any actual value is non-zero — never from a target alone.
+    if (isValidRecordId(it.targetno) || sumBucket(bucket) !== 0) recorded[d] = true;
   });
 
   const total = days.reduce((acc, d) => addBucket(acc, daily[d]), emptyBucket());
-  return { days, daily, total };
+  const daysWithData = days.reduce((acc, d) => (recorded[d] ? acc + 1 : acc), 0);
+  return { days, daily, total, recorded, daysWithData };
 }

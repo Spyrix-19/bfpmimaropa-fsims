@@ -58,10 +58,46 @@ import type { SearchStationModel } from "@/types/stationTypes";
 import { useAuth } from "@/lib/auth";
 import { canShowEditAction } from "@/lib/permissions";
 
-const CATEGORY_ORDER = ["INSPECTION", "FSEC", "FSIC", "NOTICES"] as const;
+/** Re-inspection columns are encoding-screen only (mirrors complianceEdit). */
+const EXTRA_CATEGORY_FIELDS = {
+  REINSPECTION: [
+    { key: "reinsp_bplo", label: "BPLO" },
+    { key: "reinsp_gov", label: "GOV" },
+    { key: "reinsp_peza", label: "PEZA" },
+    { key: "reinsp_tieza", label: "TIEZA" },
+  ],
+  REFSIC: [
+    { key: "refsic_occupancy", label: "Occupancy" },
+    { key: "refsic_bplo_new", label: "BPLO New" },
+    { key: "refsic_bplo_renewal", label: "BPLO Renew" },
+    { key: "refsic_gov", label: "Gov" },
+    { key: "refsic_peza", label: "PEZA" },
+    { key: "refsic_tieza", label: "TIEZA" },
+  ],
+  RENOTICES: [
+    { key: "renot_ntcv", label: "NTCV" },
+    { key: "renot_abatement", label: "Abatement" },
+    { key: "renot_closure", label: "Closure" },
+  ],
+} as const;
+
+const CATEGORY_ORDER = [
+  "INSPECTION",
+  "REINSPECTION",
+  "FSEC",
+  "FSIC",
+  "NOTICES",
+  "REFSIC",
+  "RENOTICES",
+] as const;
 const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
   category,
-  fields: CATEGORY_FIELDS[category],
+  fields: (category in EXTRA_CATEGORY_FIELDS
+    ? EXTRA_CATEGORY_FIELDS[category as keyof typeof EXTRA_CATEGORY_FIELDS]
+    : CATEGORY_FIELDS[category as keyof typeof CATEGORY_FIELDS]) as unknown as {
+    key: string;
+    label: string;
+  }[],
 }));
 const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 
@@ -69,16 +105,22 @@ const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 // (see monitoringTheme.ts). Grouping is preserved by labels, not by hue.
 const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
   INSPECTION: MONITORING_THEME.headerSoft,
+  REINSPECTION: MONITORING_THEME.headerSoft,
   FSEC: MONITORING_THEME.headerSoft,
   FSIC: MONITORING_THEME.headerSoft,
   NOTICES: MONITORING_THEME.headerSoft,
+  REFSIC: MONITORING_THEME.headerSoft,
+  RENOTICES: MONITORING_THEME.headerSoft,
 };
 
 const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
   INSPECTION: MONITORING_THEME.headerSofter,
+  REINSPECTION: MONITORING_THEME.headerSofter,
   FSEC: MONITORING_THEME.headerSofter,
   FSIC: MONITORING_THEME.headerSofter,
   NOTICES: MONITORING_THEME.headerSofter,
+  REFSIC: MONITORING_THEME.headerSofter,
+  RENOTICES: MONITORING_THEME.headerSofter,
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
@@ -94,6 +136,10 @@ interface InspectionCounts {
   inspectgovcount: number;
   inspectpezacount: number;
   inspecttiezacount: number;
+  reinspectbplocount: number;
+  reinspectgovcount: number;
+  reinspectpezacount: number;
+  reinspecttiezacount: number;
   dailytargetbplo: number;
   dailytargetgov: number;
   dailytargetpeza: number;
@@ -116,6 +162,15 @@ interface IssuanceCounts {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+  refsicoccupancycount: number;
+  refsicbplonewcount: number;
+  refsicbplorenewcount: number;
+  refsicgovcount: number;
+  refsicpezacount: number;
+  refsictiezacount: number;
+  rentcvcount: number;
+  reabatementcount: number;
+  reclosurecount: number;
 }
 
 /** Map ComplianceDailyCounts keys to the flat API count keys. */
@@ -126,6 +181,10 @@ const FIELD_TO_API: Record<string, string> = {
   insp_gov: "inspectgovcount",
   insp_peza: "inspectpezacount",
   insp_tieza: "inspecttiezacount",
+  reinsp_bplo: "reinspectbplocount",
+  reinsp_gov: "reinspectgovcount",
+  reinsp_peza: "reinspectpezacount",
+  reinsp_tieza: "reinspecttiezacount",
   fsec_building: "fsecbuildingcount",
   fsec_gov: "fsecgovcount",
   fsec_peza: "fsecpezacount",
@@ -141,7 +200,19 @@ const FIELD_TO_API: Record<string, string> = {
   not_ntcv: "ntcvcount",
   not_abatement: "abatementcount",
   not_closure: "closurecount",
+  refsic_occupancy: "refsicoccupancycount",
+  refsic_bplo_new: "refsicbplonewcount",
+  refsic_bplo_renewal: "refsicbplorenewcount",
+  refsic_gov: "refsicgovcount",
+  refsic_peza: "refsicpezacount",
+  refsic_tieza: "refsictiezacount",
+  renot_ntcv: "rentcvcount",
+  renot_abatement: "reabatementcount",
+  renot_closure: "reclosurecount",
 };
+
+/** True when a UI field key belongs to the (re)inspection block. */
+const isInspectionKey = (key: string) => key.startsWith("insp_") || key.startsWith("reinsp_");
 
 /** Inspection columns that render a Target | Compliance pair. */
 const INSP_TARGET_FIELDS: Record<string, keyof InspectionCounts> = {
@@ -215,6 +286,15 @@ const emptyIssuance = (): IssuanceCounts => ({
   ntcvcount: 0,
   abatementcount: 0,
   closurecount: 0,
+  refsicoccupancycount: 0,
+  refsicbplonewcount: 0,
+  refsicbplorenewcount: 0,
+  refsicgovcount: 0,
+  refsicpezacount: 0,
+  refsictiezacount: 0,
+  rentcvcount: 0,
+  reabatementcount: 0,
+  reclosurecount: 0,
 });
 
 function buildSlices(
@@ -247,6 +327,10 @@ function buildSlices(
       inspectgovcount: num(rec?.inspectgovcount),
       inspectpezacount: num(rec?.inspectpezacount),
       inspecttiezacount: num(rec?.inspecttiezacount),
+      reinspectbplocount: num((rec as { reinspectbplocount?: number })?.reinspectbplocount),
+      reinspectgovcount: num((rec as { reinspectgovcount?: number })?.reinspectgovcount),
+      reinspectpezacount: num((rec as { reinspectpezacount?: number })?.reinspectpezacount),
+      reinspecttiezacount: num((rec as { reinspecttiezacount?: number })?.reinspecttiezacount),
       dailytargetbplo: num(rec?.dailytargetbplo),
       dailytargetgov: num(rec?.dailytargetgov),
       dailytargetpeza: num(rec?.dailytargetpeza),
@@ -275,6 +359,19 @@ function buildSlices(
           ntcvcount: num(iss?.ntcvcount),
           abatementcount: num(iss?.abatementcount),
           closurecount: num(iss?.closurecount),
+          refsicoccupancycount: num(
+            (iss as { refsicoccupancycount?: number })?.refsicoccupancycount,
+          ),
+          refsicbplonewcount: num((iss as { refsicbplonewcount?: number })?.refsicbplonewcount),
+          refsicbplorenewcount: num(
+            (iss as { refsicbplorenewcount?: number })?.refsicbplorenewcount,
+          ),
+          refsicgovcount: num((iss as { refsicgovcount?: number })?.refsicgovcount),
+          refsicpezacount: num((iss as { refsicpezacount?: number })?.refsicpezacount),
+          refsictiezacount: num((iss as { refsictiezacount?: number })?.refsictiezacount),
+          rentcvcount: num((iss as { rentcvcount?: number })?.rentcvcount),
+          reabatementcount: num((iss as { reabatementcount?: number })?.reabatementcount),
+          reclosurecount: num((iss as { reclosurecount?: number })?.reclosurecount),
         };
         if (mode === 96) manual = parsed;
         else if (mode === 97) fsis = parsed;
@@ -285,7 +382,7 @@ function buildSlices(
     for (const field of DETAIL_FIELDS) {
       const apiKey = FIELD_TO_API[String(field.key)];
       if (!apiKey) continue;
-      if (String(field.key).startsWith("insp_")) {
+      if (isInspectionKey(String(field.key))) {
         totals[field.key as keyof ComplianceDailyCounts] = num((inspection as any)[apiKey]);
       } else {
         totals[field.key as keyof ComplianceDailyCounts] =
@@ -803,6 +900,12 @@ function ComplianceViewBody({
                   Inspection
                 </th>
                 <th
+                  colSpan={4}
+                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.REINSPECTION}`}
+                >
+                  Reinspection
+                </th>
+                <th
                   rowSpan={3}
                   className={`border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
                 >
@@ -827,6 +930,18 @@ function ComplianceViewBody({
                   className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
                 >
                   Issued Notices
+                </th>
+                <th
+                  colSpan={6}
+                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.REFSIC}`}
+                >
+                  Re-FSIC
+                </th>
+                <th
+                  colSpan={3}
+                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.RENOTICES}`}
+                >
+                  Re-Notices
                 </th>
                 <th
                   rowSpan={3}
@@ -904,7 +1019,7 @@ function ComplianceViewBody({
                       {/* Inspection — merged across MANUAL/FSIS rows */}
                       {DETAIL_FIELDS.flatMap((field) => {
                         const key = String(field.key);
-                        if (!key.startsWith("insp_")) return [];
+                        if (!isInspectionKey(key)) return [];
                         const apiKey = FIELD_TO_API[key];
                         const v = num((slice.inspection as any)[apiKey]);
                         const targetKey = INSP_TARGET_FIELDS[key];
@@ -984,6 +1099,22 @@ function ComplianceViewBody({
                         );
                       })}
 
+                      {/* Re-FSIC + Re-Notices (manual) */}
+                      {DETAIL_FIELDS.map((field) => {
+                        const k = String(field.key);
+                        if (!k.startsWith("refsic_") && !k.startsWith("renot_")) return null;
+                        const apiKey = FIELD_TO_API[k];
+                        const v = num((slice.manual as unknown as Record<string, number>)[apiKey]);
+                        return (
+                          <td
+                            key={k}
+                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                          >
+                            {displayNumber(v).toLocaleString()}
+                          </td>
+                        );
+                      })}
+
                       {/* Total — merged across MANUAL/FSIS rows */}
                       <td
                         rowSpan={2}
@@ -1053,6 +1184,22 @@ function ComplianceViewBody({
                           </td>
                         );
                       })}
+
+                      {/* Re-FSIC + Re-Notices (fsis) */}
+                      {DETAIL_FIELDS.map((field) => {
+                        const k = String(field.key);
+                        if (!k.startsWith("refsic_") && !k.startsWith("renot_")) return null;
+                        const apiKey = FIELD_TO_API[k];
+                        const v = num((slice.fsis as unknown as Record<string, number>)[apiKey]);
+                        return (
+                          <td
+                            key={k}
+                            className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
+                          >
+                            {displayNumber(v).toLocaleString()}
+                          </td>
+                        );
+                      })}
                       {/* Total & Remarks merged with MANUAL row above */}
                     </tr>
                   </React.Fragment>
@@ -1069,7 +1216,7 @@ function ComplianceViewBody({
                   const columnTotal = columnTotals[key] ?? 0;
                   const cells: React.ReactNode[] = [];
                   // Mode-of-Issuance spacer cell between INSPECTION and FSEC.
-                  if (idx === 6) {
+                  if (idx === 10) {
                     cells.push(
                       <td
                         key="__mode_spacer__"

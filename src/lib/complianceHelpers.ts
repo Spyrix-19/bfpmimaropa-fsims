@@ -94,11 +94,66 @@ export function calendarDaysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
 
-/** COUNT(DISTINCT dateinspected) across the given rows. */
-export function daysEncoded(rows: ComplianceDailyCounts[]): number {
+export const EMPTY_GUID_VALUE = "00000000-0000-0000-0000-000000000000";
+
+/**
+ * A record key (fsisno / noticeno / targetno) counts as a real record only when
+ * it is a non-empty, non-default GUID.
+ */
+export function isValidRecordId(value: unknown): boolean {
+  const id = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!id) return false;
+  if (id === EMPTY_GUID_VALUE) return false;
+  if (/^0[-0]*$/.test(id)) return false;
+  return true;
+}
+
+/** Normalize any date-ish value to `yyyy-mm-dd`, or "" when unusable. */
+export function normalizeDayKey(value: unknown): string {
+  if (!value) return "";
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return "";
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const iso = String(value).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || iso.startsWith("1900")) return "";
+  return iso;
+}
+
+/**
+ * Shared "day has actual data" rule: a calendar date is counted once when at
+ * least one of its records has a valid record id OR a non-zero actual count.
+ * Targets never make a day count.
+ */
+export function countDaysWithData<T>(
+  rows: readonly T[] | null | undefined,
+  getDate: (row: T) => unknown,
+  hasData: (row: T) => boolean,
+): number {
   const set = new Set<string>();
-  rows.forEach((r) => set.add(r.dateinspected));
+  for (const row of rows ?? []) {
+    const key = normalizeDayKey(getDate(row));
+    if (!key) continue;
+    if (!hasData(row)) continue;
+    set.add(key);
+  }
   return set.size;
+}
+
+/** COUNT(DISTINCT dateinspected) across rows that carry actual recorded data. */
+export function daysEncoded(rows: ComplianceDailyCounts[]): number {
+  return countDaysWithData(
+    rows,
+    (r) => r.dateinspected,
+    (r) =>
+      isValidRecordId(r.fsisno) ||
+      ALL_NUMERIC_FIELDS.some((f) => (Number(r[f] ?? 0) || 0) !== 0),
+  );
 }
 
 /** Sum a group of fields across many daily rows. */

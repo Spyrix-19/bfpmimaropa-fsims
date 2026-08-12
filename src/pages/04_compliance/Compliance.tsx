@@ -64,7 +64,13 @@ import { complianceAPI } from "@/services/complianceAPI.ts";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
-import { CATEGORY_FIELDS, calendarDaysInMonth } from "@/lib/complianceHelpers";
+import {
+  CATEGORY_FIELDS,
+  calendarDaysInMonth,
+  countDaysWithData,
+  isValidRecordId,
+  normalizeDayKey,
+} from "@/lib/complianceHelpers";
 import type { ComplianceMonthlyRow, TargetAccomplishmentModel } from "@/types/complianceType";
 import type {
   FSISComplianceMonthlyLedgerModel,
@@ -80,6 +86,16 @@ type FSISComplianceMonthlyItem = FSISComplianceMonthlyLedgerModel;
 type FSISComplianceLedgerDailyItem = FSISComplianceDailyClass &
   Partial<FSISIssuanceClassModel> & { dateinspected?: string | Date };
 import type { SearchStationModel } from "@/types/stationTypes";
+
+function getComplianceList(station: unknown): FSISComplianceModel["compliancelist"] {
+  if (!station || typeof station !== "object") return [];
+  const value = station as {
+    compliancelist?: FSISComplianceModel["compliancelist"];
+    complianceList?: FSISComplianceModel["compliancelist"];
+  };
+  if (Array.isArray(value.compliancelist)) return value.compliancelist;
+  return Array.isArray(value.complianceList) ? value.complianceList : [];
+}
 
 function DaysEncodedBadge({ encoded, total }: { encoded: number; total: number }) {
   const ratio = total ? encoded / total : 0;
@@ -175,25 +191,31 @@ function mapMonthlyItemToRow(
     notices: sumOf(breakdown.notices),
   };
 
-  // Days with data — mirrors Target Reference / Notices: only count a date
-  // when that day actually carries non-zero values (skip the 1900 sentinel
-  // and skip seeded/empty daily rows, which would otherwise report 31 / 31).
-  const ALL_DAILY_KEYS = [
-    ...Object.values(LEDGER_FIELD_MAP.inspection),
-    ...Object.values(LEDGER_FIELD_MAP.fsec),
-    ...Object.values(LEDGER_FIELD_MAP.fsic),
-    ...Object.values(LEDGER_FIELD_MAP.notices),
-  ] as (keyof FSISComplianceLedgerDailyItem)[];
-  const rowHasData = (d: FSISComplianceLedgerDailyItem) =>
-    ALL_DAILY_KEYS.some((k) => (Number(d?.[k] ?? 0) || 0) !== 0);
+  // Count from the same actual values rendered by the ledger. API responses
+  // can expose identifiers and nested issuance arrays with different casing,
+  // so resolve those aliases without allowing daily targets to count a day.
+  const hasNonZeroCounts = (value: unknown): boolean => {
+    if (!value || typeof value !== "object") return false;
+    return Object.entries(value as Record<string, unknown>).some(([key, fieldValue]) => {
+      const normalizedKey = key.toLowerCase();
+      if (normalizedKey === "issuancelist" && Array.isArray(fieldValue)) {
+        return fieldValue.some(hasNonZeroCounts);
+      }
+      return normalizedKey.endsWith("count") && (Number(fieldValue ?? 0) || 0) !== 0;
+    });
+  };
+  const rowHasData = (d: FSISComplianceLedgerDailyItem) => {
+    const record = d as unknown as Record<string, unknown>;
+    const fsisno = record.fsisno ?? record.fsisNo ?? record.fsisNO;
+    return isValidRecordId(fsisno) || hasNonZeroCounts(d);
+  };
 
-  const dateSet = new Set<string>();
+  const encodedDays = countDaysWithData(daily, (d) => d.dateinspected, rowHasData);
   let latestDate = "";
   for (const d of daily) {
-    const iso = String(d?.dateinspected ?? "").slice(0, 10);
-    if (!iso || iso.startsWith("1900")) continue;
+    const iso = normalizeDayKey(d.dateinspected);
+    if (!iso) continue;
     if (!rowHasData(d)) continue;
-    dateSet.add(iso);
     if (iso > latestDate) latestDate = iso;
   }
 
@@ -223,7 +245,7 @@ function mapMonthlyItemToRow(
     logoUrl: item.logourl ?? "",
     year,
     month,
-    daysEncoded: dateSet.size,
+    daysEncoded: encodedDays,
     daysInMonth: year && month ? calendarDaysInMonth(year, month) : 0,
     totals,
     breakdown,
@@ -444,7 +466,7 @@ export default function FireSafetyCompliancePage() {
           const r = rec as Record<string, unknown>;
           return {
             ...(rec as object),
-            fsisno: String(r.fsisno ?? ""),
+            fsisno: String(r.fsisno ?? r.fsisNo ?? r.fsisNO ?? ""),
             dailytargetbplo: Number(r.dailytargetbplo ?? 0) || 0,
             dailytargetgov: Number(r.dailytargetgov ?? 0) || 0,
             dailytargetpeza: Number(r.dailytargetpeza ?? 0) || 0,
@@ -457,7 +479,11 @@ export default function FireSafetyCompliancePage() {
             inspecttiezacount: Number(r.inspecttiezacount ?? 0) || 0,
             remarks: String(r.remarks ?? ""),
             dateinspected: String(r.dateinspected ?? ""),
-            issuancelist: Array.isArray(r.issuancelist) ? (r.issuancelist as unknown[]) : [],
+            issuancelist: Array.isArray(r.issuancelist)
+              ? (r.issuancelist as unknown[])
+              : Array.isArray(r.issuanceList)
+                ? (r.issuanceList as unknown[])
+                : [],
           };
         };
 
@@ -501,7 +527,7 @@ export default function FireSafetyCompliancePage() {
           // renders one summed line per month.
           for (const st of stations) {
             const item = baseItem(st, Number(month));
-            for (const rec of Array.isArray(st?.compliancelist) ? st.compliancelist : []) {
+            for (const rec of getComplianceList(st)) {
               const iso = String(rec?.dateinspected ?? "").slice(0, 10);
               if (!iso || iso.startsWith("1900")) continue;
               const m = Number(iso.slice(5, 7)) || 0;
@@ -519,7 +545,7 @@ export default function FireSafetyCompliancePage() {
           // returned for the browsed month.
           for (const st of stations) {
             const item = baseItem(st, Number(month));
-            item.complianceLedgerList = (Array.isArray(st?.compliancelist) ? st.compliancelist : [])
+            item.complianceLedgerList = getComplianceList(st)
               .filter(
                 (rec) =>
                   allDates || String(rec?.dateinspected ?? "").slice(0, 10) === selectedDateISO,
