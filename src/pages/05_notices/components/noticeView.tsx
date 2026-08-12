@@ -43,7 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { cn, buildYears } from "@/lib/utils";
+import { cn, buildYears, displayNumber } from "@/lib/utils";
 import { MONTHS } from "@/lib/fsims-constants";
 import { calendarDaysInMonth } from "@/lib/complianceHelpers";
 import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceTheme";
@@ -248,62 +248,62 @@ function NoticeAccomplishmentPanel({ days, periodLabel }: { days: DayRow[]; peri
                   {CATEGORY_LABEL[r.category]}
                 </td>
                 <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.issued }}>
-                  {r.issued.toLocaleString()}
+                  {displayNumber(r.issued).toLocaleString()}
                 </td>
                 <td
                   className="px-4 py-2 text-center tabular-nums"
                   style={{ color: SERIES.accomplished }}
                 >
-                  {r.accomplished.toLocaleString()}
+                  {displayNumber(r.accomplished).toLocaleString()}
                 </td>
                 <td
                   className="px-4 py-2 text-center font-medium tabular-nums"
                   style={r.pending > 0 ? { color: SERIES.pending } : undefined}
                 >
-                  {r.pending.toLocaleString()}
+                  {displayNumber(r.pending).toLocaleString()}
                 </td>
                 <td
                   className="px-4 py-2 text-center font-medium tabular-nums"
                   style={r.positive > 0 ? { color: SERIES.positive } : undefined}
                 >
-                  {r.positive.toLocaleString()}
+                  {displayNumber(r.positive).toLocaleString()}
                 </td>
                 <td
                   className="px-4 py-2 text-center font-medium tabular-nums"
                   style={{ color: r.percentage >= 100 ? SERIES.positive : SERIES.accomplished }}
                 >
-                  {r.percentage.toFixed(2)}%
+                  {displayNumber(r.percentage).toFixed(2)}%
                 </td>
               </tr>
             ))}
             <tr className="border-t-2 border-border bg-primary/5 font-semibold">
               <td className="px-4 py-2">Total</td>
               <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.issued }}>
-                {totals.issued.toLocaleString()}
+                {displayNumber(totals.issued).toLocaleString()}
               </td>
               <td
                 className="px-4 py-2 text-center tabular-nums"
                 style={{ color: SERIES.accomplished }}
               >
-                {totals.accomplished.toLocaleString()}
+                {displayNumber(totals.accomplished).toLocaleString()}
               </td>
               <td
                 className="px-4 py-2 text-center tabular-nums"
                 style={totals.pending > 0 ? { color: SERIES.pending } : undefined}
               >
-                {totals.pending.toLocaleString()}
+                {displayNumber(totals.pending).toLocaleString()}
               </td>
               <td
                 className="px-4 py-2 text-center tabular-nums"
                 style={totals.positive > 0 ? { color: SERIES.positive } : undefined}
               >
-                {totals.positive.toLocaleString()}
+                {displayNumber(totals.positive).toLocaleString()}
               </td>
               <td
                 className="px-4 py-2 text-center tabular-nums"
                 style={{ color: totalPct >= 100 ? SERIES.positive : SERIES.accomplished }}
               >
-                {totalPct.toFixed(2)}%
+                {displayNumber(totalPct).toFixed(2)}%
               </td>
             </tr>
           </tbody>
@@ -631,7 +631,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                                     key={`${entry.day}-${category}-${mode.key}`}
                                     className="border-b border-r px-1.5 py-1.5 text-center tabular-nums"
                                   >
-                                    {value.toLocaleString()}
+                                    {displayNumber(value).toLocaleString()}
                                   </td>
                                 );
                               })}
@@ -641,7 +641,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                                     rowSpan={2}
                                     className="border-b border-r px-3 py-1.5 text-center align-middle font-bold tabular-nums"
                                   >
-                                    {rowTotal(entry).toLocaleString()}
+                                    {displayNumber(rowTotal(entry)).toLocaleString()}
                                   </td>
                                   <td
                                     rowSpan={2}
@@ -668,11 +668,11 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                           key={`total-${category}`}
                           className="total-row border-r border-t-2 border-grid-strong px-2 py-2 text-center tabular-nums"
                         >
-                          {columnTotal(category).toLocaleString()}
+                          {displayNumber(columnTotal(category)).toLocaleString()}
                         </td>
                       ))}
                       <td className="total-row-strong border-r border-t-2 border-grid-strong px-3 py-2 text-center tabular-nums">
-                        {grandTotal.toLocaleString()}
+                        {displayNumber(grandTotal).toLocaleString()}
                       </td>
                       <td className="total-row border-t-2 border-grid-strong px-3 py-2" />
                     </tr>

@@ -23,6 +23,7 @@ import StationInfoCard from "@/components/station-info-card";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/numeric-input";
 import {
   Select,
   SelectContent,
@@ -1428,20 +1429,10 @@ function ComplianceEditBody({
                                 {value.toLocaleString()}
                               </span>
                             ) : (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={String(value)}
-                                onChange={(e) =>
-                                  updateDayField(
-                                    dayEntry.key,
-                                    String(field.key),
-                                    e.target.value,
-                                    "inspection",
-                                  )
+                              <NumericInput
+                                value={value}
+                                onValueChange={(raw) =>
+                                  updateDayField(dayEntry.key, String(field.key), raw, "inspection")
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
@@ -1470,20 +1461,10 @@ function ComplianceEditBody({
                                 {value.toLocaleString()}
                               </span>
                             ) : (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={String(value)}
-                                onChange={(e) =>
-                                  updateDayField(
-                                    dayEntry.key,
-                                    String(field.key),
-                                    e.target.value,
-                                    "manual",
-                                  )
+                              <NumericInput
+                                value={value}
+                                onValueChange={(raw) =>
+                                  updateDayField(dayEntry.key, String(field.key), raw, "manual")
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
@@ -1506,20 +1487,10 @@ function ComplianceEditBody({
                                 {value.toLocaleString()}
                               </span>
                             ) : (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={String(value)}
-                                onChange={(e) =>
-                                  updateDayField(
-                                    dayEntry.key,
-                                    String(field.key),
-                                    e.target.value,
-                                    "manual",
-                                  )
+                              <NumericInput
+                                value={value}
+                                onValueChange={(raw) =>
+                                  updateDayField(dayEntry.key, String(field.key), raw, "manual")
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
@@ -1542,20 +1513,10 @@ function ComplianceEditBody({
                                 {value.toLocaleString()}
                               </span>
                             ) : (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={String(value)}
-                                onChange={(e) =>
-                                  updateDayField(
-                                    dayEntry.key,
-                                    String(field.key),
-                                    e.target.value,
-                                    "manual",
-                                  )
+                              <NumericInput
+                                value={value}
+                                onValueChange={(raw) =>
+                                  updateDayField(dayEntry.key, String(field.key), raw, "manual")
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
@@ -1621,20 +1582,10 @@ function ComplianceEditBody({
                                 {value.toLocaleString()}
                               </span>
                             ) : (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={String(value)}
-                                onChange={(e) =>
-                                  updateDayField(
-                                    dayEntry.key,
-                                    String(field.key),
-                                    e.target.value,
-                                    "fsis",
-                                  )
+                              <NumericInput
+                                value={value}
+                                onValueChange={(raw) =>
+                                  updateDayField(dayEntry.key, String(field.key), raw, "fsis")
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
@@ -1657,20 +1608,10 @@ function ComplianceEditBody({
                                 {value.toLocaleString()}
                               </span>
                             ) : (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={String(value)}
-                                onChange={(e) =>
-                                  updateDayField(
-                                    dayEntry.key,
-                                    String(field.key),
-                                    e.target.value,
-                                    "fsis",
-                                  )
+                              <NumericInput
+                                value={value}
+                                onValueChange={(raw) =>
+                                  updateDayField(dayEntry.key, String(field.key), raw, "fsis")
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
@@ -1693,20 +1634,10 @@ function ComplianceEditBody({
                                 {value.toLocaleString()}
                               </span>
                             ) : (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={String(value)}
-                                onChange={(e) =>
-                                  updateDayField(
-                                    dayEntry.key,
-                                    String(field.key),
-                                    e.target.value,
-                                    "fsis",
-                                  )
+                              <NumericInput
+                                value={value}
+                                onValueChange={(raw) =>
+                                  updateDayField(dayEntry.key, String(field.key), raw, "fsis")
                                 }
                                 className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
                               />
@@ -1799,6 +1730,22 @@ function ComplianceEditBody({
           />
         </div>
       </Card>
+
+      {/* Daily Reinspection Activities --------------------------------------- */}
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Reinspection Activities"
+          subtitle="Encode reinspections separately for MANUAL and FSIS"
+        />
+
+        <ReinspectionPanel locked={allLocked} />
+
+        <TooltipProvider delayDuration={150}>
+          <ReinspectionTable locked={allLocked} />
+        </TooltipProvider>
+      </Card>
+
+
 
       {/* Actions ------------------------------------------------------------ */}
       {saveError && (
@@ -1947,6 +1894,219 @@ function ComplianceEditBody({
 /* -------------------------------------------------------------------------- */
 /*  Presentational helpers                                                     */
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/*  Daily Reinspection Activities — mirrors complianceNew.tsx                  */
+/* -------------------------------------------------------------------------- */
+
+interface ReinspectionFieldSpec {
+  key: string;
+  label: string;
+  tooltip?: string;
+}
+
+const REINSPECTION_PANEL_FIELDS: ReinspectionFieldSpec[] = [
+  { key: "reinsp_bplo", label: "Reinspection BPLO" },
+  { key: "reinsp_gov", label: "Reinspection GOV" },
+  { key: "reinsp_peza", label: "Reinspection PEZA" },
+  { key: "reinsp_tieza", label: "Reinspection TIEZA" },
+];
+
+const REINSPECTION_FSIC_FIELDS: ReinspectionFieldSpec[] = [
+  { key: "fsic_occupancy", label: "FSIC - Occupancy" },
+  { key: "fsic_business_new", label: "FSIC - BPLO New" },
+  { key: "fsic_business_renewal", label: "FSIC - BPLO Renewal" },
+  { key: "fsic_gov", label: "FSIC - GOV" },
+  { key: "fsic_peza", label: "FSIC - PEZA" },
+  { key: "fsic_tieza", label: "FSIC - TIEZA" },
+];
+
+/** Reinspection notices exclude NOD and NTC. */
+const REINSPECTION_NOTICE_FIELDS: ReinspectionFieldSpec[] = [
+  { key: "not_ntcv", label: "NTCV", tooltip: "Notice To Correct Violation" },
+  { key: "not_abatement", label: "ABATEMENT" },
+  { key: "not_closure", label: "Closure" },
+];
+
+const REINSPECTION_FIELDS = [...REINSPECTION_FSIC_FIELDS, ...REINSPECTION_NOTICE_FIELDS];
+
+const defaultReinspection = Object.fromEntries(
+  REINSPECTION_FIELDS.map((f) => [f.key, 0]),
+) as Record<string, number>;
+
+function ReinspectionPanel({ locked }: { locked?: boolean }) {
+  const [values, setValues] = React.useState<Record<string, number>>(() =>
+    Object.fromEntries(REINSPECTION_PANEL_FIELDS.map((f) => [f.key, 0])),
+  );
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
+      <div className="mb-3 text-sm font-semibold text-foreground">Reinspection</div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {REINSPECTION_PANEL_FIELDS.map((f) => (
+          <div key={f.key} className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              {f.label} <span className="text-destructive">*</span>
+            </label>
+            <NumericInput
+              value={values[f.key]}
+              disabled={Boolean(locked)}
+              readOnly={Boolean(locked)}
+              onValueChange={(raw) => {
+                const cleaned = raw.replace(/[^0-9]/g, "");
+                setValues((prev) => ({
+                  ...prev,
+                  [f.key]: cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0),
+                }));
+              }}
+              className={`tabular-nums ${locked ? "cursor-not-allowed opacity-60" : ""}`}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReinspectionTable({ locked }: { locked?: boolean }) {
+  const [manualValues, setManualValues] = React.useState<Record<string, number>>({
+    ...defaultReinspection,
+  });
+  const [fsisValues, setFsisValues] = React.useState<Record<string, number>>({
+    ...defaultReinspection,
+  });
+
+  const makeHandler =
+    (setter: React.Dispatch<React.SetStateAction<Record<string, number>>>) =>
+    (key: string, raw: string) => {
+      const cleaned = raw.replace(/[^0-9]/g, "");
+      const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+      setter((prev) => ({ ...prev, [key]: value }));
+    };
+
+  const onManualChange = makeHandler(setManualValues);
+  const onFsisChange = makeHandler(setFsisValues);
+
+  const groups = [
+    { title: "FSIC", fields: REINSPECTION_FSIC_FIELDS },
+    { title: "NOTICES", fields: REINSPECTION_NOTICE_FIELDS },
+  ];
+
+  const shortLabel = (label: string) =>
+    label
+      .replace(/^FSEC\s*-\s*/i, "")
+      .replace(/^FSIC\s*-\s*/i, "")
+      .toUpperCase();
+
+  const rowTotal = (values: Record<string, number>) =>
+    REINSPECTION_FIELDS.reduce((sum, f) => sum + (values[f.key] ?? 0), 0);
+
+  const colTotal = (key: string) => (manualValues[key] ?? 0) + (fsisValues[key] ?? 0);
+
+  const grandTotal = rowTotal(manualValues) + rowTotal(fsisValues);
+
+  const renderRow = (
+    rowLabel: string,
+    values: Record<string, number>,
+    onChange: (key: string, raw: string) => void,
+    zebra: boolean,
+  ) => (
+    <tr className={zebra ? "bg-card" : "bg-muted"}>
+      <td
+        className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 text-center font-semibold uppercase tracking-wider ${
+          zebra ? "bg-card" : "bg-muted"
+        }`}
+      >
+        {rowLabel}
+      </td>
+      {groups.flatMap((g) =>
+        g.fields.map((f) => (
+          <td key={f.key} className="border-b border-r px-1.5 py-1.5 text-center">
+            <NumericInput
+              value={values[f.key]}
+              disabled={locked}
+              readOnly={locked}
+              onValueChange={(raw) => onChange(f.key, raw)}
+              className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+            />
+          </td>
+        )),
+      )}
+      <td className="border-b px-3 py-1.5 text-center font-bold tabular-nums">
+        {rowTotal(values).toLocaleString()}
+      </td>
+    </tr>
+  );
+
+  return (
+    <div className="w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft">
+      <div className="overflow-auto">
+        <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+          <thead className="sticky top-0 z-30">
+            <tr>
+              <th
+                rowSpan={2}
+                className={`sticky left-0 top-0 z-40 min-w-[110px] border-b border-r px-3 py-2 text-center align-middle uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+              >
+                Reinspection
+              </th>
+              {groups.map((g) => (
+                <th
+                  key={g.title}
+                  colSpan={g.fields.length}
+                  className={`border-b border-r px-2 py-2 text-center uppercase tracking-wider ${MONITORING_THEME.headerGroup}`}
+                >
+                  {g.title}
+                </th>
+              ))}
+              <th
+                rowSpan={2}
+                className={`min-w-[90px] border-b border-l px-3 py-2 text-center align-middle uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+              >
+                Total
+              </th>
+            </tr>
+            <tr>
+              {groups.flatMap((g) =>
+                g.fields.map((f) => (
+                  <th
+                    key={f.key}
+                    className={`min-w-[80px] border-b border-r px-1.5 py-1 text-center text-[10px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                    title={f.tooltip}
+                  >
+                    {shortLabel(f.label)}
+                  </th>
+                )),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {renderRow("MANUAL", manualValues, onManualChange, true)}
+            {renderRow("FSIS", fsisValues, onFsisChange, false)}
+            <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
+              <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
+                Total
+              </td>
+              {groups.flatMap((g) =>
+                g.fields.map((f) => (
+                  <td
+                    key={f.key}
+                    className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
+                  >
+                    {colTotal(f.key).toLocaleString()}
+                  </td>
+                )),
+              )}
+              <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
+                {grandTotal.toLocaleString()}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function SectionTitle({
   title,

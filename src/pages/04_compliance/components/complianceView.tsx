@@ -45,7 +45,7 @@ import { MONITORING_THEME } from "./complianceTheme";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { CATEGORY_FIELDS } from "@/lib/complianceHelpers";
-import { cn, buildYears } from "@/lib/utils";
+import { cn, buildYears, displayNumber } from "@/lib/utils";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import type { ComplianceDailyCounts } from "@/types/complianceType";
 import type {
@@ -435,25 +435,25 @@ function InlineAccomplishmentPanel({
               >
                 <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
                 <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.target }}>
-                  {r.target.toLocaleString()}
+                  {displayNumber(r.target).toLocaleString()}
                 </td>
                 <td
                   className="px-4 py-2 text-center tabular-nums"
                   style={{ color: SERIES.compliance }}
                 >
-                  {r.compliance.toLocaleString()}
+                  {displayNumber(r.compliance).toLocaleString()}
                 </td>
                 <td
                   className="px-4 py-2 text-center font-medium tabular-nums"
                   style={r.variance > 0 ? { color: SERIES.variance } : undefined}
                 >
-                  {r.variance.toLocaleString()}
+                  {displayNumber(r.variance).toLocaleString()}
                 </td>
                 <td
                   className="px-4 py-2 text-center font-medium tabular-nums"
                   style={r.positive > 0 ? { color: SERIES.positive } : undefined}
                 >
-                  {r.positive.toLocaleString()}
+                  {displayNumber(r.positive).toLocaleString()}
                 </td>
                 <td
                   className="px-4 py-2 text-center font-medium tabular-nums"
@@ -461,38 +461,38 @@ function InlineAccomplishmentPanel({
                     color: r.percentage >= 100 ? SERIES.positive : SERIES.compliance,
                   }}
                 >
-                  {r.percentage.toFixed(2)}%
+                  {displayNumber(r.percentage).toFixed(2)}%
                 </td>
               </tr>
             ))}
             <tr className="border-t-2 border-border bg-primary/5 font-semibold">
               <td className="px-4 py-2">Total</td>
               <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.target }}>
-                {totals.target.toLocaleString()}
+                {displayNumber(totals.target).toLocaleString()}
               </td>
               <td
                 className="px-4 py-2 text-center tabular-nums"
                 style={{ color: SERIES.compliance }}
               >
-                {totals.compliance.toLocaleString()}
+                {displayNumber(totals.compliance).toLocaleString()}
               </td>
               <td
                 className="px-4 py-2 text-center tabular-nums"
                 style={totals.variance > 0 ? { color: SERIES.variance } : undefined}
               >
-                {totals.variance.toLocaleString()}
+                {displayNumber(totals.variance).toLocaleString()}
               </td>
               <td
                 className="px-4 py-2 text-center tabular-nums"
                 style={totals.positive > 0 ? { color: SERIES.positive } : undefined}
               >
-                {totals.positive.toLocaleString()}
+                {displayNumber(totals.positive).toLocaleString()}
               </td>
               <td
                 className="px-4 py-2 text-center tabular-nums"
                 style={{ color: totalPct >= 100 ? SERIES.positive : SERIES.compliance }}
               >
-                {totalPct.toFixed(2)}%
+                {displayNumber(totalPct).toFixed(2)}%
               </td>
             </tr>
           </tbody>
@@ -917,7 +917,7 @@ function ComplianceViewBody({
                               rowSpan={2}
                               className="border-b border-r border-grid px-2 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
                             >
-                              {t.toLocaleString()}
+                              {displayNumber(t).toLocaleString()}
                             </td>,
                           );
                         }
@@ -927,7 +927,7 @@ function ComplianceViewBody({
                             rowSpan={2}
                             className="border-b border-r border-grid px-2 py-1.5 text-center align-middle tabular-nums"
                           >
-                            {v.toLocaleString()}
+                            {displayNumber(v).toLocaleString()}
                           </td>,
                         );
                         return cells;
@@ -949,7 +949,7 @@ function ComplianceViewBody({
                             key={String(field.key)}
                             className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
-                            {v.toLocaleString()}
+                            {displayNumber(v).toLocaleString()}
                           </td>
                         );
                       })}
@@ -964,7 +964,7 @@ function ComplianceViewBody({
                             key={String(field.key)}
                             className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
-                            {v.toLocaleString()}
+                            {displayNumber(v).toLocaleString()}
                           </td>
                         );
                       })}
@@ -979,7 +979,7 @@ function ComplianceViewBody({
                             key={String(field.key)}
                             className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
-                            {v.toLocaleString()}
+                            {displayNumber(v).toLocaleString()}
                           </td>
                         );
                       })}
@@ -989,7 +989,7 @@ function ComplianceViewBody({
                         rowSpan={2}
                         className="border-b border-r border-grid px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
                       >
-                        {rowTotal.toLocaleString()}
+                        {displayNumber(rowTotal).toLocaleString()}
                       </td>
                       <td
                         rowSpan={2}
@@ -1019,7 +1019,7 @@ function ComplianceViewBody({
                             key={String(field.key)}
                             className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
-                            {v.toLocaleString()}
+                            {displayNumber(v).toLocaleString()}
                           </td>
                         );
                       })}
@@ -1034,7 +1034,7 @@ function ComplianceViewBody({
                             key={String(field.key)}
                             className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
-                            {v.toLocaleString()}
+                            {displayNumber(v).toLocaleString()}
                           </td>
                         );
                       })}
@@ -1049,7 +1049,7 @@ function ComplianceViewBody({
                             key={String(field.key)}
                             className="border-b border-r border-grid px-2 py-1.5 text-center tabular-nums"
                           >
-                            {v.toLocaleString()}
+                            {displayNumber(v).toLocaleString()}
                           </td>
                         );
                       })}
@@ -1088,7 +1088,7 @@ function ComplianceViewBody({
                         key={`${key}__target`}
                         className="border-r border-t-2 border-grid-strong total-row px-2 py-2 text-center text-[11px] font-bold tabular-nums"
                       >
-                        {targetTotal.toLocaleString()}
+                        {displayNumber(targetTotal).toLocaleString()}
                       </td>,
                     );
                   }
@@ -1097,13 +1097,13 @@ function ComplianceViewBody({
                       key={key}
                       className="border-r border-t-2 border-grid-strong total-row px-2 py-2 text-center text-[11px] font-bold tabular-nums"
                     >
-                      {columnTotal.toLocaleString()}
+                      {displayNumber(columnTotal).toLocaleString()}
                     </td>,
                   );
                   return cells;
                 })}
                 <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
-                  {grandTotal.toLocaleString()}
+                  {displayNumber(grandTotal).toLocaleString()}
                 </td>
                 <td className="border-t-2 border-grid-strong total-row px-3 py-2" />
               </tr>

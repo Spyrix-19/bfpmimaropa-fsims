@@ -41,6 +41,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
@@ -198,21 +199,13 @@ function NoticesTable({
       </td>
       {NOTICE_FIELDS.map((f) => (
         <td key={f.key} className="border-b border-r px-1.5 py-1.5 text-center">
-          <Input
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            pattern="[0-9]*"
+          <NumericInput
             readOnly={locked}
             disabled={locked}
-            value={String(values[f.key] ?? 0)}
-            onChange={(e) => {
+            value={values[f.key]}
+            onValueChange={(raw) => {
               if (locked) return;
-              onChange(f.key, e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (["-", "+", "e", "E", "."].includes(e.key)) e.preventDefault();
+              onChange(f.key, raw);
             }}
             className={cn(
               "h-8 w-full min-w-[110px] rounded-sm border-border/70 px-2 py-1 text-center tabular-nums",
@@ -781,9 +774,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               <FilePlus2 className="h-5 w-5" />
             </span>
             <div>
-              <DialogTitle className="text-base font-semibold">
-                Complied Notices Entry
-              </DialogTitle>
+              <DialogTitle className="text-base font-semibold">Complied Notices Entry</DialogTitle>
               <DialogDescription className="text-sm">
                 Record notice accomplishments per station and reporting period — monthly, quarterly,
                 semi-annual, and annual totals are auto-computed.

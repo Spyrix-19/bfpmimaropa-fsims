@@ -40,6 +40,7 @@ import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
 import { cn, toWhole, buildYears } from "@/lib/utils";
+import { numericFieldProps } from "@/components/numeric-input";
 import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
 import { formatLongDate } from "@/lib/date-format";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
@@ -117,6 +118,32 @@ type CellMap = Record<string, string>;
 /** Builds the ISO date-time the Create endpoint expects for a target day. */
 function toTargetDate(year: number, month: number, day: number): string {
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0)).toISOString();
+}
+
+/**
+ * Resolves the day-of-month for a Detail row.
+ * The API returns `targetdate` (e.g. "2026-08-04T00:00:00"); older payloads may
+ * carry reportyear/reportmonth/reportday instead. Returns null when the row
+ * does not belong to the requested year+month.
+ */
+function resolveDetailDay(
+  it: { targetdate?: string; reportyear?: number; reportmonth?: number; reportday?: number },
+  year: number,
+  month: number,
+): number | null {
+  if (it.targetdate) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(it.targetdate));
+    if (m) {
+      if (Number(m[1]) !== Number(year) || Number(m[2]) !== Number(month)) return null;
+      return Number(m[3]) || null;
+    }
+  }
+  if (it.reportmonth != null) {
+    if (Number(it.reportmonth) !== Number(month)) return null;
+    if (it.reportyear != null && Number(it.reportyear) !== Number(year)) return null;
+    return Number(it.reportday ?? 0) || null;
+  }
+  return null;
 }
 
 function hasPstLockActivated(
@@ -416,9 +443,14 @@ export default function TargetReferenceForm({
     setMonth(editing?.month ?? initialMonth ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     open,
-    editing,
+    // primitives only — `editing` is a new object literal on every parent
+    // render, which would otherwise wipe the freshly loaded grid values.
+    editing?.year,
+    editing?.month,
+    editing?.stationno,
     currentYear,
     currentMonth,
     initialYear,
@@ -426,6 +458,80 @@ export default function TargetReferenceForm({
     scope.provinceLocked,
     scope.provinceno,
     user?.provinceno,
+  ]);
+
+  /**
+   * EDIT MODE — plot the saved month grid straight from the API.
+   * `/api/v1/FSISTargetReference/Detail?stationno&reportyear&reportmonth`
+   * returns one row per encoded day (`targetdate`), so each row is mapped onto
+   * the `${day}-${sectorno}` cell keys the grid renders. This is authoritative:
+   * whatever the API returns is what gets plotted.
+   */
+  React.useEffect(() => {
+    if (!open || !isEdit) return;
+    const activeStationNo = scope.stationLocked
+      ? scope.stationno || stationNo || user?.stationno || ""
+      : stationNo;
+    if (!activeStationNo || activeStationNo === EMPTY_GUID) return;
+
+    let cancelled = false;
+    (async () => {
+      setExistingLoading(true);
+      const resp = await targetreferenceAPI.getDetail(
+        {
+          stationno: activeStationNo,
+          reportyear: Number(year),
+          reportmonth: Number(month),
+        },
+        { suppressGlobalLoading: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);
+
+      const nextCells: CellMap = {};
+      const nextIds: Record<string, string> = {};
+      const nextEditableStatus: Record<string, number> = {};
+      const nextIsRevReq: Record<string, boolean> = {};
+
+      if (ok && data) {
+        (data.targetreferencelist ?? []).forEach((it) => {
+          if (it.isdeleted) return;
+          const day = resolveDetailDay(it, Number(year), Number(month));
+          if (!day) return;
+          const dayKey = String(day);
+          nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
+          nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
+          nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.pezatotal ?? 0);
+          nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
+          nextEditableStatus[dayKey] = Number(it.editablestatus ?? 0);
+          nextIsRevReq[dayKey] = Boolean(it.isrevisionrequest);
+          if (it.targetno && it.targetno !== EMPTY_GUID) nextIds[dayKey] = it.targetno;
+        });
+      }
+
+      if (cancelled) return;
+      setCells(nextCells);
+      setBaselineCells(nextCells);
+      setExistingTargetNos(nextIds);
+      setExistingEditableStatus(nextEditableStatus);
+      setExistingIsRevisionRequest(nextIsRevReq);
+      setErrors({});
+      setExistingLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    isEdit,
+    stationNo,
+    scope.stationLocked,
+    scope.stationno,
+    user?.stationno,
+    year,
+    month,
+    reloadNonce,
   ]);
 
   /**
@@ -686,9 +792,12 @@ export default function TargetReferenceForm({
             govtotal !== Number(baselineCells[govKey] ?? 0) ||
             pezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
             tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
+          const existingTargetNo = existingTargetNos[String(d)];
           return {
-            // Create-only modal: never send an existing target id.
-            targetno: EMPTY_GUID,
+            // Edit mode: send the saved target id so the backend UPDATEs the
+            // existing day instead of creating a duplicate row.
+            targetno:
+              existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
             targetdate: toTargetDate(Number(year), Number(month), Number(d)),
             bplototal,
             govtotal,
@@ -828,14 +937,12 @@ export default function TargetReferenceForm({
             </Label>
             <input
               id="target-reference-bplo"
-              inputMode="numeric"
-              type="text"
-              value={cells[`bplo`] ?? ""}
+              {...numericFieldProps({
+                value: cells[`bplo`],
+                onValueChange: (raw) => setField("bplo", raw),
+                disabled: addFieldsLocked,
+              })}
               readOnly={addFieldsLocked}
-              onChange={(event) => {
-                if (addFieldsLocked) return;
-                setField("bplo", event.target.value.replace(/[^0-9]/g, ""));
-              }}
               className={cn(
                 "h-12 w-full rounded-xl border bg-background px-3 text-center text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
                 errors.bplo && "border-destructive focus:border-destructive focus:ring-destructive",
@@ -851,14 +958,12 @@ export default function TargetReferenceForm({
             </Label>
             <input
               id="target-reference-gov"
-              inputMode="numeric"
-              type="text"
-              value={cells[`gov`] ?? ""}
+              {...numericFieldProps({
+                value: cells[`gov`],
+                onValueChange: (raw) => setField("gov", raw),
+                disabled: addFieldsLocked,
+              })}
               readOnly={addFieldsLocked}
-              onChange={(event) => {
-                if (addFieldsLocked) return;
-                setField("gov", event.target.value.replace(/[^0-9]/g, ""));
-              }}
               className={cn(
                 "h-12 w-full rounded-xl border bg-background px-3 text-center text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
                 errors.gov && "border-destructive focus:border-destructive focus:ring-destructive",
@@ -876,14 +981,12 @@ export default function TargetReferenceForm({
             </Label>
             <input
               id="target-reference-peza"
-              inputMode="numeric"
-              type="text"
-              value={cells[`peza`] ?? ""}
+              {...numericFieldProps({
+                value: cells[`peza`],
+                onValueChange: (raw) => setField("peza", raw),
+                disabled: addFieldsLocked,
+              })}
               readOnly={addFieldsLocked}
-              onChange={(event) => {
-                if (addFieldsLocked) return;
-                setField("peza", event.target.value.replace(/[^0-9]/g, ""));
-              }}
               className={cn(
                 "h-12 w-full rounded-xl border bg-background px-3 text-center text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
                 errors.peza && "border-destructive focus:border-destructive focus:ring-destructive",
@@ -899,14 +1002,12 @@ export default function TargetReferenceForm({
             </Label>
             <input
               id="target-reference-tieza"
-              inputMode="numeric"
-              type="text"
-              value={cells[`tieza`] ?? ""}
+              {...numericFieldProps({
+                value: cells[`tieza`],
+                onValueChange: (raw) => setField("tieza", raw),
+                disabled: addFieldsLocked,
+              })}
               readOnly={addFieldsLocked}
-              onChange={(event) => {
-                if (addFieldsLocked) return;
-                setField("tieza", event.target.value.replace(/[^0-9]/g, ""));
-              }}
               className={cn(
                 "h-12 w-full rounded-xl border bg-background px-3 text-center text-sm tabular-nums outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
                 errors.tieza &&
@@ -1062,22 +1163,13 @@ export default function TargetReferenceForm({
                   return (
                     <td key={s.detno} className="px-2 py-1">
                       <input
-                        inputMode="numeric"
-                        value={val}
+                        {...numericFieldProps({
+                          value: val,
+                          onValueChange: (raw) => setCell(d, Number(s.detno), raw),
+                          disabled: locked,
+                        })}
                         readOnly={locked}
                         tabIndex={locked ? -1 : 0}
-                        onFocus={(e) => {
-                          if (locked) return;
-                          e.target.select();
-                        }}
-                        onBlur={(e) => {
-                          if (locked) return;
-                          if (e.target.value === "") setCell(d, Number(s.detno), "0");
-                        }}
-                        onChange={(e) => {
-                          if (locked) return;
-                          setCell(d, Number(s.detno), e.target.value);
-                        }}
                         aria-invalid={hasErr}
                         aria-readonly={locked}
                         title={locked ? "This row is not editable." : undefined}

@@ -31,7 +31,7 @@ import StationInfoCard from "@/components/station-info-card";
 
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { unwrap } from "@/lib/api-envelope";
-import { buildYears } from "@/lib/utils";
+import { buildYears, displayNumber } from "@/lib/utils";
 import type { TargetReferenceDetailModel } from "@/types/targetreferenceType";
 import { useAuth } from "@/lib/auth";
 import { canShowEditAction } from "@/lib/permissions";
@@ -58,7 +58,10 @@ interface Props {
 function Row({
   label,
   b,
-  total = b.bplo + b.gov + b.peza + b.tieza,
+  total = displayNumber(b?.bplo) +
+    displayNumber(b?.gov) +
+    displayNumber(b?.peza) +
+    displayNumber(b?.tieza),
   emphasize = false,
 }: {
   label: string;
@@ -73,14 +76,14 @@ function Row({
         <td
           key={k}
           className={`border-b px-3 py-2 text-center tabular-nums ${
-            b[k] === 0 ? "text-muted-foreground/60" : ""
+            displayNumber(b?.[k]) === 0 ? "text-muted-foreground/60" : ""
           }`}
         >
-          {b[k].toLocaleString()}
+          {displayNumber(b?.[k]).toLocaleString()}
         </td>
       ))}
       <td className="border-b px-3 py-2 text-center tabular-nums font-semibold bg-card">
-        {total.toLocaleString()}
+        {displayNumber(total).toLocaleString()}
       </td>
     </tr>
   );
@@ -335,7 +338,7 @@ export default function TargetReferenceDetails({
                                 key={k}
                                 className="border-t px-3 py-2 text-center bg-card tabular-nums"
                               >
-                                {dailyDerived.total[k].toLocaleString()}
+                                {displayNumber(dailyDerived.total[k]).toLocaleString()}
                               </td>
                             ))}
                             <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
@@ -354,16 +357,16 @@ export default function TargetReferenceDetails({
                           <tr className="bg-card text-xs font-semibold uppercase tracking-[0.15em] text-primary">
                             <td className="border-t px-3 py-2 bg-card">TOTAL</td>
                             <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                              {overallTotals.bplo.toLocaleString()}
+                              {displayNumber(overallTotals.bplo).toLocaleString()}
                             </td>
                             <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                              {overallTotals.gov.toLocaleString()}
+                              {displayNumber(overallTotals.gov).toLocaleString()}
                             </td>
                             <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                              {overallTotals.peza.toLocaleString()}
+                              {displayNumber(overallTotals.peza).toLocaleString()}
                             </td>
                             <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
-                              {overallTotals.tieza.toLocaleString()}
+                              {displayNumber(overallTotals.tieza).toLocaleString()}
                             </td>
                             <td className="border-t px-3 py-2 text-center bg-card tabular-nums">
                               {(

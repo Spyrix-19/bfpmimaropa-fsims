@@ -34,6 +34,7 @@ import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
 import { cn, toWhole, buildYears } from "@/lib/utils";
+import { numericFieldProps, toWholeNumber } from "@/components/numeric-input";
 import { MONTHS, SECTORS, SECTOR_NO } from "@/lib/fsims-constants";
 
 import AvatarWithFallback from "@/components/avatar-with-fallback";
@@ -442,7 +443,12 @@ export default function TargetReferenceForm({
     };
   }, [open, stationNo, year, provinceno, reloadNonce]);
 
-  // Reset baseline state when opening
+  // Reset baseline state when opening.
+  // NOTE: depend on primitive fields (not the `editing` object) — the parent
+  // passes a new object literal on every render, which previously re-ran this
+  // effect and wiped the freshly loaded grid values.
+  const editingYear = editing?.year;
+  const editingMonth = editing?.month;
   React.useEffect(() => {
     if (!open) return;
     setErrors({});
@@ -453,13 +459,15 @@ export default function TargetReferenceForm({
     setAutoEdit(false);
     setDuplicatePrompted(false);
     setGridLoadedOnce(false);
-    setYear(editing?.year ?? initialYear ?? currentYear);
-    setMonth(editing?.month ?? initialMonth ?? currentMonth);
+    setYear(editingYear ?? initialYear ?? currentYear);
+    setMonth(editingMonth ?? initialMonth ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
     setProvincename(scope.provinceLocked ? scope.provincename || user?.provincename || "" : "ALL");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     open,
-    editing,
+    editingYear,
+    editingMonth,
     currentYear,
     currentMonth,
     initialYear,
@@ -468,6 +476,7 @@ export default function TargetReferenceForm({
     scope.provinceno,
     user?.provinceno,
   ]);
+
 
   // Load existing values for edit — Detail endpoint returns the station's
   // full year in a single call, including database TargetNo for each cell.
@@ -557,7 +566,8 @@ export default function TargetReferenceForm({
     }
   };
 
-  const validate = (): boolean => {
+  /** Returns the invalid cell keys (empty array = valid). */
+  const validate = (): string[] => {
     const next: Record<string, string> = {};
     Object.entries(cells).forEach(([k, v]) => {
       if (v === "") return;
@@ -565,8 +575,9 @@ export default function TargetReferenceForm({
       if (!Number.isInteger(n) || n < 0) next[k] = "Invalid";
     });
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return Object.keys(next);
   };
+
 
   const buildExistingTargetData = (detail: TargetReferenceDetailModel | null) => {
     const nextCells: CellMap = {};
@@ -583,10 +594,14 @@ export default function TargetReferenceForm({
       const dayKey = String(day);
       nextEditableStatus[dayKey] = Number(it.editablestatus ?? 0);
       nextIsRevReq[dayKey] = Boolean(it.isrevisionrequest);
-      nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(it.bplototal ?? 0);
-      nextCells[`${day}-${SECTOR_NO.GOV}`] = String(it.govtotal ?? 0);
-      nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(it.pezatotal ?? 0);
-      nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
+      // Values coming from the API are normalized to whole, non-negative
+      // numbers so a null / decimal / formatted total can never make the grid
+      // fail client-side validation on save.
+      nextCells[`${day}-${SECTOR_NO.BPLO}`] = String(toWholeNumber(it.bplototal));
+      nextCells[`${day}-${SECTOR_NO.GOV}`] = String(toWholeNumber(it.govtotal));
+      nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(toWholeNumber(it.pezatotal));
+      nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(toWholeNumber(it.tiezatotal));
+
       const isSaved = Boolean(it.targetno) && it.targetno !== EMPTY_GUID;
       if (!isSaved) return;
       nextIds[dayKey] = it.targetno;
@@ -667,10 +682,20 @@ export default function TargetReferenceForm({
       toast.error("No government sectors available.");
       return;
     }
-    if (!validate()) {
-      toast.error("Please fix invalid target values.");
+    const invalidKeys = validate();
+    if (invalidKeys.length > 0) {
+      const detail = invalidKeys
+        .slice(0, 3)
+        .map((k) => {
+          const [d, sn] = k.split("-");
+          const sector = sectors.find((s) => String(s.detno) === sn);
+          return `${formatDayLabel(year, month, Number(d))} · ${sector?.description ?? `Sector ${sn}`} = "${cells[k]}"`;
+        })
+        .join("; ");
+      toast.error(`Please fix invalid target values: ${detail}`);
       return;
     }
+
 
     let resolvedExistingTargetNos = existingTargetNos;
     if (isEdit) {
@@ -933,22 +958,13 @@ export default function TargetReferenceForm({
                     return (
                       <td key={s.detno} className="px-2 py-1">
                         <input
-                          inputMode="numeric"
-                          value={val}
+                          {...numericFieldProps({
+                            value: val,
+                            onValueChange: (raw) => setCell(d, Number(s.detno), raw),
+                            disabled: locked,
+                          })}
                           readOnly={locked}
                           tabIndex={locked ? -1 : 0}
-                          onFocus={(e) => {
-                            if (locked) return;
-                            e.target.select();
-                          }}
-                          onBlur={(e) => {
-                            if (locked) return;
-                            if (e.target.value === "") setCell(d, Number(s.detno), "0");
-                          }}
-                          onChange={(e) => {
-                            if (locked) return;
-                            setCell(d, Number(s.detno), e.target.value);
-                          }}
                           aria-invalid={hasErr}
                           aria-readonly={locked}
                           title={locked ? "This row is not editable." : undefined}

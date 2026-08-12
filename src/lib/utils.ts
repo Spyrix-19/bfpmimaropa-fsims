@@ -136,3 +136,14 @@ export function downloadCsv(filename: string, csv: string) {
 export function toNumber(v: unknown): number {
   return Number(v ?? 0) || 0;
 }
+
+/**
+ * Normalize a value for read-only numeric display: null, undefined, empty or
+ * whitespace-only strings and non-numeric values render as 0.
+ */
+export function displayNumber(v: unknown): number {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === "string" && v.trim() === "") return 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}

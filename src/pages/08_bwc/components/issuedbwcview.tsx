@@ -1,4 +1,5 @@
 import * as React from "react";
+import { displayNumber } from "@/lib/utils";
 import { Building2, Eye } from "lucide-react";
 import {
   Dialog,
@@ -115,9 +116,9 @@ export default function BwcView({
               <SectionTitle icon={icon} title={`${entityLabel} Breakdown`} />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {fields.map((f) => (
-                  <StatBox key={f.key} label={f.label} value={num(row, f.key)} tone={f.tone} />
+                  <StatBox key={f.key} label={f.label} value={displayNumber(num(row, f.key))} tone={f.tone} />
                 ))}
-                <StatBox label={totalLabel} value={total} tone="primary" />
+                <StatBox label={totalLabel} value={displayNumber(total)} tone="primary" />
               </div>
               <table className="w-full text-sm">
                 <tbody>
@@ -128,7 +129,7 @@ export default function BwcView({
                       <tr key={f.key}>
                         <td className="border-b border-border/60 px-3 py-2">{f.label}</td>
                         <td className="border-b border-border/60 px-3 py-2 text-right tabular-nums font-semibold">
-                          {value.toLocaleString()}
+                          {displayNumber(value).toLocaleString()}
                         </td>
                         <td className="w-24 border-b border-border/60 px-3 py-2 text-right tabular-nums text-muted-foreground">
                           {share}%
@@ -139,7 +140,7 @@ export default function BwcView({
                   <tr className="total-row font-bold">
                     <td className="border-b border-border/60 px-3 py-2">{totalLabel}</td>
                     <td className="border-b border-border/60 px-3 py-2 text-right tabular-nums">
-                      {total.toLocaleString()}
+                      {displayNumber(total).toLocaleString()}
                     </td>
                     <td className="border-b border-border/60 px-3 py-2 text-right tabular-nums">
                       100%

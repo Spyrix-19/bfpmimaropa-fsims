@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/numeric-input";
 import {
   Select,
   SelectContent,
@@ -1066,20 +1067,11 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                                       {value.toLocaleString()}
                                     </span>
                                   ) : (
-                                    <Input
-                                      type="number"
-                                      min={0}
-                                      step={1}
-                                      inputMode="numeric"
-                                      pattern="[0-9]*"
+                                    <NumericInput
                                       aria-label={`${CATEGORY_LABEL[category]} ${mode.label} for ${entry.label}`}
-                                      value={String(value)}
-                                      onKeyDown={(e) => {
-                                        if (["-", "+", "e", "E", "."].includes(e.key))
-                                          e.preventDefault();
-                                      }}
-                                      onChange={(e) =>
-                                        updateField(entry.day, category, mode.key, e.target.value)
+                                      value={value}
+                                      onValueChange={(raw) =>
+                                        updateField(entry.day, category, mode.key, raw)
                                       }
                                       className="h-8 w-full rounded-sm border-border/70 px-2 py-1 text-center tabular-nums"
                                     />

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput, toWholeNumber } from "@/components/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
@@ -111,7 +112,11 @@ export default function BwcModal({
           }
         : null,
     );
-    setValues(Object.fromEntries(fields.map((f) => [f.key, row ? String(num(row, f.key)) : ""])));
+    setValues(
+      Object.fromEntries(
+        fields.map((f) => [f.key, String(row ? toWholeNumber(num(row, f.key)) : 0)]),
+      ),
+    );
 
     if (!row && stationLocked) {
       setStationno(scope.stationno);
@@ -134,7 +139,7 @@ export default function BwcModal({
   const parsed = fields.map((f) => ({
     ...f,
     raw: values[f.key] ?? "",
-    value: Number(values[f.key] ?? 0) || 0,
+    value: toWholeNumber(values[f.key]),
     invalid: values[f.key] !== "" && Number(values[f.key]) < 0,
   }));
 
@@ -271,12 +276,9 @@ export default function BwcModal({
             <div className="grid gap-4 sm:grid-cols-2">
               {parsed.map((f) => (
                 <FilterField key={f.key} label={f.label}>
-                  <Input
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
+                  <NumericInput
                     value={f.raw}
-                    onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    onValueChange={(raw) => setValues((prev) => ({ ...prev, [f.key]: raw }))}
                     placeholder="0"
                     className={cn("h-10 tabular-nums", f.invalid && "border-destructive")}
                   />
