@@ -992,10 +992,10 @@ type LedgerCol = { key: string; label: string };
 const INSPECTION_COLS: LedgerCol[] = [
   { key: "inspectduringcount", label: "During" },
   { key: "inspectaftercount", label: "After" },
-  { key: "inspectbplocount", label: "1st BPLO" },
-  { key: "inspectgovcount", label: "1st GOV" },
-  { key: "inspectpezacount", label: "1st PEZA" },
-  { key: "inspecttiezacount", label: "1st TIEZA" },
+  { key: "inspectbplocount", label: "BPLO" },
+  { key: "inspectgovcount", label: "GOV" },
+  { key: "inspectpezacount", label: "PEZA" },
+  { key: "inspecttiezacount", label: "TIEZA" },
 ];
 
 /** Inspection columns rendered as a single value (no TARGET sub-column). */
@@ -1004,12 +1004,12 @@ const INSPECTION_PLAIN_COLS: LedgerCol[] = [
   { key: "inspectaftercount", label: "After" },
 ];
 
-/** Inspection columns rendered as a TARGET / ISSUANCE pair. */
-const INSPECTION_TARGET_COLS: (LedgerCol & { targetKey: string })[] = [
-  { key: "inspectbplocount", label: "1st BPLO", targetKey: "dailytargetbplo" },
-  { key: "inspectgovcount", label: "1st GOV", targetKey: "dailytargetgov" },
-  { key: "inspectpezacount", label: "1st PEZA", targetKey: "dailytargetpeza" },
-  { key: "inspecttiezacount", label: "1st TIEZA", targetKey: "dailytargettieza" },
+/** Inspection columns rendered as a TARGET / 1ST / RE group. */
+const INSPECTION_TARGET_COLS: (LedgerCol & { targetKey: string; reKey: string })[] = [
+  { key: "inspectbplocount", label: "BPLO", targetKey: "dailytargetbplo", reKey: "reinspectbplocount" },
+  { key: "inspectgovcount", label: "GOV", targetKey: "dailytargetgov", reKey: "reinspectgovcount" },
+  { key: "inspectpezacount", label: "PEZA", targetKey: "dailytargetpeza", reKey: "reinspectpezacount" },
+  { key: "inspecttiezacount", label: "TIEZA", targetKey: "dailytargettieza", reKey: "reinspecttiezacount" },
 ];
 
 const ISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
@@ -1063,6 +1063,7 @@ interface DayLine {
   key: string;
   label: string;
   inspection: Record<string, number>;
+  reinspection: Record<string, number>;
   /** Daily target per inspection group (presentation only, sourced from the same payload). */
   target: Record<string, number>;
   manual: ModeCounts;
@@ -1092,6 +1093,7 @@ const emptyLine = (key: string, label: string): DayLine => ({
   key,
   label,
   inspection: Object.fromEntries(INSPECTION_COLS.map((c) => [c.key, 0])),
+  reinspection: Object.fromEntries(INSPECTION_TARGET_COLS.map((c) => [c.key, 0])),
   target: Object.fromEntries(INSPECTION_TARGET_COLS.map((c) => [c.key, 0])),
   manual: emptyMode(),
   fsis: emptyMode(),
@@ -1158,8 +1160,10 @@ function buildDayLines(
     }
     for (const c of INSPECTION_COLS)
       line.inspection[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
-    for (const c of INSPECTION_TARGET_COLS)
+    for (const c of INSPECTION_TARGET_COLS) {
       line.target[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.targetKey]);
+      line.reinspection[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.reKey]);
+    }
   }
 
   return [...byKey.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, l]) => l);
@@ -1221,17 +1225,23 @@ function ComplianceLedgerCard({
     const tgt: Record<string, number> = Object.fromEntries(
       INSPECTION_TARGET_COLS.map((c) => [c.key, 0]),
     );
+    const re: Record<string, number> = Object.fromEntries(
+      INSPECTION_TARGET_COLS.map((c) => [c.key, 0]),
+    );
     const manual = emptyMode();
     const fsis = emptyMode();
     for (const l of lines) {
       for (const c of INSPECTION_COLS) insp[c.key] += l.inspection[c.key] ?? 0;
-      for (const c of INSPECTION_TARGET_COLS) tgt[c.key] += l.target[c.key] ?? 0;
+      for (const c of INSPECTION_TARGET_COLS) {
+        tgt[c.key] += l.target[c.key] ?? 0;
+        re[c.key] += l.reinspection[c.key] ?? 0;
+      }
       for (const c of ISSUANCE_COLS) {
         manual[c.key] += l.manual[c.key] ?? 0;
         fsis[c.key] += l.fsis[c.key] ?? 0;
       }
     }
-    return { insp, tgt, manual, fsis };
+    return { insp, tgt, re, manual, fsis };
   }, [lines]);
 
 
@@ -1291,7 +1301,7 @@ function ComplianceLedgerCard({
                     {groupBy === "day" ? "Date" : groupBy === "month" ? "Month" : "Period"}
                   </th>
                   <th
-                    colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 2}
+                    colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 3}
                     className={`${headCell} sticky top-0 z-30 h-[34px] border-r border-r-border/50`}
                   >
                     Inspection
@@ -1317,7 +1327,7 @@ function ComplianceLedgerCard({
                     <th
                       key={c.key}
                       rowSpan={2}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : "border-r-2 border-r-border/70"}`}
                     >
                       {c.label}
                     </th>
@@ -1325,8 +1335,8 @@ function ComplianceLedgerCard({
                   {INSPECTION_TARGET_COLS.map((c, idx) => (
                     <th
                       key={c.key}
-                      colSpan={2}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[10rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                      colSpan={3}
+                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[10rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "" : ""}`}
                     >
                       {c.label}
                     </th>
@@ -1345,14 +1355,24 @@ function ComplianceLedgerCard({
                   {INSPECTION_TARGET_COLS.map((c, idx) => (
                     <React.Fragment key={c.key}>
                       <th
-                        className={`${headCell} sticky top-[68px] z-30 h-[34px] min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        title="Target"
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
                       >
-                        Target
+                        <span className="block leading-[1.1]">TARGET</span>
                       </th>
                       <th
-                        className={`${headCell} sticky top-[68px] z-30 h-[34px] min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        title="1st Inspection"
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
                       >
-                        Issuance
+                        <span className="block leading-[1.1]">1ST</span>
+                        <span className="block leading-[1.1]">INSPECTION</span>
+                      </th>
+                      <th
+                        title="Re-inspection"
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                      >
+                        <span className="block leading-[1.1]">RE-</span>
+                        <span className="block leading-[1.1]">INSPECTION</span>
                       </th>
                     </React.Fragment>
                   ))}
@@ -1380,19 +1400,25 @@ function ComplianceLedgerCard({
                           <N v={l.inspection[c.key] ?? 0} />
                         </td>
                       ))}
-                      {INSPECTION_TARGET_COLS.map((c) => (
+                      {INSPECTION_TARGET_COLS.map((c, idx) => (
                         <React.Fragment key={c.key}>
                           <td
                             rowSpan={twoRows ? 2 : 1}
-                            className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                            className={`${bodyCell}`}
                           >
                             <N v={l.target[c.key] ?? 0} />
                           </td>
                           <td
                             rowSpan={twoRows ? 2 : 1}
-                            className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                            className={`${bodyCell}`}
                           >
                             <N v={l.inspection[c.key] ?? 0} />
+                          </td>
+                          <td
+                            rowSpan={twoRows ? 2 : 1}
+                            className={`${bodyCell}`}
+                          >
+                            <N v={l.reinspection[c.key] ?? 0} />
                           </td>
                         </React.Fragment>
                       ))}
@@ -1441,28 +1467,34 @@ function ComplianceLedgerCard({
                   >
                     Total
                   </th>
-                  {INSPECTION_PLAIN_COLS.map((c) => (
+                  {INSPECTION_PLAIN_COLS.map((c, idx) => (
                     <td
                       key={c.key}
                       rowSpan={twoRows ? 2 : 1}
-                      className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                      className={`${footCell} sticky bottom-0 z-30 ${idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : "border-r-2 border-r-border/70"}`}
                     >
                       <N v={totals.insp[c.key]} />
                     </td>
                   ))}
-                  {INSPECTION_TARGET_COLS.map((c) => (
+                  {INSPECTION_TARGET_COLS.map((c, idx) => (
                     <React.Fragment key={c.key}>
                       <td
                         rowSpan={twoRows ? 2 : 1}
-                        className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                        className={`${footCell} sticky bottom-0 z-30`}
                       >
                         <N v={totals.tgt[c.key]} />
                       </td>
                       <td
                         rowSpan={twoRows ? 2 : 1}
-                        className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                        className={`${footCell} sticky bottom-0 z-30`}
                       >
                         <N v={totals.insp[c.key]} />
+                      </td>
+                      <td
+                        rowSpan={twoRows ? 2 : 1}
+                        className={`${footCell} sticky bottom-0 z-30`}
+                      >
+                        <N v={totals.re[c.key]} />
                       </td>
                     </React.Fragment>
                   ))}
