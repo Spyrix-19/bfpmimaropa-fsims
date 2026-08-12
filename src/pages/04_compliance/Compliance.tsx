@@ -1052,8 +1052,17 @@ const GROUP_END_KEYS = new Set([
   ...INSPECTION_PLAIN_COLS.slice(-1).map((c) => c.key),
   ...INSPECTION_TARGET_COLS.slice(-1).map((c) => c.key),
   ...ISSUANCE_GROUPS.flatMap((g) => g.cols.slice(-1).map((c) => c.key)),
+  "fsectiezacount",
+  "fsicoccupancycount",
 ]);
 
+const STRONG_RIGHT_BORDER_KEYS = new Set([
+  ...GROUP_END_KEYS,
+  "fsicbplonewcount",
+  "fsicbplorenewcount",
+  "fsicgovcount",
+  "fsicpezacount",
+]);
 
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
@@ -1302,13 +1311,13 @@ function ComplianceLedgerCard({
                   </th>
                   <th
                     colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 3}
-                    className={`${headCell} sticky top-0 z-30 h-[34px] border-r border-r-border/50`}
+                    className={`${headCell} sticky top-0 z-30 h-[34px] border-r-2 border-r-border/80`}
                   >
                     Inspection
                   </th>
                   <th
                     rowSpan={3}
-                    className={`${headCell} sticky top-0 z-30 h-[34px] border-r border-r-border/50`}
+                    className={`${headCell} sticky top-0 z-30 h-[34px] border-r-2 border-r-border/80`}
                   >
                     Mode of Issuance
                   </th>
@@ -1316,7 +1325,7 @@ function ComplianceLedgerCard({
                     <th
                       key={g.title}
                       colSpan={g.cols.length}
-                      className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r border-r-border/50" : "border-r-2 border-r-border"}`}
+                      className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
                     >
                       {g.title}
                     </th>
@@ -1327,7 +1336,7 @@ function ComplianceLedgerCard({
                     <th
                       key={c.key}
                       rowSpan={2}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : "border-r-2 border-r-border/70"}`}
+                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${idx === 0 || idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
                     >
                       {c.label}
                     </th>
@@ -1336,7 +1345,7 @@ function ComplianceLedgerCard({
                     <th
                       key={c.key}
                       colSpan={3}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[10rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "" : ""}`}
+                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[10rem] ${idx < INSPECTION_TARGET_COLS.length - 1 || idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
                     >
                       {c.label}
                     </th>
@@ -1345,7 +1354,7 @@ function ComplianceLedgerCard({
                     <th
                       key={c.key}
                       rowSpan={2}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${c.key === "closurecount" ? "border-r-2 border-r-border" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
                     >
                       {c.label}
                     </th>
@@ -1356,20 +1365,20 @@ function ComplianceLedgerCard({
                     <React.Fragment key={c.key}>
                       <th
                         title="Target"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
                       >
                         <span className="block leading-[1.1]">TARGET</span>
                       </th>
                       <th
                         title="1st Inspection"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
                       >
                         <span className="block leading-[1.1]">1ST</span>
                         <span className="block leading-[1.1]">INSPECTION</span>
                       </th>
                       <th
                         title="Re-inspection"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
                       >
                         <span className="block leading-[1.1]">RE-</span>
                         <span className="block leading-[1.1]">INSPECTION</span>
@@ -1391,11 +1400,11 @@ function ComplianceLedgerCard({
                       >
                         {l.label}
                       </th>
-                      {INSPECTION_PLAIN_COLS.map((c) => (
+                      {INSPECTION_PLAIN_COLS.map((c, idx) => (
                         <td
                           key={c.key}
                           rowSpan={twoRows ? 2 : 1}
-                          className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                          className={`${bodyCell} ${idx === 0 || idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
                         >
                           <N v={l.inspection[c.key] ?? 0} />
                         </td>
@@ -1416,7 +1425,7 @@ function ComplianceLedgerCard({
                           </td>
                           <td
                             rowSpan={twoRows ? 2 : 1}
-                            className={`${bodyCell}`}
+                            className={`${bodyCell} ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : idx < INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
                           >
                             <N v={l.reinspection[c.key] ?? 0} />
                           </td>
@@ -1424,14 +1433,14 @@ function ComplianceLedgerCard({
                       ))}
 
                       <td
-                        className={`${bodyCell} border-r border-r-border/50 font-semibold text-blue-700 dark:text-blue-300`}
+                        className={`${bodyCell} border-r-2 border-r-border/80 font-semibold text-blue-700 dark:text-blue-300`}
                       >
                         <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">MANUAL</span>
                       </td>
                       {ISSUANCE_COLS.map((c) => (
                         <td
                           key={c.key}
-                          className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                          className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
                         >
                           <N v={l.manual[c.key] ?? 0} />
                         </td>
@@ -1440,14 +1449,14 @@ function ComplianceLedgerCard({
                     {twoRows && (
                       <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
                         <td
-                          className={`${bodyCell} border-r border-r-border/50 font-semibold text-blue-700 dark:text-blue-300`}
+                          className={`${bodyCell} border-r-2 border-r-border/80 font-semibold text-blue-700 dark:text-blue-300`}
                         >
                           <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">FSIS</span>
                         </td>
                         {ISSUANCE_COLS.map((c) => (
                           <td
                             key={c.key}
-                            className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                            className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
                           >
                             <N v={l.fsis[c.key] ?? 0} />
                           </td>
@@ -1471,7 +1480,7 @@ function ComplianceLedgerCard({
                     <td
                       key={c.key}
                       rowSpan={twoRows ? 2 : 1}
-                      className={`${footCell} sticky bottom-0 z-30 ${idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : "border-r-2 border-r-border/70"}`}
+                      className={`${footCell} sticky bottom-0 z-30 ${idx === 0 || idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
                     >
                       <N v={totals.insp[c.key]} />
                     </td>
@@ -1492,7 +1501,7 @@ function ComplianceLedgerCard({
                       </td>
                       <td
                         rowSpan={twoRows ? 2 : 1}
-                        className={`${footCell} sticky bottom-0 z-30`}
+                        className={`${footCell} sticky bottom-0 z-30 ${idx < INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
                       >
                         <N v={totals.re[c.key]} />
                       </td>
@@ -1500,14 +1509,14 @@ function ComplianceLedgerCard({
                   ))}
 
                   <td
-                    className={`${footCell} sticky bottom-[30px] z-30 border-r border-r-border/50`}
+                    className={`${footCell} sticky bottom-[30px] z-30 border-r-2 border-r-border/80`}
                   >
                     MANUAL
                   </td>
                   {ISSUANCE_COLS.map((c) => (
                     <td
                       key={c.key}
-                      className={`${footCell} sticky bottom-[30px] z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                      className={`${footCell} sticky bottom-[30px] z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
                     >
                       <N v={totals.manual[c.key]} />
                     </td>
@@ -1516,14 +1525,14 @@ function ComplianceLedgerCard({
                 {twoRows && (
                   <tr>
                     <td
-                      className={`${footCell} sticky bottom-0 z-30 border-r border-r-border/50`}
+                      className={`${footCell} sticky bottom-0 z-30 border-r-2 border-r-border/80`}
                     >
                       FSIS
                     </td>
                     {ISSUANCE_COLS.map((c) => (
                       <td
                         key={c.key}
-                        className={`${footCell} sticky bottom-0 z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                        className={`${footCell} sticky bottom-0 z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
                       >
                         <N v={totals.fsis[c.key]} />
                       </td>
