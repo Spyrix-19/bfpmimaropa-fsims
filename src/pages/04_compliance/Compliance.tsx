@@ -24,7 +24,10 @@ import {
   Plus,
   Grid3x3,
   Download,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+
 import ComplianceMatrixTable from "./complianceMatrix.tsx";
 import { ComplianceViewModal } from "./components/complianceView.tsx";
 import { ComplianceEditModal } from "./components/complianceEdit.tsx";
@@ -1044,12 +1047,50 @@ const ISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
 
 const ISSUANCE_COLS = ISSUANCE_GROUPS.flatMap((g) => g.cols);
 
+/** Re-inspection sector columns (record-level fields). */
+const REINSPECTION_SECTOR_COLS: LedgerCol[] = [
+  { key: "reinspectbplocount", label: "BPLO" },
+  { key: "reinspectgovcount", label: "GOV" },
+  { key: "reinspectpezacount", label: "PEZA" },
+  { key: "reinspecttiezacount", label: "TIEZA" },
+];
+
+/** Re-issuance column groups split by MANUAL / FSIS mode (API keys unchanged). */
+const REISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
+  {
+    title: "Re-FSIC",
+    cols: [
+      { key: "refsicoccupancycount", label: "Occupancy" },
+      { key: "refsicbplonewcount", label: "BPLO New" },
+      { key: "refsicbplorenewcount", label: "BPLO Renew" },
+      { key: "refsicgovcount", label: "GOV" },
+      { key: "refsicpezacount", label: "PEZA" },
+      { key: "refsictiezacount", label: "TIEZA" },
+    ],
+  },
+  {
+    title: "Re-Notices",
+    cols: [
+      { key: "rentcvcount", label: "NTCV" },
+      { key: "reabatementcount", label: "Abatement" },
+      { key: "reclosurecount", label: "Closure" },
+    ],
+  },
+];
+
+const REISSUANCE_COLS = REISSUANCE_GROUPS.flatMap((g) => g.cols);
+const REINSPECTION_COLS = [...REINSPECTION_SECTOR_COLS, ...REISSUANCE_COLS];
+
+
 /** Columns that end a category group — used to draw a visual divider line. */
 const GROUP_END_KEYS = new Set([
   ...INSPECTION_PLAIN_COLS.slice(-1).map((c) => c.key),
   ...INSPECTION_TARGET_COLS.slice(-1).map((c) => c.key),
   ...ISSUANCE_GROUPS.flatMap((g) => g.cols.slice(-1).map((c) => c.key)),
+  ...REINSPECTION_SECTOR_COLS.slice(-1).map((c) => c.key),
+  ...REISSUANCE_GROUPS.flatMap((g) => g.cols.slice(-1).map((c) => c.key)),
 ]);
+
 
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
@@ -1063,6 +1104,12 @@ interface DayLine {
   target: Record<string, number>;
   manual: ModeCounts;
   fsis: ModeCounts;
+  /** Re-inspection sector counts (same API fields, presentation grouping only). */
+  reinsp: Record<string, number>;
+  /** Re-issuance counts split by mode of issuance. */
+  reManual: Record<string, number>;
+  reFsis: Record<string, number>;
+
 }
 
 type LedgerGranularity = "day" | "month" | "quarter" | "semester" | "annual";
@@ -1091,7 +1138,11 @@ const emptyLine = (key: string, label: string): DayLine => ({
   target: Object.fromEntries(INSPECTION_TARGET_COLS.map((c) => [c.key, 0])),
   manual: emptyMode(),
   fsis: emptyMode(),
+  reinsp: Object.fromEntries(REINSPECTION_SECTOR_COLS.map((c) => [c.key, 0])),
+  reManual: Object.fromEntries(REISSUANCE_COLS.map((c) => [c.key, 0])),
+  reFsis: Object.fromEntries(REISSUANCE_COLS.map((c) => [c.key, 0])),
 });
+
 
 /**
  * Presentation-only: binds the API records into MANUAL / FSIS lines.
@@ -1141,29 +1192,75 @@ function buildDayLines(
     const issuances = Array.isArray(rec?.issuancelist) ? rec.issuancelist : [];
     if (issuances.length) {
       for (const iss of issuances) {
-        const target = num(iss?.fsicmode) === 97 ? line.fsis : line.manual;
+        const isFsis = num(iss?.fsicmode) === 97;
+        const target = isFsis ? line.fsis : line.manual;
         for (const c of ISSUANCE_COLS)
           target[c.key] += num((iss as unknown as Record<string, unknown>)?.[c.key]);
+        const reTarget = isFsis ? line.reFsis : line.reManual;
+        for (const c of REISSUANCE_COLS)
+          reTarget[c.key] += num((iss as unknown as Record<string, unknown>)?.[c.key]);
       }
     } else {
       // Flat ledger payloads carry no issuance modes — show them as MANUAL.
       for (const c of ISSUANCE_COLS)
         line.manual[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
+      for (const c of REISSUANCE_COLS)
+        line.reManual[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
     }
     for (const c of INSPECTION_COLS)
       line.inspection[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
     for (const c of INSPECTION_TARGET_COLS)
       line.target[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.targetKey]);
+    // Re-inspection sector counts live on the record itself.
+    for (const c of REINSPECTION_SECTOR_COLS)
+      line.reinsp[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
+
+
   }
 
   return [...byKey.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, l]) => l);
 }
 
 const headCell =
-  "border border-border/50 bg-blue-50 dark:bg-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300 whitespace-nowrap text-center";
-const bodyCell = "border border-border/40 px-2 py-1.5 text-xs tabular-nums text-center";
+  "border-b border-border/40 bg-blue-50/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-blue-700/90 dark:text-blue-300/90 whitespace-nowrap text-center";
+const bodyCell =
+  "border-b border-border/25 px-2.5 py-1.5 text-xs tabular-nums text-center text-foreground/90";
 const footCell =
-  "border border-border/50 bg-blue-100 dark:bg-slate-800 px-2 py-1.5 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
+  "border-t border-border/50 bg-blue-100/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
+
+/** Toggle chip used by the ledger group headers. */
+function GroupToggle({
+  label,
+  open,
+  onToggle,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      title={open ? `Collapse ${label}` : `Expand ${label}`}
+      className="inline-flex items-center gap-1.5 rounded-full border border-blue-200/70 dark:border-slate-600 bg-card/70 dark:bg-slate-700/60 px-2.5 py-[3px] leading-none text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-200 shadow-sm transition-colors hover:bg-blue-100 dark:hover:bg-slate-600 cursor-pointer"
+    >
+      {label}
+      {open ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+    </button>
+  );
+}
+
+/** Numeric cell content — zeros are muted so real activity stands out while still readable. */
+function N({ v }: { v: number }) {
+  return v ? (
+    <span className="font-medium">{v.toLocaleString()}</span>
+  ) : (
+    <span className="text-muted-foreground">0</span>
+  );
+}
+
 
 function ComplianceLedgerCard({
   row,
@@ -1197,6 +1294,11 @@ function ComplianceLedgerCard({
     [row.daily, dateISO, groupBy],
   );
 
+  /** Independent expand/collapse state for the two ledger groups. */
+  const [firstOpen, setFirstOpen] = React.useState(true);
+  const [reOpen, setReOpen] = React.useState(true);
+  const twoRows = firstOpen || reOpen;
+
   const totals = React.useMemo(() => {
     const insp: Record<string, number> = Object.fromEntries(INSPECTION_COLS.map((c) => [c.key, 0]));
     const tgt: Record<string, number> = Object.fromEntries(
@@ -1204,6 +1306,15 @@ function ComplianceLedgerCard({
     );
     const manual = emptyMode();
     const fsis = emptyMode();
+    const reinsp: Record<string, number> = Object.fromEntries(
+      REINSPECTION_SECTOR_COLS.map((c) => [c.key, 0]),
+    );
+    const reManual: Record<string, number> = Object.fromEntries(
+      REISSUANCE_COLS.map((c) => [c.key, 0]),
+    );
+    const reFsis: Record<string, number> = Object.fromEntries(
+      REISSUANCE_COLS.map((c) => [c.key, 0]),
+    );
     for (const l of lines) {
       for (const c of INSPECTION_COLS) insp[c.key] += l.inspection[c.key] ?? 0;
       for (const c of INSPECTION_TARGET_COLS) tgt[c.key] += l.target[c.key] ?? 0;
@@ -1211,9 +1322,15 @@ function ComplianceLedgerCard({
         manual[c.key] += l.manual[c.key] ?? 0;
         fsis[c.key] += l.fsis[c.key] ?? 0;
       }
+      for (const c of REINSPECTION_SECTOR_COLS) reinsp[c.key] += l.reinsp[c.key] ?? 0;
+      for (const c of REISSUANCE_COLS) {
+        reManual[c.key] += l.reManual[c.key] ?? 0;
+        reFsis[c.key] += l.reFsis[c.key] ?? 0;
+      }
     }
-    return { insp, tgt, manual, fsis };
+    return { insp, tgt, manual, fsis, reinsp, reManual, reFsis };
   }, [lines]);
+
 
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
@@ -1260,217 +1377,427 @@ function ComplianceLedgerCard({
               : "No entries for this period."}
           </div>
         ) : (
-          <div className="max-h-[24rem] overflow-auto rounded-xl border border-border/40">
+          <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
             <table className="w-full min-w-[1400px] border-separate border-spacing-0 text-xs">
               <thead>
                 <tr>
                   <th
-                    rowSpan={3}
-                    className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r-2 border-r-border/60 text-left`}
+                    rowSpan={4}
+                    className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                   >
                     {groupBy === "day" ? "Date" : groupBy === "month" ? "Month" : "Period"}
                   </th>
                   <th
-                    colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 2}
-                    className={`${headCell} sticky top-0 z-30 border-r-2 border-r-border/60`}
+                    colSpan={
+                      firstOpen
+                        ? INSPECTION_PLAIN_COLS.length +
+                          INSPECTION_TARGET_COLS.length * 2 +
+                          1 +
+                          ISSUANCE_COLS.length
+                        : 1
+                    }
+                    className={`${headCell} sticky top-0 z-30 h-[34px] border-r-2 border-r-border`}
                   >
-                    Inspection
+                    <GroupToggle
+                      label="1st Inspection"
+                      open={firstOpen}
+                      onToggle={() => setFirstOpen((v) => !v)}
+                    />
                   </th>
                   <th
-                    rowSpan={3}
-                    className={`${headCell} sticky top-0 z-30 border-r-2 border-r-border/60`}
+                    colSpan={reOpen ? REINSPECTION_COLS.length + 1 : 1}
+                    className={`${headCell} sticky top-0 z-30 h-[34px]`}
                   >
-                    Mode of Issuance
+                    <GroupToggle
+                      label="Re-Inspection"
+                      open={reOpen}
+                      onToggle={() => setReOpen((v) => !v)}
+                    />
                   </th>
-                  {ISSUANCE_GROUPS.map((g, idx) => (
-                    <th
-                      key={g.title}
-                      colSpan={g.cols.length}
-                      className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
-                    >
-                      {g.title}
-                    </th>
-                  ))}
                 </tr>
+
                 <tr>
-                  {INSPECTION_PLAIN_COLS.map((c, idx) => (
-                    <th
-                      key={c.key}
-                      rowSpan={2}
-                      className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
-                    >
-                      {c.label}
-                    </th>
-                  ))}
-                  {INSPECTION_TARGET_COLS.map((c, idx) => (
-                    <th
-                      key={c.key}
-                      colSpan={2}
-                      className={`${headCell} sticky top-[30px] z-30 min-w-[10rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
-                    >
-                      {c.label}
-                    </th>
-                  ))}
-                  {ISSUANCE_COLS.map((c) => (
-                    <th
-                      key={c.key}
-                      rowSpan={2}
-                      className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
-                    >
-                      {c.label}
-                    </th>
-                  ))}
-                </tr>
-                <tr>
-                  {INSPECTION_TARGET_COLS.map((c, idx) => (
-                    <React.Fragment key={c.key}>
+                  {firstOpen ? (
+                    <>
                       <th
-                        className={`${headCell} sticky top-[60px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
+                        colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 2}
+                        className={`${headCell} sticky top-[34px] z-30 border-r border-r-border/50`}
                       >
-                        Target
+                        Inspection
                       </th>
                       <th
-                        className={`${headCell} sticky top-[60px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/60" : ""}`}
+                        rowSpan={3}
+                        className={`${headCell} sticky top-[34px] z-30 border-r border-r-border/50`}
                       >
-                        Issuance
+                        Mode of Issuance
                       </th>
-                    </React.Fragment>
-                  ))}
+                      {ISSUANCE_GROUPS.map((g, idx) => (
+                        <th
+                          key={g.title}
+                          colSpan={g.cols.length}
+                          className={`${headCell} sticky top-[34px] z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r border-r-border/50" : "border-r-2 border-r-border"}`}
+                        >
+                          {g.title}
+                        </th>
+                      ))}
+                    </>
+                  ) : (
+                    <th
+                      rowSpan={3}
+                      className={`${headCell} sticky top-[34px] z-30 min-w-[3rem] border-r border-r-border/50`}
+                    />
+                  )}
+                  {reOpen ? (
+                    <>
+                      <th
+                        colSpan={REINSPECTION_SECTOR_COLS.length}
+                        className={`${headCell} sticky top-[34px] z-30 border-r border-r-border/50`}
+                      >
+                        Re-Inspection
+                      </th>
+                      <th
+                        rowSpan={3}
+                        className={`${headCell} sticky top-[34px] z-30 border-r border-r-border/50`}
+                      >
+                        Mode of Issuance
+                      </th>
+                      {REISSUANCE_GROUPS.map((g) => (
+                        <th
+                          key={g.title}
+                          colSpan={g.cols.length}
+                          className={`${headCell} sticky top-[34px] z-30 border-r border-r-border/50`}
+                        >
+                          {g.title}
+                        </th>
+                      ))}
+                    </>
+                  ) : (
+                    <th rowSpan={3} className={`${headCell} sticky top-[34px] z-30 min-w-[3rem]`} />
+                  )}
+                </tr>
+                <tr>
+                  {firstOpen && (
+                    <>
+                      {INSPECTION_PLAIN_COLS.map((c, idx) => (
+                        <th
+                          key={c.key}
+                          rowSpan={2}
+                          className={`${headCell} sticky top-[64px] z-30 min-w-[5rem] ${idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        >
+                          {c.label}
+                        </th>
+                      ))}
+                      {INSPECTION_TARGET_COLS.map((c, idx) => (
+                        <th
+                          key={c.key}
+                          colSpan={2}
+                          className={`${headCell} sticky top-[64px] z-30 min-w-[10rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        >
+                          {c.label}
+                        </th>
+                      ))}
+                      {ISSUANCE_COLS.map((c) => (
+                        <th
+                          key={c.key}
+                          rowSpan={2}
+                          className={`${headCell} sticky top-[64px] z-30 min-w-[5rem] ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                        >
+                          {c.label}
+                        </th>
+                      ))}
+                    </>
+                  )}
+                  {reOpen &&
+                    REINSPECTION_COLS.map((c) => (
+                      <th
+                        key={c.key}
+                        rowSpan={2}
+                        className={`${headCell} sticky top-[64px] z-30 min-w-[5rem] ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                      >
+                        {c.label}
+                      </th>
+                    ))}
+                </tr>
+                <tr>
+                  {firstOpen &&
+                    INSPECTION_TARGET_COLS.map((c, idx) => (
+                      <React.Fragment key={c.key}>
+                        <th
+                          className={`${headCell} sticky top-[94px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        >
+                          Target
+                        </th>
+                        <th
+                          className={`${headCell} sticky top-[94px] z-30 min-w-[5rem] ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r border-r-border/50" : ""}`}
+                        >
+                          Issuance
+                        </th>
+                      </React.Fragment>
+                    ))}
                 </tr>
               </thead>
+
 
               <tbody>
                 {lines.map((l) => (
                   <React.Fragment key={l.key}>
-                    <tr className="bg-card dark:bg-slate-800">
+                    <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
                       <th
                         scope="row"
-                        rowSpan={2}
-                        className="sticky left-0 z-10 border border-border/40 border-r-2 border-r-border/60 bg-inherit px-2 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap"
+                        rowSpan={twoRows ? 2 : 1}
+                        className="sticky left-0 z-10 border-b border-border/25 border-r border-r-border/50 bg-inherit px-2.5 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]"
                       >
                         {l.label}
                       </th>
+                      {firstOpen ? (
+                        <>
+                          {INSPECTION_PLAIN_COLS.map((c) => (
+                            <td
+                              key={c.key}
+                              rowSpan={twoRows ? 2 : 1}
+                              className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                            >
+                              <N v={l.inspection[c.key] ?? 0} />
+                            </td>
+                          ))}
+                          {INSPECTION_TARGET_COLS.map((c) => (
+                            <React.Fragment key={c.key}>
+                              <td
+                                rowSpan={twoRows ? 2 : 1}
+                                className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                              >
+                                <N v={l.target[c.key] ?? 0} />
+                              </td>
+                              <td
+                                rowSpan={twoRows ? 2 : 1}
+                                className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                              >
+                                <N v={l.inspection[c.key] ?? 0} />
+                              </td>
+                            </React.Fragment>
+                          ))}
+
+                          <td
+                            className={`${bodyCell} border-r border-r-border/50 font-semibold text-blue-700 dark:text-blue-300`}
+                          >
+                            <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">MANUAL</span>
+                          </td>
+                          {ISSUANCE_COLS.map((c) => (
+                            <td
+                              key={c.key}
+                              className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                            >
+                              <N v={l.manual[c.key] ?? 0} />
+                            </td>
+                          ))}
+                        </>
+                      ) : (
+                      <td
+                          rowSpan={twoRows ? 2 : 1}
+                          className={`${bodyCell} border-r-2 border-r-border text-muted-foreground`}
+                        >
+                          &middot;&middot;&middot;
+                        </td>
+                      )}
+                      {reOpen ? (
+                        <>
+                          {REINSPECTION_SECTOR_COLS.map((c) => (
+                            <td
+                              key={c.key}
+                              rowSpan={twoRows ? 2 : 1}
+                              className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                            >
+                              <N v={l.reinsp[c.key] ?? 0} />
+                            </td>
+                          ))}
+                          <td
+                            className={`${bodyCell} border-r border-r-border/50 font-semibold text-blue-700 dark:text-blue-300`}
+                          >
+                            <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">MANUAL</span>
+                          </td>
+                          {REISSUANCE_COLS.map((c) => (
+                            <td
+                              key={c.key}
+                              className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                            >
+                              <N v={l.reManual[c.key] ?? 0} />
+                            </td>
+                          ))}
+                        </>
+                      ) : (
+                        <td className={`${bodyCell} text-muted-foreground`} rowSpan={twoRows ? 2 : 1}>
+                          &middot;&middot;&middot;
+                        </td>
+                      )}
+                    </tr>
+                    {twoRows && (
+                      <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
+                        {firstOpen && (
+                          <>
+                            <td
+                              className={`${bodyCell} border-r border-r-border/50 font-semibold text-blue-700 dark:text-blue-300`}
+                            >
+                              <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">FSIS</span>
+                            </td>
+                            {ISSUANCE_COLS.map((c) => (
+                              <td
+                                key={c.key}
+                                className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                              >
+                                <N v={l.fsis[c.key] ?? 0} />
+                              </td>
+                            ))}
+                          </>
+                        )}
+                        {reOpen && (
+                          <>
+                            <td
+                              className={`${bodyCell} border-r border-r-border/50 font-semibold text-blue-700 dark:text-blue-300`}
+                            >
+                              <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">FSIS</span>
+                            </td>
+                            {REISSUANCE_COLS.map((c) => (
+                              <td
+                                key={c.key}
+                                className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                              >
+                                <N v={l.reFsis[c.key] ?? 0} />
+                              </td>
+                            ))}
+                          </>
+                        )}
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+
+              <tfoot>
+                <tr>
+                  <th
+                    scope="row"
+                    rowSpan={twoRows ? 2 : 1}
+                    className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
+                  >
+                    Total
+                  </th>
+                  {firstOpen ? (
+                    <>
                       {INSPECTION_PLAIN_COLS.map((c) => (
                         <td
                           key={c.key}
-                          rowSpan={2}
-                          className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                          rowSpan={twoRows ? 2 : 1}
+                          className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
                         >
-                          {(l.inspection[c.key] ?? 0).toLocaleString()}
+                          <N v={totals.insp[c.key]} />
                         </td>
                       ))}
                       {INSPECTION_TARGET_COLS.map((c) => (
                         <React.Fragment key={c.key}>
                           <td
-                            rowSpan={2}
-                            className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                            rowSpan={twoRows ? 2 : 1}
+                            className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
                           >
-                            {(l.target[c.key] ?? 0).toLocaleString()}
+                            <N v={totals.tgt[c.key]} />
                           </td>
                           <td
-                            rowSpan={2}
-                            className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                            rowSpan={twoRows ? 2 : 1}
+                            className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
                           >
-                            {(l.inspection[c.key] ?? 0).toLocaleString()}
+                            <N v={totals.insp[c.key]} />
                           </td>
                         </React.Fragment>
                       ))}
 
                       <td
-                        className={`${bodyCell} border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}
+                        className={`${footCell} sticky bottom-[30px] z-30 border-r border-r-border/50`}
                       >
                         MANUAL
                       </td>
-                      {ISSUANCE_COLS.map((c) => (
+                        {ISSUANCE_COLS.map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-[30px] z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                          >
+                            <N v={totals.manual[c.key]} />
+                          </td>
+                        ))}
+                    </>
+                  ) : (
+                    <td
+                      rowSpan={twoRows ? 2 : 1}
+                      className={`${footCell} sticky bottom-0 z-30 border-r-2 border-r-border`}
+                    />
+                  )}
+                  {reOpen ? (
+                    <>
+                      {REINSPECTION_SECTOR_COLS.map((c) => (
                         <td
                           key={c.key}
-                          className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                          rowSpan={twoRows ? 2 : 1}
+                          className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
                         >
-                          {(l.manual[c.key] ?? 0).toLocaleString()}
+                          <N v={totals.reinsp[c.key]} />
                         </td>
                       ))}
-                    </tr>
-                    <tr className="bg-blue-50 dark:bg-slate-700">
                       <td
-                        className={`${bodyCell} border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}
+                        className={`${footCell} sticky bottom-[30px] z-30 border-r border-r-border/50`}
                       >
-                        FSIS
+                        MANUAL
                       </td>
-                      {ISSUANCE_COLS.map((c) => (
+                      {REISSUANCE_COLS.map((c) => (
                         <td
                           key={c.key}
-                          className={`${bodyCell} ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
+                          className={`${footCell} sticky bottom-[30px] z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
                         >
-                          {(l.fsis[c.key] ?? 0).toLocaleString()}
+                          <N v={totals.reManual[c.key]} />
                         </td>
                       ))}
-                    </tr>
-                  </React.Fragment>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th
-                    scope="row"
-                    rowSpan={2}
-                    className={`${footCell} sticky bottom-0 left-0 z-40 border-r-2 border-r-border/60 text-left uppercase`}
-                  >
-                    Total
-                  </th>
-                  {INSPECTION_PLAIN_COLS.map((c) => (
-                    <td
-                      key={c.key}
-                      rowSpan={2}
-                      className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
-                    >
-                      {totals.insp[c.key].toLocaleString()}
-                    </td>
-                  ))}
-                  {INSPECTION_TARGET_COLS.map((c) => (
-                    <React.Fragment key={c.key}>
-                      <td
-                        rowSpan={2}
-                        className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
-                      >
-                        {totals.tgt[c.key].toLocaleString()}
-                      </td>
-                      <td
-                        rowSpan={2}
-                        className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
-                      >
-                        {totals.insp[c.key].toLocaleString()}
-                      </td>
-                    </React.Fragment>
-                  ))}
-
-                  <td
-                    className={`${footCell} sticky bottom-[30px] z-30 border-r-2 border-r-border/60`}
-                  >
-                    MANUAL
-                  </td>
-                  {ISSUANCE_COLS.map((c) => (
-                    <td
-                      key={c.key}
-                      className={`${footCell} sticky bottom-[30px] z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
-                    >
-                      {totals.manual[c.key].toLocaleString()}
-                    </td>
-                  ))}
+                    </>
+                  ) : (
+                    <td rowSpan={twoRows ? 2 : 1} className={`${footCell} sticky bottom-0 z-30`} />
+                  )}
                 </tr>
-                <tr>
-                  <td className={`${footCell} sticky bottom-0 z-30 border-r-2 border-r-border/60`}>
-                    FSIS
-                  </td>
-                  {ISSUANCE_COLS.map((c) => (
-                    <td
-                      key={c.key}
-                      className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/60" : ""}`}
-                    >
-                      {totals.fsis[c.key].toLocaleString()}
-                    </td>
-                  ))}
-                </tr>
+                {twoRows && (
+                  <tr>
+                    {firstOpen && (
+                      <>
+                        <td
+                          className={`${footCell} sticky bottom-0 z-30 border-r border-r-border/50`}
+                        >
+                          FSIS
+                        </td>
+                          {ISSUANCE_COLS.map((c) => (
+                            <td
+                              key={c.key}
+                              className={`${footCell} sticky bottom-0 z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border" : GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                            >
+                              <N v={totals.fsis[c.key]} />
+                            </td>
+                          ))}
+                      </>
+                    )}
+                    {reOpen && (
+                      <>
+                        <td
+                          className={`${footCell} sticky bottom-0 z-30 border-r border-r-border/50`}
+                        >
+                          FSIS
+                        </td>
+                        {REISSUANCE_COLS.map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${GROUP_END_KEYS.has(c.key) ? "border-r border-r-border/50" : ""}`}
+                          >
+                            <N v={totals.reFsis[c.key]} />
+                          </td>
+                        ))}
+                      </>
+                    )}
+                  </tr>
+                )}
               </tfoot>
+
             </table>
           </div>
         )}
