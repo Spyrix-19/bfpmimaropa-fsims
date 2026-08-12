@@ -24,19 +24,21 @@ import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 export const ALL_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-/** 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual */
+/** 1 Daily, 2 Weekly, 3 Monthly, 4 Quarterly, 5 Semester, 6 Annual */
 export function resolveIntervalCode(state: ModuleFilterState): number {
   switch (state.interval) {
     case "DAILY":
       return 1;
-    case "MONTHLY":
+    case "WEEKLY":
       return 2;
-    case "QUARTERLY":
+    case "MONTHLY":
       return 3;
-    case "SEMESTER":
+    case "QUARTERLY":
       return 4;
-    default:
+    case "SEMESTER":
       return 5;
+    default:
+      return 6;
   }
 }
 

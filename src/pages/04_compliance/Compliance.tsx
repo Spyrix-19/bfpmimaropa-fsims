@@ -164,7 +164,18 @@ function sumBucket(
   for (const uiKey of Object.keys(map)) {
     const apiKey = map[uiKey] as keyof FSISComplianceLedgerDailyItem;
     let total = 0;
-    for (const d of daily) total += Number(d?.[apiKey] ?? 0) || 0;
+    for (const d of daily) {
+      const topLevelValue = Number((d as Record<string, unknown>)?.[apiKey] ?? 0) || 0;
+      total += topLevelValue;
+
+      const issuances = Array.isArray((d as { issuancelist?: unknown[] }).issuancelist)
+        ? ((d as { issuancelist?: unknown[] }).issuancelist as Record<string, unknown>[])
+        : [];
+      for (const iss of issuances) {
+        const nestedValue = Number(iss?.[apiKey] ?? 0) || 0;
+        total += nestedValue;
+      }
+    }
     out[uiKey] = total;
   }
   return out;
@@ -315,14 +326,16 @@ export default function FireSafetyCompliancePage() {
     switch (filterState.interval) {
       case "DAILY":
         return 1;
-      case "MONTHLY":
+      case "WEEKLY":
         return 2;
-      case "QUARTERLY":
+      case "MONTHLY":
         return 3;
-      case "SEMESTER":
+      case "QUARTERLY":
         return 4;
-      default:
+      case "SEMESTER":
         return 5;
+      default:
+        return 6;
     }
   }, [filterState.interval]);
 
@@ -331,6 +344,15 @@ export default function FireSafetyCompliancePage() {
     if (!isAggregated) return null;
     const name = (m: number) => MONTHS.find((x) => x.value === m)?.name ?? String(m);
     switch (filterState.interval) {
+      case "WEEKLY":
+        if (!filterState.week || filterState.week === "all") return `All Weeks ${year}`;
+        const selectedWeeks = filterState.week
+          .split(",")
+          .map((part) => Number(part.trim().replace(/^w/i, "")))
+          .filter((v) => Number.isFinite(v) && v >= 1 && v <= 53);
+        return selectedWeeks.length > 1
+          ? `${selectedWeeks.length} Weeks ${year}`
+          : `Week ${selectedWeeks[0] ?? 1} ${year}`;
       case "ANNUAL":
         return `Annual ${year}`;
       case "QUARTERLY":
@@ -351,12 +373,15 @@ export default function FireSafetyCompliancePage() {
     filterState.interval,
     filterState.quarter,
     filterState.semester,
+    filterState.week,
     selectedMonths,
     year,
   ]);
 
   const ledgerGranularity: LedgerGranularity = React.useMemo(() => {
     switch (filterState.interval) {
+      case "WEEKLY":
+        return "week";
       case "QUARTERLY":
         return "quarter";
       case "SEMESTER":
@@ -796,7 +821,7 @@ export default function FireSafetyCompliancePage() {
         state={filterState}
         onChange={setFilterState}
         onReset={handleResetFilters}
-        intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+        intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
         allowAllDays
       >
         <ScopedLocationMultiFilterPair
@@ -1110,7 +1135,7 @@ interface DayLine {
   fsis: ModeCounts;
 }
 
-type LedgerGranularity = "day" | "month" | "quarter" | "semester" | "annual";
+type LedgerGranularity = "day" | "week" | "month" | "quarter" | "semester" | "annual";
 
 const emptyMode = (): ModeCounts =>
   Object.fromEntries([
@@ -1131,6 +1156,18 @@ const monthLabel = (ym: string) => {
   const m = Number(ym.slice(5, 7)) || 0;
   const name = MONTHS.find((x) => x.value === m)?.name ?? ym.slice(5, 7);
   return `${name} ${ym.slice(0, 4)}`;
+};
+
+const weekLabel = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const start = new Date(d);
+  const day = start.getDay();
+  const diffToSunday = (day + 7) % 7;
+  start.setDate(start.getDate() - diffToSunday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return `Week ${Math.ceil((d.getDate() + ((new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7) - 1) / 7)} ${d.getFullYear()}`;
 };
 
 const emptyLine = (key: string, label: string): DayLine => ({
@@ -1163,28 +1200,38 @@ function buildDayLines(
 
     const recordMonth = Number(iso.slice(5, 7)) || 1;
     const recordYear = iso.slice(0, 4);
+    const d = new Date(`${iso}T00:00:00`);
+    const day = d.getDay();
+    const diffToSunday = (day + 7) % 7;
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - diffToSunday);
+    const weekKey = `${recordYear}-w${Math.ceil((d.getDate() + ((new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7) - 1) / 7)}`;
     const key =
-      groupBy === "month"
-        ? iso.slice(0, 7)
-        : groupBy === "quarter"
-          ? `${recordYear}-q${Math.ceil(recordMonth / 3)}`
-          : groupBy === "semester"
-            ? `${recordYear}-s${recordMonth <= 6 ? 1 : 2}`
-            : groupBy === "annual"
-              ? recordYear
-              : iso;
+      groupBy === "week"
+        ? weekKey
+        : groupBy === "month"
+          ? iso.slice(0, 7)
+          : groupBy === "quarter"
+            ? `${recordYear}-q${Math.ceil(recordMonth / 3)}`
+            : groupBy === "semester"
+              ? `${recordYear}-s${recordMonth <= 6 ? 1 : 2}`
+              : groupBy === "annual"
+                ? recordYear
+                : iso;
     let line = byKey.get(key);
     if (!line) {
       const label =
-        groupBy === "month"
-          ? monthLabel(iso)
-          : groupBy === "quarter"
-            ? `Q${Math.ceil(recordMonth / 3)} ${recordYear}`
-            : groupBy === "semester"
-              ? `${recordMonth <= 6 ? "1st" : "2nd"} Semester ${recordYear}`
-              : groupBy === "annual"
-                ? `Annual ${recordYear}`
-                : dayLabel(iso);
+        groupBy === "week"
+          ? `Week ${Math.ceil((d.getDate() + ((new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7) - 1) / 7)} ${recordYear}`
+          : groupBy === "month"
+            ? monthLabel(iso)
+            : groupBy === "quarter"
+              ? `Q${Math.ceil(recordMonth / 3)} ${recordYear}`
+              : groupBy === "semester"
+                ? `${recordMonth <= 6 ? "1st" : "2nd"} Semester ${recordYear}`
+                : groupBy === "annual"
+                  ? `Annual ${recordYear}`
+                  : dayLabel(iso);
       line = emptyLine(key, label);
       byKey.set(key, line);
     }

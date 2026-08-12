@@ -146,8 +146,24 @@ export function resolveModuleMonths(state: ModuleFilterState): number[] {
       return d ? [d.getMonth() + 1] : ALL;
     }
     case "WEEKLY": {
-      const d = fromISODate(baseDate(state.date));
-      return d ? [d.getMonth() + 1] : ALL;
+      if (!state.week || state.week === "all") return ALL;
+      const weeks = parseSelectedWeeks(state.week);
+      if (!weeks.length) return ALL;
+      const year = Number(state.year) || new Date().getFullYear();
+      const months = new Set<number>();
+      for (const week of weeks) {
+        const weekStart = new Date(year, 0, 4);
+        const dayOfWeek = weekStart.getDay();
+        const firstMonday = new Date(weekStart);
+        firstMonday.setDate(weekStart.getDate() - ((dayOfWeek + 6) % 7));
+        const start = new Date(firstMonday);
+        start.setDate(firstMonday.getDate() + (week - 1) * 7);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        months.add(start.getMonth() + 1);
+        months.add(end.getMonth() + 1);
+      }
+      return [...months].sort((a, b) => a - b);
     }
     case "MONTHLY":
       return state.months.length ? [...state.months].sort((a, b) => a - b) : ALL;
@@ -455,7 +471,7 @@ export function PeriodSelect({
 
   const options = intervals?.length
     ? MODULE_INTERVALS.filter((it) => intervals.includes(it.value))
-    : MODULE_INTERVALS.filter((it) => it.value !== "WEEKLY");
+    : MODULE_INTERVALS;
 
   return (
     <Select value={value} onValueChange={handleIntervalChange}>
