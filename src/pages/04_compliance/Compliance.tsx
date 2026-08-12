@@ -1045,6 +1045,33 @@ const ISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
   },
 ];
 
+const FSIC_SECTORS = [
+  { key: "fsicoccupancycount", reKey: "refsicoccupancycount", label: "Occupancy" },
+  { key: "fsicbplonewcount", reKey: "refsicbplonewcount", label: "BPLO New" },
+  { key: "fsicbplorenewcount", reKey: "refsicbplorenewcount", label: "BPLO Renew" },
+  { key: "fsicgovcount", reKey: "refsicgovcount", label: "GOV" },
+  { key: "fsicpezacount", reKey: "refsicpezacount", label: "PEZA" },
+  { key: "fsictiezacount", reKey: "refsictiezacount", label: "TIEZA" },
+] as const;
+
+const FSIC_GROUP_KEYS = new Set(FSIC_SECTORS.map((sector) => sector.key));
+const FSIC_REKEY_BY_KEY: Record<string, string> = Object.fromEntries(
+  FSIC_SECTORS.map((sector) => [sector.key, sector.reKey]),
+);
+const isFsicReKey = (key: string) => Object.values(FSIC_REKEY_BY_KEY).includes(key);
+
+const NOTICE_GROUPS = [
+  { key: "ntcvcount", reKey: "rentcvcount", label: "NTCV" },
+  { key: "abatementcount", reKey: "reabatementcount", label: "Abatement" },
+  { key: "closurecount", reKey: "reclosurecount", label: "Closure" },
+] as const;
+
+const NOTICE_GROUP_KEYS = new Set(NOTICE_GROUPS.map((group) => group.key));
+const NOTICE_REKEY_BY_KEY: Record<string, string> = Object.fromEntries(
+  NOTICE_GROUPS.map((group) => [group.key, group.reKey]),
+);
+const isNoticeReKey = (key: string) => Object.values(NOTICE_REKEY_BY_KEY).includes(key);
+
 const ISSUANCE_COLS = ISSUANCE_GROUPS.flatMap((g) => g.cols);
 
 /** Columns that end a category group — used to draw a visual divider line. */
@@ -1054,10 +1081,14 @@ const GROUP_END_KEYS = new Set([
   ...ISSUANCE_GROUPS.flatMap((g) => g.cols.slice(-1).map((c) => c.key)),
   "fsectiezacount",
   "fsicoccupancycount",
+  "nodcount",
+  "ntccount",
+  "ntcvcount",
 ]);
 
 const STRONG_RIGHT_BORDER_KEYS = new Set([
   ...GROUP_END_KEYS,
+  "fsicoccupancycount",
   "fsicbplonewcount",
   "fsicbplorenewcount",
   "fsicgovcount",
@@ -1082,7 +1113,11 @@ interface DayLine {
 type LedgerGranularity = "day" | "month" | "quarter" | "semester" | "annual";
 
 const emptyMode = (): ModeCounts =>
-  Object.fromEntries(ISSUANCE_COLS.map((c) => [c.key, 0])) as ModeCounts;
+  Object.fromEntries([
+    ...ISSUANCE_COLS.map((c) => [c.key, 0]),
+    ...FSIC_SECTORS.flatMap((sector) => [[sector.key, 0], [sector.reKey, 0]]),
+    ...NOTICE_GROUPS.flatMap((group) => [[group.key, 0], [group.reKey, 0]]),
+  ]) as ModeCounts;
 
 const dayLabel = (iso: string) => {
   const d = new Date(`${iso}T00:00:00`);
@@ -1159,13 +1194,32 @@ function buildDayLines(
       for (const iss of issuances) {
         const isFsis = num(iss?.fsicmode) === 97;
         const target = isFsis ? line.fsis : line.manual;
+
         for (const c of ISSUANCE_COLS)
           target[c.key] += num((iss as unknown as Record<string, unknown>)?.[c.key]);
+
+        for (const sector of FSIC_SECTORS) {
+          target[sector.key] += num((iss as unknown as Record<string, unknown>)?.[sector.key]);
+          target[sector.reKey] += num((iss as unknown as Record<string, unknown>)?.[sector.reKey]);
+        }
+        for (const group of NOTICE_GROUPS) {
+          target[group.key] += num((iss as unknown as Record<string, unknown>)?.[group.key]);
+          target[group.reKey] += num((iss as unknown as Record<string, unknown>)?.[group.reKey]);
+        }
       }
     } else {
       // Flat ledger payloads carry no issuance modes — show them as MANUAL.
       for (const c of ISSUANCE_COLS)
         line.manual[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
+
+      for (const sector of FSIC_SECTORS) {
+        line.manual[sector.key] += num((rec as unknown as Record<string, unknown>)?.[sector.key]);
+        line.manual[sector.reKey] += num((rec as unknown as Record<string, unknown>)?.[sector.reKey]);
+      }
+      for (const group of NOTICE_GROUPS) {
+        line.manual[group.key] += num((rec as unknown as Record<string, unknown>)?.[group.key]);
+        line.manual[group.reKey] += num((rec as unknown as Record<string, unknown>)?.[group.reKey]);
+      }
     }
     for (const c of INSPECTION_COLS)
       line.inspection[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
@@ -1249,6 +1303,18 @@ function ComplianceLedgerCard({
         manual[c.key] += l.manual[c.key] ?? 0;
         fsis[c.key] += l.fsis[c.key] ?? 0;
       }
+      for (const sector of FSIC_SECTORS) {
+        manual[sector.key] += l.manual[sector.key] ?? 0;
+        manual[sector.reKey] += l.manual[sector.reKey] ?? 0;
+        fsis[sector.key] += l.fsis[sector.key] ?? 0;
+        fsis[sector.reKey] += l.fsis[sector.reKey] ?? 0;
+      }
+      for (const group of NOTICE_GROUPS) {
+        manual[group.key] += l.manual[group.key] ?? 0;
+        manual[group.reKey] += l.manual[group.reKey] ?? 0;
+        fsis[group.key] += l.fsis[group.key] ?? 0;
+        fsis[group.reKey] += l.fsis[group.reKey] ?? 0;
+      }
     }
     return { insp, tgt, re, manual, fsis };
   }, [lines]);
@@ -1321,15 +1387,23 @@ function ComplianceLedgerCard({
                   >
                     Mode of Issuance
                   </th>
-                  {ISSUANCE_GROUPS.map((g, idx) => (
-                    <th
-                      key={g.title}
-                      colSpan={g.cols.length}
-                      className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                    >
-                      {g.title}
-                    </th>
-                  ))}
+                  {ISSUANCE_GROUPS.map((g, idx) => {
+                    const colSpan =
+                      g.title === "FSIC"
+                        ? g.cols.length * 2
+                        : g.title === "Issued Notices"
+                          ? 2 + NOTICE_GROUPS.length * 2
+                          : g.cols.length;
+                    return (
+                      <th
+                        key={g.title}
+                        colSpan={colSpan}
+                        className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
+                      >
+                        {g.title}
+                      </th>
+                    );
+                  })}
                 </tr>
                 <tr>
                   {INSPECTION_PLAIN_COLS.map((c, idx) => (
@@ -1350,15 +1424,57 @@ function ComplianceLedgerCard({
                       {c.label}
                     </th>
                   ))}
-                  {ISSUANCE_COLS.map((c) => (
-                    <th
-                      key={c.key}
-                      rowSpan={2}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${c.key === "closurecount" ? "border-r-2 border-r-border" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                    >
-                      {c.label}
-                    </th>
-                  ))}
+                  {ISSUANCE_GROUPS.map((group) => {
+                    if (group.title === "FSIC") {
+                      return FSIC_SECTORS.map((sector) => (
+                        <th
+                          key={sector.key}
+                          colSpan={2}
+                          className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[7rem] border-r-2 border-r-border/80`}
+                        >
+                          {sector.label}
+                        </th>
+                      ));
+                    }
+
+                    if (group.title === "Issued Notices") {
+                      return [
+                        <th
+                          key="nodcount"
+                          rowSpan={2}
+                          className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] border-r-2 border-r-border/80`}
+                        >
+                          NOD
+                        </th>,
+                        <th
+                          key="ntccount"
+                          rowSpan={2}
+                          className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] border-r-2 border-r-border/80`}
+                        >
+                          NTC
+                        </th>,
+                        ...NOTICE_GROUPS.map((groupItem) => (
+                          <th
+                            key={groupItem.key}
+                            colSpan={2}
+                            className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[7rem] border-r-2 border-r-border/80`}
+                          >
+                            {groupItem.label}
+                          </th>
+                        )),
+                      ];
+                    }
+
+                    return group.cols.map((c) => (
+                      <th
+                        key={c.key}
+                        rowSpan={2}
+                        className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${c.key === "closurecount" ? "border-r-2 border-r-border" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
+                      >
+                        {c.label}
+                      </th>
+                    ));
+                  })}
                 </tr>
                 <tr>
                   {INSPECTION_TARGET_COLS.map((c, idx) => (
@@ -1385,6 +1501,51 @@ function ComplianceLedgerCard({
                       </th>
                     </React.Fragment>
                   ))}
+                  {ISSUANCE_GROUPS.map((group) => {
+                    if (group.title === "FSIC") {
+                      return FSIC_SECTORS.flatMap((sector) => [
+                        <th
+                          key={`${sector.key}-first`}
+                          title="1st Inspection"
+                          className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
+                        >
+                          <span className="block leading-[1.1]">1ST</span>
+                          <span className="block leading-[1.1]">INSPECTION</span>
+                        </th>,
+                        <th
+                          key={`${sector.key}-re`}
+                          title="Re-inspection"
+                          className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
+                        >
+                          <span className="block leading-[1.1]">RE-</span>
+                          <span className="block leading-[1.1]">INSPECTION</span>
+                        </th>,
+                      ]);
+                    }
+
+                    if (group.title === "Issued Notices") {
+                      return NOTICE_GROUPS.flatMap((groupItem) => [
+                        <th
+                          key={`${groupItem.key}-first`}
+                          title="1st Inspection"
+                          className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
+                        >
+                          <span className="block leading-[1.1]">1ST</span>
+                          <span className="block leading-[1.1]">INSPECTION</span>
+                        </th>,
+                        <th
+                          key={`${groupItem.key}-re`}
+                          title="Re-inspection"
+                          className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
+                        >
+                          <span className="block leading-[1.1]">RE-</span>
+                          <span className="block leading-[1.1]">INSPECTION</span>
+                        </th>,
+                      ]);
+                    }
+
+                    return null;
+                  })}
                 </tr>
               </thead>
 
@@ -1437,14 +1598,50 @@ function ComplianceLedgerCard({
                       >
                         <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">MANUAL</span>
                       </td>
-                      {ISSUANCE_COLS.map((c) => (
-                        <td
-                          key={c.key}
-                          className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                        >
-                          <N v={l.manual[c.key] ?? 0} />
-                        </td>
-                      ))}
+                      {ISSUANCE_COLS.map((c) => {
+                        if (isFsicReKey(c.key) || isNoticeReKey(c.key)) return null;
+
+                        if (FSIC_GROUP_KEYS.has(c.key)) {
+                          const reKey = FSIC_REKEY_BY_KEY[c.key];
+                          const hasRightBorder = true;
+
+                          return (
+                            <React.Fragment key={c.key}>
+                              <td className={`${bodyCell}`}>
+                                <N v={l.manual[c.key] ?? 0} />
+                              </td>
+                              <td className={`${bodyCell} ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
+                                <N v={l.manual[reKey] ?? 0} />
+                              </td>
+                            </React.Fragment>
+                          );
+                        }
+
+                        if (NOTICE_GROUP_KEYS.has(c.key)) {
+                          const reKey = NOTICE_REKEY_BY_KEY[c.key];
+                          const hasRightBorder = true;
+
+                          return (
+                            <React.Fragment key={c.key}>
+                              <td className={`${bodyCell}`}>
+                                <N v={l.manual[c.key] ?? 0} />
+                              </td>
+                              <td className={`${bodyCell} ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
+                                <N v={l.manual[reKey] ?? 0} />
+                              </td>
+                            </React.Fragment>
+                          );
+                        }
+
+                        return (
+                          <td
+                            key={c.key}
+                            className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
+                          >
+                            <N v={l.manual[c.key] ?? 0} />
+                          </td>
+                        );
+                      })}
                     </tr>
                     {twoRows && (
                       <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
@@ -1453,14 +1650,50 @@ function ComplianceLedgerCard({
                         >
                           <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">FSIS</span>
                         </td>
-                        {ISSUANCE_COLS.map((c) => (
-                          <td
-                            key={c.key}
-                            className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                          >
-                            <N v={l.fsis[c.key] ?? 0} />
-                          </td>
-                        ))}
+                        {ISSUANCE_COLS.map((c) => {
+                          if (isFsicReKey(c.key) || isNoticeReKey(c.key)) return null;
+
+                          if (FSIC_GROUP_KEYS.has(c.key)) {
+                            const reKey = FSIC_REKEY_BY_KEY[c.key];
+                            const hasRightBorder = true;
+
+                            return (
+                              <React.Fragment key={c.key}>
+                                <td className={`${bodyCell}`}>
+                                  <N v={l.fsis[c.key] ?? 0} />
+                                </td>
+                                <td className={`${bodyCell} ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
+                                  <N v={l.fsis[reKey] ?? 0} />
+                                </td>
+                              </React.Fragment>
+                            );
+                          }
+
+                          if (NOTICE_GROUP_KEYS.has(c.key)) {
+                            const reKey = NOTICE_REKEY_BY_KEY[c.key];
+                            const hasRightBorder = true;
+
+                            return (
+                              <React.Fragment key={c.key}>
+                                <td className={`${bodyCell}`}>
+                                  <N v={l.fsis[c.key] ?? 0} />
+                                </td>
+                                <td className={`${bodyCell} ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
+                                  <N v={l.fsis[reKey] ?? 0} />
+                                </td>
+                              </React.Fragment>
+                            );
+                          }
+
+                          return (
+                            <td
+                              key={c.key}
+                              className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
+                            >
+                              <N v={l.fsis[c.key] ?? 0} />
+                            </td>
+                          );
+                        })}
                       </tr>
                     )}
                   </React.Fragment>
@@ -1513,14 +1746,50 @@ function ComplianceLedgerCard({
                   >
                     MANUAL
                   </td>
-                  {ISSUANCE_COLS.map((c) => (
-                    <td
-                      key={c.key}
-                      className={`${footCell} sticky bottom-[30px] z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                    >
-                      <N v={totals.manual[c.key]} />
-                    </td>
-                  ))}
+                  {ISSUANCE_COLS.map((c) => {
+                    if (isFsicReKey(c.key) || isNoticeReKey(c.key)) return null;
+
+                    if (FSIC_GROUP_KEYS.has(c.key)) {
+                      const reKey = FSIC_REKEY_BY_KEY[c.key];
+                      const hasRightBorder = true;
+
+                      return (
+                        <React.Fragment key={c.key}>
+                          <td className={`${footCell} sticky bottom-[30px] z-30`}>
+                            <N v={totals.manual[c.key]} />
+                          </td>
+                          <td className={`${footCell} sticky bottom-[30px] z-30 ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
+                            <N v={totals.manual[reKey]} />
+                          </td>
+                        </React.Fragment>
+                      );
+                    }
+
+                    if (NOTICE_GROUP_KEYS.has(c.key)) {
+                      const reKey = NOTICE_REKEY_BY_KEY[c.key];
+                      const hasRightBorder = true;
+
+                      return (
+                        <React.Fragment key={c.key}>
+                          <td className={`${footCell} sticky bottom-[30px] z-30`}>
+                            <N v={totals.manual[c.key]} />
+                          </td>
+                          <td className={`${footCell} sticky bottom-[30px] z-30 ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
+                            <N v={totals.manual[reKey]} />
+                          </td>
+                        </React.Fragment>
+                      );
+                    }
+
+                    return (
+                      <td
+                        key={c.key}
+                        className={`${footCell} sticky bottom-[30px] z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
+                      >
+                        <N v={totals.manual[c.key]} />
+                      </td>
+                    );
+                  })}
                 </tr>
                 {twoRows && (
                   <tr>
@@ -1529,14 +1798,50 @@ function ComplianceLedgerCard({
                     >
                       FSIS
                     </td>
-                    {ISSUANCE_COLS.map((c) => (
-                      <td
-                        key={c.key}
-                        className={`${footCell} sticky bottom-0 z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                      >
-                        <N v={totals.fsis[c.key]} />
-                      </td>
-                    ))}
+                    {ISSUANCE_COLS.map((c) => {
+                      if (isFsicReKey(c.key) || isNoticeReKey(c.key)) return null;
+
+                      if (FSIC_GROUP_KEYS.has(c.key)) {
+                        const reKey = FSIC_REKEY_BY_KEY[c.key];
+                        const hasRightBorder = true;
+
+                        return (
+                          <React.Fragment key={c.key}>
+                            <td className={`${footCell} sticky bottom-0 z-30`}>
+                              <N v={totals.fsis[c.key]} />
+                            </td>
+                            <td className={`${footCell} sticky bottom-0 z-30 ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
+                              <N v={totals.fsis[reKey]} />
+                            </td>
+                          </React.Fragment>
+                        );
+                      }
+
+                      if (NOTICE_GROUP_KEYS.has(c.key)) {
+                        const reKey = NOTICE_REKEY_BY_KEY[c.key];
+                        const hasRightBorder = true;
+
+                        return (
+                          <React.Fragment key={c.key}>
+                            <td className={`${footCell} sticky bottom-0 z-30`}>
+                              <N v={totals.fsis[c.key]} />
+                            </td>
+                            <td className={`${footCell} sticky bottom-0 z-30 ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
+                              <N v={totals.fsis[reKey]} />
+                            </td>
+                          </React.Fragment>
+                        );
+                      }
+
+                      return (
+                        <td
+                          key={c.key}
+                          className={`${footCell} sticky bottom-0 z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
+                        >
+                          <N v={totals.fsis[c.key]} />
+                        </td>
+                      );
+                    })}
                   </tr>
                 )}
               </tfoot>
