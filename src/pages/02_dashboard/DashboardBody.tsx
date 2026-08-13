@@ -111,7 +111,7 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
     ? Math.round((sectorTotals.accomplished / sectorTotals.target) * 100)
     : 0;
 
-  const remaining = sectorTotals.target - sectorTotals.accomplished;
+  const remaining = Math.max(sectorTotals.target - sectorTotals.accomplished, 0);
   const positive = Math.max(sectorTotals.accomplished - sectorTotals.target, 0);
 
   const [expanded, setExpanded] = useState(false);
@@ -126,7 +126,7 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
     {
       label: "Remaining",
       value: remaining.toLocaleString(),
-      tone: remaining < 0 ? "text-success" : "text-warning",
+      tone: remaining > 0 ? "text-warning" : "text-success",
     },
     {
       label: "Positive Listing",
@@ -204,7 +204,7 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
 
             <tbody>
               {sectorProgress.map((s) => {
-                const remaining = s.target - s.accomplished;
+                const remaining = Math.max(s.target - s.accomplished, 0);
                 const positive = Math.max(s.accomplished - s.target, 0);
                 const pct = s.target ? Math.round((s.accomplished / s.target) * 100) : 0;
                 return (
@@ -224,9 +224,8 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
                     </td>
                     <td
                       className={`py-1.5 text-center tabular-nums ${
-                        remaining < 0 ? "text-success" : "text-warning"
+                        remaining > 0 ? "text-warning" : "text-success"
                       }`}
-                      title={remaining < 0 ? "Accomplishment exceeded target" : undefined}
                     >
                       {remaining.toLocaleString()}
                     </td>
