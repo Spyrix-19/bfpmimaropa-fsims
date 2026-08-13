@@ -16,6 +16,8 @@ import {
   CalendarDays,
   Plus,
   Download,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 import ComplianceMatrixTable from "./complianceMatrix.tsx";
@@ -352,6 +354,15 @@ export default function FireSafetyCompliancePage() {
     return map;
   }, [year]);
 
+  /** Week number -> "January 1 - January 3, 2026" (exact datefrom/dateto span). */
+  const weekRangeLabels = React.useMemo(() => {
+    const map = new Map<number, string>();
+    for (const range of getYearWeekRanges(Number(year) || new Date().getFullYear())) {
+      map.set(range.week, weekRangeLabel(range.start, range.end));
+    }
+    return map;
+  }, [year]);
+
   /** Only set when specific weeks are picked; `null` means "no week narrowing". */
   const allowedWeeks = React.useMemo(
     () => (selectedWeeks.length ? new Set(selectedWeeks) : null),
@@ -368,7 +379,7 @@ export default function FireSafetyCompliancePage() {
         if (!selectedWeeks.length) return `All Weeks ${year}`;
         return selectedWeeks.length > 1
           ? `${selectedWeeks.length} Weeks ${year}`
-          : `Week ${selectedWeeks[0]} ${year}`;
+          : (weekRangeLabels.get(selectedWeeks[0]) ?? `Week ${selectedWeeks[0]} ${year}`);
 
       case "ANNUAL":
         return `Annual ${year}`;
@@ -393,6 +404,7 @@ export default function FireSafetyCompliancePage() {
     selectedWeeks,
     selectedMonths,
     year,
+    weekRangeLabels,
   ]);
 
   /** Card captions follow the active period (daily / specific date / monthly / specific month). */
@@ -904,7 +916,7 @@ export default function FireSafetyCompliancePage() {
               periodLabel={periodLabel}
               titles={activityTitles}
               weekByDate={weekByDate}
-
+              weekRangeLabels={weekRangeLabels}
               locked={!canManage}
               onView={() => setViewTarget(r)}
               onEdit={() => setEditTarget(r)}
@@ -1169,7 +1181,7 @@ function calcSectorMetrics(target: number, accomplished: number): SectorMetrics 
   } else if (t > 0) {
     const value = (a / t) * 100;
     pctText = `${value.toFixed(2)}%`;
-    pctClass = value > 0 ? "text-success" : "";
+    pctClass = value < 0 ? "text-destructive" : value > 0 ? "text-success" : "";
   }
 
   return { target: t, accomplished: a, variance, positive, pctText, pctClass };
@@ -1215,6 +1227,12 @@ const monthLabel = (ym: string) => {
   const m = Number(ym.slice(5, 7)) || 0;
   const name = MONTHS.find((x) => x.value === m)?.name ?? ym.slice(5, 7);
   return `${name} ${ym.slice(0, 4)}`;
+};
+
+/** Two dates -> "January 1 - January 3, 2026". */
+export const weekRangeLabel = (start: Date, end: Date) => {
+  const part = (d: Date) => d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  return `${part(start)} - ${part(end)}, ${end.getFullYear()}`;
 };
 
 /**
@@ -1282,8 +1300,11 @@ function buildDayLines(
   groupBy: LedgerGranularity = "day",
   /** ISO date -> calendar week number, so weekly lines match the filter's weeks. */
   weekByDate?: Map<string, number>,
+  /** Week number -> exact date-span label used for weekly line captions. */
+  weekRangeLabels?: Map<number, string>,
 ): DayLine[] {
   const byKey = new Map<string, DayLine>();
+
 
   for (const rec of Array.isArray(daily) ? daily : []) {
     const iso = String(rec?.dateinspected ?? "").slice(0, 10);
@@ -1297,7 +1318,7 @@ function buildDayLines(
 
     const key =
       groupBy === "week"
-        ? `${recordYear}-w${week}`
+        ? `${recordYear}-w${String(week).padStart(2, "0")}`
         : groupBy === "month"
           ? iso.slice(0, 7)
           : groupBy === "quarter"
@@ -1312,7 +1333,7 @@ function buildDayLines(
     if (!line) {
       const label =
         groupBy === "week"
-          ? `Week ${week} ${recordYear}`
+          ? (weekRangeLabels?.get(week) ?? `Week ${week} ${recordYear}`)
           : groupBy === "month"
             ? monthLabel(iso)
             : groupBy === "quarter"
@@ -1421,22 +1442,32 @@ function ModeBadge({ label }: { label: string }) {
 }
 
 /** Five metric cells for one sector on one line (or on the totals row). */
-function SectorMetricCells({ metrics, cellClass }: { metrics: SectorMetrics; cellClass: string }) {
+function SectorMetricCells({
+  metrics,
+  cellClass,
+  rowSpan,
+}: {
+  metrics: SectorMetrics;
+  cellClass: string;
+  rowSpan?: number;
+}) {
   return (
     <>
-      <td className={cellClass}>
+      <td rowSpan={rowSpan} className={cellClass}>
         <N v={metrics.target} />
       </td>
-      <td className={cellClass}>
+      <td rowSpan={rowSpan} className={cellClass}>
         <N v={metrics.accomplished} />
       </td>
-      <td className={cellClass}>
+      <td rowSpan={rowSpan} className={cellClass}>
         <N v={metrics.variance} />
       </td>
-      <td className={cellClass}>
+      <td rowSpan={rowSpan} className={cellClass}>
         <N v={metrics.positive} />
       </td>
-      <td className={`${cellClass} ${strongRight} ${metrics.pctClass}`}>{metrics.pctText}</td>
+      <td rowSpan={rowSpan} className={`${cellClass} ${strongRight} ${metrics.pctClass}`}>
+        {metrics.pctText}
+      </td>
     </>
   );
 }
@@ -1449,6 +1480,7 @@ function ComplianceLedgerCard({
   periodLabel = null,
   titles,
   weekByDate,
+  weekRangeLabels,
   onView,
   onEdit,
   onDelete,
@@ -1466,6 +1498,8 @@ function ComplianceLedgerCard({
   titles: ActivityTitles;
   /** ISO date -> calendar week number, so weekly lines match the filter. */
   weekByDate?: Map<string, number>;
+  /** Week number -> exact "January 1 - January 3, 2026" span label. */
+  weekRangeLabels?: Map<number, string>;
 
   onView: () => void;
   onEdit: () => void;
@@ -1476,8 +1510,8 @@ function ComplianceLedgerCard({
   const grandTotal = row.totals.inspection + row.totals.fsec + row.totals.fsic + row.totals.notices;
 
   const lines = React.useMemo(
-    () => buildDayLines(row.daily, dateISO, groupBy, weekByDate),
-    [row.daily, dateISO, groupBy, weekByDate],
+    () => buildDayLines(row.daily, dateISO, groupBy, weekByDate, weekRangeLabels),
+    [row.daily, dateISO, groupBy, weekByDate, weekRangeLabels],
   );
 
   const totals = React.useMemo(() => calculateLedgerTotals(lines), [lines]);
@@ -1512,6 +1546,10 @@ function ComplianceLedgerCard({
   const periodHeading = groupBy === "day" ? "Date" : groupBy === "month" ? "Month" : "Period";
   const emptyMessage =
     groupBy === "day" ? "No daily entries for this period." : "No entries for this period.";
+
+  // Collapsible state for the two activity tables (display only — data is kept).
+  const [inspectionExpanded, setInspectionExpanded] = React.useState(false);
+  const [reinspectionExpanded, setReinspectionExpanded] = React.useState(false);
 
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
@@ -1553,10 +1591,13 @@ function ComplianceLedgerCard({
       <div className="space-y-4 p-3">
         {/* ---------------- Inspection & Issuance activities ---------------- */}
         <section className="space-y-1.5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-            {titles.inspection}
-          </h3>
-          {lines.length === 0 ? (
+          <SectionToggleHeader
+            title={titles.inspection}
+            expanded={inspectionExpanded}
+            onToggle={() => setInspectionExpanded((v) => !v)}
+          />
+          {inspectionExpanded &&
+            (lines.length === 0 ? (
             <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
               {emptyMessage}
             </div>
@@ -1579,9 +1620,6 @@ function ComplianceLedgerCard({
                     </th>
                     <th rowSpan={3} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
                       Mode of Issuance
-                      <span className="block text-[9px] font-normal normal-case">
-                        (FSIS &amp; Manual)
-                      </span>
                     </th>
                     <th
                       colSpan={FSEC_COLS.length}
@@ -1604,7 +1642,7 @@ function ComplianceLedgerCard({
                       <th
                         key={c.key}
                         rowSpan={2}
-                        className={`${headCell} sticky top-[34px] z-30 min-w-[5rem] ${strongRight}`}
+                        className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${strongRight}`}
                       >
                         {c.label}
                       </th>
@@ -1613,7 +1651,7 @@ function ComplianceLedgerCard({
                       <th
                         key={s.key}
                         colSpan={5}
-                        className={`${headCell} sticky top-[34px] z-30 min-w-[16rem] ${strongRight}`}
+                        className={`${headCell} sticky top-[30px] z-30 min-w-[16rem] ${strongRight}`}
                       >
                         {s.label}
                       </th>
@@ -1622,7 +1660,7 @@ function ComplianceLedgerCard({
                       <th
                         key={c.key}
                         rowSpan={2}
-                        className={`${headCell} sticky top-[34px] z-30 min-w-[5.5rem] ${strongRight}`}
+                        className={`${headCell} sticky top-[30px] z-30 min-w-[5.5rem] ${strongRight}`}
                       >
                         {c.label}
                       </th>
@@ -1633,7 +1671,7 @@ function ComplianceLedgerCard({
                       SECTOR_METRIC_LABELS.map((label, idx) => (
                         <th
                           key={`${s.key}-${label}`}
-                          className={`${subHeadCell} sticky top-[68px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
+                          className={`${subHeadCell} sticky top-[60px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
                         >
                           <span className="block uppercase leading-[1.1]">{label}</span>
                         </th>
@@ -1659,6 +1697,7 @@ function ComplianceLedgerCard({
                             key={s.key}
                             metrics={lineMetrics[lineIdx][s.key]}
                             cellClass={bodyCell}
+                            rowSpan={2}
                           />
                         ))}
                         <td className={`${bodyCell} ${strongRight}`}>
@@ -1715,15 +1754,18 @@ function ComplianceLedgerCard({
                 </tfoot>
               </table>
             </div>
-          )}
+            ))}
         </section>
 
         {/* ---------------------- Reinspection activities ---------------------- */}
         <section className="space-y-1.5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-            {titles.reinspection}
-          </h3>
-          {lines.length === 0 ? (
+          <SectionToggleHeader
+            title={titles.reinspection}
+            expanded={reinspectionExpanded}
+            onToggle={() => setReinspectionExpanded((v) => !v)}
+          />
+          {reinspectionExpanded &&
+            (lines.length === 0 ? (
             <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
               {emptyMessage}
             </div>
@@ -1734,13 +1776,7 @@ function ComplianceLedgerCard({
                   <tr>
                     <th
                       rowSpan={2}
-                      className={`${headCell} sticky left-0 top-0 z-40 min-w-[4.5rem] border-r border-r-border/50`}
-                    >
-                      Action
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className={`${headCell} sticky top-0 z-30 min-w-[9.5rem] text-left ${strongRight}`}
+                      className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] text-left border-r border-r-border/50`}
                     >
                       {periodHeading}
                     </th>
@@ -1752,9 +1788,6 @@ function ComplianceLedgerCard({
                     </th>
                     <th rowSpan={2} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
                       Mode of Issuance
-                      <span className="block text-[9px] font-normal normal-case">
-                        (FSIS &amp; Manual)
-                      </span>
                     </th>
                     <th
                       colSpan={RE_FSIC_COLS.length}
@@ -1770,7 +1803,7 @@ function ComplianceLedgerCard({
                     {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c, idx) => (
                       <th
                         key={`${c.key}-${idx}`}
-                        className={`${headCell} sticky top-[42px] z-30 min-w-[6rem] ${strongRight}`}
+                        className={`${headCell} sticky top-[30px] z-30 min-w-[6rem] ${strongRight}`}
                       >
                         {c.label}
                       </th>
@@ -1782,27 +1815,7 @@ function ComplianceLedgerCard({
                   {lines.map((l) => (
                     <React.Fragment key={l.key}>
                       <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
-                        <td
-                          rowSpan={2}
-                          className={`${bodyCell} sticky left-0 z-10 border-r border-r-border/50 bg-inherit`}
-                        >
-                          <div className="flex items-center justify-center gap-1">
-                            {locked ? (
-                              <button
-                                type="button"
-                                onClick={onView}
-                                aria-label="View details"
-                                title="View"
-                                className="rounded-md p-1.5 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </button>
-                            ) : (
-                              <EditButton onClick={onEdit} tooltip="Edit" />
-                            )}
-                          </div>
-                        </td>
-                        <th scope="row" rowSpan={2} className={`${rowHeadCell} left-[4.5rem]`}>
+                        <th scope="row" rowSpan={2} className={`${rowHeadCell}`}>
                           {l.label}
                         </th>
                         {REINSPECTION_COLS.map((c) => (
@@ -1837,7 +1850,7 @@ function ComplianceLedgerCard({
                   <tr>
                     <th
                       scope="row"
-                      colSpan={2}
+                      colSpan={1}
                       className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
                     >
                       Total
@@ -1857,7 +1870,7 @@ function ComplianceLedgerCard({
                 </tfoot>
               </table>
             </div>
-          )}
+          ))}
         </section>
 
         <div className="text-[10px] text-muted-foreground dark:text-slate-400">
@@ -1889,5 +1902,42 @@ function ComplianceLedgerCard({
         </button>
       </div>
     </Card>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Collapsible section header (mirrors the view page behaviour)               */
+/* -------------------------------------------------------------------------- */
+
+function SectionToggleHeader({
+  title,
+  expanded,
+  onToggle,
+}: {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const ToggleIcon = expanded ? ChevronUp : ChevronDown;
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+      className="flex cursor-pointer select-none items-center justify-between gap-3 rounded-lg px-1 py-1 transition-colors hover:bg-muted/40"
+    >
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+        {title}
+      </h3>
+      <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </div>
   );
 }
