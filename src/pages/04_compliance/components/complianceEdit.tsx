@@ -2,22 +2,8 @@ import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import {
-  AlertCircle,
-  ArrowLeft,
-  Building2,
-  CalendarDays,
-  Loader2,
-  FilePen,
-  Save,
-  Table2,
-  Lock,
-  Trash2,
-  Ban,
-  RotateCcw,
-} from "lucide-react";
+import { AlertCircle, CalendarDays, Loader2, FilePen, Save, Table2, Lock, Trash2, Ban, RotateCcw, ArrowLeft } from "lucide-react";
 import { toast } from "@/lib/toast";
-
 import { Card } from "@/components/ui/card";
 import StationInfoCard from "@/components/station-info-card";
 
@@ -91,37 +77,9 @@ import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
  * Re-inspection columns live only on the encoding screens (not on the matrix
  * / report aggregates), so they are defined here rather than in CATEGORY_FIELDS.
  */
-const EXTRA_CATEGORY_FIELDS = {
-  REINSPECTION: [
-    { key: "reinsp_bplo", label: "BPLO" },
-    { key: "reinsp_gov", label: "GOV" },
-    { key: "reinsp_peza", label: "PEZA" },
-    { key: "reinsp_tieza", label: "TIEZA" },
-  ],
-  REFSIC: [
-    { key: "refsic_occupancy", label: "Occupancy" },
-    { key: "refsic_bplo_new", label: "BPLO New" },
-    { key: "refsic_bplo_renewal", label: "BPLO Renew" },
-    { key: "refsic_gov", label: "Gov" },
-    { key: "refsic_peza", label: "PEZA" },
-    { key: "refsic_tieza", label: "TIEZA" },
-  ],
-  RENOTICES: [
-    { key: "renot_ntcv", label: "NTCV" },
-    { key: "renot_abatement", label: "Abatement" },
-    { key: "renot_closure", label: "Closure" },
-  ],
-} as const;
+const EXTRA_CATEGORY_FIELDS = {} as const;
 
-const CATEGORY_ORDER = [
-  "INSPECTION",
-  "REINSPECTION",
-  "FSEC",
-  "FSIC",
-  "NOTICES",
-  "REFSIC",
-  "RENOTICES",
-] as const;
+const CATEGORY_ORDER = ["INSPECTION", "FSEC", "FSIC", "NOTICES"] as const;
 const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
   category,
   fields: (category in EXTRA_CATEGORY_FIELDS
@@ -138,22 +96,16 @@ const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
 // preserved by grouping/labels, not by mixing unrelated hues.
 const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
   INSPECTION: MONITORING_THEME.headerSoft,
-  REINSPECTION: MONITORING_THEME.headerSoft,
   FSEC: MONITORING_THEME.headerSoft,
   FSIC: MONITORING_THEME.headerSoft,
   NOTICES: MONITORING_THEME.headerSoft,
-  REFSIC: MONITORING_THEME.headerSoft,
-  RENOTICES: MONITORING_THEME.headerSoft,
 };
 
 const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
   INSPECTION: MONITORING_THEME.headerSofter,
-  REINSPECTION: MONITORING_THEME.headerSofter,
   FSEC: MONITORING_THEME.headerSofter,
   FSIC: MONITORING_THEME.headerSofter,
   NOTICES: MONITORING_THEME.headerSofter,
-  REFSIC: MONITORING_THEME.headerSofter,
-  RENOTICES: MONITORING_THEME.headerSofter,
 };
 
 const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
@@ -186,6 +138,8 @@ interface FSISComplianceDetailItem {
   reinspectpezacount?: number | null;
   reinspecttiezacount?: number | null;
 
+  
+
   fsecbuildingcount?: number | null;
   fsecgovcount?: number | null;
   fsecpezacount?: number | null;
@@ -204,15 +158,7 @@ interface FSISComplianceDetailItem {
   abatementcount?: number | null;
   closurecount?: number | null;
 
-  refsicoccupancycount?: number | null;
-  refsicbplonewcount?: number | null;
-  refsicbplorenewcount?: number | null;
-  refsicgovcount?: number | null;
-  refsicpezacount?: number | null;
-  refsictiezacount?: number | null;
-  rentcvcount?: number | null;
-  reabatementcount?: number | null;
-  reclosurecount?: number | null;
+  
 }
 
 interface FSISComplianceDetailStation {
@@ -261,15 +207,6 @@ const FIELD_TO_API: Record<string, keyof FSISComplianceDetailItem> = {
   not_ntcv: "ntcvcount",
   not_abatement: "abatementcount",
   not_closure: "closurecount",
-  refsic_occupancy: "refsicoccupancycount",
-  refsic_bplo_new: "refsicbplonewcount",
-  refsic_bplo_renewal: "refsicbplorenewcount",
-  refsic_gov: "refsicgovcount",
-  refsic_peza: "refsicpezacount",
-  refsic_tieza: "refsictiezacount",
-  renot_ntcv: "rentcvcount",
-  renot_abatement: "reabatementcount",
-  renot_closure: "reclosurecount",
 };
 
 /** True when a UI field key belongs to the (re)inspection block. */
@@ -312,15 +249,7 @@ interface EditableIssuance {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
-  refsicoccupancycount: number;
-  refsicbplonewcount: number;
-  refsicbplorenewcount: number;
-  refsicgovcount: number;
-  refsicpezacount: number;
-  refsictiezacount: number;
-  rentcvcount: number;
-  reabatementcount: number;
-  reclosurecount: number;
+  
 }
 
 interface EditableDay {
@@ -447,15 +376,7 @@ function buildEditableDays(
     ntcvcount: 0,
     abatementcount: 0,
     closurecount: 0,
-    refsicoccupancycount: 0,
-    refsicbplonewcount: 0,
-    refsicbplorenewcount: 0,
-    refsicgovcount: 0,
-    refsicpezacount: 0,
-    refsictiezacount: 0,
-    rentcvcount: 0,
-    reabatementcount: 0,
-    reclosurecount: 0,
+  
   });
 
   for (let d = 1; d <= total; d++) {
@@ -479,12 +400,7 @@ function buildEditableDays(
           inspectgovcount: num(apiData.inspectgovcount),
           inspectpezacount: num(apiData.inspectpezacount),
           inspecttiezacount: num(apiData.inspecttiezacount),
-          reinspectbplocount: num((apiData as { reinspectbplocount?: number }).reinspectbplocount),
-          reinspectgovcount: num((apiData as { reinspectgovcount?: number }).reinspectgovcount),
-          reinspectpezacount: num((apiData as { reinspectpezacount?: number }).reinspectpezacount),
-          reinspecttiezacount: num(
-            (apiData as { reinspecttiezacount?: number }).reinspecttiezacount,
-          ),
+          
         }
       : {
           fsisno: EMPTY_GUID,
@@ -500,10 +416,7 @@ function buildEditableDays(
           inspectgovcount: 0,
           inspectpezacount: 0,
           inspecttiezacount: 0,
-          reinspectbplocount: 0,
-          reinspectgovcount: 0,
-          reinspectpezacount: 0,
-          reinspecttiezacount: 0,
+          
         };
 
     // Extract issuance data per mode
@@ -531,19 +444,7 @@ function buildEditableDays(
           ntcvcount: num(iss?.ntcvcount),
           abatementcount: num(iss?.abatementcount),
           closurecount: num(iss?.closurecount),
-          refsicoccupancycount: num(
-            (iss as { refsicoccupancycount?: number })?.refsicoccupancycount,
-          ),
-          refsicbplonewcount: num((iss as { refsicbplonewcount?: number })?.refsicbplonewcount),
-          refsicbplorenewcount: num(
-            (iss as { refsicbplorenewcount?: number })?.refsicbplorenewcount,
-          ),
-          refsicgovcount: num((iss as { refsicgovcount?: number })?.refsicgovcount),
-          refsicpezacount: num((iss as { refsicpezacount?: number })?.refsicpezacount),
-          refsictiezacount: num((iss as { refsictiezacount?: number })?.refsictiezacount),
-          rentcvcount: num((iss as { rentcvcount?: number })?.rentcvcount),
-          reabatementcount: num((iss as { reabatementcount?: number })?.reabatementcount),
-          reclosurecount: num((iss as { reclosurecount?: number })?.reclosurecount),
+          
         };
 
         if (mode === 96) manual = issuanceData;
@@ -662,6 +563,7 @@ function ComplianceEditBody({
       "reinspectgovcount",
       "reinspectpezacount",
       "reinspecttiezacount",
+      
     ];
     if (inspKeys.some((k) => Number(day.inspection?.[k] ?? 0) !== 0)) return true;
     if (String(day.inspection?.remarks ?? "").trim() !== "") return true;
@@ -682,15 +584,6 @@ function ComplianceEditBody({
       "ntcvcount",
       "abatementcount",
       "closurecount",
-      "refsicoccupancycount",
-      "refsicbplonewcount",
-      "refsicbplorenewcount",
-      "refsicgovcount",
-      "refsicpezacount",
-      "refsictiezacount",
-      "rentcvcount",
-      "reabatementcount",
-      "reclosurecount",
     ];
     return issKeys.some(
       (k) =>
@@ -746,15 +639,6 @@ function ComplianceEditBody({
         "ntcvcount",
         "abatementcount",
         "closurecount",
-        "refsicoccupancycount",
-        "refsicbplonewcount",
-        "refsicbplorenewcount",
-        "refsicgovcount",
-        "refsicpezacount",
-        "refsictiezacount",
-        "rentcvcount",
-        "reabatementcount",
-        "reclosurecount",
       ];
 
       for (const k of issKeys) {
@@ -1146,15 +1030,7 @@ function ComplianceEditBody({
             ntcvcount: day.manual.ntcvcount,
             abatementcount: day.manual.abatementcount,
             closurecount: day.manual.closurecount,
-            refsicoccupancycount: day.manual.refsicoccupancycount,
-            refsicbplonewcount: day.manual.refsicbplonewcount,
-            refsicbplorenewcount: day.manual.refsicbplorenewcount,
-            refsicgovcount: day.manual.refsicgovcount,
-            refsicpezacount: day.manual.refsicpezacount,
-            refsictiezacount: day.manual.refsictiezacount,
-            rentcvcount: day.manual.rentcvcount,
-            reabatementcount: day.manual.reabatementcount,
-            reclosurecount: day.manual.reclosurecount,
+            
           },
           {
             issuanceno: day.fsis.issuanceno || EMPTY_GUID,
@@ -1174,15 +1050,7 @@ function ComplianceEditBody({
             ntcvcount: day.fsis.ntcvcount,
             abatementcount: day.fsis.abatementcount,
             closurecount: day.fsis.closurecount,
-            refsicoccupancycount: day.fsis.refsicoccupancycount,
-            refsicbplonewcount: day.fsis.refsicbplonewcount,
-            refsicbplorenewcount: day.fsis.refsicbplorenewcount,
-            refsicgovcount: day.fsis.refsicgovcount,
-            refsicpezacount: day.fsis.refsicpezacount,
-            refsictiezacount: day.fsis.refsictiezacount,
-            rentcvcount: day.fsis.rentcvcount,
-            reabatementcount: day.fsis.reabatementcount,
-            reclosurecount: day.fsis.reclosurecount,
+            
           },
         ];
 
@@ -1199,6 +1067,7 @@ function ComplianceEditBody({
           reinspectgovcount: day.inspection.reinspectgovcount ?? 0,
           reinspectpezacount: day.inspection.reinspectpezacount ?? 0,
           reinspecttiezacount: day.inspection.reinspecttiezacount ?? 0,
+        
           remarks: (day.inspection.remarks ?? "").trim(),
           issuancelist,
           isaccomplished: isRowModified,
@@ -1392,12 +1261,6 @@ function ComplianceEditBody({
                   Inspection
                 </th>
                 <th
-                  colSpan={4}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.REINSPECTION}`}
-                >
-                  Reinspection
-                </th>
-                <th
                   rowSpan={3}
                   className={`sticky top-0 z-30 border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
                 >
@@ -1422,18 +1285,6 @@ function ComplianceEditBody({
                   className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
                 >
                   Issued Notices
-                </th>
-                <th
-                  colSpan={6}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.REFSIC}`}
-                >
-                  Re-FSIC
-                </th>
-                <th
-                  colSpan={3}
-                  className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.RENOTICES}`}
-                >
-                  Re-Notices
                 </th>
                 <th
                   rowSpan={3}
@@ -1479,7 +1330,8 @@ function ComplianceEditBody({
                       key={`${key}__compliance`}
                       className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${SUB_TONE.INSPECTION}`}
                     >
-                      Compliance
+                      <span className="block leading-[1.1]">1ST</span>
+                      <span className="block leading-[1.1]">INSPECTION</span>
                     </th>,
                   ];
                 })}
@@ -1637,7 +1489,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
+                            className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1663,7 +1515,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
+                            className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1689,7 +1541,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
+                            className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1707,32 +1559,7 @@ function ComplianceEditBody({
                           </td>
                         );
                       })}
-                      {/* Re-FSIC + Re-Notices fields */}
-                      {DETAIL_FIELDS.map((field) => {
-                        const k = String(field.key);
-                        if (!k.startsWith("refsic_") && !k.startsWith("renot_")) return null;
-                        const apiKey = FIELD_TO_API[k];
-                        const value = apiKey
-                          ? num((dayEntry.manual as unknown as Record<string, number>)[apiKey])
-                          : 0;
-                        return (
-                          <td key={k} className="border-b border-r px-2 py-1.5 text-center">
-                            {dayEntry.isLocked ? (
-                              <span className="text-muted-foreground">
-                                {value.toLocaleString()}
-                              </span>
-                            ) : (
-                              <NumericInput
-                                value={value}
-                                onValueChange={(raw) =>
-                                  updateDayField(dayEntry.key, k, raw, "manual")
-                                }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
+                      
                       <td
                         rowSpan={2}
                         className="border-b border-r px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
@@ -1784,7 +1611,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
+                            className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1810,7 +1637,7 @@ function ComplianceEditBody({
                         return (
                           <td
                             key={String(field.key)}
-                            className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
+                            className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
                           >
                             {dayEntry.isLocked ? (
                               <span className="text-muted-foreground">
@@ -1854,32 +1681,7 @@ function ComplianceEditBody({
                           </td>
                         );
                       })}
-                      {/* Re-FSIC + Re-Notices fields */}
-                      {DETAIL_FIELDS.map((field) => {
-                        const k = String(field.key);
-                        if (!k.startsWith("refsic_") && !k.startsWith("renot_")) return null;
-                        const apiKey = FIELD_TO_API[k];
-                        const value = apiKey
-                          ? num((dayEntry.fsis as unknown as Record<string, number>)[apiKey])
-                          : 0;
-                        return (
-                          <td key={k} className="border-b border-r px-2 py-1.5 text-center">
-                            {dayEntry.isLocked ? (
-                              <span className="text-muted-foreground">
-                                {value.toLocaleString()}
-                              </span>
-                            ) : (
-                              <NumericInput
-                                value={value}
-                                onValueChange={(raw) =>
-                                  updateDayField(dayEntry.key, k, raw, "fsis")
-                                }
-                                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
+                      
                       {/* Total and Remarks are merged with the MANUAL row above (rowSpan=2) */}
                     </tr>
                   </React.Fragment>
@@ -1892,14 +1694,18 @@ function ComplianceEditBody({
                 <td className="sticky left-[96px] z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
                   Total
                 </td>
-                {DETAIL_FIELDS.flatMap((field, idx) => {
+                {(() => {
+                  const modeSpacerIndex = DETAIL_FIELDS.findIndex((f) =>
+                    String(f.key).startsWith("fsec_"),
+                  );
+                  return DETAIL_FIELDS.flatMap((field, idx) => {
                   const columnTotal = days.reduce(
                     (sum, d) => sum + num(d.totals[field.key as keyof ComplianceDailyCounts]),
                     0,
                   );
                   // Insert Mode-of-Issuance spacer cell between INSPECTION (6 fields) and FSEC
                   const cells: React.ReactNode[] = [];
-                  if (idx === 10) {
+                  if (idx === modeSpacerIndex) {
                     cells.push(
                       <td
                         key="__mode_spacer__"
@@ -1931,7 +1737,8 @@ function ComplianceEditBody({
                     </td>,
                   );
                   return cells;
-                })}
+                });
+                })()}
                 <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
                   {days
                     .reduce(

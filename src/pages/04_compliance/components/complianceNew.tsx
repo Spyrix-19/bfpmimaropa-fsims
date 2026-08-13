@@ -159,10 +159,10 @@ const DAILY_INSPECTION_CONSTRUCTION_FIELDS: NumericFieldSpec[] = [
 ];
 
 const DAILY_INSPECTION_FIRST_FIELDS: NumericFieldSpec[] = [
-  { key: "insp_1st_bplo", label: "1st Inspection BPLO" },
-  { key: "insp_1st_gov", label: "1st Inspection GOV" },
-  { key: "insp_1st_peza", label: "1st Inspection PEZA" },
-  { key: "insp_1st_tieza", label: "1st Inspection TIEZA" },
+  { key: "insp_1st_bplo", label: "BPLO" },
+  { key: "insp_1st_gov", label: "GOV" },
+  { key: "insp_1st_peza", label: "PEZA" },
+  { key: "insp_1st_tieza", label: "TIEZA" },
 ];
 
 const DAILY_INSPECTION_FIELDS: NumericFieldSpec[] = [
@@ -1078,7 +1078,7 @@ function InspectionsNewBody({
       {/* 3. Daily Inspection Activities ------------------------------------ */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
-          title="Daily Inspection Activities"
+          title="Daily Dashboard"
           subtitle={`Reporting month · ${monthName} ${year}`}
           expanded={inspectionExpanded}
           onToggle={() => setInspectionExpanded((v) => !v)}
@@ -1252,7 +1252,7 @@ function InspectionsNewBody({
       {/* 4. Daily Issuance Activities -------------------------------------- */}
       <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
-          title="Daily Issuance Activities"
+          title="Daily Inspection & Issuance Activities"
           subtitle="Encode issuances separately for MANUAL and FSIS"
           expanded={issuanceExpanded}
           onToggle={() => setIssuanceExpanded((v) => !v)}

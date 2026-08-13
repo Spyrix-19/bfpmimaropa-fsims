@@ -24,10 +24,14 @@ export const CATEGORY_FIELDS: Record<
   INSPECTION: [
     { key: "insp_during", label: "During" },
     { key: "insp_after", label: "After" },
-    { key: "insp_bplo", label: "1st BPLO" },
-    { key: "insp_gov", label: "1st GOV" },
-    { key: "insp_peza", label: "1st PEZA" },
-    { key: "insp_tieza", label: "1st TIEZA" },
+    { key: "insp_bplo", label: "BPLO" },
+    { key: "reinsp_bplo", label: "RE-INSPECTION" },
+    { key: "insp_gov", label: "GOV" },
+    { key: "reinsp_gov", label: "RE-INSPECTION" },
+    { key: "insp_peza", label: "PEZA" },
+    { key: "reinsp_peza", label: "RE-INSPECTION" },
+    { key: "insp_tieza", label: "TIEZA" },
+    { key: "reinsp_tieza", label: "RE-INSPECTION" },
   ],
   FSEC: [
     { key: "fsec_building", label: "Building" },
@@ -223,6 +227,42 @@ export function parseISODate(iso: string): { year: number; month: number; day: n
 export function isSameMonth(iso: string, year: number, month: number): boolean {
   const p = parseISODate(iso);
   return p.year === year && p.month === month;
+}
+
+/**
+ * Build a simple inspection subcategory map for a single daily row.
+ * Returns object shaped like:
+ * {
+ *   BPLO: { target, firstInspection, reInspection },
+ *   GOV: { ... },
+ *   PEZA: { ... },
+ *   TIEZA: { ... }
+ * }
+ */
+export function inspectionSubcategories(row: ComplianceDailyCounts | null | undefined) {
+  const r = row ?? ({} as ComplianceDailyCounts);
+  return {
+    BPLO: {
+      target: Number(r.dailytargetbplo ?? 0) || 0,
+      firstInspection: Number(r.inspectbplocount ?? 0) || 0,
+      reInspection: Number(r.reinspectbplocount ?? 0) || 0,
+    },
+    GOV: {
+      target: Number(r.dailytargetgov ?? 0) || 0,
+      firstInspection: Number(r.inspectgovcount ?? 0) || 0,
+      reInspection: Number(r.reinspectgovcount ?? 0) || 0,
+    },
+    PEZA: {
+      target: Number(r.dailytargetpeza ?? 0) || 0,
+      firstInspection: Number(r.inspectpezacount ?? 0) || 0,
+      reInspection: Number(r.reinspectpezacount ?? 0) || 0,
+    },
+    TIEZA: {
+      target: Number(r.dailytargettieza ?? 0) || 0,
+      firstInspection: Number(r.inspecttiezacount ?? 0) || 0,
+      reInspection: Number(r.reinspecttiezacount ?? 0) || 0,
+    },
+  };
 }
 
 /** Group live (non-deleted) rows by `${stationno}|${year}|${month}`. */

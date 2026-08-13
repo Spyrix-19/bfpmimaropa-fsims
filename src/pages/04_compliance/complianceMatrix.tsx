@@ -96,7 +96,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
   {
     category: "INSPECTION",
-    label: "1st BPLO",
+    label: "BPLO",
     grouped: true,
     keys: [
       { key: "monthlytargetbplo", label: "Target" },
@@ -105,7 +105,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
   {
     category: "INSPECTION",
-    label: "1st GOV",
+    label: "GOV",
     grouped: true,
     keys: [
       { key: "monthlytargetgov", label: "Target" },
@@ -114,7 +114,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
   {
     category: "INSPECTION",
-    label: "1st PEZA",
+    label: "PEZA",
     grouped: true,
     keys: [
       { key: "monthlytargetpeza", label: "Target" },
@@ -123,7 +123,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
   {
     category: "INSPECTION",
-    label: "1st TIEZA",
+    label: "TIEZA",
     grouped: true,
     keys: [
       { key: "monthlytargettieza", label: "Target" },
