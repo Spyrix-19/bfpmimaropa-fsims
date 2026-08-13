@@ -2,13 +2,26 @@ import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { AlertCircle, CalendarDays, Loader2, FilePen, Save, Table2, Lock, Trash2, Ban, RotateCcw, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarDays,
+  Loader2,
+  FilePen,
+  Save,
+  Table2,
+  Lock,
+  Trash2,
+  Ban,
+  RotateCcw,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { toast } from "@/lib/toast";
 import { Card } from "@/components/ui/card";
 import StationInfoCard from "@/components/station-info-card";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/numeric-input";
 import {
   Select,
@@ -17,9 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +53,6 @@ import { useAuth } from "@/lib/auth";
 import { EMPTY_GUID, unwrap } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
-import { CATEGORY_FIELDS } from "@/lib/complianceHelpers";
 import { MONITORING_THEME } from "./complianceTheme";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
@@ -55,226 +65,191 @@ import DeleteButton from "@/components/delete-button";
 import { complianceAPI } from "@/services/complianceAPI";
 import { stationAPI } from "@/services/stationAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
-import type { ComplianceDailyCounts } from "@/types/complianceType";
 import type {
-  FSISComplianceMonthlyLedgerModel,
-  FSISComplianceDailyClass,
-  FSISIssuanceClassModel,
   FSISIssuanceClassDTO,
   FSISComplianceDetailModel,
+  FSISComplianceDetailClassModel,
   FSISComplianceDTO,
   FSISComplianceClass,
+  TargetAccomplishmentModel,
 } from "@/types/complianceType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 /* ========================================================================== */
-/*  Shared field definitions (mirror from monitoringView CATEGORY_FIELDS)   */
+/*  Column definitions — keyed by the EXACT API property names               */
 /* ========================================================================== */
 
-/**
- * Re-inspection columns live only on the encoding screens (not on the matrix
- * / report aggregates). For the edit/encoding screen we intentionally omit
- * the RE-INSPECTION columns by providing an override for the INSPECTION
- * category so the edit UI shows only the primary inspection columns.
- */
-const EXTRA_CATEGORY_FIELDS = {
-  INSPECTION: [
-    { key: "insp_during", label: "During" },
-    { key: "insp_after", label: "After" },
-    { key: "insp_bplo", label: "BPLO" },
-    { key: "insp_gov", label: "GOV" },
-    { key: "insp_peza", label: "PEZA" },
-    { key: "insp_tieza", label: "TIEZA" },
-  ],
-} as const;
+/** Inspection-level (compliancelist[*]) numeric fields. */
+type InspectionField =
+  | "inspectduringcount"
+  | "inspectaftercount"
+  | "inspectbplocount"
+  | "inspectgovcount"
+  | "inspectpezacount"
+  | "inspecttiezacount"
+  | "reinspectoccupancycount"
+  | "reinspectbplocount"
+  | "reinspectgovcount"
+  | "reinspectpezacount"
+  | "reinspecttiezacount";
 
-const CATEGORY_ORDER = ["INSPECTION", "FSEC", "FSIC", "NOTICES"] as const;
-const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
-  category,
-  fields: (category in EXTRA_CATEGORY_FIELDS
-    ? EXTRA_CATEGORY_FIELDS[category as keyof typeof EXTRA_CATEGORY_FIELDS]
-    : CATEGORY_FIELDS[category as keyof typeof CATEGORY_FIELDS]) as unknown as {
-    key: string;
-    label: string;
-  }[],
-}));
-const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
+/** Daily target fields (read-only, supplied by the Detail API). */
+type TargetField =
+  | "dailytargetbplo"
+  | "dailytargetgov"
+  | "dailytargetpeza"
+  | "dailytargettieza";
 
-// Unified spreadsheet palette — every group and sub-group shares the same
-// primary color family (see monitoringTheme.ts). Category distinction is
-// preserved by grouping/labels, not by mixing unrelated hues.
-const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: MONITORING_THEME.headerSoft,
-  FSEC: MONITORING_THEME.headerSoft,
-  FSIC: MONITORING_THEME.headerSoft,
-  NOTICES: MONITORING_THEME.headerSoft,
-};
+/** Issuance-level (compliancelist[*].issuancelist[*]) numeric fields. */
+type IssuanceField =
+  | "fsecbuildingcount"
+  | "fsecgovcount"
+  | "fsecpezacount"
+  | "fsectiezacount"
+  | "fsicoccupancycount"
+  | "fsicbplonewcount"
+  | "fsicbplorenewcount"
+  | "fsicgovcount"
+  | "fsicpezacount"
+  | "fsictiezacount"
+  | "nodcount"
+  | "ntccount"
+  | "ntcvcount"
+  | "abatementcount"
+  | "closurecount"
+  | "refsicoccupancycount"
+  | "refsicbplonewcount"
+  | "refsicbplorenewcount"
+  | "refsicgovcount"
+  | "refsicpezacount"
+  | "refsictiezacount"
+  | "rentcvcount"
+  | "reabatementcount"
+  | "reclosurecount";
 
-const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: MONITORING_THEME.headerSofter,
-  FSEC: MONITORING_THEME.headerSofter,
-  FSIC: MONITORING_THEME.headerSofter,
-  NOTICES: MONITORING_THEME.headerSofter,
-};
-
-const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
-  FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [String(f.key), g.category] as const)),
-);
-
-/* ========================================================================== */
-/*  Detail API shapes (per-day records)                                      */
-/* ========================================================================== */
-
-interface FSISComplianceDetailItem {
-  fsisno: string;
-  dateinspected: string | Date;
-  remarks?: string | null;
-
-  dailytargetbplo?: number | null;
-  dailytargetgov?: number | null;
-  dailytargetpeza?: number | null;
-  dailytargettieza?: number | null;
-
-  inspectduringcount?: number | null;
-  inspectaftercount?: number | null;
-  inspectbplocount?: number | null;
-  inspectgovcount?: number | null;
-  inspectpezacount?: number | null;
-  inspecttiezacount?: number | null;
-  reinspectoccupancycount?: number | null;
-  reinspectbplocount?: number | null;
-  reinspectgovcount?: number | null;
-  reinspectpezacount?: number | null;
-  reinspecttiezacount?: number | null;
-
-  fsecbuildingcount?: number | null;
-  fsecgovcount?: number | null;
-  fsecpezacount?: number | null;
-  fsectiezacount?: number | null;
-
-  fsicoccupancycount?: number | null;
-  fsicbplonewcount?: number | null;
-  fsicbplorenewcount?: number | null;
-  fsicgovcount?: number | null;
-  fsicpezacount?: number | null;
-  fsictiezacount?: number | null;
-
-  nodcount?: number | null;
-  ntccount?: number | null;
-  ntcvcount?: number | null;
-  abatementcount?: number | null;
-  closurecount?: number | null;
-
-  
+interface InspectionCol {
+  api: InspectionField;
+  label: string;
+  target?: TargetField;
+}
+interface IssuanceCol {
+  api: IssuanceField;
+  label: string;
 }
 
-interface FSISComplianceDetailStation {
-  stationno: string;
-  stationname?: string;
-  provincename?: string;
-  provinceno?: string;
-  month?: number;
-  year?: number;
+/* -- Daily Inspection & Issuance ------------------------------------------ */
+const INSPECT_COLS: InspectionCol[] = [
+  { api: "inspectduringcount", label: "During" },
+  { api: "inspectaftercount", label: "After" },
+  { api: "inspectbplocount", label: "BPLO", target: "dailytargetbplo" },
+  { api: "inspectgovcount", label: "GOV", target: "dailytargetgov" },
+  { api: "inspectpezacount", label: "PEZA", target: "dailytargetpeza" },
+  { api: "inspecttiezacount", label: "TIEZA", target: "dailytargettieza" },
+];
 
-  totaltargetbplo?: number;
-  totaltargetgov?: number;
-  totaltargetpeza?: number;
-  totaltargettieza?: number;
-  totalAccomplishmentbplo?: number;
-  totalAccomplishmentgov?: number;
-  totalAccomplishmentpeza?: number;
-  totalAccomplishmenttieza?: number;
+const FSEC_COLS: IssuanceCol[] = [
+  { api: "fsecbuildingcount", label: "Building" },
+  { api: "fsecgovcount", label: "Gov" },
+  { api: "fsecpezacount", label: "PEZA" },
+  { api: "fsectiezacount", label: "TIEZA" },
+];
 
-  complianceDetailList?: FSISComplianceDetailItem[] | null;
-}
+const FSIC_COLS: IssuanceCol[] = [
+  { api: "fsicoccupancycount", label: "Occupancy" },
+  { api: "fsicbplonewcount", label: "BPLO New" },
+  { api: "fsicbplorenewcount", label: "BPLO Renew" },
+  { api: "fsicgovcount", label: "Gov" },
+  { api: "fsicpezacount", label: "PEZA" },
+  { api: "fsictiezacount", label: "TIEZA" },
+];
 
-const FIELD_TO_API: Record<string, keyof FSISComplianceDetailItem> = {
-  insp_during: "inspectduringcount",
-  insp_after: "inspectaftercount",
-  insp_bplo: "inspectbplocount",
-  insp_gov: "inspectgovcount",
-  insp_peza: "inspectpezacount",
-  insp_tieza: "inspecttiezacount",
-  
-  fsec_building: "fsecbuildingcount",
-  fsec_gov: "fsecgovcount",
-  fsec_peza: "fsecpezacount",
-  fsec_tieza: "fsectiezacount",
-  fsic_occupancy: "fsicoccupancycount",
-  fsic_bplo_new: "fsicbplonewcount",
-  fsic_bplo_renewal: "fsicbplorenewcount",
-  fsic_gov: "fsicgovcount",
-  fsic_peza: "fsicpezacount",
-  fsic_tieza: "fsictiezacount",
-  not_nod: "nodcount",
-  not_ntc: "ntccount",
-  not_ntcv: "ntcvcount",
-  not_abatement: "abatementcount",
-  not_closure: "closurecount",
-};
+const NOTICE_COLS: IssuanceCol[] = [
+  { api: "nodcount", label: "NOD" },
+  { api: "ntccount", label: "NTC" },
+  { api: "ntcvcount", label: "NTCV" },
+  { api: "abatementcount", label: "Abatement" },
+  { api: "closurecount", label: "Closure" },
+];
 
-/** True when a UI field key belongs to the (re)inspection block. */
-const isInspectionKey = (key: string) => key.startsWith("insp_");
+/* -- Daily Reinspection ---------------------------------------------------- */
+const REINSPECT_COLS: InspectionCol[] = [
+  { api: "reinspectoccupancycount", label: "Occupancy" },
+  { api: "reinspectbplocount", label: "BPLO" },
+  { api: "reinspectgovcount", label: "GOV" },
+  { api: "reinspectpezacount", label: "PEZA" },
+  { api: "reinspecttiezacount", label: "TIEZA" },
+];
 
-/**
- * Inspection fields that render a read-only Target column beside their
- * editable Compliance column (mirrors the View screen).
- */
-const INSP_TARGET_FIELDS: Record<string, keyof FSISComplianceDetailItem> = {
-  insp_bplo: "dailytargetbplo",
-  insp_gov: "dailytargetgov",
-  insp_peza: "dailytargetpeza",
-  insp_tieza: "dailytargettieza",
-};
+const REFSIC_COLS: IssuanceCol[] = [
+  { api: "refsicoccupancycount", label: "Occupancy" },
+  { api: "refsicbplonewcount", label: "BPLO New" },
+  { api: "refsicbplorenewcount", label: "BPLO Renew" },
+  { api: "refsicgovcount", label: "Gov" },
+  { api: "refsicpezacount", label: "PEZA" },
+  { api: "refsictiezacount", label: "TIEZA" },
+];
 
-/** Total inspection header columns once Target/Compliance splits are counted. */
-const INSPECTION_COLSPAN = CATEGORY_FIELDS.INSPECTION.reduce(
-  (n, f) => n + (INSP_TARGET_FIELDS[String(f.key)] ? 2 : 1),
-  0,
-);
+const RENOTICE_COLS: IssuanceCol[] = [
+  { api: "rentcvcount", label: "NTCV" },
+  { api: "reabatementcount", label: "Abatement" },
+  { api: "reclosurecount", label: "Closure" },
+];
 
-type DayTotals = Partial<Record<keyof ComplianceDailyCounts, number>>;
+const ALL_INSPECTION_FIELDS: InspectionField[] = [
+  ...INSPECT_COLS.map((c) => c.api),
+  ...REINSPECT_COLS.map((c) => c.api),
+];
 
-interface EditableIssuance {
+const ALL_ISSUANCE_FIELDS: IssuanceField[] = [
+  ...FSEC_COLS.map((c) => c.api),
+  ...FSIC_COLS.map((c) => c.api),
+  ...NOTICE_COLS.map((c) => c.api),
+  ...REFSIC_COLS.map((c) => c.api),
+  ...RENOTICE_COLS.map((c) => c.api),
+];
+
+/* ========================================================================== */
+/*  Editable model                                                           */
+/* ========================================================================== */
+
+type EditableInspection = Record<InspectionField, number> &
+  Record<TargetField, number> & {
+    fsisno: string;
+    dateinspected: string;
+    remarks: string;
+  };
+
+type EditableIssuance = Record<IssuanceField, number> & {
   issuanceno: string;
   fsicmode: number;
-  fsecbuildingcount: number;
-  fsecgovcount: number;
-  fsecpezacount: number;
-  fsectiezacount: number;
-  fsicoccupancycount: number;
-  fsicbplonewcount: number;
-  fsicbplorenewcount: number;
-  fsicgovcount: number;
-  fsicpezacount: number;
-  fsictiezacount: number;
-  nodcount: number;
-  ntccount: number;
-  ntcvcount: number;
-  abatementcount: number;
-  closurecount: number;
-  
-}
+};
 
 interface EditableDay {
   day: number;
   label: string;
   key: string;
-  inspection: FSISComplianceDetailItem;
+  inspection: EditableInspection;
+  /** fsicmode 96 */
   manual: EditableIssuance;
+  /** fsicmode 97 */
   fsis: EditableIssuance;
   isLocked: boolean;
   editablestatus: number;
   isrevisionrequest: boolean;
-  totals: DayTotals;
+}
+
+const FSIC_MODE_MANUAL = 96;
+const FSIC_MODE_FSIS = 97;
+
+function num(v: unknown): number {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function toLocalKey(y: number, m: number, d: number): string {
-  const mm = String(m).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 function normalizeDateKey(v: string | Date | null | undefined): string | null {
@@ -302,11 +277,6 @@ const YEAR_OPTIONS: number[] = (() => {
   return [current - 2, current - 1, current, current + 1];
 })();
 
-function num(v: unknown): number {
-  const n = Number(v ?? 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
 /**
  * PST lock activation — mirrors Target Reference.
  * A month locks on day 4 of the following calendar month at 00:00 PST.
@@ -325,192 +295,169 @@ function hasPstLockActivated(
   return manilaNowMs >= lockActivationMs;
 }
 
-/**
- * Check if a given date has already passed (is before today at midnight).
- */
+/** Check if a given date has already passed (is before today at midnight). */
 function isDayPassed(dateStr: string): boolean {
   if (!IS_PAST_DATE_LOCK_ENABLED) return false;
-  try {
-    const d = new Date(dateStr);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return d < today;
-  } catch {
-    return false;
-  }
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d < today;
+}
+
+function emptyIssuance(fsicmode: number): EditableIssuance {
+  const base = Object.fromEntries(ALL_ISSUANCE_FIELDS.map((f) => [f, 0])) as Record<
+    IssuanceField,
+    number
+  >;
+  return { ...base, issuanceno: EMPTY_GUID, fsicmode };
+}
+
+function emptyInspection(dateKey: string): EditableInspection {
+  const counts = Object.fromEntries(ALL_INSPECTION_FIELDS.map((f) => [f, 0])) as Record<
+    InspectionField,
+    number
+  >;
+  return {
+    ...counts,
+    dailytargetbplo: 0,
+    dailytargetgov: 0,
+    dailytargetpeza: 0,
+    dailytargettieza: 0,
+    fsisno: EMPTY_GUID,
+    dateinspected: dateKey,
+    remarks: "",
+  };
 }
 
 /**
- * Build editable day structure from Monthly API response.
- * Creates one entry per calendar day, loading data from API list or empty.
- * Separates inspection data from MANUAL and FSIS issuance data.
+ * Build the per-day editable structure straight from the Detail API's
+ * `compliancelist`. Every calendar day of the month gets an entry; days the
+ * API did not return start empty.
  */
 function buildEditableDays(
-  list: Array<FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>> | null | undefined,
+  list: FSISComplianceDetailClassModel[] | null | undefined,
   year: number,
   month: number,
 ): Map<string, EditableDay> {
-  const map = new Map<string, EditableDay>();
-
-  // Index API data by date
-  const dataByDate = new Map<string, FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>>();
-  if (Array.isArray(list)) {
-    for (const item of list) {
-      const key = normalizeDateKey(item?.dateinspected);
-      if (key) dataByDate.set(key, item);
-    }
+  const dataByDate = new Map<string, FSISComplianceDetailClassModel>();
+  for (const item of Array.isArray(list) ? list : []) {
+    const key = normalizeDateKey(item?.dateinspected);
+    if (key) dataByDate.set(key, item);
   }
 
+  const map = new Map<string, EditableDay>();
   const total = daysInMonth(year, month);
   const monthName = MONTHS[month - 1]?.name ?? "";
 
-  const defaultIssuance = (): EditableIssuance => ({
-    issuanceno: EMPTY_GUID,
-    fsicmode: 0,
-    fsecbuildingcount: 0,
-    fsecgovcount: 0,
-    fsecpezacount: 0,
-    fsectiezacount: 0,
-    fsicoccupancycount: 0,
-    fsicbplonewcount: 0,
-    fsicbplorenewcount: 0,
-    fsicgovcount: 0,
-    fsicpezacount: 0,
-    fsictiezacount: 0,
-    nodcount: 0,
-    ntccount: 0,
-    ntcvcount: 0,
-    abatementcount: 0,
-    closurecount: 0,
-  
-  });
-
   for (let d = 1; d <= total; d++) {
     const key = toLocalKey(year, month, d);
-    const label = `${monthName} ${d}, ${year}`;
-    const apiData = dataByDate.get(key);
+    const rec = dataByDate.get(key);
 
-    // Extract inspection data
-    const inspection: FSISComplianceDetailItem = apiData
-      ? {
-          fsisno: apiData.fsisno ?? EMPTY_GUID,
-          dateinspected: apiData.dateinspected ?? key,
-          remarks: apiData.remarks ?? "",
-          dailytargetbplo: num(apiData.dailytargetbplo),
-          dailytargetgov: num(apiData.dailytargetgov),
-          dailytargetpeza: num(apiData.dailytargetpeza),
-          dailytargettieza: num(apiData.dailytargettieza),
-          inspectduringcount: num(apiData.inspectduringcount),
-          inspectaftercount: num(apiData.inspectaftercount),
-          inspectbplocount: num(apiData.inspectbplocount),
-          inspectgovcount: num(apiData.inspectgovcount),
-          inspectpezacount: num(apiData.inspectpezacount),
-          inspecttiezacount: num(apiData.inspecttiezacount),
-          reinspectoccupancycount: num(
-            (apiData as { reinspectoccupancycount?: unknown }).reinspectoccupancycount,
-          ),
-          reinspectbplocount: num((apiData as { reinspectbplocount?: unknown }).reinspectbplocount),
-          reinspectgovcount: num((apiData as { reinspectgovcount?: unknown }).reinspectgovcount),
-          reinspectpezacount: num(apiData.reinspectpezacount),
-          reinspecttiezacount: num(apiData.reinspecttiezacount),
-        }
-      : {
-          fsisno: EMPTY_GUID,
-          dateinspected: key,
-          remarks: "",
-          dailytargetbplo: 0,
-          dailytargetgov: 0,
-          dailytargetpeza: 0,
-          dailytargettieza: 0,
-          inspectduringcount: 0,
-          inspectaftercount: 0,
-          inspectbplocount: 0,
-          inspectgovcount: 0,
-          inspectpezacount: 0,
-          inspecttiezacount: 0,
-          reinspectoccupancycount: 0,
-          reinspectbplocount: 0,
-          reinspectgovcount: 0,
-          reinspectpezacount: 0,
-          reinspecttiezacount: 0,
-        };
+    const inspection = emptyInspection(key);
+    let manual = emptyIssuance(FSIC_MODE_MANUAL);
+    let fsis = emptyIssuance(FSIC_MODE_FSIS);
 
-    // Extract issuance data per mode
-    let manual = defaultIssuance();
-    let fsis = defaultIssuance();
+    if (rec) {
+      inspection.fsisno = String(rec.fsisno ?? EMPTY_GUID);
+      inspection.dateinspected = String(rec.dateinspected ?? key);
+      inspection.remarks = String(rec.remarks ?? "");
+      inspection.dailytargetbplo = num(rec.dailytargetbplo);
+      inspection.dailytargetgov = num(rec.dailytargetgov);
+      inspection.dailytargetpeza = num(rec.dailytargetpeza);
+      inspection.dailytargettieza = num(rec.dailytargettieza);
+      for (const f of ALL_INSPECTION_FIELDS) {
+        inspection[f] = num((rec as unknown as Record<string, unknown>)[f]);
+      }
 
-    if (apiData && Array.isArray(apiData.issuancelist)) {
-      for (const iss of apiData.issuancelist) {
+      for (const iss of Array.isArray(rec.issuancelist) ? rec.issuancelist : []) {
         const mode = num(iss?.fsicmode);
-        const issuanceData: EditableIssuance = {
-          issuanceno: (iss?.issuanceno as string) ?? EMPTY_GUID,
-          fsicmode: mode,
-          fsecbuildingcount: num(iss?.fsecbuildingcount),
-          fsecgovcount: num(iss?.fsecgovcount),
-          fsecpezacount: num(iss?.fsecpezacount),
-          fsectiezacount: num(iss?.fsectiezacount),
-          fsicoccupancycount: num(iss?.fsicoccupancycount),
-          fsicbplonewcount: num(iss?.fsicbplonewcount),
-          fsicbplorenewcount: num(iss?.fsicbplorenewcount),
-          fsicgovcount: num(iss?.fsicgovcount),
-          fsicpezacount: num(iss?.fsicpezacount),
-          fsictiezacount: num(iss?.fsictiezacount),
-          nodcount: num(iss?.nodcount),
-          ntccount: num(iss?.ntccount),
-          ntcvcount: num(iss?.ntcvcount),
-          abatementcount: num(iss?.abatementcount),
-          closurecount: num(iss?.closurecount),
-          
-        };
-
-        if (mode === 96) manual = issuanceData;
-        if (mode === 97) fsis = issuanceData;
+        if (mode !== FSIC_MODE_MANUAL && mode !== FSIC_MODE_FSIS) continue;
+        const target = emptyIssuance(mode);
+        target.issuanceno = String(iss?.issuanceno ?? EMPTY_GUID);
+        for (const f of ALL_ISSUANCE_FIELDS) {
+          target[f] = num((iss as unknown as Record<string, unknown>)[f]);
+        }
+        if (mode === FSIC_MODE_MANUAL) manual = target;
+        else fsis = target;
       }
     }
 
-    // Compute totals from all fields
-    const totals: DayTotals = {};
-    for (const field of DETAIL_FIELDS) {
-      if (isInspectionKey(String(field.key))) {
-        const apiKey = FIELD_TO_API[String(field.key)];
-        if (apiKey) {
-          totals[field.key as keyof ComplianceDailyCounts] = num(inspection[apiKey]);
-        }
-      } else {
-        const manualKey = FIELD_TO_API[String(field.key)] as keyof EditableIssuance | undefined;
-        if (manualKey && manualKey in manual) {
-          totals[field.key as keyof ComplianceDailyCounts] =
-            num((manual as any)[manualKey]) + num((fsis as any)[manualKey]);
-        }
-      }
-    }
-
-    const editablestatus = num((apiData as any)?.editablestatus);
-    const isrevisionrequest = Boolean((apiData as any)?.isrevisionrequest);
-    const locked =
+    const editablestatus = num(rec?.editablestatus);
+    const isrevisionrequest = Boolean(rec?.isrevisionrequest);
+    const isLocked =
       editablestatus === 153 ? false : hasPstLockActivated(year, month) || isDayPassed(key);
 
-    const entry: EditableDay = {
+    map.set(key, {
       day: d,
-      label,
+      label: `${monthName} ${d}, ${year}`,
       key,
       inspection,
       manual,
       fsis,
-      isLocked: locked,
-      totals,
+      isLocked,
       editablestatus,
       isrevisionrequest,
-    };
-    map.set(key, entry);
+    });
   }
 
   return map;
 }
 
+/** Header info taken from the Detail API payload. */
+interface StationHeader {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  cityname: string;
+  logourl: string;
+}
+
 /* ========================================================================== */
-/*  Editor body — per-day editable table                                     */
+/*  Per-day totals                                                           */
 /* ========================================================================== */
+
+const sumIssuance = (day: EditableDay, cols: IssuanceCol[]) =>
+  cols.reduce((sum, c) => sum + num(day.manual[c.api]) + num(day.fsis[c.api]), 0);
+
+const sumInspection = (day: EditableDay, cols: InspectionCol[]) =>
+  cols.reduce((sum, c) => sum + num(day.inspection[c.api]), 0);
+
+const inspectionRowTotal = (day: EditableDay) =>
+  sumInspection(day, INSPECT_COLS) +
+  sumIssuance(day, FSEC_COLS) +
+  sumIssuance(day, FSIC_COLS) +
+  sumIssuance(day, NOTICE_COLS);
+
+const reinspectionRowTotal = (day: EditableDay) =>
+  sumInspection(day, REINSPECT_COLS) +
+  sumIssuance(day, REFSIC_COLS) +
+  sumIssuance(day, RENOTICE_COLS);
+
+/* ========================================================================== */
+/*  Editor body — per-day editable tables                                    */
+/* ========================================================================== */
+
+type DayWithRevision = EditableDay & {
+  rev: {
+    req: RevisionRequestRow | null;
+    status: RevisionStatus | null;
+    unlockedByApproval: boolean;
+    pending: boolean;
+    locked: boolean;
+    needsRequest: boolean;
+  };
+};
+
+interface RevisionRequestRow {
+  requestno: string;
+  statuscode?: string;
+  statusname?: string;
+  referencekey?: string;
+  dateinspected?: string;
+}
 
 function ComplianceEditBody({
   stationno,
@@ -538,7 +485,7 @@ function ComplianceEditBody({
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
-  const [confirmLeave, setConfirmLeave] = React.useState<null | "cancel">(null);
+  const [confirmLeave, setConfirmLeave] = React.useState(false);
   const [revisionOpen, setRevisionOpen] = React.useState(false);
   const [revisionReferenceKey, setRevisionReferenceKey] = React.useState(EMPTY_GUID);
   const [revisionDate, setRevisionDate] = React.useState<string>("");
@@ -546,8 +493,8 @@ function ComplianceEditBody({
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
   const [revisionRequestRefreshTick, setRevisionRequestRefreshTick] = React.useState(0);
 
-  // Station info from Monthly API
-  const [station, setStation] = React.useState<FSISComplianceMonthlyLedgerModel | null>(null);
+  // Station header from the Detail API
+  const [station, setStation] = React.useState<StationHeader | null>(null);
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
 
   // Editable days indexed by YYYY-MM-DD
@@ -557,129 +504,34 @@ function ComplianceEditBody({
   const [baseline, setBaseline] = React.useState<string>("");
   const [baselineMap, setBaselineMap] = React.useState<Map<string, string>>(new Map());
 
-  const serializeDay = React.useCallback((day: EditableDay) => {
-    return JSON.stringify({
-      inspection: day.inspection,
-      manual: day.manual,
-      fsis: day.fsis,
-      isLocked: day.isLocked,
-    });
-  }, []);
+  // Collapsible state for the three daily cards (display only — data is kept).
+  const [dashboardExpanded, setDashboardExpanded] = React.useState(false);
+  const [issuanceExpanded, setIssuanceExpanded] = React.useState(false);
+  const [reinspectionExpanded, setReinspectionExpanded] = React.useState(false);
+
+  const serializeDay = React.useCallback(
+    (day: EditableDay) =>
+      JSON.stringify({
+        inspection: day.inspection,
+        manual: day.manual,
+        fsis: day.fsis,
+      }),
+    [],
+  );
 
   /** True when a day (with no saved baseline) carries any encoded value. */
   const dayHasAnyValue = React.useCallback((day: EditableDay) => {
-    const inspKeys: (keyof FSISComplianceDetailItem)[] = [
-      "inspectduringcount",
-      "inspectaftercount",
-      "inspectbplocount",
-      "inspectgovcount",
-      "inspectpezacount",
-      "inspecttiezacount",
-      "reinspectbplocount",
-      "reinspectgovcount",
-      "reinspectpezacount",
-      "reinspecttiezacount",
-      
-    ];
-    if (inspKeys.some((k) => Number(day.inspection?.[k] ?? 0) !== 0)) return true;
-    if (String(day.inspection?.remarks ?? "").trim() !== "") return true;
-
-    const issKeys: (keyof EditableIssuance)[] = [
-      "fsecbuildingcount",
-      "fsecgovcount",
-      "fsecpezacount",
-      "fsectiezacount",
-      "fsicoccupancycount",
-      "fsicbplonewcount",
-      "fsicbplorenewcount",
-      "fsicgovcount",
-      "fsicpezacount",
-      "fsictiezacount",
-      "nodcount",
-      "ntccount",
-      "ntcvcount",
-      "abatementcount",
-      "closurecount",
-    ];
-    return issKeys.some(
-      (k) =>
-        Number((day.manual as EditableIssuance)[k] ?? 0) !== 0 ||
-        Number((day.fsis as EditableIssuance)[k] ?? 0) !== 0,
+    if (ALL_INSPECTION_FIELDS.some((f) => num(day.inspection[f]) !== 0)) return true;
+    if (String(day.inspection.remarks ?? "").trim() !== "") return true;
+    return ALL_ISSUANCE_FIELDS.some(
+      (f) => num(day.manual[f]) !== 0 || num(day.fsis[f]) !== 0,
     );
   }, []);
 
-  const isDayModified = React.useCallback((originalSerialized: string, day: EditableDay) => {
-    try {
-      const orig = JSON.parse(originalSerialized) as {
-        inspection: Partial<FSISComplianceDetailItem>;
-        manual: Partial<EditableIssuance>;
-        fsis: Partial<EditableIssuance>;
-      };
-
-      // Inspection fields to compare
-      const inspKeys: (keyof FSISComplianceDetailItem)[] = [
-        "inspectduringcount",
-        "inspectaftercount",
-        "inspectbplocount",
-        "inspectgovcount",
-        "inspectpezacount",
-        "inspecttiezacount",
-        "reinspectbplocount",
-        "reinspectgovcount",
-        "reinspectpezacount",
-        "reinspecttiezacount",
-      ];
-      for (const k of inspKeys) {
-        const o = Number(orig.inspection?.[k] ?? 0);
-        const n = Number(day.inspection?.[k] ?? 0);
-        if (o !== n) return true;
-      }
-      const oRemarks = String(orig.inspection?.remarks ?? "");
-      const nRemarks = String(day.inspection?.remarks ?? "");
-      if (oRemarks !== nRemarks) return true;
-
-      // Issuance numeric keys to compare
-      const issKeys: (keyof EditableIssuance)[] = [
-        "fsecbuildingcount",
-        "fsecgovcount",
-        "fsecpezacount",
-        "fsectiezacount",
-        "fsicoccupancycount",
-        "fsicbplonewcount",
-        "fsicbplorenewcount",
-        "fsicgovcount",
-        "fsicpezacount",
-        "fsictiezacount",
-        "nodcount",
-        "ntccount",
-        "ntcvcount",
-        "abatementcount",
-        "closurecount",
-      ];
-
-      for (const k of issKeys) {
-        const oM = Number(orig.manual?.[k] ?? 0);
-        const nM = Number((day.manual as any)[k] ?? 0);
-        if (oM !== nM) return true;
-        const oF = Number(orig.fsis?.[k] ?? 0);
-        const nF = Number((day.fsis as any)[k] ?? 0);
-        if (oF !== nF) return true;
-      }
-
-      // issuanceno changes should count as modification
-      const oManIss = String(orig.manual?.issuanceno ?? "");
-      const nManIss = String(day.manual.issuanceno ?? "");
-      if (oManIss !== nManIss) return true;
-      const oFsisIss = String(orig.fsis?.issuanceno ?? "");
-      const nFsisIss = String(day.fsis.issuanceno ?? "");
-      if (oFsisIss !== nFsisIss) return true;
-
-      // No meaningful changes detected
-      return false;
-    } catch {
-      return true; // if we can't parse original, assume changed
-    }
-  }, []);
+  const isDayModified = React.useCallback(
+    (originalSerialized: string, day: EditableDay) => originalSerialized !== serializeDay(day),
+    [serializeDay],
+  );
 
   const currentSnapshot = React.useMemo(
     () => JSON.stringify(Array.from(editableDays.entries())),
@@ -687,16 +539,8 @@ function ComplianceEditBody({
   );
   const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
 
-  // ------- Revision requests for the month (from the live API) -------
-  const [revisionRequests, setRevisionRequests] = React.useState<
-    {
-      requestno: string;
-      statuscode?: string;
-      statusname?: string;
-      referencekey?: string;
-      dateinspected?: string;
-    }[]
-  >([]);
+  /* ------- Revision requests for the month (from the live API) ------------ */
+  const [revisionRequests, setRevisionRequests] = React.useState<RevisionRequestRow[]>([]);
   React.useEffect(() => {
     if (!stationno || !year || !month) {
       setRevisionRequests([]);
@@ -717,15 +561,7 @@ function ComplianceEditBody({
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
-      const { ok, data } = unwrap<
-        {
-          requestno: string;
-          statuscode?: string;
-          statusname?: string;
-          referencekey?: string;
-          dateinspected?: string;
-        }[]
-      >(resp);
+      const { ok, data } = unwrap<RevisionRequestRow[]>(resp);
       setRevisionRequests(ok && Array.isArray(data) ? data : []);
     })();
     return () => {
@@ -778,10 +614,6 @@ function ComplianceEditBody({
     [requestForDay],
   );
 
-  const monthLocked = isReportMonthLocked(year, month);
-  const [showDailyDashboard, setShowDailyDashboard] = React.useState(true);
-  const [showDailyDetails, setShowDailyDetails] = React.useState(true);
-
   /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
     let cancelled = false;
@@ -793,16 +625,15 @@ function ComplianceEditBody({
       });
       const { data: sData } = unwrap<SearchStationModel[]>(sResp);
       const seed = Array.isArray(sData) ? sData[0] : undefined;
-      const prov = seed?.provinceno ?? EMPTY_GUID;
       if (cancelled) return;
-      setProvinceno(prov);
+      setProvinceno(seed?.provinceno ?? EMPTY_GUID);
     })();
     return () => {
       cancelled = true;
     };
   }, [stationno]);
 
-  // Fetch Detail when provinceno is ready
+  // GET /api/v1/FSISCompliance/Detail?Stationno=&Reportyear=&Reportmonth=
   React.useEffect(() => {
     if (provinceno == null) return;
     let cancelled = false;
@@ -822,73 +653,23 @@ function ComplianceEditBody({
         resp,
       );
       if (!ok) toast.error(error || "Failed to load monthly data.");
-      const station = ok ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null)) : null;
-      const first = station
-        ? {
-            stationno: String(station?.stationno ?? ""),
-            stationcode: String(station?.stationcode ?? ""),
-            stationname: String(station?.stationname ?? ""),
-            regionno: "",
-            regioncode: "",
-            regionname: "",
-            provinceno: String(station?.provinceno ?? ""),
-            provincename: String(station?.provincename ?? ""),
-            cityno: "",
-            zipcode: "",
-            cityname: String(station?.cityname ?? ""),
-            barangayno: "",
-            barangayname: "",
-            streetaddress: "",
-            logourl: String(station?.logourl ?? ""),
-            month,
-            year,
-            totaltargetbplo: 0,
-            totaltargetgov: 0,
-            totaltargetpeza: 0,
-            totaltargettieza: 0,
-            totalAccomplishmentbplo: 0,
-            totalAccomplishmentgov: 0,
-            totalAccomplishmentpeza: 0,
-            totalAccomplishmenttieza: 0,
-            updatedby: "",
-            encodedby: "",
-            complianceLedgerList: (Array.isArray(station?.compliancelist)
-              ? station.compliancelist
-              : []
-            ).map((rec) => ({
-              ...rec,
-              fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
-              dailytargetbplo:
-                Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
-              dailytargetgov: Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
-              dailytargetpeza:
-                Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
-              dailytargettieza:
-                Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
-              inspectduringcount:
-                Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
-              inspectaftercount:
-                Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
-              inspectbplocount:
-                Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
-              inspectgovcount:
-                Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
-              inspectpezacount:
-                Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
-              inspecttiezacount:
-                Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
-              remarks: String((rec as { remarks?: string }).remarks ?? ""),
-              dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
-              issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist)
-                ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[])
-                : [],
-            })) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"],
-          }
-        : null;
+      const detail = ok ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null)) : null;
 
-      setStation(first);
+      setStation(
+        detail
+          ? {
+              stationno: String(detail.stationno ?? ""),
+              stationcode: String(detail.stationcode ?? ""),
+              stationname: String(detail.stationname ?? ""),
+              provinceno: String(detail.provinceno ?? ""),
+              provincename: String(detail.provincename ?? ""),
+              cityname: String(detail.cityname ?? ""),
+              logourl: String(detail.logourl ?? ""),
+            }
+          : null,
+      );
 
-      const days = buildEditableDays(first?.complianceLedgerList, year, month);
+      const days = buildEditableDays(detail?.compliancelist, year, month);
       setEditableDays(days);
       setBaseline(JSON.stringify(Array.from(days.entries())));
       setBaselineMap(
@@ -899,7 +680,7 @@ function ComplianceEditBody({
     return () => {
       cancelled = true;
     };
-  }, [stationno, provinceno, year, month, revisionRequestRefreshTick]);
+  }, [stationno, provinceno, year, month, revisionRequestRefreshTick, serializeDay]);
 
   /* ---------------------- Warn on unsaved changes ----------------------- */
   React.useEffect(() => {
@@ -914,7 +695,7 @@ function ComplianceEditBody({
 
   const requestCancel = () => {
     if (isDirty) {
-      setConfirmLeave("cancel");
+      setConfirmLeave(true);
       return;
     }
     onCancel();
@@ -933,67 +714,45 @@ function ComplianceEditBody({
 
   /* ------------------------------- Handlers ------------------------------ */
 
-  const updateDayField = (
-    dayKey: string,
-    fieldKey: string,
-    raw: string,
-    issuanceMode: "manual" | "fsis" | "inspection",
-  ) => {
-    setEditableDays((prev) => {
-      const newMap = new Map(prev);
-      const day = newMap.get(dayKey);
-      if (!day) return prev;
+  const updateInspectionField = React.useCallback(
+    (dayKey: string, field: InspectionField, raw: string) => {
+      setEditableDays((prev) => {
+        const day = prev.get(dayKey);
+        if (!day) return prev;
+        const cleaned = raw.replace(/[^0-9]/g, "");
+        const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+        const next = new Map(prev);
+        next.set(dayKey, { ...day, inspection: { ...day.inspection, [field]: value } });
+        return next;
+      });
+    },
+    [],
+  );
 
-      const cleaned = raw.replace(/[^0-9]/g, "");
-      const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+  const updateIssuanceField = React.useCallback(
+    (dayKey: string, mode: "manual" | "fsis", field: IssuanceField, raw: string) => {
+      setEditableDays((prev) => {
+        const day = prev.get(dayKey);
+        if (!day) return prev;
+        const cleaned = raw.replace(/[^0-9]/g, "");
+        const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
+        const next = new Map(prev);
+        next.set(dayKey, { ...day, [mode]: { ...day[mode], [field]: value } });
+        return next;
+      });
+    },
+    [],
+  );
 
-      const apiKey = FIELD_TO_API[fieldKey] as
-        keyof (FSISComplianceDetailItem | EditableIssuance) | undefined;
-      if (!apiKey) return prev;
-
-      const updated = { ...day };
-
-      if (issuanceMode === "inspection") {
-        updated.inspection = { ...day.inspection, [apiKey]: value };
-      } else if (issuanceMode === "manual") {
-        updated.manual = { ...day.manual, [apiKey]: value };
-      } else if (issuanceMode === "fsis") {
-        updated.fsis = { ...day.fsis, [apiKey]: value };
-      }
-
-      // Recompute totals
-      const totals: DayTotals = {};
-      for (const f of DETAIL_FIELDS) {
-        if (isInspectionKey(String(f.key))) {
-          const key = FIELD_TO_API[String(f.key)] as keyof FSISComplianceDetailItem;
-          if (key) {
-            totals[f.key as keyof ComplianceDailyCounts] = num(updated.inspection[key]);
-          }
-        } else {
-          const key = FIELD_TO_API[String(f.key)] as keyof EditableIssuance;
-          if (key && key in updated.manual && key in updated.fsis) {
-            totals[f.key as keyof ComplianceDailyCounts] =
-              num((updated.manual as any)[key]) + num((updated.fsis as any)[key]);
-          }
-        }
-      }
-      updated.totals = totals;
-
-      newMap.set(dayKey, updated);
-      return newMap;
-    });
-  };
-
-  const updateDayRemarks = (dayKey: string, remarks: string) => {
-    setEditableDays((prev) => {
-      const newMap = new Map(prev);
-      const day = newMap.get(dayKey);
-      if (!day) return prev;
-      const newInspection = { ...day.inspection, remarks: remarks.slice(0, 1000) };
-      newMap.set(dayKey, { ...day, inspection: newInspection });
-      return newMap;
-    });
-  };
+  const openRevisionRequest = React.useCallback((day: EditableDay) => {
+    setRevisionReferenceKey(
+      day.inspection.fsisno && day.inspection.fsisno !== EMPTY_GUID
+        ? day.inspection.fsisno
+        : EMPTY_GUID,
+    );
+    setRevisionDate(normalizeDateKey(day.inspection.dateinspected) || day.key);
+    setRevisionOpen(true);
+  }, []);
 
   /* --------------------------------- Save -------------------------------- */
 
@@ -1019,98 +778,65 @@ function ComplianceEditBody({
       // (typically future dates with no values) are skipped so the backend
       // does not treat them as encoded/accomplished days.
       const updates: FSISComplianceClass[] = [];
-      let hasAnyChange = false;
 
-      for (const [, day] of editableDays) {
+      for (const day of editableDays.values()) {
         const original = baselineMap.get(day.key);
         const isRowModified = original ? isDayModified(original, day) : dayHasAnyValue(day);
         if (!isRowModified) continue;
-        hasAnyChange = true;
 
-        // Reconstruct issuancelist with MANUAL (96) and FSIS (97) modes.
-        // Always send both entries so the update payload matches the create structure.
-        const issuancelist: FSISIssuanceClassDTO[] = [
-          {
-            issuanceno: day.manual.issuanceno || EMPTY_GUID,
-            fsicmode: 96,
-            fsecbuildingcount: day.manual.fsecbuildingcount,
-            fsecgovcount: day.manual.fsecgovcount,
-            fsecpezacount: day.manual.fsecpezacount,
-            fsectiezacount: day.manual.fsectiezacount,
-            fsicoccupancycount: day.manual.fsicoccupancycount,
-            fsicbplonewcount: day.manual.fsicbplonewcount,
-            fsicbplorenewcount: day.manual.fsicbplorenewcount,
-            fsicgovcount: day.manual.fsicgovcount,
-            fsicpezacount: day.manual.fsicpezacount,
-            fsictiezacount: day.manual.fsictiezacount,
-            nodcount: day.manual.nodcount,
-            ntccount: day.manual.ntccount,
-            ntcvcount: day.manual.ntcvcount,
-            abatementcount: day.manual.abatementcount,
-            closurecount: day.manual.closurecount,
-            refsicoccupancycount: 0,
-            refsicbplonewcount: 0,
-            refsicbplorenewcount: 0,
-            refsicgovcount: 0,
-            refsicpezacount: 0,
-            refsictiezacount: 0,
-            rentcvcount: 0,
-            reabatementcount: 0,
-            reclosurecount: 0
-          },
-          {
-            issuanceno: day.fsis.issuanceno || EMPTY_GUID,
-            fsicmode: 97,
-            fsecbuildingcount: day.fsis.fsecbuildingcount,
-            fsecgovcount: day.fsis.fsecgovcount,
-            fsecpezacount: day.fsis.fsecpezacount,
-            fsectiezacount: day.fsis.fsectiezacount,
-            fsicoccupancycount: day.fsis.fsicoccupancycount,
-            fsicbplonewcount: day.fsis.fsicbplonewcount,
-            fsicbplorenewcount: day.fsis.fsicbplorenewcount,
-            fsicgovcount: day.fsis.fsicgovcount,
-            fsicpezacount: day.fsis.fsicpezacount,
-            fsictiezacount: day.fsis.fsictiezacount,
-            nodcount: day.fsis.nodcount,
-            ntccount: day.fsis.ntccount,
-            ntcvcount: day.fsis.ntcvcount,
-            abatementcount: day.fsis.abatementcount,
-            closurecount: day.fsis.closurecount,
-            refsicoccupancycount: 0,
-            refsicbplonewcount: 0,
-            refsicbplorenewcount: 0,
-            refsicgovcount: 0,
-            refsicpezacount: 0,
-            refsictiezacount: 0,
-            rentcvcount: 0,
-            reabatementcount: 0,
-            reclosurecount: 0
-          },
-        ];
+        const toIssuance = (src: EditableIssuance, fsicmode: number): FSISIssuanceClassDTO => ({
+          issuanceno: src.issuanceno || EMPTY_GUID,
+          fsicmode,
+          fsecbuildingcount: src.fsecbuildingcount,
+          fsecgovcount: src.fsecgovcount,
+          fsecpezacount: src.fsecpezacount,
+          fsectiezacount: src.fsectiezacount,
+          fsicoccupancycount: src.fsicoccupancycount,
+          fsicbplonewcount: src.fsicbplonewcount,
+          fsicbplorenewcount: src.fsicbplorenewcount,
+          fsicgovcount: src.fsicgovcount,
+          fsicpezacount: src.fsicpezacount,
+          fsictiezacount: src.fsictiezacount,
+          nodcount: src.nodcount,
+          ntccount: src.ntccount,
+          ntcvcount: src.ntcvcount,
+          abatementcount: src.abatementcount,
+          closurecount: src.closurecount,
+          refsicoccupancycount: src.refsicoccupancycount,
+          refsicbplonewcount: src.refsicbplonewcount,
+          refsicbplorenewcount: src.refsicbplorenewcount,
+          refsicgovcount: src.refsicgovcount,
+          refsicpezacount: src.refsicpezacount,
+          refsictiezacount: src.refsictiezacount,
+          rentcvcount: src.rentcvcount,
+          reabatementcount: src.reabatementcount,
+          reclosurecount: src.reclosurecount,
+        });
 
-        const item: FSISComplianceClass = {
+        updates.push({
           fsisno: day.inspection.fsisno || EMPTY_GUID,
           dateinspected: day.key,
-          inspectduringcount: day.inspection.inspectduringcount ?? 0,
-          inspectaftercount: day.inspection.inspectaftercount ?? 0,
-          inspectbplocount: day.inspection.inspectbplocount ?? 0,
-          inspectgovcount: day.inspection.inspectgovcount ?? 0,
-          inspectpezacount: day.inspection.inspectpezacount ?? 0,
-          inspecttiezacount: day.inspection.inspecttiezacount ?? 0,
-          reinspectbplocount: day.inspection.reinspectbplocount ?? 0,
-          reinspectoccupancycount: day.inspection.reinspectoccupancycount ?? 0,
-          reinspectgovcount: day.inspection.reinspectgovcount ?? 0,
-          reinspectpezacount: day.inspection.reinspectpezacount ?? 0,
-          reinspecttiezacount: day.inspection.reinspecttiezacount ?? 0,
-
+          inspectduringcount: day.inspection.inspectduringcount,
+          inspectaftercount: day.inspection.inspectaftercount,
+          inspectbplocount: day.inspection.inspectbplocount,
+          inspectgovcount: day.inspection.inspectgovcount,
+          inspectpezacount: day.inspection.inspectpezacount,
+          inspecttiezacount: day.inspection.inspecttiezacount,
+          reinspectoccupancycount: day.inspection.reinspectoccupancycount,
+          reinspectbplocount: day.inspection.reinspectbplocount,
+          reinspectgovcount: day.inspection.reinspectgovcount,
+          reinspectpezacount: day.inspection.reinspectpezacount,
+          reinspecttiezacount: day.inspection.reinspecttiezacount,
+          isaccomplished: true,
           remarks: (day.inspection.remarks ?? "").trim(),
-          issuancelist,
-          isaccomplished: isRowModified,
-        };
-        updates.push(item);
+          issuancelist: [
+            toIssuance(day.manual, FSIC_MODE_MANUAL),
+            toIssuance(day.fsis, FSIC_MODE_FSIS),
+          ],
+        });
       }
 
-      if (!hasAnyChange) {
+      if (updates.length === 0) {
         toast.info("No changes to save.");
         onSaved();
         return;
@@ -1133,7 +859,6 @@ function ComplianceEditBody({
       toast.success("Fire safety compliance updated successfully.");
       setBaseline(currentSnapshot);
       setRevisionRequestRefreshTick((n) => n + 1);
-
       onSaved();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unexpected error while saving.";
@@ -1148,12 +873,46 @@ function ComplianceEditBody({
 
   // Per-day locking: `editablestatus === 153` unlocks that day, a pending
   // revision request keeps it locked.
-  const rawDays = Array.from(editableDays.values());
-  const days = rawDays.map((d) => {
-    const rev = dayRevision(d);
-    return { ...d, isLocked: rev.locked, rev };
-  });
+  const days: DayWithRevision[] = React.useMemo(
+    () =>
+      Array.from(editableDays.values()).map((d) => {
+        const rev = dayRevision(d);
+        return { ...d, isLocked: rev.locked, rev };
+      }),
+    [editableDays, dayRevision],
+  );
   const allLocked = days.length > 0 && days.every((d) => d.isLocked);
+
+  /** Monthly target vs. accomplishment, derived from the Detail API values. */
+  const monthlySummary: TargetAccomplishmentModel | null = React.useMemo(() => {
+    if (!station) return null;
+    return days.reduce<TargetAccomplishmentModel>(
+      (acc, d) => {
+        acc.totaltargetbplo += num(d.inspection.dailytargetbplo);
+        acc.totaltargetgov += num(d.inspection.dailytargetgov);
+        acc.totaltargetpeza += num(d.inspection.dailytargetpeza);
+        acc.totaltargettieza += num(d.inspection.dailytargettieza);
+        acc.totalAccomplishmentbplo += num(d.inspection.inspectbplocount);
+        acc.totalAccomplishmentgov += num(d.inspection.inspectgovcount);
+        acc.totalAccomplishmentpeza += num(d.inspection.inspectpezacount);
+        acc.totalAccomplishmenttieza += num(d.inspection.inspecttiezacount);
+        return acc;
+      },
+      {
+        stationno: station.stationno,
+        month,
+        year,
+        totaltargetbplo: 0,
+        totaltargetgov: 0,
+        totaltargetpeza: 0,
+        totaltargettieza: 0,
+        totalAccomplishmentbplo: 0,
+        totalAccomplishmentgov: 0,
+        totalAccomplishmentpeza: 0,
+        totalAccomplishmenttieza: 0,
+      },
+    );
+  }, [days, station, month, year]);
 
   // Keep the previously loaded period visible while a new period loads so the
   // form does not blink; only show the full loader on the very first load.
@@ -1234,1117 +993,82 @@ function ComplianceEditBody({
         ]}
       />
 
-      {/* Daily Compliance Details ------------------------------------------- */}
-      <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
-        <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/40 px-4 py-3 sm:px-5">
-          <SectionTitle
-            title="Daily Dashboard"
-            subtitle="Per-day inspection and issuance tracking"
-            expanded={showDailyDashboard}
-            onToggle={() => setShowDailyDashboard((prev) => !prev)}
+      {/* Daily Dashboard ------------------------------------------------------ */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Dashboard"
+          subtitle={`Reporting month · ${monthName} ${year}`}
+          expanded={dashboardExpanded}
+          onToggle={() => setDashboardExpanded((v) => !v)}
+        />
+
+        {dashboardExpanded && (
+          <TargetAccomplishmentPanel
+            stationno={stationno}
+            year={year}
+            month={month}
+            data={monthlySummary}
           />
-          <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {monthName} {year}
-          </div>
-        </div>
-
-        {showDailyDashboard && (
-          <div className="p-3 sm:p-4">
-            <TargetAccomplishmentPanel
-              stationno={stationno}
-              year={year}
-              month={month}
-              data={
-                station
-                  ? {
-                      stationno: station.stationno,
-                      month: station.month ?? month,
-                      year: station.year ?? year,
-                      totaltargetbplo: num(station.totaltargetbplo),
-                      totaltargetgov: num(station.totaltargetgov),
-                      totaltargetpeza: num(station.totaltargetpeza),
-                      totaltargettieza: num(station.totaltargettieza),
-                      totalAccomplishmentbplo: num(station.totalAccomplishmentbplo),
-                      totalAccomplishmentgov: num(station.totalAccomplishmentgov),
-                      totalAccomplishmentpeza: num(station.totalAccomplishmentpeza),
-                      totalAccomplishmenttieza: num(station.totalAccomplishmenttieza),
-                    }
-                  : null
-              }
-            />
-          </div>
         )}
       </Card>
 
-      <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
-        <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/40 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Table2 className="h-4 w-4" />
-            Daily Inspection & Issuance Activities
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            onClick={() => setShowDailyDetails((prev) => !prev)}
-          >
-            {showDailyDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      {/* Daily Inspection & Issuance ------------------------------------------ */}
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Inspection & Issuance Activities"
+          subtitle="Encode issuances separately for MANUAL and FSIS"
+          expanded={issuanceExpanded}
+          onToggle={() => setIssuanceExpanded((v) => !v)}
+        />
 
-          </Button>
-        </div>
-
-        {showDailyDetails && (
-          <div className="p-3 sm:p-4">
-            <div
-              className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
-              style={{ maxHeight: "74vh" }}
-            >
-              <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
-                <thead className="sticky top-0 z-30">
-                  <tr>
-                    <th
-                      rowSpan={3}
-                      className={`sticky left-0 top-0 z-40 min-w-[96px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
-                    >
-                      Action
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className={`sticky left-[96px] top-0 z-40 min-w-[180px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
-                    >
-                      Date
-                    </th>
-                    <th
-                      colSpan={INSPECTION_COLSPAN}
-                      className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
-                    >
-                      Inspection
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className={`sticky top-0 z-30 border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
-                    >
-                      Mode of
-                      <br />
-                      Issuance
-                    </th>
-                    <th
-                      colSpan={4}
-                      className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSEC}`}
-                    >
-                      FSEC
-                    </th>
-                    <th
-                      colSpan={6}
-                      className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSIC}`}
-                    >
-                      FSIC
-                    </th>
-                    <th
-                      colSpan={5}
-                      className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
-                    >
-                      Issued Notices
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className={`sticky top-0 z-30 border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
-                    >
-                      Total
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className={`sticky top-0 z-30 border-b border-l px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px] ${MONITORING_THEME.headerSoft}`}
-                    >
-                      Remarks
-                    </th>
-                  </tr>
-                  <tr>
-                    {DETAIL_FIELDS.map((field) => {
-                      const key = String(field.key);
-                      const cat = FIELD_CATEGORY.get(key) ?? "INSPECTION";
-                      const split = Boolean(INSP_TARGET_FIELDS[key]);
-                      return (
-                        <th
-                          key={key}
-                          rowSpan={split ? 1 : 2}
-                          colSpan={split ? 2 : 1}
-                          className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[72px] ${SUB_TONE[cat]}`}
-                        >
-                          {field.label}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    {DETAIL_FIELDS.filter((f) => INSP_TARGET_FIELDS[String(f.key)]).flatMap((field) => {
-                      const key = String(field.key);
-                      return [
-                        <th
-                          key={`${key}__target`}
-                          className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${SUB_TONE.INSPECTION}`}
-                        >
-                          Target
-                        </th>,
-                        <th
-                          key={`${key}__compliance`}
-                          className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${SUB_TONE.INSPECTION}`}
-                        >
-                          <span className="block leading-[1.1]">accomplished</span>
-                        </th>,
-                      ];
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {days.map((dayEntry, dayIndex) => {
-                    const rowTotal = DETAIL_FIELDS.reduce(
-                      (sum, f) => sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
-                      0,
-                    );
-                    const rev = dayEntry.rev;
-                    const hasRevisionRequest = rev.pending;
-                    const showRevisionAction = rev.pending || rev.needsRequest;
-
-                    return (
-                      <React.Fragment key={dayEntry.key}>
-                        <tr
-                          className={
-                            dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd
-                          }
-                        >
-                          <td
-                            rowSpan={2}
-                            className={`sticky left-0 z-20 min-w-[96px] border-b border-r px-2 py-1.5 align-middle text-center ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
-                          >
-                            {showRevisionAction ? (
-                              hasRevisionRequest ? (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <EditButton
-                                    variant="square"
-                                    tooltip="Cancel Revision Request"
-                                    ariaLabel="Cancel Revision Request"
-                                    icon={<Ban className="h-4 w-4" />}
-                                    onClick={() => {
-                                      if (rev.req) setCancelRequestId(rev.req.requestno);
-                                      else toast.info("No active revision request to cancel.");
-                                    }}
-                                  />
-                                  <DeleteButton
-                                    variant="square"
-                                    tooltip="Delete Revision Request"
-                                    ariaLabel="Delete Revision Request"
-                                    icon={<Trash2 className="h-4 w-4" />}
-                                    onClick={() => {
-                                      if (rev.req) setDeleteRequestId(rev.req.requestno);
-                                      else toast.info("No revision request to delete.");
-                                    }}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <EditButton
-                                    variant="square"
-                                    tooltip={
-                                      !stationno
-                                        ? "Select a station to request a revision"
-                                        : "Request Revision"
-                                    }
-                                    ariaLabel={
-                                      !stationno
-                                        ? "Select a station to request a revision"
-                                        : "Request Revision"
-                                    }
-                                    disabled={!stationno}
-                                    icon={<FilePen className="h-4 w-4" />}
-                                    onClick={() => {
-                                      setRevisionReferenceKey(
-                                        dayEntry.inspection.fsisno &&
-                                          dayEntry.inspection.fsisno !== EMPTY_GUID
-                                          ? dayEntry.inspection.fsisno
-                                          : EMPTY_GUID,
-                                      );
-                                      setRevisionDate(
-                                        normalizeDateKey(dayEntry.inspection.dateinspected) ||
-                                          dayEntry.key,
-                                      );
-                                      setRevisionOpen(true);
-                                    }}
-                                  />
-                                </div>
-                              )
-                            ) : null}
-                          </td>
-                          <td
-                            rowSpan={2}
-                            className={`sticky left-[96px] z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
-                          >
-                            <div className="flex items-center gap-2 whitespace-nowrap">
-                              {dayEntry.isLocked && <Lock className="h-3 w-3 shrink-0 text-warning" />}
-                              <span
-                                className={
-                                  rowTotal > 0
-                                    ? "text-primary-700 dark:text-primary-300 font-semibold"
-                                    : ""
-                                }
-                              >
-                                {dayEntry.label}
-                              </span>
-                            </div>
-                          </td>
-
-                          {DETAIL_FIELDS.flatMap((field) => {
-                            if (!isInspectionKey(String(field.key))) return [];
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num(dayEntry.inspection[apiKey]) : 0;
-                            const targetKey = INSP_TARGET_FIELDS[String(field.key)];
-                            const cells: React.ReactNode[] = [];
-                            if (targetKey) {
-                              cells.push(
-                                <td
-                                  key={`${String(field.key)}__target`}
-                                  rowSpan={2}
-                                  className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
-                                >
-                                  {num(dayEntry.inspection[targetKey]).toLocaleString()}
-                                </td>,
-                              );
-                            }
-                            cells.push(
-                              <td
-                                key={String(field.key)}
-                                rowSpan={2}
-                                className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle"
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "inspection")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>,
-                            );
-                            return cells;
-                          })}
-                          <td
-                            className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
-                          >
-                            MANUAL
-                          </td>
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("fsec_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "manual")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("fsic_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "manual")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("not_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "manual")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          <td
-                            rowSpan={2}
-                            className="border-b border-r px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
-                          >
-                            {DETAIL_FIELDS.reduce(
-                              (sum, f) =>
-                                sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
-                              0,
-                            ).toLocaleString()}
-                          </td>
-                          <td
-                            rowSpan={2}
-                            className="border-b px-2 py-1.5 text-left align-middle text-[10px]"
-                          >
-                            {dayEntry.isLocked ? (
-                              <span className="text-muted-foreground">
-                                {dayEntry.inspection.remarks || "—"}
-                              </span>
-                            ) : (
-                              <Input
-                                type="text"
-                                value={dayEntry.inspection.remarks ?? ""}
-                                onChange={(e) => updateDayRemarks(dayEntry.key, e.target.value)}
-                                placeholder="Remarks"
-                                className="h-8 w-full min-w-[160px] rounded-sm border-border/70 bg-white/90 px-2 py-1 text-[11px]"
-                              />
-                            )}
-                          </td>
-                        </tr>
-
-                        <tr
-                          className={
-                            dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd
-                          }
-                        >
-                          <td
-                            className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
-                          >
-                            FSIS
-                          </td>
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("fsec_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "fsis")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("fsic_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "fsis")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("not_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "fsis")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-                <tfoot className="sticky bottom-0 z-20">
-                  <tr className="total-row font-bold text-foreground">
-                    <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide"></td>
-                    <td className="sticky left-[96px] z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
-                      Total
-                    </td>
-                    {(() => {
-                      const modeSpacerIndex = DETAIL_FIELDS.findIndex((f) =>
-                        String(f.key).startsWith("fsec_"),
-                      );
-                      return DETAIL_FIELDS.flatMap((field, idx) => {
-                        const columnTotal = days.reduce(
-                          (sum, d) => sum + num(d.totals[field.key as keyof ComplianceDailyCounts]),
-                          0,
-                        );
-                        const cells: React.ReactNode[] = [];
-                        if (idx === modeSpacerIndex) {
-                          cells.push(
-                            <td
-                              key="__mode_spacer__"
-                              className="border-r border-t-2 border-grid-strong total-row px-2 py-2"
-                            />,
-                          );
-                        }
-                        const targetKey = INSP_TARGET_FIELDS[String(field.key)];
-                        if (targetKey) {
-                          const targetTotal = days.reduce(
-                            (sum, d) => sum + num(d.inspection[targetKey]),
-                            0,
-                          );
-                          cells.push(
-                            <td
-                              key={`${String(field.key)}__target`}
-                              className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums text-muted-foreground"
-                            >
-                              {targetTotal.toLocaleString()}
-                            </td>,
-                          );
-                        }
-                        cells.push(
-                          <td
-                            key={String(field.key)}
-                            className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
-                          >
-                            {columnTotal.toLocaleString()}
-                          </td>,
-                        );
-                        return cells;
-                      });
-                    })()}
-                    <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
-                      {days
-                        .reduce(
-                          (sum, d) =>
-                            sum +
-                            DETAIL_FIELDS.reduce(
-                              (rowSum, f) =>
-                                rowSum + num(d.totals[f.key as keyof ComplianceDailyCounts]),
-                              0,
-                            ),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </td>
-                    <td className="border-t-2 border-grid-strong total-row px-3 py-2" />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
-        <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/40 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Table2 className="h-4 w-4" />
-            Daily Reinspection Activities
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            onClick={() => setShowDailyDetails((prev) => !prev)}
-          >
-            {showDailyDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-
-          </Button>
-        </div>
-
-        {showDailyDetails && (
-          <div className="p-3 sm:p-4">
-            <div
-              className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
-              style={{ maxHeight: "74vh" }}
-            >
-              <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
-                <thead className="sticky top-0 z-30">
-                  <tr>
-                    <th
-                      rowSpan={3}
-                      className={`sticky left-0 top-0 z-40 min-w-[96px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
-                    >
-                      Action
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className={`sticky left-[96px] top-0 z-40 min-w-[180px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
-                    >
-                      Date
-                    </th>
-                    <th
-                      colSpan={INSPECTION_COLSPAN}
-                      className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.INSPECTION}`}
-                    >
-                      Reinspection
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className={`sticky top-0 z-30 border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
-                    >
-                      Mode of
-                      <br />
-                      Issuance
-                    </th>
-                    <th
-                      colSpan={6}
-                      className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.FSIC}`}
-                    >
-                      RE-FSIC
-                    </th>
-                    <th
-                      colSpan={5}
-                      className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${GROUP_TONE.NOTICES}`}
-                    >
-                      Re-Issued Notices
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className={`sticky top-0 z-30 border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
-                    >
-                      Total
-                    </th>
-                    <th
-                      rowSpan={3}
-                      className={`sticky top-0 z-30 border-b border-l px-3 py-1.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider min-w-[160px] ${MONITORING_THEME.headerSoft}`}
-                    >
-                      Remarks
-                    </th>
-                  </tr>
-                  <tr>
-                    {DETAIL_FIELDS.map((field) => {
-                      const key = String(field.key);
-                      const cat = FIELD_CATEGORY.get(key) ?? "INSPECTION";
-                      const split = Boolean(INSP_TARGET_FIELDS[key]);
-                      return (
-                        <th
-                          key={key}
-                          rowSpan={split ? 1 : 2}
-                          colSpan={split ? 2 : 1}
-                          className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[72px] ${SUB_TONE[cat]}`}
-                        >
-                          {field.label}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    {DETAIL_FIELDS.filter((f) => INSP_TARGET_FIELDS[String(f.key)]).flatMap((field) => {
-                      const key = String(field.key);
-                      return [
-                        <th
-                          key={`${key}__target`}
-                          className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${SUB_TONE.INSPECTION}`}
-                        >
-                          Target
-                        </th>,
-                        <th
-                          key={`${key}__compliance`}
-                          className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${SUB_TONE.INSPECTION}`}
-                        >
-                          <span className="block leading-[1.1]">accomplished</span>
-                        </th>,
-                      ];
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {days.map((dayEntry, dayIndex) => {
-                    const rowTotal = DETAIL_FIELDS.reduce(
-                      (sum, f) => sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
-                      0,
-                    );
-                    const rev = dayEntry.rev;
-                    const hasRevisionRequest = rev.pending;
-                    const showRevisionAction = rev.pending || rev.needsRequest;
-
-                    return (
-                      <React.Fragment key={dayEntry.key}>
-                        <tr
-                          className={
-                            dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd
-                          }
-                        >
-                          <td
-                            rowSpan={2}
-                            className={`sticky left-0 z-20 min-w-[96px] border-b border-r px-2 py-1.5 align-middle text-center ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
-                          >
-                            {showRevisionAction ? (
-                              hasRevisionRequest ? (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <EditButton
-                                    variant="square"
-                                    tooltip="Cancel Revision Request"
-                                    ariaLabel="Cancel Revision Request"
-                                    icon={<Ban className="h-4 w-4" />}
-                                    onClick={() => {
-                                      if (rev.req) setCancelRequestId(rev.req.requestno);
-                                      else toast.info("No active revision request to cancel.");
-                                    }}
-                                  />
-                                  <DeleteButton
-                                    variant="square"
-                                    tooltip="Delete Revision Request"
-                                    ariaLabel="Delete Revision Request"
-                                    icon={<Trash2 className="h-4 w-4" />}
-                                    onClick={() => {
-                                      if (rev.req) setDeleteRequestId(rev.req.requestno);
-                                      else toast.info("No revision request to delete.");
-                                    }}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <EditButton
-                                    variant="square"
-                                    tooltip={
-                                      !stationno
-                                        ? "Select a station to request a revision"
-                                        : "Request Revision"
-                                    }
-                                    ariaLabel={
-                                      !stationno
-                                        ? "Select a station to request a revision"
-                                        : "Request Revision"
-                                    }
-                                    disabled={!stationno}
-                                    icon={<FilePen className="h-4 w-4" />}
-                                    onClick={() => {
-                                      setRevisionReferenceKey(
-                                        dayEntry.inspection.fsisno &&
-                                          dayEntry.inspection.fsisno !== EMPTY_GUID
-                                          ? dayEntry.inspection.fsisno
-                                          : EMPTY_GUID,
-                                      );
-                                      setRevisionDate(
-                                        normalizeDateKey(dayEntry.inspection.dateinspected) ||
-                                          dayEntry.key,
-                                      );
-                                      setRevisionOpen(true);
-                                    }}
-                                  />
-                                </div>
-                              )
-                            ) : null}
-                          </td>
-                          <td
-                            rowSpan={2}
-                            className={`sticky left-[96px] z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd}`}
-                          >
-                            <div className="flex items-center gap-2 whitespace-nowrap">
-                              {dayEntry.isLocked && <Lock className="h-3 w-3 shrink-0 text-warning" />}
-                              <span
-                                className={
-                                  rowTotal > 0
-                                    ? "text-primary-700 dark:text-primary-300 font-semibold"
-                                    : ""
-                                }
-                              >
-                                {dayEntry.label}
-                              </span>
-                            </div>
-                          </td>
-
-                          {DETAIL_FIELDS.flatMap((field) => {
-                            if (!isInspectionKey(String(field.key))) return [];
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num(dayEntry.inspection[apiKey]) : 0;
-                            const targetKey = INSP_TARGET_FIELDS[String(field.key)];
-                            const cells: React.ReactNode[] = [];
-                            if (targetKey) {
-                              cells.push(
-                                <td
-                                  key={`${String(field.key)}__target`}
-                                  rowSpan={2}
-                                  className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
-                                >
-                                  {num(dayEntry.inspection[targetKey]).toLocaleString()}
-                                </td>,
-                              );
-                            }
-                            cells.push(
-                              <td
-                                key={String(field.key)}
-                                rowSpan={2}
-                                className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle"
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "inspection")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>,
-                            );
-                            return cells;
-                          })}
-                          <td
-                            className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
-                          >
-                            MANUAL
-                          </td>
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("fsec_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "manual")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("fsic_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "manual")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("not_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.manual as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "manual")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          <td
-                            rowSpan={2}
-                            className="border-b border-r px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
-                          >
-                            {DETAIL_FIELDS.reduce(
-                              (sum, f) =>
-                                sum + num(dayEntry.totals[f.key as keyof ComplianceDailyCounts]),
-                              0,
-                            ).toLocaleString()}
-                          </td>
-                          <td
-                            rowSpan={2}
-                            className="border-b px-2 py-1.5 text-left align-middle text-[10px]"
-                          >
-                            {dayEntry.isLocked ? (
-                              <span className="text-muted-foreground">
-                                {dayEntry.inspection.remarks || "—"}
-                              </span>
-                            ) : (
-                              <Input
-                                type="text"
-                                value={dayEntry.inspection.remarks ?? ""}
-                                onChange={(e) => updateDayRemarks(dayEntry.key, e.target.value)}
-                                placeholder="Remarks"
-                                className="h-8 w-full min-w-[160px] rounded-sm border-border/70 bg-white/90 px-2 py-1 text-[11px]"
-                              />
-                            )}
-                          </td>
-                        </tr>
-
-                        <tr
-                          className={
-                            dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd
-                          }
-                        >
-                          <td
-                            className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
-                          >
-                            FSIS
-                          </td>
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("fsec_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "fsis")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("fsic_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "fsis")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                          {DETAIL_FIELDS.map((field) => {
-                            if (!field.key.startsWith("not_")) return null;
-                            const apiKey = FIELD_TO_API[String(field.key)];
-                            const value = apiKey ? num((dayEntry.fsis as any)[apiKey]) : 0;
-                            return (
-                              <td
-                                key={String(field.key)}
-                                className={`border-b border-r px-2 py-1.5 ${dayEntry.isLocked ? "text-center" : "text-center"}`}
-                              >
-                                {dayEntry.isLocked ? (
-                                  <span className="text-muted-foreground">
-                                    {value.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <NumericInput
-                                    value={value}
-                                    onValueChange={(raw) =>
-                                      updateDayField(dayEntry.key, String(field.key), raw, "fsis")
-                                    }
-                                    className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner"
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-                <tfoot className="sticky bottom-0 z-20">
-                  <tr className="total-row font-bold text-foreground">
-                    <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide"></td>
-                    <td className="sticky left-[96px] z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
-                      Total
-                    </td>
-                    {(() => {
-                      const modeSpacerIndex = DETAIL_FIELDS.findIndex((f) =>
-                        String(f.key).startsWith("fsec_"),
-                      );
-                      return DETAIL_FIELDS.flatMap((field, idx) => {
-                        const columnTotal = days.reduce(
-                          (sum, d) => sum + num(d.totals[field.key as keyof ComplianceDailyCounts]),
-                          0,
-                        );
-                        const cells: React.ReactNode[] = [];
-                        if (idx === modeSpacerIndex) {
-                          cells.push(
-                            <td
-                              key="__mode_spacer__"
-                              className="border-r border-t-2 border-grid-strong total-row px-2 py-2"
-                            />,
-                          );
-                        }
-                        const targetKey = INSP_TARGET_FIELDS[String(field.key)];
-                        if (targetKey) {
-                          const targetTotal = days.reduce(
-                            (sum, d) => sum + num(d.inspection[targetKey]),
-                            0,
-                          );
-                          cells.push(
-                            <td
-                              key={`${String(field.key)}__target`}
-                              className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums text-muted-foreground"
-                            >
-                              {targetTotal.toLocaleString()}
-                            </td>,
-                          );
-                        }
-                        cells.push(
-                          <td
-                            key={String(field.key)}
-                            className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
-                          >
-                            {columnTotal.toLocaleString()}
-                          </td>,
-                        );
-                        return cells;
-                      });
-                    })()}
-                    <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
-                      {days
-                        .reduce(
-                          (sum, d) =>
-                            sum +
-                            DETAIL_FIELDS.reduce(
-                              (rowSum, f) =>
-                                rowSum + num(d.totals[f.key as keyof ComplianceDailyCounts]),
-                              0,
-                            ),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </td>
-                    <td className="border-t-2 border-grid-strong total-row px-3 py-2" />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* General Remarks card */}
-      <Card className="mt-4">
-        <div className="space-y-2 border-t border-border/60 p-4">
-          <label className="text-xs font-medium text-muted-foreground">
-            General Remarks (applies to all days)
-          </label>
-          <Textarea
-            rows={3}
-            placeholder="Additional notes…"
-            className="mt-2"
-            disabled={allLocked}
+        {issuanceExpanded && (
+          <ActivityTable
+            days={days}
+            stationno={stationno}
+            inspectionLabel="Inspection"
+            inspectionCols={INSPECT_COLS}
+            groups={[
+              { label: "FSEC", cols: FSEC_COLS },
+              { label: "FSIC", cols: FSIC_COLS },
+              { label: "Issued Notices", cols: NOTICE_COLS },
+            ]}
+            rowTotal={inspectionRowTotal}
+            onInspectionChange={updateInspectionField}
+            onIssuanceChange={updateIssuanceField}
+            onRequestRevision={openRevisionRequest}
+            onCancelRevision={setCancelRequestId}
+            onDeleteRevision={setDeleteRequestId}
           />
-        </div>
+        )}
+      </Card>
+
+      {/* Daily Reinspection ---------------------------------------------------- */}
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Reinspection Activities"
+          subtitle="Reinspection, RE-FSIC and re-issued notices"
+          expanded={reinspectionExpanded}
+          onToggle={() => setReinspectionExpanded((v) => !v)}
+        />
+
+        {reinspectionExpanded && (
+          <ActivityTable
+            days={days}
+            stationno={stationno}
+            inspectionLabel="Reinspection"
+            inspectionCols={REINSPECT_COLS}
+            groups={[
+              { label: "RE-FSIC", cols: REFSIC_COLS },
+              { label: "Re-Issued Notices", cols: RENOTICE_COLS },
+            ]}
+            rowTotal={reinspectionRowTotal}
+            onInspectionChange={updateInspectionField}
+            onIssuanceChange={updateIssuanceField}
+            onRequestRevision={openRevisionRequest}
+            onCancelRevision={setCancelRequestId}
+            onDeleteRevision={setDeleteRequestId}
+          />
+        )}
       </Card>
 
       {/* Actions ------------------------------------------------------------ */}
@@ -2390,7 +1114,7 @@ function ComplianceEditBody({
         </Button>
       </div>
 
-      <AlertDialog open={confirmLeave !== null} onOpenChange={(o) => !o && setConfirmLeave(null)}>
+      <AlertDialog open={confirmLeave} onOpenChange={setConfirmLeave}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
@@ -2403,7 +1127,7 @@ function ComplianceEditBody({
             <AlertDialogCancel>Keep editing</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setConfirmLeave(null);
+                setConfirmLeave(false);
                 onCancel();
               }}
             >
@@ -2491,6 +1215,347 @@ function ComplianceEditBody({
   );
 }
 
+/* ========================================================================== */
+/*  Day table (shared by the inspection and reinspection cards)              */
+/* ========================================================================== */
+
+const CELL_INPUT_CLASS =
+  "h-8 w-full rounded-sm border-border/70 bg-white/90 px-1 py-1 text-center tabular-nums no-spinner";
+
+function ActivityTable({
+  days,
+  stationno,
+  inspectionLabel,
+  inspectionCols,
+  groups,
+  rowTotal,
+  onInspectionChange,
+  onIssuanceChange,
+  onRequestRevision,
+  onCancelRevision,
+  onDeleteRevision,
+}: {
+  days: DayWithRevision[];
+  stationno: string;
+  inspectionLabel: string;
+  inspectionCols: InspectionCol[];
+  groups: { label: string; cols: IssuanceCol[] }[];
+  rowTotal: (day: EditableDay) => number;
+  onInspectionChange: (dayKey: string, field: InspectionField, raw: string) => void;
+  onIssuanceChange: (
+    dayKey: string,
+    mode: "manual" | "fsis",
+    field: IssuanceField,
+    raw: string,
+  ) => void;
+  onRequestRevision: (day: EditableDay) => void;
+  onCancelRevision: (requestno: string) => void;
+  onDeleteRevision: (requestno: string) => void;
+}) {
+  const inspectionColspan = inspectionCols.reduce((n, c) => n + (c.target ? 2 : 1), 0);
+  const issuanceCols = groups.flatMap((g) => g.cols);
+
+  const issuanceCells = (day: DayWithRevision, mode: "manual" | "fsis") =>
+    issuanceCols.map((col) => {
+      const value = num(day[mode][col.api]);
+      return (
+        <td
+          key={col.api}
+          className="min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 text-center"
+        >
+          {day.isLocked ? (
+            <span className="text-muted-foreground">{value.toLocaleString()}</span>
+          ) : (
+            <NumericInput
+              value={value}
+              onValueChange={(raw) => onIssuanceChange(day.key, mode, col.api, raw)}
+              className={CELL_INPUT_CLASS}
+            />
+          )}
+        </td>
+      );
+    });
+
+  return (
+    <div
+      className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
+      style={{ maxHeight: "74vh" }}
+    >
+      <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
+        <thead className="sticky top-0 z-30">
+          <tr>
+            <th
+              rowSpan={3}
+              className={`sticky left-0 top-0 z-40 min-w-[96px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+            >
+              Action
+            </th>
+            <th
+              rowSpan={3}
+              className={`sticky left-[96px] top-0 z-40 min-w-[180px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+            >
+              Date
+            </th>
+            <th
+              colSpan={inspectionColspan}
+              className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerSoft}`}
+            >
+              {inspectionLabel}
+            </th>
+            <th
+              rowSpan={3}
+              className={`sticky top-0 z-30 border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
+            >
+              Mode of
+              <br />
+              Issuance
+            </th>
+            {groups.map((g) => (
+              <th
+                key={g.label}
+                colSpan={g.cols.length}
+                className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerSoft}`}
+              >
+                {g.label}
+              </th>
+            ))}
+            <th
+              rowSpan={3}
+              className={`sticky top-0 z-30 border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
+            >
+              Total
+            </th>
+          </tr>
+          <tr>
+            {inspectionCols.map((col) => (
+              <th
+                key={col.api}
+                rowSpan={col.target ? 1 : 2}
+                colSpan={col.target ? 2 : 1}
+                className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[72px] ${MONITORING_THEME.headerSofter}`}
+              >
+                {col.label}
+              </th>
+            ))}
+            {issuanceCols.map((col) => (
+              <th
+                key={col.api}
+                rowSpan={2}
+                className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[72px] ${MONITORING_THEME.headerSofter}`}
+              >
+                {col.label}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            {inspectionCols
+              .filter((col) => col.target)
+              .flatMap((col) => [
+                <th
+                  key={`${col.api}__target`}
+                  className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                >
+                  Target
+                </th>,
+                <th
+                  key={`${col.api}__accomplished`}
+                  className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                >
+                  <span className="block leading-[1.1]">accomplished</span>
+                </th>,
+              ])}
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((day, dayIndex) => {
+            const zebra = dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd;
+            const total = rowTotal(day);
+            const rev = day.rev;
+            const showRevisionAction = rev.pending || rev.needsRequest;
+
+            return (
+              <React.Fragment key={day.key}>
+                <tr className={zebra}>
+                  <td
+                    rowSpan={2}
+                    className={`sticky left-0 z-20 min-w-[96px] border-b border-r px-2 py-1.5 align-middle text-center ${zebra}`}
+                  >
+                    {showRevisionAction ? (
+                      rev.pending ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <EditButton
+                            variant="square"
+                            tooltip="Cancel Revision Request"
+                            ariaLabel="Cancel Revision Request"
+                            icon={<Ban className="h-4 w-4" />}
+                            onClick={() => {
+                              if (rev.req) onCancelRevision(rev.req.requestno);
+                              else toast.info("No active revision request to cancel.");
+                            }}
+                          />
+                          <DeleteButton
+                            variant="square"
+                            tooltip="Delete Revision Request"
+                            ariaLabel="Delete Revision Request"
+                            icon={<Trash2 className="h-4 w-4" />}
+                            onClick={() => {
+                              if (rev.req) onDeleteRevision(rev.req.requestno);
+                              else toast.info("No revision request to delete.");
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <EditButton
+                            variant="square"
+                            tooltip={
+                              !stationno
+                                ? "Select a station to request a revision"
+                                : "Request Revision"
+                            }
+                            ariaLabel={
+                              !stationno
+                                ? "Select a station to request a revision"
+                                : "Request Revision"
+                            }
+                            disabled={!stationno}
+                            icon={<FilePen className="h-4 w-4" />}
+                            onClick={() => onRequestRevision(day)}
+                          />
+                        </div>
+                      )
+                    ) : null}
+                  </td>
+                  <td
+                    rowSpan={2}
+                    className={`sticky left-[96px] z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${zebra}`}
+                  >
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      {day.isLocked && <Lock className="h-3 w-3 shrink-0 text-warning" />}
+                      <span
+                        className={
+                          total > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""
+                        }
+                      >
+                        {day.label}
+                      </span>
+                    </div>
+                  </td>
+
+                  {inspectionCols.flatMap((col) => {
+                    const value = num(day.inspection[col.api]);
+                    const cells: React.ReactNode[] = [];
+                    if (col.target) {
+                      cells.push(
+                        <td
+                          key={`${col.api}__target`}
+                          rowSpan={2}
+                          className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
+                        >
+                          {num(day.inspection[col.target]).toLocaleString()}
+                        </td>,
+                      );
+                    }
+                    cells.push(
+                      <td
+                        key={col.api}
+                        rowSpan={2}
+                        className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle"
+                      >
+                        {day.isLocked ? (
+                          <span className="text-muted-foreground">{value.toLocaleString()}</span>
+                        ) : (
+                          <NumericInput
+                            value={value}
+                            onValueChange={(raw) => onInspectionChange(day.key, col.api, raw)}
+                            className={CELL_INPUT_CLASS}
+                          />
+                        )}
+                      </td>,
+                    );
+                    return cells;
+                  })}
+
+                  <td
+                    className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                  >
+                    MANUAL
+                  </td>
+                  {issuanceCells(day, "manual")}
+
+                  <td
+                    rowSpan={2}
+                    className="border-b border-r px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
+                  >
+                    {total.toLocaleString()}
+                  </td>
+                </tr>
+
+                <tr className={zebra}>
+                  <td
+                    className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                  >
+                    FSIS
+                  </td>
+                  {issuanceCells(day, "fsis")}
+                </tr>
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+        <tfoot className="sticky bottom-0 z-20">
+          <tr className="total-row font-bold text-foreground">
+            <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2" />
+            <td className="sticky left-[96px] z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
+              Total
+            </td>
+            {inspectionCols.flatMap((col) => {
+              const cells: React.ReactNode[] = [];
+              if (col.target) {
+                const targetField = col.target;
+                cells.push(
+                  <td
+                    key={`${col.api}__target`}
+                    className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums text-muted-foreground"
+                  >
+                    {days
+                      .reduce((sum, d) => sum + num(d.inspection[targetField]), 0)
+                      .toLocaleString()}
+                  </td>,
+                );
+              }
+              cells.push(
+                <td
+                  key={col.api}
+                  className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                >
+                  {days.reduce((sum, d) => sum + num(d.inspection[col.api]), 0).toLocaleString()}
+                </td>,
+              );
+              return cells;
+            })}
+            <td className="border-r border-t-2 border-grid-strong total-row px-2 py-2" />
+            {issuanceCols.map((col) => (
+              <td
+                key={col.api}
+                className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+              >
+                {days
+                  .reduce((sum, d) => sum + num(d.manual[col.api]) + num(d.fsis[col.api]), 0)
+                  .toLocaleString()}
+              </td>
+            ))}
+            <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
+              {days.reduce((sum, d) => sum + rowTotal(d), 0).toLocaleString()}
+            </td>
+            
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Presentational helpers                                                     */
 /* -------------------------------------------------------------------------- */
@@ -2512,7 +1577,11 @@ function SectionTitle({
 
   return (
     <div
-      className={onToggle ? "flex items-center justify-between gap-3 cursor-pointer select-none" : "flex items-center justify-between gap-3"}
+      className={
+        onToggle
+          ? "flex items-center justify-between gap-3 cursor-pointer select-none"
+          : "flex items-center justify-between gap-3"
+      }
       onClick={onToggle}
       role={onToggle ? "button" : undefined}
       aria-expanded={onToggle ? expanded : undefined}
@@ -2534,7 +1603,9 @@ function SectionTitle({
       </h2>
       <div className="flex items-center gap-2">
         {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
-        {onToggle && <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />}
+        {onToggle && (
+          <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+        )}
       </div>
     </div>
   );

@@ -10,7 +10,6 @@ import {
   FilePlus2,
   Loader2,
   Save,
-  Building2,
   Target,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
@@ -19,7 +18,6 @@ import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -141,6 +139,12 @@ function toInspectedDate(date: Date): string {
   return new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
   ).toISOString();
+}
+
+/** Normalises any raw input into a non-negative whole number. */
+function toCount(raw: string): number {
+  const cleaned = raw.replace(/[^0-9]/g, "");
+  return cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -302,13 +306,11 @@ function DailyPickInspected(m: TargetAccomplishmentModel, k: DailyCategoryKey): 
 function InspectionsNewBody({
   onSaved,
   onCancel,
-  onEditExisting,
   initialYear,
   initialMonth,
 }: {
   onSaved?: () => void;
   onCancel?: () => void;
-  onEditExisting?: (stationno: string, year: number, month: number, stationName?: string) => void;
   initialYear?: number;
   initialMonth?: number;
 }) {
@@ -408,14 +410,7 @@ function InspectionsNewBody({
   const [remarks, setRemarks] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
-  const [duplicatePrompted, setDuplicatePrompted] = React.useState(false);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = React.useState(false);
-  const [pendingDuplicateTarget, setPendingDuplicateTarget] = React.useState<{
-    stationno: string;
-    year: number;
-    month: number;
-    stationName?: string;
-  } | null>(null);
 
   const year = reportingDate.getFullYear();
   const month = reportingDate.getMonth() + 1;
@@ -615,13 +610,6 @@ function InspectionsNewBody({
         const key = `${activeStationNo}|${selectedDateKey}`;
         if (promptedDateKeyRef.current !== key) {
           promptedDateKeyRef.current = key;
-          setPendingDuplicateTarget({
-            stationno: activeStationNo,
-            year: reportingDate.getFullYear(),
-            month: reportingDate.getMonth() + 1,
-            stationName: station.name || user?.stationname,
-          });
-          setDuplicatePrompted(true);
           setDuplicateDialogOpen(true);
         } else if (locked) {
           plotExistingRecord(record);
@@ -630,9 +618,7 @@ function InspectionsNewBody({
         // No record for this date → clean CREATE, but the daily targets still
         // come back at the root of the Detail/Date response, so keep them.
         promptedDateKeyRef.current = null;
-        setDuplicatePrompted(false);
         setDuplicateDialogOpen(false);
-        setPendingDuplicateTarget(null);
         resetExistingRecord();
         clearFormValues();
 
@@ -775,10 +761,7 @@ function InspectionsNewBody({
   /* --------------------------- Numeric handlers --------------------------- */
 
   const setNumericField = (key: string, raw: string) => {
-    // Strip anything that isn't a digit — enforces integer + non-negative.
-    const cleaned = raw.replace(/[^0-9]/g, "");
-    const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
-    setNumeric((prev) => ({ ...prev, [key]: value }));
+    setNumeric((prev) => ({ ...prev, [key]: toCount(raw) }));
     if (errors[key]) setErrors((e) => ({ ...e, [key]: "" }));
   };
 
@@ -823,7 +806,6 @@ function InspectionsNewBody({
         toast.error("Your session is missing an encoder ID. Please sign in again.");
         return;
       }
-
 
       const buildIssuance = (
         mode: number,
@@ -912,7 +894,6 @@ function InspectionsNewBody({
    */
   const handleDuplicateConfirm = () => {
     if (pendingExistingRecord) plotExistingRecord(pendingExistingRecord);
-    setPendingDuplicateTarget(null);
     setDuplicateDialogOpen(false);
   };
 
@@ -925,7 +906,6 @@ function InspectionsNewBody({
       plotExistingRecord(pendingExistingRecord);
       return;
     }
-    setPendingDuplicateTarget(null);
     setExistingFsisno(null);
     setExistingIssuanceNos({});
   };
@@ -1185,7 +1165,9 @@ function InspectionsNewBody({
                             className="px-4 py-2 text-center tabular-nums font-medium"
                             style={{
                               color:
-                                r.percentage >= 100 ? DAILY_SERIES.positive : DAILY_SERIES.inspected,
+                                r.percentage >= 100
+                                  ? DAILY_SERIES.positive
+                                  : DAILY_SERIES.inspected,
                             }}
                           >
                             {`${r.percentage.toFixed(2)}%`}
@@ -1396,9 +1378,6 @@ function InspectionsNewBody({
         )}
       </div>
 
-      {/* Track auth context so unused-var lint stays quiet in stand-alone mode. */}
-      <input type="hidden" value={user?.memberno ?? ""} readOnly />
-
       <ConfirmDialog
         open={duplicateDialogOpen}
         onOpenChange={handleDuplicateDialogOpenChange}
@@ -1542,13 +1521,13 @@ export function InspectionsNewModal({
   open,
   onOpenChange,
   onSaved,
-  onEditExisting,
   initialYear,
   initialMonth,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onSaved?: () => void;
+  /** Kept for API compatibility — existing records are now edited inline. */
   onEditExisting?: (stationno: string, year: number, month: number, stationName?: string) => void;
   initialYear?: number;
   initialMonth?: number;
@@ -1587,10 +1566,6 @@ export function InspectionsNewModal({
                   onOpenChange(false);
                 }}
                 onCancel={() => onOpenChange(false)}
-                onEditExisting={(stationno, year, month, stationName) => {
-                  onOpenChange(false);
-                  onEditExisting?.(stationno, year, month, stationName);
-                }}
               />
             ) : null}
           </div>
@@ -1664,11 +1639,8 @@ function IssuanceTable({
 }) {
   const makeHandler = React.useCallback(
     (setter: React.Dispatch<React.SetStateAction<Record<string, number>>>) =>
-      (key: string, raw: string) => {
-        const cleaned = raw.replace(/[^0-9]/g, "");
-        const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
-        setter((prev) => ({ ...prev, [key]: value }));
-      },
+      (key: string, raw: string) =>
+        setter((prev) => ({ ...prev, [key]: toCount(raw) })),
     [],
   );
 
@@ -1884,59 +1856,21 @@ function ReinspectionPanel({
   return (
     <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
       <div className="mb-3 text-sm font-semibold text-foreground">Reinspection</div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {/* Left column: Occupancy, GOV, TIEZA */}
-        <div className="space-y-1.5">
-          {REINSPECTION_PANEL_FIELDS.filter((f) =>
-            ["reinsp_occupancy", "reinsp_gov", "reinsp_tieza"].includes(f.key),
-          ).map((f) => (
-            <div key={f.key} className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
-                {f.label} <span className="text-destructive">*</span>
-              </Label>
-              <NumericInput
-                value={values[f.key]}
-                disabled={Boolean(locked)}
-                readOnly={Boolean(locked)}
-                onValueChange={(raw) => {
-                  const cleaned = raw.replace(/[^0-9]/g, "");
-                  setValues((prev) => ({
-                    ...prev,
-                    [f.key]: cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0),
-                  }));
-                }}
-                className={cn("tabular-nums", locked && "cursor-not-allowed opacity-60")}
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Right column: empty spacer, then BPLO, PEZA */}
-        <div className="space-y-1.5">
-          <div />
-          {REINSPECTION_PANEL_FIELDS.filter((f) => ["reinsp_bplo", "reinsp_peza"].includes(f.key)).map(
-            (f) => (
-              <div key={f.key} className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  {f.label} <span className="text-destructive">*</span>
-                </Label>
-                <NumericInput
-                  value={values[f.key]}
-                  disabled={Boolean(locked)}
-                  readOnly={Boolean(locked)}
-                  onValueChange={(raw) => {
-                    const cleaned = raw.replace(/[^0-9]/g, "");
-                    setValues((prev) => ({
-                      ...prev,
-                      [f.key]: cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0),
-                    }));
-                  }}
-                  className={cn("tabular-nums", locked && "cursor-not-allowed opacity-60")}
-                />
-              </div>
-            ),
-          )}
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {REINSPECTION_PANEL_FIELDS.map((f) => (
+          <div key={f.key} className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              {f.label} <span className="text-destructive">*</span>
+            </Label>
+            <NumericInput
+              value={values[f.key]}
+              disabled={Boolean(locked)}
+              readOnly={Boolean(locked)}
+              onValueChange={(raw) => setValues((prev) => ({ ...prev, [f.key]: toCount(raw) }))}
+              className={cn("tabular-nums", locked && "cursor-not-allowed opacity-60")}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1957,11 +1891,8 @@ function ReinspectionTable({
 }) {
   const makeHandler = React.useCallback(
     (setter: React.Dispatch<React.SetStateAction<Record<string, number>>>) =>
-      (key: string, raw: string) => {
-        const cleaned = raw.replace(/[^0-9]/g, "");
-        const value = cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0);
-        setter((prev) => ({ ...prev, [key]: value }));
-      },
+      (key: string, raw: string) =>
+        setter((prev) => ({ ...prev, [key]: toCount(raw) })),
     [],
   );
 
@@ -1981,13 +1912,13 @@ function ReinspectionTable({
     subHeadClass: string;
   }[] = [
     {
-      title: "FSIC",
+      title: "FE-FSIC",
       fields: REINSPECTION_FSIC_FIELDS,
       headClass: MONITORING_THEME.headerGroup,
       subHeadClass: MONITORING_THEME.headerSoft,
     },
     {
-      title: "NOTICES",
+      title: "RE-ISSUED NOTICES",
       fields: REINSPECTION_NOTICE_FIELDS,
       headClass: MONITORING_THEME.headerGroup,
       subHeadClass: MONITORING_THEME.headerSoft,
@@ -2159,40 +2090,6 @@ function Field({
   );
 }
 
-function NumericGrid({
-  fields,
-  values,
-  errors,
-  onChange,
-  disabled,
-}: {
-  fields: NumericFieldSpec[];
-  values: Record<string, number>;
-  errors: Record<string, string>;
-  onChange: (key: string, raw: string) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {fields.map((f) => (
-        <Field key={f.key} label={f.label} tooltip={f.tooltip} required error={errors[f.key]}>
-          <NumericInput
-            value={values[f.key]}
-            disabled={disabled}
-            readOnly={disabled}
-            onValueChange={(raw) => onChange(f.key, raw)}
-            className={cn(
-              "tabular-nums",
-              errors[f.key] && "border-destructive focus-visible:ring-destructive",
-              disabled && "cursor-not-allowed opacity-60",
-            )}
-          />
-        </Field>
-      ))}
-    </div>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /*  Inspection matrix — three-column layout                                   */
 /*    Col 1: activity labels grouped by heading                               */
@@ -2258,49 +2155,5 @@ function InspectionMatrix({
         </div>
       </div>
     </div>
-  );
-}
-
-function ReadOnlyTile({
-  label,
-  value,
-  loading,
-  placeholder = "—",
-  tone = "muted",
-}: {
-  label: string;
-  value: number | null;
-  loading?: boolean;
-  placeholder?: string;
-  tone?: "muted" | "primary" | "success" | "warning";
-}) {
-  const toneCls =
-    tone === "primary"
-      ? "text-primary"
-      : tone === "success"
-        ? "text-success"
-        : tone === "warning"
-          ? "text-warning"
-          : "text-foreground";
-  return (
-    <Card className="border-border/60 bg-muted/30 p-4 shadow-none">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div
-        className={cn(
-          "mt-1 flex h-8 items-center text-2xl font-bold tabular-nums tracking-tight",
-          toneCls,
-        )}
-      >
-        {loading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        ) : value === null ? (
-          <span className="text-sm font-normal text-muted-foreground">{placeholder}</span>
-        ) : (
-          value.toLocaleString()
-        )}
-      </div>
-    </Card>
   );
 }
