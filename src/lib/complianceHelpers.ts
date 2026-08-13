@@ -25,13 +25,9 @@ export const CATEGORY_FIELDS: Record<
     { key: "insp_during", label: "During" },
     { key: "insp_after", label: "After" },
     { key: "insp_bplo", label: "BPLO" },
-    { key: "reinsp_bplo", label: "RE-INSPECTION" },
     { key: "insp_gov", label: "GOV" },
-    { key: "reinsp_gov", label: "RE-INSPECTION" },
     { key: "insp_peza", label: "PEZA" },
-    { key: "reinsp_peza", label: "RE-INSPECTION" },
     { key: "insp_tieza", label: "TIEZA" },
-    { key: "reinsp_tieza", label: "RE-INSPECTION" },
   ],
   FSEC: [
     { key: "fsec_building", label: "Building" },

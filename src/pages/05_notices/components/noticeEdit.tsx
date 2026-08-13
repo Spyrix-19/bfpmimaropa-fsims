@@ -1134,7 +1134,11 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
               </table>
             </div>
 
-            <div className="space-y-2 border-t border-border/60 pt-5">
+          </Card>
+
+          {/* General Remarks card */}
+          <Card className="mt-4">
+            <div className="space-y-2 border-t border-border/60 p-4">
               <label className="text-xs font-medium text-muted-foreground">
                 General Remarks (applies to all days)
               </label>
