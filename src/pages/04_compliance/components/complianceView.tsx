@@ -569,10 +569,10 @@ function ComplianceViewBody({
         ]}
       />
 
-      {/* Daily Dashboard ------------------------------------------------------ */}
+      {/* Monthly Dashboard ------------------------------------------------------ */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
-          title="Daily Dashboard"
+          title="Monthly Dashboard"
           subtitle={`Reporting month · ${monthName} ${selectedYear}`}
           expanded={dashboardExpanded}
           onToggle={() => setDashboardExpanded((v) => !v)}
