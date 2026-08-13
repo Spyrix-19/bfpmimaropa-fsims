@@ -7,13 +7,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import {
   ClipboardList,
@@ -22,10 +15,7 @@ import {
   Loader2,
   CalendarDays,
   Plus,
-  Grid3x3,
   Download,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 
 import ComplianceMatrixTable from "./complianceMatrix.tsx";
@@ -34,31 +24,24 @@ import { ComplianceEditModal } from "./components/complianceEdit.tsx";
 import { InspectionsNewModal } from "./components/complianceNew.tsx";
 import TargetAccomplishmentPanel from "./components/TargetAccomplishmentPanel.tsx";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
-import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
+import { MONTHS } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
-import { toISODate } from "@/lib/filters";
+import { toISODate, getYearWeekRanges } from "@/lib/filters";
 import PaginationControls from "@/components/pagination";
-import ResetFiltersButton from "@/components/reset-filters-button";
 import {
   ModuleFilterBar,
   useModuleFilterState,
   baseDate,
   isAllDays,
   resolveModuleMonths,
-  resolveSelectedDay,
 } from "@/components/shared/ModuleFilterBar";
 import { type CompliancePeriod, type ComplianceExportRecord } from "./components/complianceExport";
 import { exportComplianceGridWorkbook } from "./components/complianceGridExport";
 
-import FilterField from "@/components/filter-field";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import LocationSearchSelect from "@/components/location-search-select";
-import StationSearchSelect from "@/components/station-search-select";
-
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
-import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 
 // Monthly ledger queries are moved to the editor modal to avoid
 // calling the heavy Monthly endpoint on the main listing view.
@@ -68,7 +51,6 @@ import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import {
-  CATEGORY_FIELDS,
   calendarDaysInMonth,
   countDaysWithData,
   isValidRecordId,
@@ -88,7 +70,6 @@ import type {
 type FSISComplianceMonthlyItem = FSISComplianceMonthlyLedgerModel;
 type FSISComplianceLedgerDailyItem = FSISComplianceDailyClass &
   Partial<FSISIssuanceClassModel> & { dateinspected?: string | Date };
-import type { SearchStationModel } from "@/types/stationTypes";
 
 function getComplianceList(station: unknown): FSISComplianceModel["compliancelist"] {
   if (!station || typeof station !== "object") return [];
@@ -322,23 +303,61 @@ export default function FireSafetyCompliancePage() {
       ? "SEMI-ANNUAL"
       : (filterState.interval as CompliancePeriod);
 
-  /** Backend interval code: 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual. */
+  /**
+   * Backend interval code for the FSISCompliance contract:
+   * 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual.
+   * WEEKLY is a sub-month range, so it reports at daily granularity.
+   */
   const intervalCode = React.useMemo(() => {
     switch (filterState.interval) {
       case "DAILY":
-        return 1;
       case "WEEKLY":
-        return 2;
+        return 1;
       case "MONTHLY":
-        return 3;
+        return 2;
       case "QUARTERLY":
-        return 4;
+        return 3;
       case "SEMESTER":
-        return 5;
+        return 4;
       default:
-        return 6;
+        return 5;
     }
   }, [filterState.interval]);
+
+  /* ------------------------- Weekly day resolution -------------------------
+   * The ledger endpoint always answers with whole months, so a WEEKLY
+   * selection must be narrowed client-side to the days its weeks actually
+   * cover. Without this every line and total would include the whole month. */
+  const selectedWeeks = React.useMemo(() => {
+    if (filterState.interval !== "WEEKLY") return [];
+    if (!filterState.week || filterState.week === "all") return [];
+    return filterState.week
+      .split(",")
+      .map((part) => Number(part.trim().replace(/^w/i, "")))
+      .filter((week) => Number.isFinite(week) && week >= 1 && week <= 53)
+      .sort((a, b) => a - b);
+  }, [filterState.interval, filterState.week]);
+  const weeksKey = selectedWeeks.join(",");
+
+  /** ISO date -> week number of the selected year (Sunday-based, matching the filter). */
+  const weekByDate = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const range of getYearWeekRanges(Number(year) || new Date().getFullYear())) {
+      const cursor = new Date(range.start);
+      while (cursor <= range.end) {
+        map.set(toISODate(cursor), range.week);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    return map;
+  }, [year]);
+
+  /** Only set when specific weeks are picked; `null` means "no week narrowing". */
+  const allowedWeeks = React.useMemo(
+    () => (selectedWeeks.length ? new Set(selectedWeeks) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [weeksKey],
+  );
 
   /** Header caption for aggregated cards, e.g. "Q1 2026" or "Jan – Mar 2026". */
   const periodLabel = React.useMemo(() => {
@@ -346,14 +365,11 @@ export default function FireSafetyCompliancePage() {
     const name = (m: number) => MONTHS.find((x) => x.value === m)?.name ?? String(m);
     switch (filterState.interval) {
       case "WEEKLY":
-        if (!filterState.week || filterState.week === "all") return `All Weeks ${year}`;
-        const selectedWeeks = filterState.week
-          .split(",")
-          .map((part) => Number(part.trim().replace(/^w/i, "")))
-          .filter((v) => Number.isFinite(v) && v >= 1 && v <= 53);
+        if (!selectedWeeks.length) return `All Weeks ${year}`;
         return selectedWeeks.length > 1
           ? `${selectedWeeks.length} Weeks ${year}`
-          : `Week ${selectedWeeks[0] ?? 1} ${year}`;
+          : `Week ${selectedWeeks[0]} ${year}`;
+
       case "ANNUAL":
         return `Annual ${year}`;
       case "QUARTERLY":
@@ -374,10 +390,23 @@ export default function FireSafetyCompliancePage() {
     filterState.interval,
     filterState.quarter,
     filterState.semester,
-    filterState.week,
+    selectedWeeks,
     selectedMonths,
     year,
   ]);
+
+  /** Card captions follow the active period (daily / specific date / monthly / specific month). */
+  const activityTitles = React.useMemo(
+    () =>
+      getActivityTitles({
+        interval: filterState.interval,
+        allDates,
+        selectedDateISO,
+        selectedMonths,
+        periodLabel,
+      }),
+    [filterState.interval, allDates, selectedDateISO, selectedMonths, periodLabel],
+  );
 
   const ledgerGranularity: LedgerGranularity = React.useMemo(() => {
     switch (filterState.interval) {
@@ -553,7 +582,7 @@ export default function FireSafetyCompliancePage() {
 
         if (isAggregated) {
           // One card per station covering the whole period; the ledger below
-          // renders one summed line per month.
+          // renders one summed line per period bucket.
           for (const st of stations) {
             const item = baseItem(st, Number(month));
             for (const rec of getComplianceList(st)) {
@@ -561,6 +590,11 @@ export default function FireSafetyCompliancePage() {
               if (!iso || iso.startsWith("1900")) continue;
               const m = Number(iso.slice(5, 7)) || 0;
               if (!m || !monthSet.has(m)) continue;
+              // WEEKLY narrows the returned month down to the picked weeks.
+              if (allowedWeeks) {
+                const week = weekByDate.get(iso);
+                if (!week || !allowedWeeks.has(week)) continue;
+              }
               item.complianceLedgerList.push(
                 normalizeRec(
                   rec,
@@ -606,6 +640,7 @@ export default function FireSafetyCompliancePage() {
       cancelled = true;
       controller.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     year,
     month,
@@ -614,7 +649,7 @@ export default function FireSafetyCompliancePage() {
     intervalCode,
     selectedDateISO,
     allDates,
-
+    weeksKey,
     locationParamsKey,
     refreshTick,
     page,
@@ -629,6 +664,7 @@ export default function FireSafetyCompliancePage() {
     isAggregated,
     selectedDateISO,
     allDates,
+    weeksKey,
     locationParamsKey,
     pageSize,
     setPage,
@@ -866,8 +902,10 @@ export default function FireSafetyCompliancePage() {
               dateISO={allDates ? null : selectedDateISO}
               groupBy={ledgerGranularity}
               periodLabel={periodLabel}
-              locked={!canManage}
+              titles={activityTitles}
+              weekByDate={weekByDate}
 
+              locked={!canManage}
               onView={() => setViewTarget(r)}
               onEdit={() => setEditTarget(r)}
               onDelete={() => askDelete(r)}
@@ -1013,137 +1051,157 @@ export default function FireSafetyCompliancePage() {
 
 /* ------------------------------ Ledger ------------------------------ */
 
+type LedgerGranularity = "day" | "week" | "month" | "quarter" | "semester" | "annual";
+
+/** API issuance mode codes. 96 = MANUAL, 97 = FSIS. */
+const FSIC_MODE_FSIS = 97;
+
 type LedgerCol = { key: string; label: string };
 
-const INSPECTION_COLS: LedgerCol[] = [
-  { key: "inspectduringcount", label: "During" },
-  { key: "inspectaftercount", label: "After" },
-  { key: "inspectbplocount", label: "BPLO" },
-  { key: "inspectgovcount", label: "GOV" },
-  { key: "inspectpezacount", label: "PEZA" },
-  { key: "inspecttiezacount", label: "TIEZA" },
-];
-
-/** Inspection columns rendered as a single value (no TARGET sub-column). */
+/** Inspection columns rendered as a single value (no target breakdown). */
 const INSPECTION_PLAIN_COLS: LedgerCol[] = [
   { key: "inspectduringcount", label: "During" },
   { key: "inspectaftercount", label: "After" },
 ];
 
-/** Inspection columns rendered as a TARGET / 1ST / RE group. */
-const INSPECTION_TARGET_COLS: (LedgerCol & { targetKey: string; reKey: string })[] = [
-  { key: "inspectbplocount", label: "BPLO", targetKey: "dailytargetbplo", reKey: "reinspectbplocount" },
-  { key: "inspectgovcount", label: "GOV", targetKey: "dailytargetgov", reKey: "reinspectgovcount" },
-  { key: "inspectpezacount", label: "PEZA", targetKey: "dailytargetpeza", reKey: "reinspectpezacount" },
-  { key: "inspecttiezacount", label: "TIEZA", targetKey: "dailytargettieza", reKey: "reinspecttiezacount" },
-];
-
-const ISSUANCE_GROUPS: { title: string; cols: LedgerCol[] }[] = [
-  {
-    title: "FSEC",
-    cols: [
-      { key: "fsecbuildingcount", label: "Building" },
-      { key: "fsecgovcount", label: "GOV" },
-      { key: "fsecpezacount", label: "PEZA" },
-      { key: "fsectiezacount", label: "TIEZA" },
-    ],
-  },
-  {
-    title: "FSIC",
-    cols: [
-      { key: "fsicoccupancycount", label: "Occupancy" },
-      { key: "fsicbplonewcount", label: "BPLO New" },
-      { key: "fsicbplorenewcount", label: "BPLO Renew" },
-      { key: "fsicgovcount", label: "GOV" },
-      { key: "fsicpezacount", label: "PEZA" },
-      { key: "fsictiezacount", label: "TIEZA" },
-    ],
-  },
-  {
-    title: "Issued Notices",
-    cols: [
-      { key: "nodcount", label: "NOD" },
-      { key: "ntccount", label: "NTC" },
-      { key: "ntcvcount", label: "NTCV" },
-      { key: "abatementcount", label: "Abatement" },
-      { key: "closurecount", label: "Closure" },
-    ],
-  },
-];
-
-const FSIC_SECTORS = [
-  { key: "fsicoccupancycount", reKey: "refsicoccupancycount", label: "Occupancy" },
-  { key: "fsicbplonewcount", reKey: "refsicbplonewcount", label: "BPLO New" },
-  { key: "fsicbplorenewcount", reKey: "refsicbplorenewcount", label: "BPLO Renew" },
-  { key: "fsicgovcount", reKey: "refsicgovcount", label: "GOV" },
-  { key: "fsicpezacount", reKey: "refsicpezacount", label: "PEZA" },
-  { key: "fsictiezacount", reKey: "refsictiezacount", label: "TIEZA" },
+/** Sectors rendered as TARGET / ACCOMPLISHED / VARIANCE / POSITIVE LISTING / %. */
+const INSPECTION_SECTORS = [
+  { key: "bplo", label: "BPLO", targetKey: "dailytargetbplo", accKey: "inspectbplocount" },
+  { key: "gov", label: "GOV", targetKey: "dailytargetgov", accKey: "inspectgovcount" },
+  { key: "peza", label: "PEZA", targetKey: "dailytargetpeza", accKey: "inspectpezacount" },
+  { key: "tieza", label: "TIEZA", targetKey: "dailytargettieza", accKey: "inspecttiezacount" },
 ] as const;
 
-const FSIC_GROUP_KEYS = new Set<string>(FSIC_SECTORS.map((sector) => sector.key));
-const FSIC_REKEY_BY_KEY: Record<string, string> = Object.fromEntries(
-  FSIC_SECTORS.map((sector) => [sector.key, sector.reKey]),
-) as Record<string, string>;
-const isFsicReKey = (key: string) => Object.values(FSIC_REKEY_BY_KEY).includes(key);
+const SECTOR_METRIC_LABELS = ["TARGET", "ACCOMPLISHED", "VARIANCE", "POSITIVE LISTING", "%"];
 
-const NOTICE_GROUPS = [
-  { key: "ntcvcount", reKey: "rentcvcount", label: "NTCV" },
-  { key: "abatementcount", reKey: "reabatementcount", label: "Abatement" },
-  { key: "closurecount", reKey: "reclosurecount", label: "Closure" },
-] as const;
+const FSEC_COLS: LedgerCol[] = [
+  { key: "fsecbuildingcount", label: "Building" },
+  { key: "fsecgovcount", label: "GOV" },
+  { key: "fsecpezacount", label: "PEZA" },
+  { key: "fsectiezacount", label: "TIEZA" },
+];
 
-const NOTICE_GROUP_KEYS = new Set<string>(NOTICE_GROUPS.map((group) => group.key));
-const NOTICE_REKEY_BY_KEY: Record<string, string> = Object.fromEntries(
-  NOTICE_GROUPS.map((group) => [group.key, group.reKey]),
-) as Record<string, string>;
-const isNoticeReKey = (key: string) => Object.values(NOTICE_REKEY_BY_KEY).includes(key);
+const FSIC_COLS: LedgerCol[] = [
+  { key: "fsicoccupancycount", label: "Occupancy" },
+  { key: "fsicbplonewcount", label: "BPLO New" },
+  { key: "fsicbplorenewcount", label: "BPLO Renew" },
+  { key: "fsicgovcount", label: "GOV" },
+  { key: "fsicpezacount", label: "PEZA" },
+  { key: "fsictiezacount", label: "TIEZA" },
+];
 
-const ISSUANCE_COLS: LedgerCol[] = ISSUANCE_GROUPS.flatMap((g) => g.cols);
+const NOTICE_COLS: LedgerCol[] = [
+  { key: "nodcount", label: "NOD" },
+  { key: "ntccount", label: "NTC" },
+  { key: "ntcvcount", label: "NTCV" },
+  { key: "abatementcount", label: "Abatement" },
+  { key: "closurecount", label: "Closure" },
+];
 
-/** Columns that end a category group — used to draw a visual divider line. */
-const GROUP_END_KEYS = new Set([
-  ...INSPECTION_PLAIN_COLS.slice(-1).map((c) => c.key),
-  ...INSPECTION_TARGET_COLS.slice(-1).map((c) => c.key),
-  ...ISSUANCE_GROUPS.flatMap((g) => g.cols.slice(-1).map((c) => c.key)),
-  "fsectiezacount",
-  "fsicoccupancycount",
-  "nodcount",
-  "ntccount",
-  "ntcvcount",
-]);
+/** Reinspection counts live on the compliance record itself. */
+const REINSPECTION_COLS: LedgerCol[] = [
+  { key: "reinspectoccupancycount", label: "Occupancy" },
+  { key: "reinspectbplocount", label: "BPLO" },
+  { key: "reinspectgovcount", label: "GOV" },
+  { key: "reinspectpezacount", label: "PEZA" },
+  { key: "reinspecttiezacount", label: "TIEZA" },
+];
 
-const STRONG_RIGHT_BORDER_KEYS = new Set([
-  ...GROUP_END_KEYS,
-  "fsicoccupancycount",
-  "fsicbplonewcount",
-  "fsicbplorenewcount",
-  "fsicgovcount",
-  "fsicpezacount",
-]);
+const RE_FSIC_COLS: LedgerCol[] = [
+  { key: "refsicoccupancycount", label: "Occupancy" },
+  { key: "refsicbplonewcount", label: "BPLO New" },
+  { key: "refsicbplorenewcount", label: "BPLO Renew" },
+  { key: "refsicgovcount", label: "GOV" },
+  { key: "refsicpezacount", label: "PEZA" },
+  { key: "refsictiezacount", label: "TIEZA" },
+];
 
-const num = (v: unknown) => Number(v ?? 0) || 0;
+const RE_NOTICE_COLS: LedgerCol[] = [
+  { key: "rentcvcount", label: "NTCV" },
+  { key: "reabatementcount", label: "Abatement" },
+  { key: "reclosurecount", label: "Closure" },
+];
+
+/** Every issuance key aggregated per mode — flattened once, counted once. */
+const ISSUANCE_KEYS: string[] = [
+  ...FSEC_COLS,
+  ...FSIC_COLS,
+  ...NOTICE_COLS,
+  ...RE_FSIC_COLS,
+  ...RE_NOTICE_COLS,
+].map((c) => c.key);
+
+const num = (v: unknown) => {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+};
 
 type ModeCounts = Record<string, number>;
+
+interface SectorMetrics {
+  target: number;
+  accomplished: number;
+  variance: number;
+  positive: number;
+  pctText: string;
+  pctClass: string;
+}
+
+/**
+ * Variance / positive listing / percentage — mirrors the established rules of
+ * the compliance view screen. Zero target with accomplishment is a positive
+ * listing, never a negative variance, and no cell can render NaN/Infinity.
+ */
+function calcSectorMetrics(target: number, accomplished: number): SectorMetrics {
+  const t = num(target);
+  const a = num(accomplished);
+  const variance = Math.max(t - a, 0);
+  const positive = Math.max(a - t, 0);
+
+  let pctText = "0.00%";
+  let pctClass = "";
+  if (t > 0 && a === 0) {
+    pctText = "-100.00%";
+    pctClass = "text-destructive";
+  } else if (t === 0 && a > 0) {
+    pctText = "100.00%";
+    pctClass = "text-success";
+  } else if (t > 0) {
+    const value = (a / t) * 100;
+    pctText = `${value.toFixed(2)}%`;
+    pctClass = value > 0 ? "text-success" : "";
+  }
+
+  return { target: t, accomplished: a, variance, positive, pctText, pctClass };
+}
 
 interface DayLine {
   key: string;
   label: string;
+  /** During / After counts. */
   inspection: Record<string, number>;
+  /** Sector key -> target + accomplished pair. */
+  sectors: Record<string, { target: number; accomplished: number }>;
+  /** Reinspection counts straight off the compliance record. */
   reinspection: Record<string, number>;
-  /** Daily target per inspection group (presentation only, sourced from the same payload). */
-  target: Record<string, number>;
   manual: ModeCounts;
   fsis: ModeCounts;
 }
 
-type LedgerGranularity = "day" | "week" | "month" | "quarter" | "semester" | "annual";
-
 const emptyMode = (): ModeCounts =>
-  Object.fromEntries([
-    ...ISSUANCE_COLS.map((c) => [c.key, 0]),
-    ...FSIC_SECTORS.flatMap((sector) => [[sector.key, 0], [sector.reKey, 0]]),
-    ...NOTICE_GROUPS.flatMap((group) => [[group.key, 0], [group.reKey, 0]]),
-  ]) as ModeCounts;
+  Object.fromEntries(ISSUANCE_KEYS.map((k) => [k, 0])) as ModeCounts;
+
+const emptyLine = (key: string, label: string): DayLine => ({
+  key,
+  label,
+  inspection: Object.fromEntries(INSPECTION_PLAIN_COLS.map((c) => [c.key, 0])),
+  sectors: Object.fromEntries(
+    INSPECTION_SECTORS.map((s) => [s.key, { target: 0, accomplished: 0 }]),
+  ),
+  reinspection: Object.fromEntries(REINSPECTION_COLS.map((c) => [c.key, 0])),
+  manual: emptyMode(),
+  fsis: emptyMode(),
+});
 
 const dayLabel = (iso: string) => {
   const d = new Date(`${iso}T00:00:00`);
@@ -1159,38 +1217,71 @@ const monthLabel = (ym: string) => {
   return `${name} ${ym.slice(0, 4)}`;
 };
 
-const weekLabel = (iso: string) => {
-  const d = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return iso;
-  const start = new Date(d);
-  const day = start.getDay();
-  const diffToSunday = (day + 7) % 7;
-  start.setDate(start.getDate() - diffToSunday);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  return `Week ${Math.ceil((d.getDate() + ((new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7) - 1) / 7)} ${d.getFullYear()}`;
-};
+/**
+ * Week-of-month fallback, used only when a record's date falls outside the
+ * week map supplied by the page (e.g. a year boundary).
+ */
+const weekOfMonth = (d: Date) =>
+  Math.ceil(
+    (d.getDate() + ((new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7) - 1) / 7,
+  );
 
-const emptyLine = (key: string, label: string): DayLine => ({
-  key,
-  label,
-  inspection: Object.fromEntries(INSPECTION_COLS.map((c) => [c.key, 0])),
-  reinspection: Object.fromEntries(INSPECTION_TARGET_COLS.map((c) => [c.key, 0])),
-  target: Object.fromEntries(INSPECTION_TARGET_COLS.map((c) => [c.key, 0])),
-  manual: emptyMode(),
-  fsis: emptyMode(),
-});
+/* ---------------------------- Card titles ---------------------------- */
 
+export interface ActivityTitles {
+  inspection: string;
+  reinspection: string;
+}
 
 /**
- * Presentation-only: binds the API records into MANUAL / FSIS lines.
- * `groupBy: "day"` — one line per date (or just `dateISO` when provided).
- * Aggregated intervals use one summed line per month, quarter, semester, or year.
+ * Builds both card captions from the active period, e.g.
+ * "DAILY INSPECTION & ISSUANCE ACTIVITIES" or
+ * "INSPECTION & ISSUANCE ACTIVITIES AS OF AUGUST 13, 2026".
+ */
+export function getActivityTitles(args: {
+  interval: string;
+  allDates: boolean;
+  selectedDateISO: string;
+  selectedMonths: number[];
+  periodLabel: string | null;
+}): ActivityTitles {
+  const { interval, allDates, selectedDateISO, selectedMonths, periodLabel } = args;
+  const withSuffix = (prefix: string): ActivityTitles => ({
+    inspection: `${prefix}INSPECTION & ISSUANCE ACTIVITIES`,
+    reinspection: `${prefix}REINSPECTION ACTIVITIES`,
+  });
+  const asOf = (label: string): ActivityTitles => ({
+    inspection: `INSPECTION & ISSUANCE ACTIVITIES AS OF ${label.toUpperCase()}`,
+    reinspection: `REINSPECTION ACTIVITIES AS OF ${label.toUpperCase()}`,
+  });
+
+  if (interval === "DAILY") {
+    return allDates ? withSuffix("DAILY ") : asOf(dayLabel(selectedDateISO));
+  }
+
+  if (interval === "MONTHLY") {
+    if (selectedMonths.length === 12 || selectedMonths.length === 0) return withSuffix("MONTHLY ");
+    const names = selectedMonths.map((m) => MONTHS.find((x) => x.value === m)?.name ?? String(m));
+    return asOf(names.join(", "));
+  }
+
+  return periodLabel ? asOf(periodLabel) : withSuffix("");
+}
+
+/* -------------------------- Ledger aggregation -------------------------- */
+
+/**
+ * Normalizes the filtered compliance records into one line per period bucket.
+ * `groupBy: "day"` renders one line per date (or only `dateISO` when given);
+ * aggregated intervals sum into a single line per week/month/quarter/semester/year.
+ * Every issuance record is visited exactly once and routed to MANUAL or FSIS.
  */
 function buildDayLines(
   daily: FSISComplianceLedgerDailyItem[] | undefined,
   dateISO: string | null,
   groupBy: LedgerGranularity = "day",
+  /** ISO date -> calendar week number, so weekly lines match the filter's weeks. */
+  weekByDate?: Map<string, number>,
 ): DayLine[] {
   const byKey = new Map<string, DayLine>();
 
@@ -1202,14 +1293,11 @@ function buildDayLines(
     const recordMonth = Number(iso.slice(5, 7)) || 1;
     const recordYear = iso.slice(0, 4);
     const d = new Date(`${iso}T00:00:00`);
-    const day = d.getDay();
-    const diffToSunday = (day + 7) % 7;
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - diffToSunday);
-    const weekKey = `${recordYear}-w${Math.ceil((d.getDate() + ((new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7) - 1) / 7)}`;
+    const week = weekByDate?.get(iso) ?? weekOfMonth(d);
+
     const key =
       groupBy === "week"
-        ? weekKey
+        ? `${recordYear}-w${week}`
         : groupBy === "month"
           ? iso.slice(0, 7)
           : groupBy === "quarter"
@@ -1219,11 +1307,12 @@ function buildDayLines(
               : groupBy === "annual"
                 ? recordYear
                 : iso;
+
     let line = byKey.get(key);
     if (!line) {
       const label =
         groupBy === "week"
-          ? `Week ${Math.ceil((d.getDate() + ((new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7) - 1) / 7)} ${recordYear}`
+          ? `Week ${week} ${recordYear}`
           : groupBy === "month"
             ? monthLabel(iso)
             : groupBy === "quarter"
@@ -1237,65 +1326,120 @@ function buildDayLines(
       byKey.set(key, line);
     }
 
-    const issuances = Array.isArray(rec?.issuancelist) ? rec.issuancelist : [];
-    if (issuances.length) {
-      for (const iss of issuances) {
-        const isFsis = num(iss?.fsicmode) === 97;
-        const target = isFsis ? line.fsis : line.manual;
+    const record = rec as unknown as Record<string, unknown>;
 
-        for (const c of ISSUANCE_COLS)
-          target[c.key] += num((iss as unknown as Record<string, unknown>)?.[c.key]);
-
-        for (const sector of FSIC_SECTORS) {
-          target[sector.key] += num((iss as unknown as Record<string, unknown>)?.[sector.key]);
-          target[sector.reKey] += num((iss as unknown as Record<string, unknown>)?.[sector.reKey]);
-        }
-        for (const group of NOTICE_GROUPS) {
-          target[group.key] += num((iss as unknown as Record<string, unknown>)?.[group.key]);
-          target[group.reKey] += num((iss as unknown as Record<string, unknown>)?.[group.reKey]);
-        }
-      }
-    } else {
-      // Flat ledger payloads carry no issuance modes — show them as MANUAL.
-      for (const c of ISSUANCE_COLS)
-        line.manual[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
-
-      for (const sector of FSIC_SECTORS) {
-        line.manual[sector.key] += num((rec as unknown as Record<string, unknown>)?.[sector.key]);
-        line.manual[sector.reKey] += num((rec as unknown as Record<string, unknown>)?.[sector.reKey]);
-      }
-      for (const group of NOTICE_GROUPS) {
-        line.manual[group.key] += num((rec as unknown as Record<string, unknown>)?.[group.key]);
-        line.manual[group.reKey] += num((rec as unknown as Record<string, unknown>)?.[group.reKey]);
-      }
+    for (const c of INSPECTION_PLAIN_COLS) line.inspection[c.key] += num(record[c.key]);
+    for (const s of INSPECTION_SECTORS) {
+      line.sectors[s.key].target += num(record[s.targetKey]);
+      line.sectors[s.key].accomplished += num(record[s.accKey]);
     }
-    for (const c of INSPECTION_COLS)
-      line.inspection[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.key]);
-    for (const c of INSPECTION_TARGET_COLS) {
-      line.target[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.targetKey]);
-      line.reinspection[c.key] += num((rec as unknown as Record<string, unknown>)?.[c.reKey]);
+    for (const c of REINSPECTION_COLS) line.reinspection[c.key] += num(record[c.key]);
+
+    const issuances = Array.isArray(rec?.issuancelist) ? rec.issuancelist : [];
+    for (const iss of issuances) {
+      const issuance = iss as unknown as Record<string, unknown>;
+      // 96 = MANUAL, 97 = FSIS. Unknown codes fall back to MANUAL so no
+      // issuance record is silently dropped.
+      const bucket = num(issuance.fsicmode) === FSIC_MODE_FSIS ? line.fsis : line.manual;
+      for (const k of ISSUANCE_KEYS) bucket[k] += num(issuance[k]);
     }
   }
 
   return [...byKey.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, l]) => l);
 }
 
+interface LedgerTotals {
+  inspection: Record<string, number>;
+  sectors: Record<string, { target: number; accomplished: number }>;
+  reinspection: Record<string, number>;
+  manual: ModeCounts;
+  fsis: ModeCounts;
+  /** MANUAL + FSIS combined — the only totals the footers display. */
+  combined: ModeCounts;
+}
+
+function calculateLedgerTotals(lines: DayLine[]): LedgerTotals {
+  const totals: LedgerTotals = {
+    inspection: Object.fromEntries(INSPECTION_PLAIN_COLS.map((c) => [c.key, 0])),
+    sectors: Object.fromEntries(
+      INSPECTION_SECTORS.map((s) => [s.key, { target: 0, accomplished: 0 }]),
+    ),
+    reinspection: Object.fromEntries(REINSPECTION_COLS.map((c) => [c.key, 0])),
+    manual: emptyMode(),
+    fsis: emptyMode(),
+    combined: emptyMode(),
+  };
+
+  for (const l of lines) {
+    for (const c of INSPECTION_PLAIN_COLS) totals.inspection[c.key] += l.inspection[c.key] ?? 0;
+    for (const s of INSPECTION_SECTORS) {
+      totals.sectors[s.key].target += l.sectors[s.key]?.target ?? 0;
+      totals.sectors[s.key].accomplished += l.sectors[s.key]?.accomplished ?? 0;
+    }
+    for (const c of REINSPECTION_COLS) totals.reinspection[c.key] += l.reinspection[c.key] ?? 0;
+    for (const k of ISSUANCE_KEYS) {
+      const manual = l.manual[k] ?? 0;
+      const fsis = l.fsis[k] ?? 0;
+      totals.manual[k] += manual;
+      totals.fsis[k] += fsis;
+      totals.combined[k] += manual + fsis;
+    }
+  }
+
+  return totals;
+}
+
+/* ------------------------------ Presentation ------------------------------ */
+
 const headCell =
   "border-b border-border/40 bg-blue-50/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-blue-700/90 dark:text-blue-300/90 whitespace-nowrap text-center";
+const subHeadCell = `${headCell} px-1 py-1 normal-case`;
 const bodyCell =
   "border-b border-border/25 px-2.5 py-1.5 text-xs tabular-nums text-center text-foreground/90";
 const footCell =
   "border-t border-border/50 bg-blue-100/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
+const rowHeadCell =
+  "sticky left-0 z-10 border-b border-border/25 border-r border-r-border/50 bg-inherit px-2.5 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]";
+const strongRight = "border-r-2 border-r-border/80";
 
-/** Numeric cell content — zeros are muted so real activity stands out while still readable. */
+/** Numeric cell content — zeros are muted so real activity stands out. */
 function N({ v }: { v: number }) {
-  return v ? (
-    <span className="font-medium">{v.toLocaleString()}</span>
+  const value = num(v);
+  return value ? (
+    <span className="font-medium">{value.toLocaleString()}</span>
   ) : (
     <span className="text-muted-foreground">0</span>
   );
 }
 
+function ModeBadge({ label }: { label: string }) {
+  return (
+    <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-blue-700 dark:text-blue-300">
+      {label}
+    </span>
+  );
+}
+
+/** Five metric cells for one sector on one line (or on the totals row). */
+function SectorMetricCells({ metrics, cellClass }: { metrics: SectorMetrics; cellClass: string }) {
+  return (
+    <>
+      <td className={cellClass}>
+        <N v={metrics.target} />
+      </td>
+      <td className={cellClass}>
+        <N v={metrics.accomplished} />
+      </td>
+      <td className={cellClass}>
+        <N v={metrics.variance} />
+      </td>
+      <td className={cellClass}>
+        <N v={metrics.positive} />
+      </td>
+      <td className={`${cellClass} ${strongRight} ${metrics.pctClass}`}>{metrics.pctText}</td>
+    </>
+  );
+}
 
 function ComplianceLedgerCard({
   row,
@@ -1303,6 +1447,8 @@ function ComplianceLedgerCard({
   dateISO,
   groupBy = "day",
   periodLabel = null,
+  titles,
+  weekByDate,
   onView,
   onEdit,
   onDelete,
@@ -1316,6 +1462,10 @@ function ComplianceLedgerCard({
   groupBy?: LedgerGranularity;
   /** Caption for aggregated periods; falls back to the row's month + year. */
   periodLabel?: string | null;
+  /** Dynamic card captions derived from the active period. */
+  titles: ActivityTitles;
+  /** ISO date -> calendar week number, so weekly lines match the filter. */
+  weekByDate?: Map<string, number>;
 
   onView: () => void;
   onEdit: () => void;
@@ -1324,49 +1474,44 @@ function ComplianceLedgerCard({
 }) {
   const monthName = MONTHS.find((m) => m.value === row.month)?.name ?? String(row.month);
   const grandTotal = row.totals.inspection + row.totals.fsec + row.totals.fsic + row.totals.notices;
+
   const lines = React.useMemo(
-    () => buildDayLines(row.daily, dateISO, groupBy),
-    [row.daily, dateISO, groupBy],
+    () => buildDayLines(row.daily, dateISO, groupBy, weekByDate),
+    [row.daily, dateISO, groupBy, weekByDate],
   );
 
-  const twoRows = true;
+  const totals = React.useMemo(() => calculateLedgerTotals(lines), [lines]);
 
-  const totals = React.useMemo(() => {
-    const insp: Record<string, number> = Object.fromEntries(INSPECTION_COLS.map((c) => [c.key, 0]));
-    const tgt: Record<string, number> = Object.fromEntries(
-      INSPECTION_TARGET_COLS.map((c) => [c.key, 0]),
-    );
-    const re: Record<string, number> = Object.fromEntries(
-      INSPECTION_TARGET_COLS.map((c) => [c.key, 0]),
-    );
-    const manual = emptyMode();
-    const fsis = emptyMode();
-    for (const l of lines) {
-      for (const c of INSPECTION_COLS) insp[c.key] += l.inspection[c.key] ?? 0;
-      for (const c of INSPECTION_TARGET_COLS) {
-        tgt[c.key] += l.target[c.key] ?? 0;
-        re[c.key] += l.reinspection[c.key] ?? 0;
-      }
-      for (const c of ISSUANCE_COLS) {
-        manual[c.key] += l.manual[c.key] ?? 0;
-        fsis[c.key] += l.fsis[c.key] ?? 0;
-      }
-      for (const sector of FSIC_SECTORS) {
-        manual[sector.key] += l.manual[sector.key] ?? 0;
-        manual[sector.reKey] += l.manual[sector.reKey] ?? 0;
-        fsis[sector.key] += l.fsis[sector.key] ?? 0;
-        fsis[sector.reKey] += l.fsis[sector.reKey] ?? 0;
-      }
-      for (const group of NOTICE_GROUPS) {
-        manual[group.key] += l.manual[group.key] ?? 0;
-        manual[group.reKey] += l.manual[group.reKey] ?? 0;
-        fsis[group.key] += l.fsis[group.key] ?? 0;
-        fsis[group.reKey] += l.fsis[group.reKey] ?? 0;
-      }
-    }
-    return { insp, tgt, re, manual, fsis };
-  }, [lines]);
+  /** Per-line sector metrics, computed once instead of inside every cell. */
+  const lineMetrics = React.useMemo(
+    () =>
+      lines.map((l) =>
+        Object.fromEntries(
+          INSPECTION_SECTORS.map((s) => [
+            s.key,
+            calcSectorMetrics(l.sectors[s.key]?.target ?? 0, l.sectors[s.key]?.accomplished ?? 0),
+          ]),
+        ),
+      ),
+    [lines],
+  );
+  const totalMetrics = React.useMemo(
+    () =>
+      Object.fromEntries(
+        INSPECTION_SECTORS.map((s) => [
+          s.key,
+          calcSectorMetrics(
+            totals.sectors[s.key]?.target ?? 0,
+            totals.sectors[s.key]?.accomplished ?? 0,
+          ),
+        ]),
+      ),
+    [totals],
+  );
 
+  const periodHeading = groupBy === "day" ? "Date" : groupBy === "month" ? "Month" : "Period";
+  const emptyMessage =
+    groupBy === "day" ? "No daily entries for this period." : "No entries for this period.";
 
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
@@ -1392,7 +1537,8 @@ function ComplianceLedgerCard({
             {row.stationname}
           </div>
           <div className="text-[11px] text-muted-foreground dark:text-slate-400">
-            {row.cityname} · {row.provincename}
+            {row.cityname ? `${row.cityname} · ` : ""}
+            {row.provincename}
           </div>
         </div>
         <div
@@ -1404,500 +1550,317 @@ function ComplianceLedgerCard({
         </div>
       </div>
 
-      {/* Spreadsheet body — sticky header, sticky totals, scrollable rows */}
-      <div className="p-3">
-        {lines.length === 0 ? (
-          <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
-            {groupBy === "day"
-              ? "No daily entries for this period."
-              : "No entries for this period."}
-          </div>
-        ) : (
-          <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
-            <table className="w-full min-w-[1400px] border-separate border-spacing-0 text-xs">
-              <thead>
-                <tr>
-                  <th
-                    rowSpan={3}
-                    className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] h-[34px] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
-                  >
-                    {groupBy === "day" ? "Date" : groupBy === "month" ? "Month" : "Period"}
-                  </th>
-                  <th
-                    colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 3}
-                    className={`${headCell} sticky top-0 z-30 h-[34px] border-r-2 border-r-border/80`}
-                  >
-                    Inspection
-                  </th>
-                  <th
-                    rowSpan={3}
-                    className={`${headCell} sticky top-0 z-30 h-[34px] border-r-2 border-r-border/80`}
-                  >
-                    Mode of Issuance
-                  </th>
-                  {ISSUANCE_GROUPS.map((g, idx) => {
-                    const colSpan =
-                      g.title === "FSIC"
-                        ? g.cols.length * 2
-                        : g.title === "Issued Notices"
-                          ? 2 + NOTICE_GROUPS.length * 2
-                          : g.cols.length;
-                    return (
-                      <th
-                        key={g.title}
-                        colSpan={colSpan}
-                        className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                      >
-                        {g.title}
-                      </th>
-                    );
-                  })}
-                </tr>
-                <tr>
-                  {INSPECTION_PLAIN_COLS.map((c, idx) => (
+      <div className="space-y-4 p-3">
+        {/* ---------------- Inspection & Issuance activities ---------------- */}
+        <section className="space-y-1.5">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            {titles.inspection}
+          </h3>
+          {lines.length === 0 ? (
+            <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
+              {emptyMessage}
+            </div>
+          ) : (
+            <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
+              <table className="w-full min-w-[1800px] border-separate border-spacing-0 text-xs">
+                <thead>
+                  <tr>
                     <th
-                      key={c.key}
-                      rowSpan={2}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${idx === 0 || idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
+                      rowSpan={3}
+                      className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                     >
-                      {c.label}
+                      {periodHeading}
                     </th>
-                  ))}
-                  {INSPECTION_TARGET_COLS.map((c, idx) => (
                     <th
-                      key={c.key}
-                      colSpan={3}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[10rem] ${idx < INSPECTION_TARGET_COLS.length - 1 || idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
+                      colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_SECTORS.length * 5}
+                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
                     >
-                      {c.label}
+                      Inspection
                     </th>
-                  ))}
-                  {ISSUANCE_GROUPS.map((group) => {
-                    if (group.title === "FSIC") {
-                      return FSIC_SECTORS.map((sector) => (
-                        <th
-                          key={sector.key}
-                          colSpan={2}
-                          className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[7rem] border-r-2 border-r-border/80`}
-                        >
-                          {sector.label}
-                        </th>
-                      ));
-                    }
-
-                    if (group.title === "Issued Notices") {
-                      return [
-                        <th
-                          key="nodcount"
-                          rowSpan={2}
-                          className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] border-r-2 border-r-border/80`}
-                        >
-                          NOD
-                        </th>,
-                        <th
-                          key="ntccount"
-                          rowSpan={2}
-                          className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] border-r-2 border-r-border/80`}
-                        >
-                          NTC
-                        </th>,
-                        ...NOTICE_GROUPS.map((groupItem) => (
-                          <th
-                            key={groupItem.key}
-                            colSpan={2}
-                            className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[7rem] border-r-2 border-r-border/80`}
-                          >
-                            {groupItem.label}
-                          </th>
-                        )),
-                      ];
-                    }
-
-                    return group.cols.map((c) => (
+                    <th rowSpan={3} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
+                      Mode of Issuance
+                      <span className="block text-[9px] font-normal normal-case">
+                        (FSIS &amp; Manual)
+                      </span>
+                    </th>
+                    <th
+                      colSpan={FSEC_COLS.length}
+                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                    >
+                      FSEC
+                    </th>
+                    <th
+                      colSpan={FSIC_COLS.length}
+                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                    >
+                      FSIC
+                    </th>
+                    <th colSpan={NOTICE_COLS.length} className={`${headCell} sticky top-0 z-30`}>
+                      Issued Notices
+                    </th>
+                  </tr>
+                  <tr>
+                    {INSPECTION_PLAIN_COLS.map((c) => (
                       <th
                         key={c.key}
                         rowSpan={2}
-                        className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${c.key === "closurecount" ? "border-r-2 border-r-border" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
+                        className={`${headCell} sticky top-[34px] z-30 min-w-[5rem] ${strongRight}`}
                       >
                         {c.label}
                       </th>
-                    ));
-                  })}
-                </tr>
-                <tr>
-                  {INSPECTION_TARGET_COLS.map((c, idx) => (
-                    <React.Fragment key={c.key}>
+                    ))}
+                    {INSPECTION_SECTORS.map((s) => (
                       <th
-                        title="Target"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
+                        key={s.key}
+                        colSpan={5}
+                        className={`${headCell} sticky top-[34px] z-30 min-w-[16rem] ${strongRight}`}
                       >
-                        <span className="block leading-[1.1]">TARGET</span>
+                        {s.label}
                       </th>
+                    ))}
+                    {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
                       <th
-                        title="1st Inspection"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
+                        key={c.key}
+                        rowSpan={2}
+                        className={`${headCell} sticky top-[34px] z-30 min-w-[5.5rem] ${strongRight}`}
                       >
-                        <span className="block leading-[1.1]">1ST</span>
-                        <span className="block leading-[1.1]">INSPECTION</span>
+                        {c.label}
                       </th>
-                      <th
-                        title="Re-inspection"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
-                      >
-                        <span className="block leading-[1.1]">RE-</span>
-                        <span className="block leading-[1.1]">INSPECTION</span>
-                      </th>
-                    </React.Fragment>
-                  ))}
-                  {ISSUANCE_GROUPS.map((group) => {
-                    if (group.title === "FSIC") {
-                      return FSIC_SECTORS.flatMap((sector) => [
+                    ))}
+                  </tr>
+                  <tr>
+                    {INSPECTION_SECTORS.map((s) =>
+                      SECTOR_METRIC_LABELS.map((label, idx) => (
                         <th
-                          key={`${sector.key}-first`}
-                          title="1st Inspection"
-                          className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
+                          key={`${s.key}-${label}`}
+                          className={`${subHeadCell} sticky top-[68px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
                         >
-                          <span className="block leading-[1.1]">1ST</span>
-                          <span className="block leading-[1.1]">INSPECTION</span>
-                        </th>,
-                        <th
-                          key={`${sector.key}-re`}
-                          title="Re-inspection"
-                          className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
-                        >
-                          <span className="block leading-[1.1]">RE-</span>
-                          <span className="block leading-[1.1]">INSPECTION</span>
-                        </th>,
-                      ]);
-                    }
+                          <span className="block uppercase leading-[1.1]">{label}</span>
+                        </th>
+                      )),
+                    )}
+                  </tr>
+                </thead>
 
-                    if (group.title === "Issued Notices") {
-                      return NOTICE_GROUPS.flatMap((groupItem) => [
-                        <th
-                          key={`${groupItem.key}-first`}
-                          title="1st Inspection"
-                          className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
-                        >
-                          <span className="block leading-[1.1]">1ST</span>
-                          <span className="block leading-[1.1]">INSPECTION</span>
-                        </th>,
-                        <th
-                          key={`${groupItem.key}-re`}
-                          title="Re-inspection"
-                          className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
-                        >
-                          <span className="block leading-[1.1]">RE-</span>
-                          <span className="block leading-[1.1]">INSPECTION</span>
-                        </th>,
-                      ]);
-                    }
-
-                    return null;
-                  })}
-                </tr>
-              </thead>
-
-
-              <tbody>
-                {lines.map((l) => (
-                  <React.Fragment key={l.key}>
-                    <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
-                      <th
-                        scope="row"
-                        rowSpan={twoRows ? 2 : 1}
-                        className="sticky left-0 z-10 border-b border-border/25 border-r border-r-border/50 bg-inherit px-2.5 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]"
-                      >
-                        {l.label}
-                      </th>
-                      {INSPECTION_PLAIN_COLS.map((c, idx) => (
-                        <td
-                          key={c.key}
-                          rowSpan={twoRows ? 2 : 1}
-                          className={`${bodyCell} ${idx === 0 || idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                        >
-                          <N v={l.inspection[c.key] ?? 0} />
-                        </td>
-                      ))}
-                      {INSPECTION_TARGET_COLS.map((c, idx) => (
-                        <React.Fragment key={c.key}>
-                          <td
-                            rowSpan={twoRows ? 2 : 1}
-                            className={`${bodyCell}`}
-                          >
-                            <N v={l.target[c.key] ?? 0} />
-                          </td>
-                          <td
-                            rowSpan={twoRows ? 2 : 1}
-                            className={`${bodyCell}`}
-                          >
+                <tbody>
+                  {lines.map((l, lineIdx) => (
+                    <React.Fragment key={l.key}>
+                      <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
+                        <th scope="row" rowSpan={2} className={rowHeadCell}>
+                          {l.label}
+                        </th>
+                        {INSPECTION_PLAIN_COLS.map((c) => (
+                          <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
                             <N v={l.inspection[c.key] ?? 0} />
                           </td>
-                          <td
-                            rowSpan={twoRows ? 2 : 1}
-                            className={`${bodyCell} ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : idx < INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                          >
-                            <N v={l.reinspection[c.key] ?? 0} />
-                          </td>
-                        </React.Fragment>
-                      ))}
-
-                      <td
-                        className={`${bodyCell} border-r-2 border-r-border/80 font-semibold text-blue-700 dark:text-blue-300`}
-                      >
-                        <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">MANUAL</span>
-                      </td>
-                      {ISSUANCE_COLS.map((c) => {
-                        if (isFsicReKey(c.key) || isNoticeReKey(c.key)) return null;
-
-                        if (FSIC_GROUP_KEYS.has(c.key)) {
-                          const reKey = FSIC_REKEY_BY_KEY[c.key];
-                          const hasRightBorder = true;
-
-                          return (
-                            <React.Fragment key={c.key}>
-                              <td className={`${bodyCell}`}>
-                                <N v={l.manual[c.key] ?? 0} />
-                              </td>
-                              <td className={`${bodyCell} ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
-                                <N v={l.manual[reKey] ?? 0} />
-                              </td>
-                            </React.Fragment>
-                          );
-                        }
-
-                        if (NOTICE_GROUP_KEYS.has(c.key)) {
-                          const reKey = NOTICE_REKEY_BY_KEY[c.key];
-                          const hasRightBorder = true;
-
-                          return (
-                            <React.Fragment key={c.key}>
-                              <td className={`${bodyCell}`}>
-                                <N v={l.manual[c.key] ?? 0} />
-                              </td>
-                              <td className={`${bodyCell} ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
-                                <N v={l.manual[reKey] ?? 0} />
-                              </td>
-                            </React.Fragment>
-                          );
-                        }
-
-                        return (
-                          <td
-                            key={c.key}
-                            className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                          >
+                        ))}
+                        {INSPECTION_SECTORS.map((s) => (
+                          <SectorMetricCells
+                            key={s.key}
+                            metrics={lineMetrics[lineIdx][s.key]}
+                            cellClass={bodyCell}
+                          />
+                        ))}
+                        <td className={`${bodyCell} ${strongRight}`}>
+                          <ModeBadge label="MANUAL" />
+                        </td>
+                        {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
                             <N v={l.manual[c.key] ?? 0} />
                           </td>
-                        );
-                      })}
-                    </tr>
-                    {twoRows && (
-                      <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
-                        <td
-                          className={`${bodyCell} border-r-2 border-r-border/80 font-semibold text-blue-700 dark:text-blue-300`}
-                        >
-                          <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] tracking-wider">FSIS</span>
-                        </td>
-                        {ISSUANCE_COLS.map((c) => {
-                          if (isFsicReKey(c.key) || isNoticeReKey(c.key)) return null;
-
-                          if (FSIC_GROUP_KEYS.has(c.key)) {
-                            const reKey = FSIC_REKEY_BY_KEY[c.key];
-                            const hasRightBorder = true;
-
-                            return (
-                              <React.Fragment key={c.key}>
-                                <td className={`${bodyCell}`}>
-                                  <N v={l.fsis[c.key] ?? 0} />
-                                </td>
-                                <td className={`${bodyCell} ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
-                                  <N v={l.fsis[reKey] ?? 0} />
-                                </td>
-                              </React.Fragment>
-                            );
-                          }
-
-                          if (NOTICE_GROUP_KEYS.has(c.key)) {
-                            const reKey = NOTICE_REKEY_BY_KEY[c.key];
-                            const hasRightBorder = true;
-
-                            return (
-                              <React.Fragment key={c.key}>
-                                <td className={`${bodyCell}`}>
-                                  <N v={l.fsis[c.key] ?? 0} />
-                                </td>
-                                <td className={`${bodyCell} ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
-                                  <N v={l.fsis[reKey] ?? 0} />
-                                </td>
-                              </React.Fragment>
-                            );
-                          }
-
-                          return (
-                            <td
-                              key={c.key}
-                              className={`${bodyCell} ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                            >
-                              <N v={l.fsis[c.key] ?? 0} />
-                            </td>
-                          );
-                        })}
+                        ))}
                       </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-
-              <tfoot>
-                <tr>
-                  <th
-                    scope="row"
-                    rowSpan={twoRows ? 2 : 1}
-                    className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
-                  >
-                    Total
-                  </th>
-                  {INSPECTION_PLAIN_COLS.map((c, idx) => (
-                    <td
-                      key={c.key}
-                      rowSpan={twoRows ? 2 : 1}
-                      className={`${footCell} sticky bottom-0 z-30 ${idx === 0 || idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                    >
-                      <N v={totals.insp[c.key]} />
-                    </td>
-                  ))}
-                  {INSPECTION_TARGET_COLS.map((c, idx) => (
-                    <React.Fragment key={c.key}>
-                      <td
-                        rowSpan={twoRows ? 2 : 1}
-                        className={`${footCell} sticky bottom-0 z-30`}
-                      >
-                        <N v={totals.tgt[c.key]} />
-                      </td>
-                      <td
-                        rowSpan={twoRows ? 2 : 1}
-                        className={`${footCell} sticky bottom-0 z-30`}
-                      >
-                        <N v={totals.insp[c.key]} />
-                      </td>
-                      <td
-                        rowSpan={twoRows ? 2 : 1}
-                        className={`${footCell} sticky bottom-0 z-30 ${idx < INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                      >
-                        <N v={totals.re[c.key]} />
-                      </td>
+                      <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
+                        <td className={`${bodyCell} ${strongRight}`}>
+                          <ModeBadge label="FSIS" />
+                        </td>
+                        {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                            <N v={l.fsis[c.key] ?? 0} />
+                          </td>
+                        ))}
+                      </tr>
                     </React.Fragment>
                   ))}
+                </tbody>
 
-                  <td
-                    className={`${footCell} sticky bottom-[30px] z-30 border-r-2 border-r-border/80`}
-                  >
-                    MANUAL
-                  </td>
-                  {ISSUANCE_COLS.map((c) => {
-                    if (isFsicReKey(c.key) || isNoticeReKey(c.key)) return null;
-
-                    if (FSIC_GROUP_KEYS.has(c.key)) {
-                      const reKey = FSIC_REKEY_BY_KEY[c.key];
-                      const hasRightBorder = true;
-
-                      return (
-                        <React.Fragment key={c.key}>
-                          <td className={`${footCell} sticky bottom-[30px] z-30`}>
-                            <N v={totals.manual[c.key]} />
-                          </td>
-                          <td className={`${footCell} sticky bottom-[30px] z-30 ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
-                            <N v={totals.manual[reKey]} />
-                          </td>
-                        </React.Fragment>
-                      );
-                    }
-
-                    if (NOTICE_GROUP_KEYS.has(c.key)) {
-                      const reKey = NOTICE_REKEY_BY_KEY[c.key];
-                      const hasRightBorder = true;
-
-                      return (
-                        <React.Fragment key={c.key}>
-                          <td className={`${footCell} sticky bottom-[30px] z-30`}>
-                            <N v={totals.manual[c.key]} />
-                          </td>
-                          <td className={`${footCell} sticky bottom-[30px] z-30 ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
-                            <N v={totals.manual[reKey]} />
-                          </td>
-                        </React.Fragment>
-                      );
-                    }
-
-                    return (
-                      <td
-                        key={c.key}
-                        className={`${footCell} sticky bottom-[30px] z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                      >
-                        <N v={totals.manual[c.key]} />
-                      </td>
-                    );
-                  })}
-                </tr>
-                {twoRows && (
+                <tfoot>
+                  {/* One combined total — MANUAL + FSIS are never split here. */}
                   <tr>
-                    <td
-                      className={`${footCell} sticky bottom-0 z-30 border-r-2 border-r-border/80`}
+                    <th
+                      scope="row"
+                      className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
                     >
-                      FSIS
-                    </td>
-                    {ISSUANCE_COLS.map((c) => {
-                      if (isFsicReKey(c.key) || isNoticeReKey(c.key)) return null;
-
-                      if (FSIC_GROUP_KEYS.has(c.key)) {
-                        const reKey = FSIC_REKEY_BY_KEY[c.key];
-                        const hasRightBorder = true;
-
-                        return (
-                          <React.Fragment key={c.key}>
-                            <td className={`${footCell} sticky bottom-0 z-30`}>
-                              <N v={totals.fsis[c.key]} />
-                            </td>
-                            <td className={`${footCell} sticky bottom-0 z-30 ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
-                              <N v={totals.fsis[reKey]} />
-                            </td>
-                          </React.Fragment>
-                        );
-                      }
-
-                      if (NOTICE_GROUP_KEYS.has(c.key)) {
-                        const reKey = NOTICE_REKEY_BY_KEY[c.key];
-                        const hasRightBorder = true;
-
-                        return (
-                          <React.Fragment key={c.key}>
-                            <td className={`${footCell} sticky bottom-0 z-30`}>
-                              <N v={totals.fsis[c.key]} />
-                            </td>
-                            <td className={`${footCell} sticky bottom-0 z-30 ${hasRightBorder ? "border-r-2 border-r-border/80" : ""}`}>
-                              <N v={totals.fsis[reKey]} />
-                            </td>
-                          </React.Fragment>
-                        );
-                      }
-
-                      return (
-                        <td
-                          key={c.key}
-                          className={`${footCell} sticky bottom-0 z-30 ${c.key === "closurecount" ? "border-r-2 border-r-border/80" : GROUP_END_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                        >
-                          <N v={totals.fsis[c.key]} />
-                        </td>
-                      );
-                    })}
+                      Total
+                    </th>
+                    {INSPECTION_PLAIN_COLS.map((c) => (
+                      <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
+                        <N v={totals.inspection[c.key]} />
+                      </td>
+                    ))}
+                    {INSPECTION_SECTORS.map((s) => (
+                      <SectorMetricCells
+                        key={s.key}
+                        metrics={totalMetrics[s.key]}
+                        cellClass={`${footCell} sticky bottom-0 z-30`}
+                      />
+                    ))}
+                    <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
+                    {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                      <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
+                        <N v={totals.combined[c.key]} />
+                      </td>
+                    ))}
                   </tr>
-                )}
-              </tfoot>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </section>
 
-            </table>
-          </div>
-        )}
-        <div className="mt-2 text-[10px] text-muted-foreground dark:text-slate-400">
+        {/* ---------------------- Reinspection activities ---------------------- */}
+        <section className="space-y-1.5">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            {titles.reinspection}
+          </h3>
+          {lines.length === 0 ? (
+            <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
+              {emptyMessage}
+            </div>
+          ) : (
+            <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
+              <table className="w-full min-w-[1300px] border-separate border-spacing-0 text-xs">
+                <thead>
+                  <tr>
+                    <th
+                      rowSpan={2}
+                      className={`${headCell} sticky left-0 top-0 z-40 min-w-[4.5rem] border-r border-r-border/50`}
+                    >
+                      Action
+                    </th>
+                    <th
+                      rowSpan={2}
+                      className={`${headCell} sticky top-0 z-30 min-w-[9.5rem] text-left ${strongRight}`}
+                    >
+                      {periodHeading}
+                    </th>
+                    <th
+                      colSpan={REINSPECTION_COLS.length}
+                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                    >
+                      Reinspection
+                    </th>
+                    <th rowSpan={2} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
+                      Mode of Issuance
+                      <span className="block text-[9px] font-normal normal-case">
+                        (FSIS &amp; Manual)
+                      </span>
+                    </th>
+                    <th
+                      colSpan={RE_FSIC_COLS.length}
+                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                    >
+                      Re-FSIC
+                    </th>
+                    <th colSpan={RE_NOTICE_COLS.length} className={`${headCell} sticky top-0 z-30`}>
+                      Re-Issued Notices
+                    </th>
+                  </tr>
+                  <tr>
+                    {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c, idx) => (
+                      <th
+                        key={`${c.key}-${idx}`}
+                        className={`${headCell} sticky top-[42px] z-30 min-w-[6rem] ${strongRight}`}
+                      >
+                        {c.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {lines.map((l) => (
+                    <React.Fragment key={l.key}>
+                      <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
+                        <td
+                          rowSpan={2}
+                          className={`${bodyCell} sticky left-0 z-10 border-r border-r-border/50 bg-inherit`}
+                        >
+                          <div className="flex items-center justify-center gap-1">
+                            {locked ? (
+                              <button
+                                type="button"
+                                onClick={onView}
+                                aria-label="View details"
+                                title="View"
+                                className="rounded-md p-1.5 bg-card text-primary border border-border transition-colors hover:bg-primary hover:text-white cursor-pointer"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </button>
+                            ) : (
+                              <EditButton onClick={onEdit} tooltip="Edit" />
+                            )}
+                          </div>
+                        </td>
+                        <th scope="row" rowSpan={2} className={`${rowHeadCell} left-[4.5rem]`}>
+                          {l.label}
+                        </th>
+                        {REINSPECTION_COLS.map((c) => (
+                          <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                            <N v={l.reinspection[c.key] ?? 0} />
+                          </td>
+                        ))}
+                        <td className={`${bodyCell} ${strongRight}`}>
+                          <ModeBadge label="MANUAL" />
+                        </td>
+                        {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                            <N v={l.manual[c.key] ?? 0} />
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
+                        <td className={`${bodyCell} ${strongRight}`}>
+                          <ModeBadge label="FSIS" />
+                        </td>
+                        {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                            <N v={l.fsis[c.key] ?? 0} />
+                          </td>
+                        ))}
+                      </tr>
+                    </React.Fragment>
+                  ))}
+                </tbody>
+
+                <tfoot>
+                  <tr>
+                    <th
+                      scope="row"
+                      colSpan={2}
+                      className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
+                    >
+                      Total
+                    </th>
+                    {REINSPECTION_COLS.map((c) => (
+                      <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
+                        <N v={totals.reinspection[c.key]} />
+                      </td>
+                    ))}
+                    <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
+                    {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                      <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
+                        <N v={totals.combined[c.key]} />
+                      </td>
+                    ))}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <div className="text-[10px] text-muted-foreground dark:text-slate-400">
           Last updated: {row.lastupdated ? new Date(row.lastupdated).toLocaleString() : "—"}
         </div>
       </div>

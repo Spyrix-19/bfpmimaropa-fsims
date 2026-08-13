@@ -211,6 +211,23 @@ function pct(accomplished: number, target: number): number {
   return target > 0 ? (accomplished / target) * 100 : 0;
 }
 
+function getInspectionPct(
+  accomplished: number,
+  target: number,
+): { text: string; className: string } {
+  if (target > 0 && accomplished === 0) {
+    return { text: "-100.00%", className: "text-destructive" };
+  }
+  if (target === 0 && accomplished > 0) {
+    return { text: "100.00%", className: "text-success" };
+  }
+  const value = pct(accomplished, target);
+  return {
+    text: `${value.toFixed(2)}%`,
+    className: value > 0 ? "text-success" : "",
+  };
+}
+
 function toLocalKey(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
@@ -846,7 +863,10 @@ function ActivityTable({
                       if (targetBreakdown) {
                         const variance = Math.max(target - accomplished, 0);
                         const positive = Math.max(accomplished - target, 0);
-                        const percentage = pct(accomplished, target);
+                        const { text: pctText, className: pctClass } = getInspectionPct(
+                          accomplished,
+                          target,
+                        );
                         cells.push(
                           <td
                             key={`${col.api}__variance`}
@@ -865,9 +885,9 @@ function ActivityTable({
                           <td
                             key={`${col.api}__pct`}
                             rowSpan={2}
-                            className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums"
+                            className={`min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums ${pctClass}`}
                           >
-                            {`${percentage.toFixed(2)}%`}
+                            {pctText}
                           </td>,
                         );
                       }
@@ -931,7 +951,10 @@ function ActivityTable({
                   (sum, d) => sum + Math.max(num(d.inspection[col.api]) - num(d.inspection[targetField]), 0),
                   0,
                 );
-                const totalPct = pct(totalAccomplished, totalTarget);
+                const { text: totalPctText, className: totalPctClass } = getInspectionPct(
+                  totalAccomplished,
+                  totalTarget,
+                );
                 cells.push(
                   <td
                     key={`${col.api}__target`}
@@ -961,9 +984,9 @@ function ActivityTable({
                         </td>,
                         <td
                           key={`${col.api}__pct`}
-                          className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                          className={`min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums ${totalPctClass}`}
                         >
-                          {`${totalPct.toFixed(2)}%`}
+                          {totalPctText}
                         </td>,
                       ]
                     : []),
