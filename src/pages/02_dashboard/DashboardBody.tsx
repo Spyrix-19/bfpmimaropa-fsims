@@ -1101,6 +1101,7 @@ export function DashboardBody() {
   const inspectionBreakdown = [
     { label: "During Construction", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
     { label: "After Completion", value: sumBy(compliance?.inspectionList, (r) => r.totalafter) },
+    { label: "Reinspection", value: sumBy(compliance?.inspectionList, (r) => r.totalreinspection) },
   ];
 
   const fsecBreakdown = [

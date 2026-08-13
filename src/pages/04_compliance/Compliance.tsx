@@ -682,10 +682,8 @@ export default function FireSafetyCompliancePage() {
     setPage,
   ]);
 
-  // Server-side ledger returns a single page — use `rows` directly and
-  // rely on `total` for pagination controls.
-  const paged = React.useMemo(() => rows, [rows]);
-
+  // Server-side ledger returns a single page — `rows` is rendered directly and
+  // `total` drives the pagination controls.
   const monthLocked = isReportMonthLocked(Number(year), Number(month));
 
   // Effective GUIDs for the Target vs. Accomplishment panel.
@@ -834,7 +832,7 @@ export default function FireSafetyCompliancePage() {
           <Button
             variant="outline"
             onClick={handleExport}
-            disabled={exporting || paged.length === 0}
+            disabled={exporting || rows.length === 0}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
             {exporting ? (
@@ -897,7 +895,7 @@ export default function FireSafetyCompliancePage() {
           <Loader2 className="h-4 w-4 animate-spin" />{" "}
           {isAggregated ? "Loading compliance…" : "Loading daily compliance…"}
         </Card>
-      ) : paged.length === 0 ? (
+      ) : rows.length === 0 ? (
         <Card className="border-border/60 p-10 text-center text-sm text-muted-foreground">
           {isAggregated
             ? "No compliance records for the selected period."
@@ -907,7 +905,7 @@ export default function FireSafetyCompliancePage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {paged.map((r) => (
+          {rows.map((r) => (
             <ComplianceLedgerCard
               key={r.key}
               row={r}
@@ -1160,9 +1158,13 @@ interface SectorMetrics {
 }
 
 /**
- * Variance / positive listing / percentage — mirrors the established rules of
- * the compliance view screen. Zero target with accomplishment is a positive
- * listing, never a negative variance, and no cell can render NaN/Infinity.
+ * Variance / positive listing / percentage.
+ *
+ * VARIANCE          = shortfall against target (target - accomplished, floored at 0)
+ * POSITIVE LISTING  = surplus over target (accomplished - target, floored at 0)
+ * %                 = signed performance against target ((accomplished - target) / target),
+ *                     so under-target renders red and over-target renders green.
+ * Zero target with accomplishment counts as +100%; nothing can render NaN/Infinity.
  */
 function calcSectorMetrics(target: number, accomplished: number): SectorMetrics {
   const t = num(target);
@@ -1170,19 +1172,11 @@ function calcSectorMetrics(target: number, accomplished: number): SectorMetrics 
   const variance = Math.max(t - a, 0);
   const positive = Math.max(a - t, 0);
 
-  let pctText = "0.00%";
-  let pctClass = "";
-  if (t > 0 && a === 0) {
-    pctText = "-100.00%";
-    pctClass = "text-destructive";
-  } else if (t === 0 && a > 0) {
-    pctText = "100.00%";
-    pctClass = "text-success";
-  } else if (t > 0) {
-    const value = (a / t) * 100;
-    pctText = `${value.toFixed(2)}%`;
-    pctClass = value < 0 ? "text-destructive" : value > 0 ? "text-success" : "";
-  }
+  // t === 0 && a === 0 -> nothing targeted, nothing done -> 0.00%
+  const value = t > 0 ? ((a - t) / t) * 100 : a > 0 ? 100 : 0;
+  const pctText = `${value.toFixed(2)}%`;
+  // `!` keeps the tone from being overridden by the footer/body cell text colors.
+  const pctClass = value < 0 ? "!text-destructive" : value > 0 ? "!text-success" : "";
 
   return { target: t, accomplished: a, variance, positive, pctText, pctClass };
 }
@@ -1304,7 +1298,6 @@ function buildDayLines(
   weekRangeLabels?: Map<number, string>,
 ): DayLine[] {
   const byKey = new Map<string, DayLine>();
-
 
   for (const rec of Array.isArray(daily) ? daily : []) {
     const iso = String(rec?.dateinspected ?? "").slice(0, 10);
@@ -1465,7 +1458,10 @@ function SectorMetricCells({
       <td rowSpan={rowSpan} className={cellClass}>
         <N v={metrics.positive} />
       </td>
-      <td rowSpan={rowSpan} className={`${cellClass} ${strongRight} ${metrics.pctClass}`}>
+      <td
+        rowSpan={rowSpan}
+        className={`${cellClass} ${strongRight} font-semibold ${metrics.pctClass}`}
+      >
         {metrics.pctText}
       </td>
     </>
@@ -1815,7 +1811,7 @@ function ComplianceLedgerCard({
                   {lines.map((l) => (
                     <React.Fragment key={l.key}>
                       <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
-                        <th scope="row" rowSpan={2} className={`${rowHeadCell}`}>
+                        <th scope="row" rowSpan={2} className={rowHeadCell}>
                           {l.label}
                         </th>
                         {REINSPECTION_COLS.map((c) => (
@@ -1850,7 +1846,6 @@ function ComplianceLedgerCard({
                   <tr>
                     <th
                       scope="row"
-                      colSpan={1}
                       className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
                     >
                       Total

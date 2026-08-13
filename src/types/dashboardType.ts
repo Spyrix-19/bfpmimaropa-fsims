@@ -39,6 +39,7 @@ export interface DashboardInspectionModel {
   year: number;
   totalduring: number;
   totalafter: number;
+  totalreinspection: number;
   totalbplo: number;
   totalgov: number;
   totalpeza: number;
