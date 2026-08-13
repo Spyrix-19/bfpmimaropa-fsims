@@ -143,9 +143,11 @@ interface FSISComplianceDetailItem {
   inspectgovcount?: number | null;
   inspectpezacount?: number | null;
   inspecttiezacount?: number | null;
-  
-
-  
+  reinspectoccupancycount?: number | null;
+  reinspectbplocount?: number | null;
+  reinspectgovcount?: number | null;
+  reinspectpezacount?: number | null;
+  reinspecttiezacount?: number | null;
 
   fsecbuildingcount?: number | null;
   fsecgovcount?: number | null;
@@ -404,7 +406,13 @@ function buildEditableDays(
           inspectgovcount: num(apiData.inspectgovcount),
           inspectpezacount: num(apiData.inspectpezacount),
           inspecttiezacount: num(apiData.inspecttiezacount),
-          
+          reinspectoccupancycount: num(
+            (apiData as { reinspectoccupancycount?: unknown }).reinspectoccupancycount,
+          ),
+          reinspectbplocount: num((apiData as { reinspectbplocount?: unknown }).reinspectbplocount),
+          reinspectgovcount: num((apiData as { reinspectgovcount?: unknown }).reinspectgovcount),
+          reinspectpezacount: num(apiData.reinspectpezacount),
+          reinspecttiezacount: num(apiData.reinspecttiezacount),
         }
       : {
           fsisno: EMPTY_GUID,
@@ -420,7 +428,11 @@ function buildEditableDays(
           inspectgovcount: 0,
           inspectpezacount: 0,
           inspecttiezacount: 0,
-          
+          reinspectoccupancycount: 0,
+          reinspectbplocount: 0,
+          reinspectgovcount: 0,
+          reinspectpezacount: 0,
+          reinspecttiezacount: 0,
         };
 
     // Extract issuance data per mode
@@ -767,6 +779,7 @@ function ComplianceEditBody({
   );
 
   const monthLocked = isReportMonthLocked(year, month);
+  const [showDailyDashboard, setShowDailyDashboard] = React.useState(true);
   const [showDailyDetails, setShowDailyDetails] = React.useState(true);
 
   /* ----------------------------- Data loading ---------------------------- */
@@ -1085,10 +1098,11 @@ function ComplianceEditBody({
           inspectpezacount: day.inspection.inspectpezacount ?? 0,
           inspecttiezacount: day.inspection.inspecttiezacount ?? 0,
           reinspectbplocount: day.inspection.reinspectbplocount ?? 0,
+          reinspectoccupancycount: day.inspection.reinspectoccupancycount ?? 0,
           reinspectgovcount: day.inspection.reinspectgovcount ?? 0,
           reinspectpezacount: day.inspection.reinspectpezacount ?? 0,
           reinspecttiezacount: day.inspection.reinspecttiezacount ?? 0,
-        
+
           remarks: (day.inspection.remarks ?? "").trim(),
           issuancelist,
           isaccomplished: isRowModified,
@@ -1221,39 +1235,45 @@ function ComplianceEditBody({
       />
 
       {/* Daily Compliance Details ------------------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
+        <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/40 px-4 py-3 sm:px-5">
           <SectionTitle
-            title="Daily Compliance Details"
+            title="Daily Dashboard"
             subtitle="Per-day inspection and issuance tracking"
+            expanded={showDailyDashboard}
+            onToggle={() => setShowDailyDashboard((prev) => !prev)}
           />
           <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {monthName} {year}
           </div>
         </div>
 
-        <TargetAccomplishmentPanel
-          stationno={stationno}
-          year={year}
-          month={month}
-          data={
-            station
-              ? {
-                  stationno: station.stationno,
-                  month: station.month ?? month,
-                  year: station.year ?? year,
-                  totaltargetbplo: num(station.totaltargetbplo),
-                  totaltargetgov: num(station.totaltargetgov),
-                  totaltargetpeza: num(station.totaltargetpeza),
-                  totaltargettieza: num(station.totaltargettieza),
-                  totalAccomplishmentbplo: num(station.totalAccomplishmentbplo),
-                  totalAccomplishmentgov: num(station.totalAccomplishmentgov),
-                  totalAccomplishmentpeza: num(station.totalAccomplishmentpeza),
-                  totalAccomplishmenttieza: num(station.totalAccomplishmenttieza),
-                }
-              : null
-          }
-        />
+        {showDailyDashboard && (
+          <div className="p-3 sm:p-4">
+            <TargetAccomplishmentPanel
+              stationno={stationno}
+              year={year}
+              month={month}
+              data={
+                station
+                  ? {
+                      stationno: station.stationno,
+                      month: station.month ?? month,
+                      year: station.year ?? year,
+                      totaltargetbplo: num(station.totaltargetbplo),
+                      totaltargetgov: num(station.totaltargetgov),
+                      totaltargetpeza: num(station.totaltargetpeza),
+                      totaltargettieza: num(station.totaltargettieza),
+                      totalAccomplishmentbplo: num(station.totalAccomplishmentbplo),
+                      totalAccomplishmentgov: num(station.totalAccomplishmentgov),
+                      totalAccomplishmentpeza: num(station.totalAccomplishmentpeza),
+                      totalAccomplishmenttieza: num(station.totalAccomplishmenttieza),
+                    }
+                  : null
+              }
+            />
+          </div>
+        )}
       </Card>
 
       <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
@@ -1954,18 +1974,43 @@ function SectionTitle({
   title,
   subtitle,
   icon,
+  expanded,
+  onToggle,
 }: {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
+  const ToggleIcon = expanded ? ChevronUp : ChevronDown;
+
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div
+      className={onToggle ? "flex items-center justify-between gap-3 cursor-pointer select-none" : "flex items-center justify-between gap-3"}
+      onClick={onToggle}
+      role={onToggle ? "button" : undefined}
+      aria-expanded={onToggle ? expanded : undefined}
+      tabIndex={onToggle ? 0 : undefined}
+      onKeyDown={
+        onToggle
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggle();
+              }
+            }
+          : undefined
+      }
+    >
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         {icon}
         {title}
       </h2>
-      {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+      <div className="flex items-center gap-2">
+        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+        {onToggle && <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />}
+      </div>
     </div>
   );
 }

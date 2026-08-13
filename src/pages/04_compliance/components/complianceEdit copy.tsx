@@ -132,9 +132,11 @@ interface FSISComplianceDetailItem {
   inspectgovcount?: number | null;
   inspectpezacount?: number | null;
   inspecttiezacount?: number | null;
-  
-
-  
+  reinspectbplocount?: number | null;
+  reinspectgovcount?: number | null;
+  reinspectpezacount?: number | null;
+  reinspecttiezacount?: number | null;
+  reinspectoccupancycount?: number | null;
 
   fsecbuildingcount?: number | null;
   fsecgovcount?: number | null;
@@ -1014,7 +1016,15 @@ function ComplianceEditBody({
             ntcvcount: day.manual.ntcvcount,
             abatementcount: day.manual.abatementcount,
             closurecount: day.manual.closurecount,
-            
+            refsicoccupancycount: 0,
+            refsicbplonewcount: 0,
+            refsicbplorenewcount: 0,
+            refsicgovcount: 0,
+            refsicpezacount: 0,
+            refsictiezacount: 0,
+            rentcvcount: 0,
+            reabatementcount: 0,
+            reclosurecount: 0,
           },
           {
             issuanceno: day.fsis.issuanceno || EMPTY_GUID,
@@ -1034,7 +1044,15 @@ function ComplianceEditBody({
             ntcvcount: day.fsis.ntcvcount,
             abatementcount: day.fsis.abatementcount,
             closurecount: day.fsis.closurecount,
-            
+            refsicoccupancycount: 0,
+            refsicbplonewcount: 0,
+            refsicbplorenewcount: 0,
+            refsicgovcount: 0,
+            refsicpezacount: 0,
+            refsictiezacount: 0,
+            rentcvcount: 0,
+            reabatementcount: 0,
+            reclosurecount: 0,
           },
         ];
 
@@ -1047,7 +1065,10 @@ function ComplianceEditBody({
           inspectgovcount: day.inspection.inspectgovcount ?? 0,
           inspectpezacount: day.inspection.inspectpezacount ?? 0,
           inspecttiezacount: day.inspection.inspecttiezacount ?? 0,
-        
+          reinspectbplocount: day.inspection.reinspectbplocount ?? 0,
+          reinspectgovcount: day.inspection.reinspectgovcount ?? 0,
+          reinspectpezacount: day.inspection.reinspectpezacount ?? 0,
+          reinspecttiezacount: day.inspection.reinspecttiezacount ?? 0,
           remarks: (day.inspection.remarks ?? "").trim(),
           issuancelist,
           isaccomplished: isRowModified,

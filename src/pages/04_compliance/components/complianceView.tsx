@@ -159,7 +159,10 @@ const INSPECTION_TARGET_COLS = [
   },
 ] as const;
 
-const ISSUANCE_GROUPS = [
+const ISSUANCE_GROUPS: ReadonlyArray<{
+  title: string;
+  cols: ReadonlyArray<{ key: string; label: string }>;
+}> = [
   {
     title: "FSEC",
     cols: [
@@ -190,24 +193,26 @@ const ISSUANCE_GROUPS = [
       { key: "closurecount", label: "Closure" },
     ],
   },
-] as const;
+];
 
-const FSIC_SECTORS = [
+const FSIC_SECTORS: ReadonlyArray<{ key: string; reKey: string; label: string }> = [
   { key: "fsicoccupancycount", reKey: "refsicoccupancycount", label: "Occupancy" },
   { key: "fsicbplonewcount", reKey: "refsicbplonewcount", label: "BPLO New" },
   { key: "fsicbplorenewcount", reKey: "refsicbplorenewcount", label: "BPLO Renew" },
   { key: "fsicgovcount", reKey: "refsicgovcount", label: "GOV" },
   { key: "fsicpezacount", reKey: "refsicpezacount", label: "PEZA" },
   { key: "fsictiezacount", reKey: "refsictiezacount", label: "TIEZA" },
-] as const;
+];
 
-const NOTICE_GROUPS = [
+const NOTICE_GROUPS: ReadonlyArray<{ key: string; reKey: string; label: string }> = [
   { key: "ntcvcount", reKey: "rentcvcount", label: "NTCV" },
   { key: "abatementcount", reKey: "reabatementcount", label: "Abatement" },
   { key: "closurecount", reKey: "reclosurecount", label: "Closure" },
-] as const;
+];
 
-const ISSUANCE_COLS = ISSUANCE_GROUPS.flatMap((g) => g.cols);
+const ISSUANCE_COLS: Array<{ key: string; label: string }> = ISSUANCE_GROUPS.flatMap((g) =>
+  Array.from(g.cols),
+);
 
 const STRONG_RIGHT_BORDER_KEYS = new Set([
   ...INSPECTION_PLAIN_COLS.slice(-1).map((c) => c.key),

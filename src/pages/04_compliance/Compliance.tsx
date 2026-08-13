@@ -162,10 +162,11 @@ function sumBucket(
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const uiKey of Object.keys(map)) {
-    const apiKey = map[uiKey] as keyof FSISComplianceLedgerDailyItem;
+    const apiKey = map[uiKey];
     let total = 0;
     for (const d of daily) {
-      const topLevelValue = Number((d as Record<string, unknown>)?.[apiKey] ?? 0) || 0;
+      const row = d as unknown as Record<string, unknown>;
+      const topLevelValue = Number(row[apiKey] ?? 0) || 0;
       total += topLevelValue;
 
       const issuances = Array.isArray((d as { issuancelist?: unknown[] }).issuancelist)
@@ -1079,10 +1080,10 @@ const FSIC_SECTORS = [
   { key: "fsictiezacount", reKey: "refsictiezacount", label: "TIEZA" },
 ] as const;
 
-const FSIC_GROUP_KEYS = new Set(FSIC_SECTORS.map((sector) => sector.key));
+const FSIC_GROUP_KEYS = new Set<string>(FSIC_SECTORS.map((sector) => sector.key));
 const FSIC_REKEY_BY_KEY: Record<string, string> = Object.fromEntries(
   FSIC_SECTORS.map((sector) => [sector.key, sector.reKey]),
-);
+) as Record<string, string>;
 const isFsicReKey = (key: string) => Object.values(FSIC_REKEY_BY_KEY).includes(key);
 
 const NOTICE_GROUPS = [
@@ -1091,13 +1092,13 @@ const NOTICE_GROUPS = [
   { key: "closurecount", reKey: "reclosurecount", label: "Closure" },
 ] as const;
 
-const NOTICE_GROUP_KEYS = new Set(NOTICE_GROUPS.map((group) => group.key));
+const NOTICE_GROUP_KEYS = new Set<string>(NOTICE_GROUPS.map((group) => group.key));
 const NOTICE_REKEY_BY_KEY: Record<string, string> = Object.fromEntries(
   NOTICE_GROUPS.map((group) => [group.key, group.reKey]),
-);
+) as Record<string, string>;
 const isNoticeReKey = (key: string) => Object.values(NOTICE_REKEY_BY_KEY).includes(key);
 
-const ISSUANCE_COLS = ISSUANCE_GROUPS.flatMap((g) => g.cols);
+const ISSUANCE_COLS: LedgerCol[] = ISSUANCE_GROUPS.flatMap((g) => g.cols);
 
 /** Columns that end a category group — used to draw a visual divider line. */
 const GROUP_END_KEYS = new Set([

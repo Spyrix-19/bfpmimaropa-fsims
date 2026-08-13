@@ -425,6 +425,23 @@ export interface ComplianceDailyCounts {
   provincename: string;
   dateinspected: string;
 
+  dailytargetbplo?: number;
+  dailytargetgov?: number;
+  dailytargetpeza?: number;
+  dailytargettieza?: number;
+
+  inspectduringcount?: number;
+  inspectaftercount?: number;
+  inspectbplocount?: number;
+  inspectgovcount?: number;
+  inspectpezacount?: number;
+  inspecttiezacount?: number;
+
+  reinspectbplocount?: number;
+  reinspectgovcount?: number;
+  reinspectpezacount?: number;
+  reinspecttiezacount?: number;
+
   insp_during: number;
   insp_after: number;
   insp_bplo: number;
