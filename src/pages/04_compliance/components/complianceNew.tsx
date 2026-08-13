@@ -466,6 +466,7 @@ function InspectionsNewBody({
     });
 
     setReinspection({
+      reinsp_occupancy: Number(rec.reinspectoccupancycount ?? 0),
       reinsp_bplo: Number(rec.reinspectbplocount ?? 0),
       reinsp_gov: Number(rec.reinspectgovcount ?? 0),
       reinsp_peza: Number(rec.reinspectpezacount ?? 0),
@@ -870,6 +871,7 @@ function InspectionsNewBody({
         inspectgovcount: numeric.insp_1st_gov ?? 0,
         inspectpezacount: numeric.insp_1st_peza ?? 0,
         inspecttiezacount: numeric.insp_1st_tieza ?? 0,
+        reinspectoccupancycount: reinspection.reinsp_occupancy ?? 0,
         reinspectbplocount: reinspection.reinsp_bplo ?? 0,
         reinspectgovcount: reinspection.reinsp_gov ?? 0,
         reinspectpezacount: reinspection.reinsp_peza ?? 0,
@@ -1288,7 +1290,7 @@ function InspectionsNewBody({
       <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
           title="Daily Reinspection Activities"
-          subtitle="Encode reinspections separately for MANUAL and FSIS"
+          subtitle="Reinspection panel and detailed table"
           expanded={reinspectionExpanded}
           onToggle={() => setReinspectionExpanded((v) => !v)}
         />
@@ -1859,6 +1861,7 @@ const defaultReinspection = Object.fromEntries(
 ) as Record<string, number>;
 
 const REINSPECTION_PANEL_FIELDS: NumericFieldSpec[] = [
+  { key: "reinsp_occupancy", label: "Reinspection Occupancy" },
   { key: "reinsp_bplo", label: "Reinspection BPLO" },
   { key: "reinsp_gov", label: "Reinspection GOV" },
   { key: "reinsp_peza", label: "Reinspection PEZA" },
@@ -1882,26 +1885,58 @@ function ReinspectionPanel({
     <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-transparent p-4">
       <div className="mb-3 text-sm font-semibold text-foreground">Reinspection</div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {REINSPECTION_PANEL_FIELDS.map((f) => (
-          <div key={f.key} className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">
-              {f.label} <span className="text-destructive">*</span>
-            </Label>
-            <NumericInput
-              value={values[f.key]}
-              disabled={Boolean(locked)}
-              readOnly={Boolean(locked)}
-              onValueChange={(raw) => {
-                const cleaned = raw.replace(/[^0-9]/g, "");
-                setValues((prev) => ({
-                  ...prev,
-                  [f.key]: cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0),
-                }));
-              }}
-              className={cn("tabular-nums", locked && "cursor-not-allowed opacity-60")}
-            />
-          </div>
-        ))}
+        {/* Left column: Occupancy, GOV, TIEZA */}
+        <div className="space-y-1.5">
+          {REINSPECTION_PANEL_FIELDS.filter((f) =>
+            ["reinsp_occupancy", "reinsp_gov", "reinsp_tieza"].includes(f.key),
+          ).map((f) => (
+            <div key={f.key} className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                {f.label} <span className="text-destructive">*</span>
+              </Label>
+              <NumericInput
+                value={values[f.key]}
+                disabled={Boolean(locked)}
+                readOnly={Boolean(locked)}
+                onValueChange={(raw) => {
+                  const cleaned = raw.replace(/[^0-9]/g, "");
+                  setValues((prev) => ({
+                    ...prev,
+                    [f.key]: cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0),
+                  }));
+                }}
+                className={cn("tabular-nums", locked && "cursor-not-allowed opacity-60")}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Right column: empty spacer, then BPLO, PEZA */}
+        <div className="space-y-1.5">
+          <div />
+          {REINSPECTION_PANEL_FIELDS.filter((f) => ["reinsp_bplo", "reinsp_peza"].includes(f.key)).map(
+            (f) => (
+              <div key={f.key} className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  {f.label} <span className="text-destructive">*</span>
+                </Label>
+                <NumericInput
+                  value={values[f.key]}
+                  disabled={Boolean(locked)}
+                  readOnly={Boolean(locked)}
+                  onValueChange={(raw) => {
+                    const cleaned = raw.replace(/[^0-9]/g, "");
+                    setValues((prev) => ({
+                      ...prev,
+                      [f.key]: cleaned === "" ? 0 : Math.max(0, parseInt(cleaned, 10) || 0),
+                    }));
+                  }}
+                  className={cn("tabular-nums", locked && "cursor-not-allowed opacity-60")}
+                />
+              </div>
+            ),
+          )}
+        </div>
       </div>
     </div>
   );

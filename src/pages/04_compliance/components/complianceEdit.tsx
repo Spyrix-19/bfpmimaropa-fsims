@@ -189,6 +189,7 @@ const FIELD_TO_API: Record<string, keyof FSISComplianceDetailItem> = {
   insp_peza: "inspectpezacount",
   insp_tieza: "inspecttiezacount",
   reinsp_bplo: "reinspectbplocount",
+  reinsp_occupancy: "reinspectoccupancycount",
   reinsp_gov: "reinspectgovcount",
   reinsp_peza: "reinspectpezacount",
   reinsp_tieza: "reinspecttiezacount",

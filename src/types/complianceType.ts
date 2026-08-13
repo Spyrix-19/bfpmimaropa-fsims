@@ -37,6 +37,7 @@ export interface FSISComplianceClass {
   inspectpezacount: number;
   inspecttiezacount: number;
   reinspectbplocount: number;
+  reinspectoccupancycount?: number;
   reinspectgovcount: number;
   reinspectpezacount: number;
   reinspecttiezacount: number;
@@ -125,6 +126,7 @@ export interface FSISComplianceDetailByDateClassModel {
   inspectpezacount: number;
   inspecttiezacount: number;
   reinspectbplocount?: number;
+  reinspectoccupancycount?: number;
   reinspectgovcount?: number;
   reinspectpezacount?: number;
   reinspecttiezacount?: number;
@@ -162,6 +164,7 @@ export interface FSISComplianceDetailClassModel {
   inspectpezacount: number;
   inspecttiezacount: number;
   reinspectbplocount?: number;
+  reinspectoccupancycount?: number;
   reinspectgovcount?: number;
   reinspectpezacount?: number;
   reinspecttiezacount?: number;
