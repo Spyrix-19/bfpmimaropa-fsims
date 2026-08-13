@@ -18,334 +18,201 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowLeft,
-  Calendar as CalendarIcon,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
   Eye,
   Loader2,
   Lock,
   Pencil,
   RotateCcw,
-  Target,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { toast } from "@/lib/toast";
 
 import { stationAPI } from "@/services/stationAPI";
 import StationInfoCard from "@/components/station-info-card";
 import { complianceAPI } from "@/services/complianceAPI";
 import { MONITORING_THEME } from "./complianceTheme";
+import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
 import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
 import { MONTHS } from "@/lib/fsims-constants";
-import { CATEGORY_FIELDS } from "@/lib/complianceHelpers";
-import { cn, buildYears, displayNumber } from "@/lib/utils";
-import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
-import type { ComplianceDailyCounts } from "@/types/complianceType";
+import { buildYears } from "@/lib/utils";
 import type {
-  FSISComplianceMonthlyLedgerModel,
-  FSISComplianceDailyClass,
-  FSISIssuanceClassModel,
   FSISComplianceDetailModel,
+  FSISComplianceDetailClassModel,
+  TargetAccomplishmentModel,
 } from "@/types/complianceType";
 import type { SearchStationModel } from "@/types/stationTypes";
 import { useAuth } from "@/lib/auth";
 import { canShowEditAction } from "@/lib/permissions";
 
-/** Re-inspection columns are encoding-screen only (mirrors complianceEdit). */
-const EXTRA_CATEGORY_FIELDS = {
-  REINSPECTION: [
-    { key: "reinsp_bplo", label: "BPLO" },
-    { key: "reinsp_gov", label: "GOV" },
-    { key: "reinsp_peza", label: "PEZA" },
-    { key: "reinsp_tieza", label: "TIEZA" },
-  ],
-  REFSIC: [
-    { key: "refsic_occupancy", label: "Occupancy" },
-    { key: "refsic_bplo_new", label: "BPLO New" },
-    { key: "refsic_bplo_renewal", label: "BPLO Renew" },
-    { key: "refsic_gov", label: "Gov" },
-    { key: "refsic_peza", label: "PEZA" },
-    { key: "refsic_tieza", label: "TIEZA" },
-  ],
-  RENOTICES: [
-    { key: "renot_ntcv", label: "NTCV" },
-    { key: "renot_abatement", label: "Abatement" },
-    { key: "renot_closure", label: "Closure" },
-  ],
-} as const;
+/* ========================================================================== */
+/*  Column definitions — keyed by the EXACT API property names               */
+/*  (mirrors complianceEdit.tsx so both screens share one presentation)      */
+/* ========================================================================== */
 
-const CATEGORY_ORDER = [
-  "INSPECTION",
-  "REINSPECTION",
-  "FSEC",
-  "FSIC",
-  "NOTICES",
-  "REFSIC",
-  "RENOTICES",
-] as const;
-const FIELD_GROUPS = CATEGORY_ORDER.map((category) => ({
-  category,
-  fields: (category in EXTRA_CATEGORY_FIELDS
-    ? EXTRA_CATEGORY_FIELDS[category as keyof typeof EXTRA_CATEGORY_FIELDS]
-    : CATEGORY_FIELDS[category as keyof typeof CATEGORY_FIELDS]) as unknown as {
-    key: string;
-    label: string;
-  }[],
-}));
-const DETAIL_FIELDS = FIELD_GROUPS.flatMap((group) => group.fields);
+type InspectionField =
+  | "inspectduringcount"
+  | "inspectaftercount"
+  | "inspectbplocount"
+  | "inspectgovcount"
+  | "inspectpezacount"
+  | "inspecttiezacount"
+  | "reinspectoccupancycount"
+  | "reinspectbplocount"
+  | "reinspectgovcount"
+  | "reinspectpezacount"
+  | "reinspecttiezacount";
 
-// Unified palette — every group/sub-group shares the same color family
-// (see monitoringTheme.ts). Grouping is preserved by labels, not by hue.
-const GROUP_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: MONITORING_THEME.headerSoft,
-  REINSPECTION: MONITORING_THEME.headerSoft,
-  FSEC: MONITORING_THEME.headerSoft,
-  FSIC: MONITORING_THEME.headerSoft,
-  NOTICES: MONITORING_THEME.headerSoft,
-  REFSIC: MONITORING_THEME.headerSoft,
-  RENOTICES: MONITORING_THEME.headerSoft,
-};
+type TargetField = "dailytargetbplo" | "dailytargetgov" | "dailytargetpeza" | "dailytargettieza";
 
-const SUB_TONE: Record<(typeof CATEGORY_ORDER)[number], string> = {
-  INSPECTION: MONITORING_THEME.headerSofter,
-  REINSPECTION: MONITORING_THEME.headerSofter,
-  FSEC: MONITORING_THEME.headerSofter,
-  FSIC: MONITORING_THEME.headerSofter,
-  NOTICES: MONITORING_THEME.headerSofter,
-  REFSIC: MONITORING_THEME.headerSofter,
-  RENOTICES: MONITORING_THEME.headerSofter,
-};
+type IssuanceField =
+  | "fsecbuildingcount"
+  | "fsecgovcount"
+  | "fsecpezacount"
+  | "fsectiezacount"
+  | "fsicoccupancycount"
+  | "fsicbplonewcount"
+  | "fsicbplorenewcount"
+  | "fsicgovcount"
+  | "fsicpezacount"
+  | "fsictiezacount"
+  | "nodcount"
+  | "ntccount"
+  | "ntcvcount"
+  | "abatementcount"
+  | "closurecount"
+  | "refsicoccupancycount"
+  | "refsicbplonewcount"
+  | "refsicbplorenewcount"
+  | "refsicgovcount"
+  | "refsicpezacount"
+  | "refsictiezacount"
+  | "rentcvcount"
+  | "reabatementcount"
+  | "reclosurecount";
 
-const FIELD_CATEGORY = new Map<string, (typeof CATEGORY_ORDER)[number]>(
-  FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [String(f.key), g.category] as const)),
-);
-
-const INSPECTION_PLAIN_COLS = [
-  { key: "inspectduringcount", label: "During" },
-  { key: "inspectaftercount", label: "After" },
-] as const;
-
-const INSPECTION_TARGET_COLS = [
-  {
-    key: "inspectbplocount",
-    label: "BPLO",
-    targetKey: "dailytargetbplo",
-    reKey: "reinspectbplocount",
-  },
-  {
-    key: "inspectgovcount",
-    label: "GOV",
-    targetKey: "dailytargetgov",
-    reKey: "reinspectgovcount",
-  },
-  {
-    key: "inspectpezacount",
-    label: "PEZA",
-    targetKey: "dailytargetpeza",
-    reKey: "reinspectpezacount",
-  },
-  {
-    key: "inspecttiezacount",
-    label: "TIEZA",
-    targetKey: "dailytargettieza",
-    reKey: "reinspecttiezacount",
-  },
-] as const;
-
-const ISSUANCE_GROUPS: ReadonlyArray<{
-  title: string;
-  cols: ReadonlyArray<{ key: string; label: string }>;
-}> = [
-  {
-    title: "FSEC",
-    cols: [
-      { key: "fsecbuildingcount", label: "Building" },
-      { key: "fsecgovcount", label: "GOV" },
-      { key: "fsecpezacount", label: "PEZA" },
-      { key: "fsectiezacount", label: "TIEZA" },
-    ],
-  },
-  {
-    title: "FSIC",
-    cols: [
-      { key: "fsicoccupancycount", label: "Occupancy" },
-      { key: "fsicbplonewcount", label: "BPLO New" },
-      { key: "fsicbplorenewcount", label: "BPLO Renew" },
-      { key: "fsicgovcount", label: "GOV" },
-      { key: "fsicpezacount", label: "PEZA" },
-      { key: "fsictiezacount", label: "TIEZA" },
-    ],
-  },
-  {
-    title: "Issued Notices",
-    cols: [
-      { key: "nodcount", label: "NOD" },
-      { key: "ntccount", label: "NTC" },
-      { key: "ntcvcount", label: "NTCV" },
-      { key: "abatementcount", label: "Abatement" },
-      { key: "closurecount", label: "Closure" },
-    ],
-  },
-];
-
-const FSIC_SECTORS: ReadonlyArray<{ key: string; reKey: string; label: string }> = [
-  { key: "fsicoccupancycount", reKey: "refsicoccupancycount", label: "Occupancy" },
-  { key: "fsicbplonewcount", reKey: "refsicbplonewcount", label: "BPLO New" },
-  { key: "fsicbplorenewcount", reKey: "refsicbplorenewcount", label: "BPLO Renew" },
-  { key: "fsicgovcount", reKey: "refsicgovcount", label: "GOV" },
-  { key: "fsicpezacount", reKey: "refsicpezacount", label: "PEZA" },
-  { key: "fsictiezacount", reKey: "refsictiezacount", label: "TIEZA" },
-];
-
-const NOTICE_GROUPS: ReadonlyArray<{ key: string; reKey: string; label: string }> = [
-  { key: "ntcvcount", reKey: "rentcvcount", label: "NTCV" },
-  { key: "abatementcount", reKey: "reabatementcount", label: "Abatement" },
-  { key: "closurecount", reKey: "reclosurecount", label: "Closure" },
-];
-
-const ISSUANCE_COLS: Array<{ key: string; label: string }> = ISSUANCE_GROUPS.flatMap((g) =>
-  Array.from(g.cols),
-);
-
-const STRONG_RIGHT_BORDER_KEYS = new Set([
-  ...INSPECTION_PLAIN_COLS.slice(-1).map((c) => c.key),
-  ...INSPECTION_TARGET_COLS.slice(-1).map((c) => c.key),
-  ...ISSUANCE_GROUPS.flatMap((g) => g.cols.slice(-1).map((c) => c.key)),
-  "fsectiezacount",
-  "fsicoccupancycount",
-  "nodcount",
-  "ntccount",
-  "ntcvcount",
-]);
-
-const headCell =
-  "border-b border-border/40 bg-blue-50/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-blue-700/90 dark:text-blue-300/90 whitespace-nowrap text-center";
-const bodyCell =
-  "border-b border-border/25 px-2.5 py-1.5 text-xs tabular-nums text-center text-foreground/90";
-const footCell =
-  "border-t border-border/50 bg-blue-100/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
-
-/** Flat inspection record extracted from a Monthly ledger row. */
-interface InspectionCounts {
-  remarks: string;
-  inspectduringcount: number;
-  inspectaftercount: number;
-  inspectbplocount: number;
-  inspectgovcount: number;
-  inspectpezacount: number;
-  inspecttiezacount: number;
-  reinspectbplocount: number;
-  reinspectgovcount: number;
-  reinspectpezacount: number;
-  reinspecttiezacount: number;
-  dailytargetbplo: number;
-  dailytargetgov: number;
-  dailytargetpeza: number;
-  dailytargettieza: number;
+interface InspectionCol {
+  api: InspectionField;
+  label: string;
+  target?: TargetField;
+}
+interface IssuanceCol {
+  api: IssuanceField;
+  label: string;
 }
 
-interface IssuanceCounts {
-  fsecbuildingcount: number;
-  fsecgovcount: number;
-  fsecpezacount: number;
-  fsectiezacount: number;
-  fsicoccupancycount: number;
-  fsicbplonewcount: number;
-  fsicbplorenewcount: number;
-  fsicgovcount: number;
-  fsicpezacount: number;
-  fsictiezacount: number;
-  nodcount: number;
-  ntccount: number;
-  ntcvcount: number;
-  abatementcount: number;
-  closurecount: number;
-  refsicoccupancycount: number;
-  refsicbplonewcount: number;
-  refsicbplorenewcount: number;
-  refsicgovcount: number;
-  refsicpezacount: number;
-  refsictiezacount: number;
-  rentcvcount: number;
-  reabatementcount: number;
-  reclosurecount: number;
-}
+/* -- Daily Inspection & Issuance ------------------------------------------ */
+const INSPECT_COLS: InspectionCol[] = [
+  { api: "inspectduringcount", label: "During" },
+  { api: "inspectaftercount", label: "After" },
+  { api: "inspectbplocount", label: "BPLO", target: "dailytargetbplo" },
+  { api: "inspectgovcount", label: "GOV", target: "dailytargetgov" },
+  { api: "inspectpezacount", label: "PEZA", target: "dailytargetpeza" },
+  { api: "inspecttiezacount", label: "TIEZA", target: "dailytargettieza" },
+];
 
-/** Map ComplianceDailyCounts keys to the flat API count keys. */
-const FIELD_TO_API: Record<string, string> = {
-  insp_during: "inspectduringcount",
-  insp_after: "inspectaftercount",
-  insp_bplo: "inspectbplocount",
-  insp_gov: "inspectgovcount",
-  insp_peza: "inspectpezacount",
-  insp_tieza: "inspecttiezacount",
-  reinsp_bplo: "reinspectbplocount",
-  reinsp_gov: "reinspectgovcount",
-  reinsp_peza: "reinspectpezacount",
-  reinsp_tieza: "reinspecttiezacount",
-  fsec_building: "fsecbuildingcount",
-  fsec_gov: "fsecgovcount",
-  fsec_peza: "fsecpezacount",
-  fsec_tieza: "fsectiezacount",
-  fsic_occupancy: "fsicoccupancycount",
-  fsic_bplo_new: "fsicbplonewcount",
-  fsic_bplo_renewal: "fsicbplorenewcount",
-  fsic_gov: "fsicgovcount",
-  fsic_peza: "fsicpezacount",
-  fsic_tieza: "fsictiezacount",
-  not_nod: "nodcount",
-  not_ntc: "ntccount",
-  not_ntcv: "ntcvcount",
-  not_abatement: "abatementcount",
-  not_closure: "closurecount",
-  refsic_occupancy: "refsicoccupancycount",
-  refsic_bplo_new: "refsicbplonewcount",
-  refsic_bplo_renewal: "refsicbplorenewcount",
-  refsic_gov: "refsicgovcount",
-  refsic_peza: "refsicpezacount",
-  refsic_tieza: "refsictiezacount",
-  renot_ntcv: "rentcvcount",
-  renot_abatement: "reabatementcount",
-  renot_closure: "reclosurecount",
+const FSEC_COLS: IssuanceCol[] = [
+  { api: "fsecbuildingcount", label: "Building" },
+  { api: "fsecgovcount", label: "Gov" },
+  { api: "fsecpezacount", label: "PEZA" },
+  { api: "fsectiezacount", label: "TIEZA" },
+];
+
+const FSIC_COLS: IssuanceCol[] = [
+  { api: "fsicoccupancycount", label: "Occupancy" },
+  { api: "fsicbplonewcount", label: "BPLO New" },
+  { api: "fsicbplorenewcount", label: "BPLO Renew" },
+  { api: "fsicgovcount", label: "Gov" },
+  { api: "fsicpezacount", label: "PEZA" },
+  { api: "fsictiezacount", label: "TIEZA" },
+];
+
+const NOTICE_COLS: IssuanceCol[] = [
+  { api: "nodcount", label: "NOD" },
+  { api: "ntccount", label: "NTC" },
+  { api: "ntcvcount", label: "NTCV" },
+  { api: "abatementcount", label: "Abatement" },
+  { api: "closurecount", label: "Closure" },
+];
+
+/* -- Daily Reinspection ---------------------------------------------------- */
+const REINSPECT_COLS: InspectionCol[] = [
+  { api: "reinspectoccupancycount", label: "Occupancy" },
+  { api: "reinspectbplocount", label: "BPLO" },
+  { api: "reinspectgovcount", label: "GOV" },
+  { api: "reinspectpezacount", label: "PEZA" },
+  { api: "reinspecttiezacount", label: "TIEZA" },
+];
+
+const REFSIC_COLS: IssuanceCol[] = [
+  { api: "refsicoccupancycount", label: "Occupancy" },
+  { api: "refsicbplonewcount", label: "BPLO New" },
+  { api: "refsicbplorenewcount", label: "BPLO Renew" },
+  { api: "refsicgovcount", label: "Gov" },
+  { api: "refsicpezacount", label: "PEZA" },
+  { api: "refsictiezacount", label: "TIEZA" },
+];
+
+const RENOTICE_COLS: IssuanceCol[] = [
+  { api: "rentcvcount", label: "NTCV" },
+  { api: "reabatementcount", label: "Abatement" },
+  { api: "reclosurecount", label: "Closure" },
+];
+
+const ALL_INSPECTION_FIELDS: InspectionField[] = [
+  ...INSPECT_COLS.map((c) => c.api),
+  ...REINSPECT_COLS.map((c) => c.api),
+];
+
+const ALL_ISSUANCE_FIELDS: IssuanceField[] = [
+  ...FSEC_COLS.map((c) => c.api),
+  ...FSIC_COLS.map((c) => c.api),
+  ...NOTICE_COLS.map((c) => c.api),
+  ...REFSIC_COLS.map((c) => c.api),
+  ...RENOTICE_COLS.map((c) => c.api),
+];
+
+/* ========================================================================== */
+/*  Read-only model                                                          */
+/* ========================================================================== */
+
+type ViewInspection = Record<InspectionField, number> &
+  Record<TargetField, number> & {
+    fsisno: string;
+    dateinspected: string;
+  };
+
+type ViewIssuance = Record<IssuanceField, number> & {
+  issuanceno: string;
+  fsicmode: number;
 };
 
-/** True when a UI field key belongs to the (re)inspection block. */
-const isInspectionKey = (key: string) => key.startsWith("insp_") || key.startsWith("reinsp_");
-
-/** Inspection columns that render a Target | Compliance pair. */
-const INSP_TARGET_FIELDS: Record<string, keyof InspectionCounts> = {
-  insp_bplo: "dailytargetbplo",
-  insp_gov: "dailytargetgov",
-  insp_peza: "dailytargetpeza",
-  insp_tieza: "dailytargettieza",
-};
-
-const INSPECTION_COLSPAN = INSPECTION_PLAIN_COLS.length + INSPECTION_TARGET_COLS.length * 3;
-
-type DayTotals = Partial<Record<keyof ComplianceDailyCounts, number>>;
-
-interface DaySlice {
+interface ViewDay {
   day: number;
   label: string;
   key: string;
-  inspection: InspectionCounts;
-  manual: IssuanceCounts;
-  fsis: IssuanceCounts;
-  totals: DayTotals;
-  remarks: string;
+  inspection: ViewInspection;
+  /** fsicmode 96 */
+  manual: ViewIssuance;
+  /** fsicmode 97 */
+  fsis: ViewIssuance;
+}
+
+const FSIC_MODE_MANUAL = 96;
+const FSIC_MODE_FSIS = 97;
+
+function num(v: unknown): number {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function pct(accomplished: number, target: number): number {
+  return target > 0 ? (accomplished / target) * 100 : 0;
 }
 
 function toLocalKey(y: number, m: number, d: number): string {
-  const mm = String(m).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 function normalizeDateKey(v: string | Date | null | undefined): string | null {
@@ -367,347 +234,124 @@ function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
 
-function num(v: unknown): number {
-  const n = Number(v ?? 0);
-  return Number.isFinite(n) ? n : 0;
+function emptyIssuance(fsicmode: number): ViewIssuance {
+  const base = Object.fromEntries(ALL_ISSUANCE_FIELDS.map((f) => [f, 0])) as Record<
+    IssuanceField,
+    number
+  >;
+  return { ...base, issuanceno: EMPTY_GUID, fsicmode };
 }
 
-const emptyIssuance = (): IssuanceCounts => ({
-  fsecbuildingcount: 0,
-  fsecgovcount: 0,
-  fsecpezacount: 0,
-  fsectiezacount: 0,
-  fsicoccupancycount: 0,
-  fsicbplonewcount: 0,
-  fsicbplorenewcount: 0,
-  fsicgovcount: 0,
-  fsicpezacount: 0,
-  fsictiezacount: 0,
-  nodcount: 0,
-  ntccount: 0,
-  ntcvcount: 0,
-  abatementcount: 0,
-  closurecount: 0,
-  refsicoccupancycount: 0,
-  refsicbplonewcount: 0,
-  refsicbplorenewcount: 0,
-  refsicgovcount: 0,
-  refsicpezacount: 0,
-  refsictiezacount: 0,
-  rentcvcount: 0,
-  reabatementcount: 0,
-  reclosurecount: 0,
-});
+function emptyInspection(dateKey: string): ViewInspection {
+  const counts = Object.fromEntries(ALL_INSPECTION_FIELDS.map((f) => [f, 0])) as Record<
+    InspectionField,
+    number
+  >;
+  return {
+    ...counts,
+    dailytargetbplo: 0,
+    dailytargetgov: 0,
+    dailytargetpeza: 0,
+    dailytargettieza: 0,
+    fsisno: EMPTY_GUID,
+    dateinspected: dateKey,
+  };
+}
 
-function buildSlices(
-  list: Array<FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>> | null | undefined,
+/**
+ * Build one entry per calendar day straight from the Detail API's
+ * `compliancelist`. Days the API did not return stay empty; issuance records
+ * are kept separate per `fsicmode` (96 = MANUAL, 97 = FSIS).
+ */
+function buildViewDays(
+  list: FSISComplianceDetailClassModel[] | null | undefined,
   year: number,
   month: number,
-): DaySlice[] {
-  const byDate = new Map<string, FSISComplianceDailyClass & Partial<FSISIssuanceClassModel>>();
-  if (Array.isArray(list)) {
-    for (const item of list) {
-      const key = normalizeDateKey(item?.dateinspected);
-      if (key) byDate.set(key, item);
-    }
+): ViewDay[] {
+  const dataByDate = new Map<string, FSISComplianceDetailClassModel>();
+  for (const item of Array.isArray(list) ? list : []) {
+    const key = normalizeDateKey(item?.dateinspected);
+    if (key) dataByDate.set(key, item);
   }
 
   const total = daysInMonth(year, month);
   const monthName = MONTHS[month - 1]?.name ?? "";
-  const out: DaySlice[] = [];
+  const out: ViewDay[] = [];
 
   for (let d = 1; d <= total; d++) {
     const key = toLocalKey(year, month, d);
-    const label = `${monthName} ${d}, ${year}`;
-    const rec = byDate.get(key);
+    const rec = dataByDate.get(key);
 
-    const inspection: InspectionCounts = {
-      remarks: (rec?.remarks ?? "").toString(),
-      inspectduringcount: num(rec?.inspectduringcount),
-      inspectaftercount: num(rec?.inspectaftercount),
-      inspectbplocount: num(rec?.inspectbplocount),
-      inspectgovcount: num(rec?.inspectgovcount),
-      inspectpezacount: num(rec?.inspectpezacount),
-      inspecttiezacount: num(rec?.inspecttiezacount),
-      reinspectbplocount: num((rec as { reinspectbplocount?: number })?.reinspectbplocount),
-      reinspectgovcount: num((rec as { reinspectgovcount?: number })?.reinspectgovcount),
-      reinspectpezacount: num((rec as { reinspectpezacount?: number })?.reinspectpezacount),
-      reinspecttiezacount: num((rec as { reinspecttiezacount?: number })?.reinspecttiezacount),
-      dailytargetbplo: num(rec?.dailytargetbplo),
-      dailytargetgov: num(rec?.dailytargetgov),
-      dailytargetpeza: num(rec?.dailytargetpeza),
-      dailytargettieza: num(rec?.dailytargettieza),
-    };
+    const inspection = emptyInspection(key);
+    let manual = emptyIssuance(FSIC_MODE_MANUAL);
+    let fsis = emptyIssuance(FSIC_MODE_FSIS);
 
-    let manual = emptyIssuance();
-    let fsis = emptyIssuance();
+    if (rec) {
+      inspection.fsisno = String(rec.fsisno ?? EMPTY_GUID);
+      inspection.dateinspected = String(rec.dateinspected ?? key);
+      inspection.dailytargetbplo = num(rec.dailytargetbplo);
+      inspection.dailytargetgov = num(rec.dailytargetgov);
+      inspection.dailytargetpeza = num(rec.dailytargetpeza);
+      inspection.dailytargettieza = num(rec.dailytargettieza);
+      for (const f of ALL_INSPECTION_FIELDS) {
+        inspection[f] = num((rec as unknown as Record<string, unknown>)[f]);
+      }
 
-    if (rec && Array.isArray(rec.issuancelist)) {
-      for (const iss of rec.issuancelist) {
+      for (const iss of Array.isArray(rec.issuancelist) ? rec.issuancelist : []) {
         const mode = num(iss?.fsicmode);
-        const parsed: IssuanceCounts = {
-          fsecbuildingcount: num(iss?.fsecbuildingcount),
-          fsecgovcount: num(iss?.fsecgovcount),
-          fsecpezacount: num(iss?.fsecpezacount),
-          fsectiezacount: num(iss?.fsectiezacount),
-          fsicoccupancycount: num(iss?.fsicoccupancycount),
-          fsicbplonewcount: num(iss?.fsicbplonewcount),
-          fsicbplorenewcount: num(iss?.fsicbplorenewcount),
-          fsicgovcount: num(iss?.fsicgovcount),
-          fsicpezacount: num(iss?.fsicpezacount),
-          fsictiezacount: num(iss?.fsictiezacount),
-          nodcount: num(iss?.nodcount),
-          ntccount: num(iss?.ntccount),
-          ntcvcount: num(iss?.ntcvcount),
-          abatementcount: num(iss?.abatementcount),
-          closurecount: num(iss?.closurecount),
-          refsicoccupancycount: num(
-            (iss as { refsicoccupancycount?: number })?.refsicoccupancycount,
-          ),
-          refsicbplonewcount: num((iss as { refsicbplonewcount?: number })?.refsicbplonewcount),
-          refsicbplorenewcount: num(
-            (iss as { refsicbplorenewcount?: number })?.refsicbplorenewcount,
-          ),
-          refsicgovcount: num((iss as { refsicgovcount?: number })?.refsicgovcount),
-          refsicpezacount: num((iss as { refsicpezacount?: number })?.refsicpezacount),
-          refsictiezacount: num((iss as { refsictiezacount?: number })?.refsictiezacount),
-          rentcvcount: num((iss as { rentcvcount?: number })?.rentcvcount),
-          reabatementcount: num((iss as { reabatementcount?: number })?.reabatementcount),
-          reclosurecount: num((iss as { reclosurecount?: number })?.reclosurecount),
-        };
-        if (mode === 96) manual = parsed;
-        else if (mode === 97) fsis = parsed;
+        if (mode !== FSIC_MODE_MANUAL && mode !== FSIC_MODE_FSIS) continue;
+        const target = emptyIssuance(mode);
+        target.issuanceno = String(iss?.issuanceno ?? EMPTY_GUID);
+        for (const f of ALL_ISSUANCE_FIELDS) {
+          target[f] = num((iss as unknown as Record<string, unknown>)[f]);
+        }
+        if (mode === FSIC_MODE_MANUAL) manual = target;
+        else fsis = target;
       }
     }
 
-    const totals: DayTotals = {};
-    for (const field of DETAIL_FIELDS) {
-      const apiKey = FIELD_TO_API[String(field.key)];
-      if (!apiKey) continue;
-      if (isInspectionKey(String(field.key))) {
-        totals[field.key as keyof ComplianceDailyCounts] = num((inspection as any)[apiKey]);
-      } else {
-        totals[field.key as keyof ComplianceDailyCounts] =
-          num((manual as any)[apiKey]) + num((fsis as any)[apiKey]);
-      }
-    }
-
-    out.push({
-      day: d,
-      label,
-      key,
-      inspection,
-      manual,
-      fsis,
-      totals,
-      remarks: inspection.remarks,
-    });
+    out.push({ day: d, label: `${monthName} ${d}, ${year}`, key, inspection, manual, fsis });
   }
 
   return out;
 }
 
-/* ------------------------------------------------------------------ */
-/* Inline Target vs. Compliance panel (no external panel component)    */
-/* ------------------------------------------------------------------ */
-
-const ACC_CATEGORIES: {
-  label: string;
-  targetKey: keyof InspectionCounts;
-  countKey: keyof InspectionCounts;
-}[] = [
-  { label: "BPLO", targetKey: "dailytargetbplo", countKey: "inspectbplocount" },
-  { label: "GOV", targetKey: "dailytargetgov", countKey: "inspectgovcount" },
-  { label: "PEZA", targetKey: "dailytargetpeza", countKey: "inspectpezacount" },
-  { label: "TIEZA", targetKey: "dailytargettieza", countKey: "inspecttiezacount" },
-];
-
-interface AccomplishmentRow {
-  label: string;
-  target: number;
-  compliance: number;
-  variance: number;
-  positive: number;
-  percentage: number;
+/** Header info taken from the Detail API payload. */
+interface StationHeader {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  cityname: string;
+  logourl: string;
 }
 
-const SERIES = {
-  target: "var(--color-warning)",
-  compliance: "var(--color-primary)",
-  variance: "var(--color-destructive)",
-  positive: "var(--color-success)",
-} as const;
+/* ========================================================================== */
+/*  Per-day totals                                                           */
+/* ========================================================================== */
 
-function Dot({ color }: { color: string }) {
-  return (
-    <span
-      className="mr-1.5 inline-block h-2 w-2 rounded-[2px] align-middle"
-      style={{ background: color }}
-    />
-  );
-}
+const sumIssuance = (day: ViewDay, cols: IssuanceCol[]) =>
+  cols.reduce((sum, c) => sum + num(day.manual[c.api]) + num(day.fsis[c.api]), 0);
 
-function InlineAccomplishmentPanel({
-  rows,
-  periodLabel,
-}: {
-  rows: AccomplishmentRow[];
-  periodLabel: string;
-}) {
-  const chartData = rows.map((r) => ({
-    name: r.label,
-    Target: r.target,
-    Compliance: r.compliance,
-  }));
+const sumInspection = (day: ViewDay, cols: InspectionCol[]) =>
+  cols.reduce((sum, c) => sum + num(day.inspection[c.api]), 0);
 
-  const totals = rows.reduce(
-    (acc, r) => {
-      acc.target += r.target;
-      acc.compliance += r.compliance;
-      acc.variance += r.variance;
-      acc.positive += r.positive;
-      return acc;
-    },
-    { target: 0, compliance: 0, variance: 0, positive: 0 },
-  );
-  const totalPct = totals.target > 0 ? (totals.compliance / totals.target) * 100 : 0;
+const inspectionRowTotal = (day: ViewDay) =>
+  sumInspection(day, INSPECT_COLS) +
+  sumIssuance(day, FSEC_COLS) +
+  sumIssuance(day, FSIC_COLS) +
+  sumIssuance(day, NOTICE_COLS);
 
-  return (
-    <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
-      <div className="flex items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
-            <Target className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold">Monthly Target vs. Compliance</div>
-            <div className="text-[11px] text-muted-foreground">{periodLabel}</div>
-          </div>
-        </div>
-      </div>
+const reinspectionRowTotal = (day: ViewDay) =>
+  sumInspection(day, REINSPECT_COLS) +
+  sumIssuance(day, REFSIC_COLS) +
+  sumIssuance(day, RENOTICE_COLS);
 
-      <div className="border-b border-border/50 bg-card/40 p-4">
-        <div className="h-64 w-full">
-          <ResponsiveContainer>
-            <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} allowDecimals={false} />
-              <YAxis {...axisProps} allowDecimals={false} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Target" fill={SERIES.target} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Compliance" fill={SERIES.compliance} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+/* ========================================================================== */
+/*  View body                                                                */
+/* ========================================================================== */
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="px-4 py-2 text-left">Category</th>
-              <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.target} />
-                Target
-              </th>
-              <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.compliance} />
-                Compliance
-              </th>
-              <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.variance} />
-                Variance
-              </th>
-              <th className="px-4 py-2 text-center">
-                <Dot color={SERIES.positive} />
-                Positive Listing
-              </th>
-              <th className="px-4 py-2 text-center">% Accomplishment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr
-                key={r.label}
-                className={cn("border-t border-border/50", i % 2 === 1 && "bg-muted/20")}
-              >
-                <td className="px-4 py-2 font-semibold text-foreground">{r.label}</td>
-                <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.target }}>
-                  {displayNumber(r.target).toLocaleString()}
-                </td>
-                <td
-                  className="px-4 py-2 text-center tabular-nums"
-                  style={{ color: SERIES.compliance }}
-                >
-                  {displayNumber(r.compliance).toLocaleString()}
-                </td>
-                <td
-                  className="px-4 py-2 text-center font-medium tabular-nums"
-                  style={r.variance > 0 ? { color: SERIES.variance } : undefined}
-                >
-                  {displayNumber(r.variance).toLocaleString()}
-                </td>
-                <td
-                  className="px-4 py-2 text-center font-medium tabular-nums"
-                  style={r.positive > 0 ? { color: SERIES.positive } : undefined}
-                >
-                  {displayNumber(r.positive).toLocaleString()}
-                </td>
-                <td
-                  className="px-4 py-2 text-center font-medium tabular-nums"
-                  style={{
-                    color: r.percentage >= 100 ? SERIES.positive : SERIES.compliance,
-                  }}
-                >
-                  {displayNumber(r.percentage).toFixed(2)}%
-                </td>
-              </tr>
-            ))}
-            <tr className="border-t-2 border-border bg-primary/5 font-semibold">
-              <td className="px-4 py-2">Total</td>
-              <td className="px-4 py-2 text-center tabular-nums" style={{ color: SERIES.target }}>
-                {displayNumber(totals.target).toLocaleString()}
-              </td>
-              <td
-                className="px-4 py-2 text-center tabular-nums"
-                style={{ color: SERIES.compliance }}
-              >
-                {displayNumber(totals.compliance).toLocaleString()}
-              </td>
-              <td
-                className="px-4 py-2 text-center tabular-nums"
-                style={totals.variance > 0 ? { color: SERIES.variance } : undefined}
-              >
-                {displayNumber(totals.variance).toLocaleString()}
-              </td>
-              <td
-                className="px-4 py-2 text-center tabular-nums"
-                style={totals.positive > 0 ? { color: SERIES.positive } : undefined}
-              >
-                {displayNumber(totals.positive).toLocaleString()}
-              </td>
-              <td
-                className="px-4 py-2 text-center tabular-nums"
-                style={{ color: totalPct >= 100 ? SERIES.positive : SERIES.compliance }}
-              >
-                {displayNumber(totalPct).toFixed(2)}%
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-/**
- * Read-only monthly overview mirroring the Edit table:
- *  - Two rows per day (MANUAL / FSIS) for FSEC, FSIC, and Issued Notices.
- *  - Inspection, Total, and Remarks columns are merged across the two rows
- *    (rowSpan=2) so the day's values represent the combined MANUAL + FSIS
- *    output.
- */
 function ComplianceViewBody({
   stationno,
   year,
@@ -725,8 +369,14 @@ function ComplianceViewBody({
   });
   const [selectedYear, setSelectedYear] = React.useState<number>(year || new Date().getFullYear());
   const [loading, setLoading] = React.useState(true);
-  const [station, setStation] = React.useState<FSISComplianceMonthlyLedgerModel | null>(null);
+  const [station, setStation] = React.useState<StationHeader | null>(null);
   const [provinceno, setProvinceno] = React.useState<string | null>(null);
+  const [days, setDays] = React.useState<ViewDay[]>([]);
+
+  // Collapsible state for the three daily cards (display only — data is kept).
+  const [dashboardExpanded, setDashboardExpanded] = React.useState(false);
+  const [issuanceExpanded, setIssuanceExpanded] = React.useState(false);
+  const [reinspectionExpanded, setReinspectionExpanded] = React.useState(false);
 
   const YEAR_OPTIONS = React.useMemo(buildYears, []);
   const baseMonth =
@@ -734,6 +384,7 @@ function ComplianceViewBody({
       ? initialMonth
       : new Date().getMonth() + 1;
   const isPeriodChanged = selectedMonth !== baseMonth || selectedYear !== year;
+  const monthName = MONTHS[selectedMonth - 1]?.name ?? String(selectedMonth);
 
   React.useEffect(() => {
     setSelectedMonth(baseMonth);
@@ -762,6 +413,7 @@ function ComplianceViewBody({
     };
   }, [stationno]);
 
+  // GET /api/v1/FSISCompliance/Detail?Stationno=&Reportyear=&Reportmonth=
   React.useEffect(() => {
     if (provinceno == null) return;
     let cancelled = false;
@@ -781,72 +433,22 @@ function ComplianceViewBody({
         resp,
       );
       if (!ok) toast.error(error || "Failed to load daily details.");
-      const first = ok ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null)) : null;
+      const detail = ok ? (Array.isArray(data) ? (data[0] ?? null) : (data ?? null)) : null;
+
       setStation(
-        first
-          ? ({
-              stationno: String(first?.stationno ?? ""),
-              stationcode: String(first?.stationcode ?? ""),
-              stationname: String(first?.stationname ?? ""),
-              regionno: "",
-              regioncode: "",
-              regionname: "",
-              provinceno: String(first?.provinceno ?? ""),
-              provincename: String(first?.provincename ?? ""),
-              cityno: "",
-              zipcode: "",
-              cityname: String(first?.cityname ?? ""),
-              barangayno: "",
-              barangayname: "",
-              streetaddress: "",
-              logourl: String(first?.logourl ?? ""),
-              month: selectedMonth,
-              year: selectedYear,
-              totaltargetbplo: 0,
-              totaltargetgov: 0,
-              totaltargetpeza: 0,
-              totaltargettieza: 0,
-              totalAccomplishmentbplo: 0,
-              totalAccomplishmentgov: 0,
-              totalAccomplishmentpeza: 0,
-              totalAccomplishmenttieza: 0,
-              updatedby: "",
-              encodedby: "",
-              complianceLedgerList: (Array.isArray(first?.compliancelist)
-                ? first.compliancelist
-                : []
-              ).map((rec) => ({
-                ...rec,
-                fsisno: String((rec as { fsisno?: string }).fsisno ?? ""),
-                dailytargetbplo:
-                  Number((rec as { dailytargetbplo?: number }).dailytargetbplo ?? 0) || 0,
-                dailytargetgov:
-                  Number((rec as { dailytargetgov?: number }).dailytargetgov ?? 0) || 0,
-                dailytargetpeza:
-                  Number((rec as { dailytargetpeza?: number }).dailytargetpeza ?? 0) || 0,
-                dailytargettieza:
-                  Number((rec as { dailytargettieza?: number }).dailytargettieza ?? 0) || 0,
-                inspectduringcount:
-                  Number((rec as { inspectduringcount?: number }).inspectduringcount ?? 0) || 0,
-                inspectaftercount:
-                  Number((rec as { inspectaftercount?: number }).inspectaftercount ?? 0) || 0,
-                inspectbplocount:
-                  Number((rec as { inspectbplocount?: number }).inspectbplocount ?? 0) || 0,
-                inspectgovcount:
-                  Number((rec as { inspectgovcount?: number }).inspectgovcount ?? 0) || 0,
-                inspectpezacount:
-                  Number((rec as { inspectpezacount?: number }).inspectpezacount ?? 0) || 0,
-                inspecttiezacount:
-                  Number((rec as { inspecttiezacount?: number }).inspecttiezacount ?? 0) || 0,
-                remarks: String((rec as { remarks?: string }).remarks ?? ""),
-                dateinspected: String((rec as { dateinspected?: string }).dateinspected ?? ""),
-                issuancelist: Array.isArray((rec as { issuancelist?: unknown[] }).issuancelist)
-                  ? ((rec as { issuancelist?: unknown[] }).issuancelist as unknown[])
-                  : [],
-              })) as FSISComplianceMonthlyLedgerModel["complianceLedgerList"],
-            } as FSISComplianceMonthlyLedgerModel)
+        detail
+          ? {
+              stationno: String(detail.stationno ?? ""),
+              stationcode: String(detail.stationcode ?? ""),
+              stationname: String(detail.stationname ?? ""),
+              provinceno: String(detail.provinceno ?? ""),
+              provincename: String(detail.provincename ?? ""),
+              cityname: String(detail.cityname ?? ""),
+              logourl: String(detail.logourl ?? ""),
+            }
           : null,
       );
+      setDays(buildViewDays(detail?.compliancelist, selectedYear, selectedMonth));
       setLoading(false);
     })();
     return () => {
@@ -854,49 +456,38 @@ function ComplianceViewBody({
     };
   }, [stationno, provinceno, selectedYear, selectedMonth]);
 
-  const slices = React.useMemo<DaySlice[]>(
-    () => buildSlices(station?.complianceLedgerList, selectedYear, selectedMonth),
-    [station, selectedYear, selectedMonth],
-  );
+  /** Monthly target vs. accomplishment, derived from the Detail API values. */
+  const monthlySummary: TargetAccomplishmentModel | null = React.useMemo(() => {
+    if (!station) return null;
+    return days.reduce<TargetAccomplishmentModel>(
+      (acc, d) => {
+        acc.totaltargetbplo += num(d.inspection.dailytargetbplo);
+        acc.totaltargetgov += num(d.inspection.dailytargetgov);
+        acc.totaltargetpeza += num(d.inspection.dailytargetpeza);
+        acc.totaltargettieza += num(d.inspection.dailytargettieza);
+        acc.totalAccomplishmentbplo += num(d.inspection.inspectbplocount);
+        acc.totalAccomplishmentgov += num(d.inspection.inspectgovcount);
+        acc.totalAccomplishmentpeza += num(d.inspection.inspectpezacount);
+        acc.totalAccomplishmenttieza += num(d.inspection.inspecttiezacount);
+        return acc;
+      },
+      {
+        stationno: station.stationno,
+        month: selectedMonth,
+        year: selectedYear,
+        totaltargetbplo: 0,
+        totaltargetgov: 0,
+        totaltargetpeza: 0,
+        totaltargettieza: 0,
+        totalAccomplishmentbplo: 0,
+        totalAccomplishmentgov: 0,
+        totalAccomplishmentpeza: 0,
+        totalAccomplishmenttieza: 0,
+      },
+    );
+  }, [days, station, selectedMonth, selectedYear]);
 
-  /**
-   * Target vs. Compliance per category — derived directly from the daily
-   * `dailytarget*` and `inspect*count` values of the loaded month.
-   */
-  const accomplishmentRows = React.useMemo<AccomplishmentRow[]>(
-    () =>
-      ACC_CATEGORIES.map((c) => {
-        const target = slices.reduce((sum, s) => sum + num(s.inspection[c.targetKey]), 0);
-        const compliance = slices.reduce((sum, s) => sum + num(s.inspection[c.countKey]), 0);
-        return {
-          label: c.label,
-          target,
-          compliance,
-          variance: Math.max(target - compliance, 0),
-          positive: Math.max(compliance - target, 0),
-          percentage: target > 0 ? (compliance / target) * 100 : 0,
-        };
-      }),
-    [slices],
-  );
-
-  const columnTotals = React.useMemo(() => {
-    const totals: Record<string, number> = {};
-    for (const field of DETAIL_FIELDS) {
-      totals[String(field.key)] = slices.reduce(
-        (sum, s) => sum + num(s.totals[field.key as keyof ComplianceDailyCounts]),
-        0,
-      );
-    }
-    return totals;
-  }, [slices]);
-
-  const grandTotal = React.useMemo(
-    () => Object.values(columnTotals).reduce((a, b) => a + b, 0),
-    [columnTotals],
-  );
-
-  if (loading && !station) {
+  if (loading && days.length === 0) {
     return (
       <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -905,12 +496,12 @@ function ComplianceViewBody({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Reporting Period ------------------------------------------------- */}
+    <div className="space-y-8 pb-4 md:space-y-8">
+      {/* Reporting Period ---------------------------------------------------- */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <CalendarIcon className="h-4 w-4" />
+            <CalendarDays className="h-4 w-4" />
             Reporting Period
           </h2>
           {isPeriodChanged && (
@@ -936,7 +527,7 @@ function ComplianceViewBody({
               value={String(selectedMonth)}
               onValueChange={(v) => setSelectedMonth(Number(v))}
             >
-              <SelectTrigger className="h-10 w-full">
+              <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
                 <SelectValue placeholder="Select month" />
               </SelectTrigger>
               <SelectContent>
@@ -951,7 +542,7 @@ function ComplianceViewBody({
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">Year</span>
             <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
-              <SelectTrigger className="h-10 w-full">
+              <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>
               <SelectContent>
@@ -966,7 +557,7 @@ function ComplianceViewBody({
         </div>
       </Card>
 
-      {/* Station Information ---------------------------------------------- */}
+      {/* Station Information ------------------------------------------------- */}
       <StationInfoCard
         stationName={station?.stationname || ""}
         unitCode={station?.stationcode || ""}
@@ -978,478 +569,496 @@ function ComplianceViewBody({
         ]}
       />
 
-      {/* Target vs. Compliance -------------------------------------------- */}
-      <InlineAccomplishmentPanel
-        rows={accomplishmentRows}
-        periodLabel={`${MONTHS[selectedMonth - 1]?.name ?? ""} ${selectedYear}`}
-      />
+      {/* Daily Dashboard ------------------------------------------------------ */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Dashboard"
+          subtitle={`Reporting month · ${monthName} ${selectedYear}`}
+          expanded={dashboardExpanded}
+          onToggle={() => setDashboardExpanded((v) => !v)}
+        />
 
-      <Card className="overflow-hidden border-border/60 shadow-soft">
-        <div className="max-h-[65vh] w-full max-w-full overflow-auto">
-          <table className="w-full min-w-[1400px] border-separate border-spacing-0 text-xs">
-            <thead className="sticky top-0 z-30">
-              <tr>
-                <th
-                  rowSpan={3}
-                  className={`${headCell} sticky left-0 top-0 z-40 min-w-[120px] h-[34px] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)] ${MONITORING_THEME.headerPrimary}`}
-                >
-                  Date
-                </th>
-                <th
-                  colSpan={INSPECTION_COLSPAN}
-                  className={`${headCell} sticky top-0 z-30 h-[34px] border-r-2 border-r-border/80 ${GROUP_TONE.INSPECTION}`}
-                >
-                  Inspection
-                </th>
-                <th
-                  rowSpan={3}
-                  className={`${headCell} sticky top-0 z-30 h-[34px] min-w-[90px] border-r-2 border-r-border/80 ${MONITORING_THEME.headerSoft}`}
-                >
-                  Mode of
-                  <br />
-                  Issuance
-                </th>
-                {ISSUANCE_GROUPS.map((g, idx) => {
-                  const colSpan =
-                    g.title === "FSIC"
-                      ? g.cols.length * 2
-                      : g.title === "Issued Notices"
-                      ? 2 + NOTICE_GROUPS.length * 2
-                      : g.cols.length;
-                  return (
-                    <th
-                      key={g.title}
-                      colSpan={colSpan}
-                      className={`${headCell} sticky top-0 z-30 ${idx < ISSUANCE_GROUPS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                    >
-                      {g.title}
-                    </th>
-                  );
-                })}
-                <th
-                  rowSpan={3}
-                  className={`${headCell} sticky top-0 z-30 h-[34px] min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
-                >
-                  Total
-                </th>
-                <th
-                  rowSpan={3}
-                  className={`${headCell} sticky top-0 z-30 h-[34px] min-w-[160px] ${MONITORING_THEME.headerSoft} text-left`}
-                >
-                  Remarks
-                </th>
-              </tr>
-              <tr>
-                {INSPECTION_PLAIN_COLS.map((c, idx) => (
-                  <th
-                    key={c.key}
-                    rowSpan={2}
-                    className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${idx === 0 || idx === INSPECTION_PLAIN_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                  >
-                    {c.label}
-                  </th>
-                ))}
-                {INSPECTION_TARGET_COLS.map((c, idx) => (
-                  <th
-                    key={c.key}
-                    colSpan={3}
-                    className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[10rem] ${idx < INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                  >
-                    {c.label}
-                  </th>
-                ))}
-                {ISSUANCE_GROUPS.map((group) => {
-                  if (group.title === "FSIC") {
-                    return FSIC_SECTORS.map((sector) => (
-                      <th
-                        key={sector.key}
-                        colSpan={2}
-                        className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[7rem] border-r-2 border-r-border/80`}
-                      >
-                        {sector.label}
-                      </th>
-                    ));
-                  }
+        {dashboardExpanded && (
+          <TargetAccomplishmentPanel
+            stationno={stationno}
+            year={selectedYear}
+            month={selectedMonth}
+            data={monthlySummary}
+          />
+        )}
+      </Card>
 
-                  if (group.title === "Issued Notices") {
-                    return [
-                      <th
-                        key="nodcount"
-                        rowSpan={2}
-                        className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] border-r-2 border-r-border/80`}
-                      >
-                        NOD
-                      </th>,
-                      <th
-                        key="ntccount"
-                        rowSpan={2}
-                        className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] border-r-2 border-r-border/80`}
-                      >
-                        NTC
-                      </th>,
-                      ...NOTICE_GROUPS.map((groupItem) => (
-                        <th
-                          key={groupItem.key}
-                          colSpan={2}
-                          className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[7rem] border-r-2 border-r-border/80`}
-                        >
-                          {groupItem.label}
-                        </th>
-                      )),
-                    ];
-                  }
+      {/* Daily Inspection & Issuance ------------------------------------------ */}
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Inspection & Issuance Activities"
+          subtitle="Recorded issuances shown separately for MANUAL and FSIS"
+          expanded={issuanceExpanded}
+          onToggle={() => setIssuanceExpanded((v) => !v)}
+        />
 
-                  return group.cols.map((c) => (
-                    <th
-                      key={c.key}
-                      rowSpan={2}
-                      className={`${headCell} sticky top-[34px] z-30 h-[34px] min-w-[5rem] ${STRONG_RIGHT_BORDER_KEYS.has(c.key) ? "border-r-2 border-r-border/80" : ""}`}
-                    >
-                      {c.label}
-                    </th>
-                  ));
-                })}
-              </tr>
-              <tr>
-                {INSPECTION_TARGET_COLS.map((c, idx) => (
-                  <React.Fragment key={c.key}>
-                    <th
-                      title="Target"
-                      className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
-                    >
-                      <span className="block leading-[1.1]">TARGET</span>
-                    </th>
-                    <th
-                      title="1st Inspection"
-                      className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
-                    >
-                      <span className="block leading-[1.1]">1ST</span>
-                      <span className="block leading-[1.1]">INSPECTION</span>
-                    </th>
-                    <th
-                      title="Re-inspection"
-                      className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center ${idx === INSPECTION_TARGET_COLS.length - 1 ? "border-r-2 border-r-border/80" : ""}`}
-                    >
-                      <span className="block leading-[1.1]">RE-</span>
-                      <span className="block leading-[1.1]">INSPECTION</span>
-                    </th>
-                  </React.Fragment>
-                ))}
-                {ISSUANCE_GROUPS.map((group) => {
-                  if (group.title === "FSIC") {
-                    return FSIC_SECTORS.flatMap((sector) => [
-                      <th
-                        key={`${sector.key}-first`}
-                        title="1st Inspection"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
-                      >
-                        <span className="block leading-[1.1]">1ST</span>
-                        <span className="block leading-[1.1]">INSPECTION</span>
-                      </th>,
-                      <th
-                        key={`${sector.key}-re`}
-                        title="Re-inspection"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
-                      >
-                        <span className="block leading-[1.1]">RE-</span>
-                        <span className="block leading-[1.1]">INSPECTION</span>
-                      </th>,
-                    ]);
-                  }
+        {issuanceExpanded && (
+          <ActivityTable
+            days={days}
+            inspectionLabel="Inspection"
+            inspectionCols={INSPECT_COLS}
+            targetBreakdown
+            groups={[
+              { label: "FSEC", cols: FSEC_COLS },
+              { label: "FSIC", cols: FSIC_COLS },
+              { label: "Issued Notices", cols: NOTICE_COLS },
+            ]}
+            rowTotal={inspectionRowTotal}
+          />
+        )}
+      </Card>
 
-                  if (group.title === "Issued Notices") {
-                    return NOTICE_GROUPS.flatMap((groupItem) => [
-                      <th
-                        key={`${groupItem.key}-first`}
-                        title="1st Inspection"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center`}
-                      >
-                        <span className="block leading-[1.1]">1ST</span>
-                        <span className="block leading-[1.1]">INSPECTION</span>
-                      </th>,
-                      <th
-                        key={`${groupItem.key}-re`}
-                        title="Re-inspection"
-                        className={`${headCell} sticky top-[68px] z-30 h-auto min-w-[5rem] px-1 py-1 text-center border-r-2 border-r-border/80`}
-                      >
-                        <span className="block leading-[1.1]">RE-</span>
-                        <span className="block leading-[1.1]">INSPECTION</span>
-                      </th>,
-                    ]);
-                  }
+      {/* Daily Reinspection ---------------------------------------------------- */}
+      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Reinspection Activities"
+          subtitle="Reinspection, RE-FSIC and re-issued notices"
+          expanded={reinspectionExpanded}
+          onToggle={() => setReinspectionExpanded((v) => !v)}
+        />
 
-                  return null;
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {slices.map((slice, dayIndex) => {
-                const rowBg =
-                  dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd;
-                const rowTotal = DETAIL_FIELDS.reduce(
-                  (sum, f) => sum + num(slice.totals[f.key as keyof ComplianceDailyCounts]),
-                  0,
-                );
-                return (
-                  <React.Fragment key={slice.key}>
-                    {/* MANUAL row */}
-                    <tr className={rowBg}>
-                      <td
-                        rowSpan={2}
-                        className={`sticky left-0 z-20 ${bodyCell} border-r ${rowBg} text-left font-semibold`}
-                      >
-                        <span
-                          className={rowTotal > 0 ? "text-primary-700 dark:text-primary-300" : ""}
-                        >
-                          {slice.label}
-                        </span>
-                      </td>
-
-                      {/* Inspection — merged across MANUAL/FSIS rows */}
-                      {DETAIL_FIELDS.flatMap((field) => {
-                        const key = String(field.key);
-                        if (!isInspectionKey(key)) return [];
-                        const apiKey = FIELD_TO_API[key];
-                        const v = num((slice.inspection as any)[apiKey]);
-                        const targetKey = INSP_TARGET_FIELDS[key];
-                        const cells = [] as React.ReactNode[];
-                        if (targetKey) {
-                          const t = num(slice.inspection[targetKey]);
-                          cells.push(
-                            <td
-                              key={`${key}__target`}
-                              rowSpan={2}
-                              className={`${bodyCell} border-r text-muted-foreground`}
-                            >
-                              {displayNumber(t).toLocaleString()}
-                            </td>,
-                          );
-                        }
-                        cells.push(
-                          <td
-                            key={key}
-                            rowSpan={2}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>,
-                        );
-                        return cells;
-                      })}
-
-                      <td
-                        className={`${headCell} border-r ${MONITORING_THEME.headerSoft} text-[11px] font-bold uppercase`}
-                      >
-                        MANUAL
-                      </td>
-
-                      {/* FSEC (manual) */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!String(field.key).startsWith("fsec_")) return null;
-                        const apiKey = FIELD_TO_API[String(field.key)];
-                        const v = num((slice.manual as any)[apiKey]);
-                        return (
-                          <td
-                            key={String(field.key)}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>
-                        );
-                      })}
-
-                      {/* FSIC (manual) */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!String(field.key).startsWith("fsic_")) return null;
-                        const apiKey = FIELD_TO_API[String(field.key)];
-                        const v = num((slice.manual as any)[apiKey]);
-                        return (
-                          <td
-                            key={String(field.key)}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>
-                        );
-                      })}
-
-                      {/* NOTICES (manual) */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!String(field.key).startsWith("not_")) return null;
-                        const apiKey = FIELD_TO_API[String(field.key)];
-                        const v = num((slice.manual as any)[apiKey]);
-                        return (
-                          <td
-                            key={String(field.key)}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>
-                        );
-                      })}
-
-                      {/* Re-FSIC + Re-Notices (manual) */}
-                      {DETAIL_FIELDS.map((field) => {
-                        const k = String(field.key);
-                        if (!k.startsWith("refsic_") && !k.startsWith("renot_")) return null;
-                        const apiKey = FIELD_TO_API[k];
-                        const v = num((slice.manual as unknown as Record<string, number>)[apiKey]);
-                        return (
-                          <td
-                            key={k}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>
-                        );
-                      })}
-
-                      {/* Total — merged across MANUAL/FSIS rows */}
-                      <td
-                        rowSpan={2}
-                        className={`${bodyCell} border-r font-semibold`}
-                      >
-                        {displayNumber(rowTotal).toLocaleString()}
-                      </td>
-                      <td
-                        rowSpan={2}
-                        className="max-w-[280px] truncate border-b border-grid px-3 py-1.5 text-left align-middle text-muted-foreground text-[10px]"
-                        title={slice.remarks || ""}
-                      >
-                        {slice.remarks || "—"}
-                      </td>
-                    </tr>
-
-                    {/* FSIS row */}
-                    <tr className={rowBg}>
-                      {/* Inspection cells merged with MANUAL row above */}
-                      <td
-                        className={`${headCell} border-r ${MONITORING_THEME.headerSoft} text-[11px] font-bold uppercase`}
-                      >
-                        FSIS
-                      </td>
-
-                      {/* FSEC (fsis) */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!String(field.key).startsWith("fsec_")) return null;
-                        const apiKey = FIELD_TO_API[String(field.key)];
-                        const v = num((slice.fsis as any)[apiKey]);
-                        return (
-                          <td
-                            key={String(field.key)}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>
-                        );
-                      })}
-
-                      {/* FSIC (fsis) */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!String(field.key).startsWith("fsic_")) return null;
-                        const apiKey = FIELD_TO_API[String(field.key)];
-                        const v = num((slice.fsis as any)[apiKey]);
-                        return (
-                          <td
-                            key={String(field.key)}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>
-                        );
-                      })}
-
-                      {/* NOTICES (fsis) */}
-                      {DETAIL_FIELDS.map((field) => {
-                        if (!String(field.key).startsWith("not_")) return null;
-                        const apiKey = FIELD_TO_API[String(field.key)];
-                        const v = num((slice.fsis as any)[apiKey]);
-                        return (
-                          <td
-                            key={String(field.key)}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>
-                        );
-                      })}
-
-                      {/* Re-FSIC + Re-Notices (fsis) */}
-                      {DETAIL_FIELDS.map((field) => {
-                        const k = String(field.key);
-                        if (!k.startsWith("refsic_") && !k.startsWith("renot_")) return null;
-                        const apiKey = FIELD_TO_API[k];
-                        const v = num((slice.fsis as unknown as Record<string, number>)[apiKey]);
-                        return (
-                          <td
-                            key={k}
-                            className={`${bodyCell} border-r`}
-                          >
-                            {displayNumber(v).toLocaleString()}
-                          </td>
-                        );
-                      })}
-                      {/* Total & Remarks merged with MANUAL row above */}
-                    </tr>
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-            <tfoot className="sticky bottom-0 z-20">
-              <tr className="total-row font-bold text-foreground">
-                <td className={`${footCell} sticky left-0 z-30 border-r border-t-2 border-grid-strong text-left uppercase tracking-wide`}>
-                  Total
-                </td>
-                {DETAIL_FIELDS.map((field, idx) => {
-                  const key = String(field.key);
-                  const columnTotal = columnTotals[key] ?? 0;
-                  const cells: React.ReactNode[] = [];
-                  // Mode-of-Issuance spacer cell between INSPECTION and FSEC.
-                  if (idx === 10) {
-                    cells.push(
-                      <td
-                        key="__mode_spacer__"
-                        className={`${footCell} border-r border-t-2 border-grid-strong`}
-                      />,
-                    );
-                  }
-                  const targetKey = INSP_TARGET_FIELDS[key];
-                  if (targetKey) {
-                    const targetTotal = slices.reduce(
-                      (sum, s) => sum + num(s.inspection[targetKey]),
-                      0,
-                    );
-                    cells.push(
-                      <td
-                        key={`${key}__target`}
-                        className={`${footCell} border-r border-t-2 border-grid-strong`}
-                      >
-                        {displayNumber(targetTotal).toLocaleString()}
-                      </td>,
-                    );
-                  }
-                  cells.push(
-                    <td
-                      key={key}
-                      className={`${footCell} border-r border-t-2 border-grid-strong`}
-                    >
-                      {displayNumber(columnTotal).toLocaleString()}
-                    </td>,
-                  );
-                  return cells;
-                })}
-                <td className={`${footCell} border-r border-t-2 border-grid-strong`}> 
-                  {displayNumber(grandTotal).toLocaleString()}
-                </td>
-                <td className={`${footCell} border-t-2 border-grid-strong`} />
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        {reinspectionExpanded && (
+          <ActivityTable
+            days={days}
+            inspectionLabel="Reinspection"
+            inspectionCols={REINSPECT_COLS}
+            groups={[
+              { label: "RE-FSIC", cols: REFSIC_COLS },
+              { label: "Re-Issued Notices", cols: RENOTICE_COLS },
+            ]}
+            rowTotal={reinspectionRowTotal}
+          />
+        )}
       </Card>
     </div>
   );
 }
+
+/* ========================================================================== */
+/*  Day table (read-only twin of the editor table)                           */
+/* ========================================================================== */
+
+function ActivityTable({
+  days,
+  inspectionLabel,
+  inspectionCols,
+  groups,
+  rowTotal,
+  targetBreakdown = false,
+}: {
+  days: ViewDay[];
+  inspectionLabel: string;
+  inspectionCols: InspectionCol[];
+  groups: { label: string; cols: IssuanceCol[] }[];
+  rowTotal: (day: ViewDay) => number;
+  targetBreakdown?: boolean;
+}) {
+  const inspectionColspan = inspectionCols.reduce(
+    (n, c) => n + (c.target ? (targetBreakdown ? 5 : 2) : 1),
+    0,
+  );
+  const issuanceCols = groups.flatMap((g) => g.cols);
+
+  const issuanceCells = (day: ViewDay, mode: "manual" | "fsis") =>
+    issuanceCols.map((col) => (
+      <td
+        key={col.api}
+        className="min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 text-center tabular-nums"
+      >
+        {num(day[mode][col.api]).toLocaleString()}
+      </td>
+    ));
+
+  return (
+    <div
+      className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
+      style={{ maxHeight: "74vh" }}
+    >
+      <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
+        <thead className="sticky top-0 z-30">
+          <tr>
+            <th
+              rowSpan={3}
+              className={`sticky left-0 top-0 z-40 min-w-[180px] border-b border-r px-3 py-2 text-center align-middle text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerPrimary}`}
+            >
+              Date
+            </th>
+            <th
+              colSpan={inspectionColspan}
+              className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerSoft}`}
+            >
+              {inspectionLabel}
+            </th>
+            <th
+              rowSpan={3}
+              className={`sticky top-0 z-30 border-b border-r px-2 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${MONITORING_THEME.headerSoft}`}
+            >
+              Mode of
+              <br />
+              Issuance
+            </th>
+            {groups.map((g) => (
+              <th
+                key={g.label}
+                colSpan={g.cols.length}
+                className={`border-b border-r border-grid px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider ${MONITORING_THEME.headerSoft}`}
+              >
+                {g.label}
+              </th>
+            ))}
+            <th
+              rowSpan={3}
+              className={`sticky top-0 z-30 border-b border-r px-3 py-1.5 text-center align-middle text-[11px] font-bold uppercase tracking-wider min-w-[70px] ${MONITORING_THEME.headerPrimary}`}
+            >
+              Total
+            </th>
+          </tr>
+          <tr>
+            {inspectionCols.map((col) => {
+              const isTarget = col.target != null;
+              return (
+                <th
+                  key={col.api}
+                  rowSpan={isTarget ? 1 : 2}
+                  colSpan={isTarget ? (targetBreakdown ? 5 : 2) : 1}
+                  className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[72px] ${MONITORING_THEME.headerSofter}`}
+                >
+                  {col.label}
+                </th>
+              );
+            })}
+            {issuanceCols.map((col) => (
+              <th
+                key={col.api}
+                rowSpan={2}
+                className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[72px] ${MONITORING_THEME.headerSofter}`}
+              >
+                {col.label}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            {inspectionCols
+              .filter((col) => col.target)
+              .flatMap((col) => {
+                const base = `${col.api}__`;
+                if (targetBreakdown) {
+                  return [
+                    <th
+                      key={`${base}target`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      Target
+                    </th>,
+                    <th
+                      key={`${base}accomplished`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      <span className="block leading-[1.1]">Accomplished</span>
+                    </th>,
+                    <th
+                      key={`${base}variance`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      Variance
+                    </th>,
+                    <th
+                      key={`${base}positive`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      <span className="block leading-[1.1]">Positive</span>
+                      <span className="block leading-[1.1]">Listing</span>
+                    </th>,
+                    <th
+                      key={`${base}pct`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      %
+                    </th>,
+                  ];
+                }
+                return [
+                  <th
+                    key={`${base}target`}
+                    className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                  >
+                    Target
+                  </th>,
+                  <th
+                    key={`${base}accomplished`}
+                    className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                  >
+                    <span className="block leading-[1.1]">accomplished</span>
+                  </th>,
+                ];
+              })}
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((day, dayIndex) => {
+            const zebra = dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd;
+            const total = rowTotal(day);
+
+            return (
+              <React.Fragment key={day.key}>
+                <tr className={zebra}>
+                  <td
+                    rowSpan={2}
+                    className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${zebra}`}
+                  >
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <span
+                        className={
+                          total > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""
+                        }
+                      >
+                        {day.label}
+                      </span>
+                    </div>
+                  </td>
+
+                  {inspectionCols.flatMap((col) => {
+                    const cells: React.ReactNode[] = [];
+                    if (col.target) {
+                      const target = num(day.inspection[col.target]);
+                      const accomplished = num(day.inspection[col.api]);
+                      cells.push(
+                        <td
+                          key={`${col.api}__target`}
+                          rowSpan={2}
+                          className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
+                        >
+                          {target.toLocaleString()}
+                        </td>,
+                        <td
+                          key={`${col.api}__accomplished`}
+                          rowSpan={2}
+                          className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums"
+                        >
+                          {accomplished.toLocaleString()}
+                        </td>,
+                      );
+                      if (targetBreakdown) {
+                        const variance = Math.max(target - accomplished, 0);
+                        const positive = Math.max(accomplished - target, 0);
+                        const percentage = pct(accomplished, target);
+                        cells.push(
+                          <td
+                            key={`${col.api}__variance`}
+                            rowSpan={2}
+                            className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums"
+                          >
+                            {variance.toLocaleString()}
+                          </td>,
+                          <td
+                            key={`${col.api}__positive`}
+                            rowSpan={2}
+                            className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums"
+                          >
+                            {positive.toLocaleString()}
+                          </td>,
+                          <td
+                            key={`${col.api}__pct`}
+                            rowSpan={2}
+                            className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums"
+                          >
+                            {`${percentage.toFixed(2)}%`}
+                          </td>,
+                        );
+                      }
+                    } else {
+                      cells.push(
+                        <td
+                          key={col.api}
+                          rowSpan={2}
+                          className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums"
+                        >
+                          {num(day.inspection[col.api]).toLocaleString()}
+                        </td>,
+                      );
+                    }
+                    return cells;
+                  })}
+
+                  <td
+                    className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                  >
+                    MANUAL
+                  </td>
+                  {issuanceCells(day, "manual")}
+
+                  <td
+                    rowSpan={2}
+                    className="border-b border-r px-3 py-1.5 text-center align-middle font-semibold tabular-nums"
+                  >
+                    {total.toLocaleString()}
+                  </td>
+                </tr>
+
+                <tr className={zebra}>
+                  <td
+                    className={`border-b border-r px-3 py-1.5 text-center text-[11px] font-bold uppercase ${MONITORING_THEME.headerSoft}`}
+                  >
+                    FSIS
+                  </td>
+                  {issuanceCells(day, "fsis")}
+                </tr>
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+        <tfoot className="sticky bottom-0 z-20">
+          <tr className="total-row font-bold text-foreground">
+            <td className="sticky left-0 z-30 border-r border-t-2 border-grid-strong total-row px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide">
+              Total
+            </td>
+            {inspectionCols.flatMap((col) => {
+              const cells: React.ReactNode[] = [];
+              if (col.target) {
+                const targetField = col.target;
+                const totalTarget = days.reduce((sum, d) => sum + num(d.inspection[targetField]), 0);
+                const totalAccomplished = days.reduce((sum, d) => sum + num(d.inspection[col.api]), 0);
+                const totalVariance = days.reduce(
+                  (sum, d) => sum + Math.max(num(d.inspection[targetField]) - num(d.inspection[col.api]), 0),
+                  0,
+                );
+                const totalPositive = days.reduce(
+                  (sum, d) => sum + Math.max(num(d.inspection[col.api]) - num(d.inspection[targetField]), 0),
+                  0,
+                );
+                const totalPct = pct(totalAccomplished, totalTarget);
+                cells.push(
+                  <td
+                    key={`${col.api}__target`}
+                    className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums text-muted-foreground"
+                  >
+                    {totalTarget.toLocaleString()}
+                  </td>,
+                  <td
+                    key={`${col.api}__accomplished`}
+                    className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                  >
+                    {totalAccomplished.toLocaleString()}
+                  </td>,
+                  ...(targetBreakdown
+                    ? [
+                        <td
+                          key={`${col.api}__variance`}
+                          className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                        >
+                          {totalVariance.toLocaleString()}
+                        </td>,
+                        <td
+                          key={`${col.api}__positive`}
+                          className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                        >
+                          {totalPositive.toLocaleString()}
+                        </td>,
+                        <td
+                          key={`${col.api}__pct`}
+                          className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                        >
+                          {`${totalPct.toFixed(2)}%`}
+                        </td>,
+                      ]
+                    : []),
+                );
+              } else {
+                cells.push(
+                  <td
+                    key={col.api}
+                    className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                  >
+                    {days.reduce((sum, d) => sum + num(d.inspection[col.api]), 0).toLocaleString()}
+                  </td>,
+                );
+              }
+              return cells;
+            })}
+            <td className="border-r border-t-2 border-grid-strong total-row px-2 py-2" />
+            {issuanceCols.map((col) => (
+              <td
+                key={col.api}
+                className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+              >
+                {days
+                  .reduce((sum, d) => sum + num(d.manual[col.api]) + num(d.fsis[col.api]), 0)
+                  .toLocaleString()}
+              </td>
+            ))}
+            <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
+              {days.reduce((sum, d) => sum + rowTotal(d), 0).toLocaleString()}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Presentational helpers                                                     */
+/* -------------------------------------------------------------------------- */
+
+function SectionTitle({
+  title,
+  subtitle,
+  icon,
+  expanded,
+  onToggle,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  expanded?: boolean;
+  onToggle?: () => void;
+}) {
+  const ToggleIcon = expanded ? ChevronUp : ChevronDown;
+
+  return (
+    <div
+      className={
+        onToggle
+          ? "flex items-center justify-between gap-3 cursor-pointer select-none"
+          : "flex items-center justify-between gap-3"
+      }
+      onClick={onToggle}
+      role={onToggle ? "button" : undefined}
+      aria-expanded={onToggle ? expanded : undefined}
+      tabIndex={onToggle ? 0 : undefined}
+      onKeyDown={
+        onToggle
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggle();
+              }
+            }
+          : undefined
+      }
+    >
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {icon}
+        {title}
+      </h2>
+      <div className="flex items-center gap-2">
+        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+        {onToggle && (
+          <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Route + Modal exports                                                     */
+/* -------------------------------------------------------------------------- */
 
 /** Route page — kept for deep-linking / bookmarks. */
 export default function ComplianceViewPage() {
@@ -1544,7 +1153,7 @@ export function ComplianceViewModal({
             </div>
           </div>
         </DialogHeader>
-        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5">
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
           {open ? (
             <ComplianceViewBody
               stationno={stationno}

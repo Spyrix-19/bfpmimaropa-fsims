@@ -20,7 +20,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NumericInput } from "@/components/numeric-input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -223,7 +223,6 @@ const schema = z
     reportingDate: z.date({ required_error: "Reporting period is required" }),
     provinceno: z.string().trim().min(1, { message: "Province is required" }),
     stationno: z.string().trim().min(1, { message: "Station is required" }),
-    remarks: z.string().max(1000).optional().default(""),
   })
   .extend(numericShape);
 
@@ -407,7 +406,6 @@ function InspectionsNewBody({
     ...defaultReinspection,
   }));
   // Mode of Issuance is fixed per column: MANUAL = 96, FSIS = 97 (see FSIC_MODE).
-  const [remarks, setRemarks] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = React.useState(false);
@@ -520,7 +518,6 @@ function InspectionsNewBody({
       [FSIC_MODE.FSIS]: fsisRow?.issuanceno ? String(fsisRow.issuanceno) : EMPTY_GUID,
     });
     setExistingFsisno(String(rec.fsisno));
-    setRemarks(rec.remarks ?? "");
     setErrors({});
   }, []);
 
@@ -532,7 +529,6 @@ function InspectionsNewBody({
     setReinspection({ ...defaultReinspectionPanel });
     setManualReinspection({ ...defaultReinspection });
     setFsisReinspection({ ...defaultReinspection });
-    setRemarks("");
     setErrors({});
   }, []);
 
@@ -773,7 +769,6 @@ function InspectionsNewBody({
       reportingDate,
       provinceno: province.no,
       stationno: station.no,
-      remarks,
       ...numeric,
     };
 
@@ -859,7 +854,7 @@ function InspectionsNewBody({
         reinspectpezacount: reinspection.reinsp_peza ?? 0,
         reinspecttiezacount: reinspection.reinsp_tieza ?? 0,
         isaccomplished: Boolean(existingFsisno),
-        remarks: remarks ?? "",
+        remarks: "",
         issuancelist: [
           // 96 → MANUAL column, 97 → FSIS column.
           buildIssuance(FSIC_MODE.MANUAL, manualIssuance, manualReinspection),
@@ -1298,21 +1293,6 @@ function InspectionsNewBody({
         )}
       </Card>
 
-      {/* 6. Remarks --------------------------------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
-        <Field label="Remarks">
-          <Textarea
-            rows={3}
-            value={remarks}
-            readOnly={fieldsLocked}
-            onChange={(e) => {
-              if (fieldsLocked) return;
-              setRemarks(e.target.value.slice(0, 1000));
-            }}
-            placeholder="Additional notes about the inspection…"
-          />
-        </Field>
-      </Card>
 
       {/* Actions ----------------------------------------------------------- */}
       <div className="flex flex-wrap justify-end gap-2">

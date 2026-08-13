@@ -96,11 +96,7 @@ type InspectionField =
   | "reinspecttiezacount";
 
 /** Daily target fields (read-only, supplied by the Detail API). */
-type TargetField =
-  | "dailytargetbplo"
-  | "dailytargetgov"
-  | "dailytargetpeza"
-  | "dailytargettieza";
+type TargetField = "dailytargetbplo" | "dailytargetgov" | "dailytargetpeza" | "dailytargettieza";
 
 /** Issuance-level (compliancelist[*].issuancelist[*]) numeric fields. */
 type IssuanceField =
@@ -523,9 +519,7 @@ function ComplianceEditBody({
   const dayHasAnyValue = React.useCallback((day: EditableDay) => {
     if (ALL_INSPECTION_FIELDS.some((f) => num(day.inspection[f]) !== 0)) return true;
     if (String(day.inspection.remarks ?? "").trim() !== "") return true;
-    return ALL_ISSUANCE_FIELDS.some(
-      (f) => num(day.manual[f]) !== 0 || num(day.fsis[f]) !== 0,
-    );
+    return ALL_ISSUANCE_FIELDS.some((f) => num(day.manual[f]) !== 0 || num(day.fsis[f]) !== 0);
   }, []);
 
   const isDayModified = React.useCallback(
@@ -1548,7 +1542,6 @@ function ActivityTable({
             <td className="border-r border-t-2 border-grid-strong total-row-strong px-3 py-2 text-center text-[11px] font-bold tabular-nums">
               {days.reduce((sum, d) => sum + rowTotal(d), 0).toLocaleString()}
             </td>
-            
           </tr>
         </tfoot>
       </table>
