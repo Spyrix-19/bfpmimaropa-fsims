@@ -191,6 +191,7 @@ const ISSUANCE_FSIC_FIELDS: NumericFieldSpec[] = [
   { key: "fsic_tieza", label: "FSIC - TIEZA" },
 ];
 
+/** Full notice catalogue — split per activity type below. */
 const OTHERS_FIELDS: NumericFieldSpec[] = [
   { key: "not_nod", label: "NOD", tooltip: "Notice Of Disapproval" },
   { key: "not_ntc", label: "NTC", tooltip: "Notice to Comply" },
@@ -199,7 +200,17 @@ const OTHERS_FIELDS: NumericFieldSpec[] = [
   { key: "not_closure", label: "Closure" },
 ];
 
-const ISSUANCE_FIELDS = [...ISSUANCE_FSEC_FIELDS, ...ISSUANCE_FSIC_FIELDS, ...OTHERS_FIELDS];
+/** Inspection / Issuance only ever issues NOD and NTC. */
+const ISSUANCE_NOTICE_FIELDS: NumericFieldSpec[] = OTHERS_FIELDS.filter(
+  (f) => f.key === "not_nod" || f.key === "not_ntc",
+);
+
+const ISSUANCE_FIELDS = [
+  ...ISSUANCE_FSEC_FIELDS,
+  ...ISSUANCE_FSIC_FIELDS,
+  ...ISSUANCE_NOTICE_FIELDS,
+];
+
 
 const ALL_NUMERIC_FIELDS = [...DAILY_INSPECTION_FIELDS];
 
@@ -479,9 +490,6 @@ function InspectionsNewBody({
       fsic_tieza: Number(row?.fsictiezacount ?? 0),
       not_nod: Number(row?.nodcount ?? 0),
       not_ntc: Number(row?.ntccount ?? 0),
-      not_ntcv: Number(row?.ntcvcount ?? 0),
-      not_abatement: Number(row?.abatementcount ?? 0),
-      not_closure: Number(row?.closurecount ?? 0),
     });
 
     const fromReinspection = (row?: { [k: string]: unknown }) => ({
@@ -823,9 +831,11 @@ function InspectionsNewBody({
           fsictiezacount: vals.fsic_tieza ?? 0,
           nodcount: vals.not_nod ?? 0,
           ntccount: vals.not_ntc ?? 0,
-          ntcvcount: vals.not_ntcv ?? 0,
-          abatementcount: vals.not_abatement ?? 0,
-          closurecount: vals.not_closure ?? 0,
+          // NTCV / Abatement / Closure are reinspection-only categories.
+          ntcvcount: 0,
+          abatementcount: 0,
+          closurecount: 0,
+
           refsicoccupancycount: revals.fsic_occupancy ?? 0,
           refsicbplonewcount: revals.fsic_business_new ?? 0,
           refsicbplorenewcount: revals.fsic_business_renewal ?? 0,
@@ -1652,7 +1662,7 @@ function IssuanceTable({
     },
     {
       title: "ISSUED NOTICES",
-      fields: OTHERS_FIELDS,
+      fields: ISSUANCE_NOTICE_FIELDS,
       headClass: MONITORING_THEME.headerGroup,
       subHeadClass: MONITORING_THEME.headerSoft,
     },

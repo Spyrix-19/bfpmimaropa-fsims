@@ -128,13 +128,12 @@ const FSIC_COLS: IssuanceCol[] = [
   { api: "fsictiezacount", label: "TIEZA" },
 ];
 
+/** Inspection / Issuance only issues NOD and NTC — NTCV / Abatement / Closure are reinspection-only. */
 const NOTICE_COLS: IssuanceCol[] = [
   { api: "nodcount", label: "NOD" },
   { api: "ntccount", label: "NTC" },
-  { api: "ntcvcount", label: "NTCV" },
-  { api: "abatementcount", label: "Abatement" },
-  { api: "closurecount", label: "Closure" },
 ];
+
 
 /* -- Daily Reinspection ---------------------------------------------------- */
 const REINSPECT_COLS: InspectionCol[] = [
@@ -169,7 +168,12 @@ const ALL_ISSUANCE_FIELDS: IssuanceField[] = [
   ...FSEC_COLS.map((c) => c.api),
   ...FSIC_COLS.map((c) => c.api),
   ...NOTICE_COLS.map((c) => c.api),
+  // Kept in the model (always 0 for inspection/issuance) but never rendered.
+  "ntcvcount",
+  "abatementcount",
+  "closurecount",
   ...REFSIC_COLS.map((c) => c.api),
+
   ...RENOTICE_COLS.map((c) => c.api),
 ];
 

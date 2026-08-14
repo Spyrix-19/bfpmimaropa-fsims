@@ -193,24 +193,9 @@ const COLUMN_GROUPS: ColumnGroup[] = [
 
   { category: "NOTICES", label: "NOD", grouped: false, keys: [{ key: "nodcount", label: "NOD" }] },
   { category: "NOTICES", label: "NTC", grouped: false, keys: [{ key: "ntccount", label: "NTC" }] },
-  {
-    category: "NOTICES",
-    label: "NTCV",
-    grouped: false,
-    keys: [{ key: "ntcvcount", label: "NTCV" }],
-  },
-  {
-    category: "NOTICES",
-    label: "Abatement",
-    grouped: false,
-    keys: [{ key: "abatementcount", label: "Abatement" }],
-  },
-  {
-    category: "NOTICES",
-    label: "Closure",
-    grouped: false,
-    keys: [{ key: "closurecount", label: "Closure" }],
-  },
+  // NTCV / Abatement / Closure are reinspection-only categories and are not
+  // part of the inspection & issuance matrix.
+
 ];
 
 const COMPLIANCE_FIELDS: {

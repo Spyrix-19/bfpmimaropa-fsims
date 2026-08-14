@@ -1162,13 +1162,12 @@ const FSIC_COLS: LedgerCol[] = [
   { key: "fsictiezacount", label: "TIEZA" },
 ];
 
+/** Inspection / Issuance only issues NOD and NTC — NTCV / Abatement / Closure are reinspection-only. */
 const NOTICE_COLS: LedgerCol[] = [
   { key: "nodcount", label: "NOD" },
   { key: "ntccount", label: "NTC" },
-  { key: "ntcvcount", label: "NTCV" },
-  { key: "abatementcount", label: "Abatement" },
-  { key: "closurecount", label: "Closure" },
 ];
+
 
 /** Reinspection counts live on the compliance record itself. */
 const REINSPECTION_COLS: LedgerCol[] = [

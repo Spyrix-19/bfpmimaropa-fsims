@@ -43,13 +43,12 @@ export const CATEGORY_FIELDS: Record<
     { key: "fsic_peza", label: "PEZA" },
     { key: "fsic_tieza", label: "TIEZA" },
   ],
+  // NTCV / Abatement / Closure are reinspection-only categories.
   NOTICES: [
     { key: "not_nod", label: "NOD" },
     { key: "not_ntc", label: "NTC" },
-    { key: "not_ntcv", label: "NTCV" },
-    { key: "not_abatement", label: "Abatement" },
-    { key: "not_closure", label: "Closure" },
   ],
+
   OVERALL: [
     { key: "insp_total", label: "Inspection" },
     { key: "fsec_total", label: "FSEC" },
@@ -75,13 +74,9 @@ export const FSIC_FIELDS = [
   "fsic_peza",
   "fsic_tieza",
 ] as const;
-export const NOTICES_FIELDS = [
-  "not_nod",
-  "not_ntc",
-  "not_ntcv",
-  "not_abatement",
-  "not_closure",
-] as const;
+/** Inspection-side notices only — NTCV / Abatement / Closure belong to reinspection. */
+export const NOTICES_FIELDS = ["not_nod", "not_ntc"] as const;
+
 
 export const ALL_NUMERIC_FIELDS = [
   ...INSPECTION_FIELDS,
