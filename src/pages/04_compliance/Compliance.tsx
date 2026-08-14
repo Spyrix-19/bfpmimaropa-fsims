@@ -37,8 +37,17 @@ import {
   isAllDays,
   resolveModuleMonths,
 } from "@/components/shared/ModuleFilterBar";
-import { type CompliancePeriod, type ComplianceExportRecord } from "./components/complianceExport";
-import { exportComplianceGridWorkbook } from "./components/complianceGridExport";
+import {
+  exportComplianceActivityWorkbook,
+  type ActivityStation,
+  type ActivityVariant,
+} from "./components/complianceActivityExport";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
@@ -299,12 +308,6 @@ export default function FireSafetyCompliancePage() {
   const monthsKey = selectedMonths.join(",");
   const month = String(selectedMonths[0] ?? 1);
 
-  /** Workbook period label — mirrors the Target Reference export contract. */
-  const exportPeriod: CompliancePeriod =
-    filterState.interval === "SEMESTER"
-      ? "SEMI-ANNUAL"
-      : (filterState.interval as CompliancePeriod);
-
   /**
    * Backend interval code for the FSISCompliance contract:
    * 1 Daily, 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual.
@@ -450,7 +453,7 @@ export default function FireSafetyCompliancePage() {
   const [rows, setRows] = React.useState<LedgerRow[]>([]);
   const [total, setTotal] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(false);
-  const [exporting, setExporting] = React.useState(false);
+  const [exporting, setExporting] = React.useState<ActivityVariant | null>(null);
   const [refreshTick, setRefreshTick] = React.useState(0);
   const refresh = () => setRefreshTick((t) => t + 1);
 
@@ -747,8 +750,12 @@ export default function FireSafetyCompliancePage() {
     }
   };
 
-  const handleExport = async () => {
-    setExporting(true);
+  /**
+   * Ledger export — reuses the exact ledger endpoint (unpaginated) and plots
+   * the on-screen activity table of the chosen category into Excel.
+   */
+  const handleExport = async (variant: ActivityVariant) => {
+    setExporting(variant);
     try {
       const provinces = locationSel.provinceParams;
 
@@ -763,6 +770,7 @@ export default function FireSafetyCompliancePage() {
             reportmonth: [...selectedMonths],
             provinces,
           },
+          // Exports are never paginated — the endpoint returns every station.
           pagenumber: 0,
           pagesize: 0,
         },
@@ -781,21 +789,46 @@ export default function FireSafetyCompliancePage() {
         return;
       }
 
-      await exportComplianceGridWorkbook({
+      const monthSet = new Set(selectedMonths);
+      /** Same record narrowing the ledger cards apply (months + picked weeks). */
+      const scopedRecords = (station: FSISComplianceModel) =>
+        getComplianceList(station).filter((rec) => {
+          const iso = String(rec?.dateinspected ?? "").slice(0, 10);
+          if (!iso || iso.startsWith("1900")) return false;
+          if (!allDates && iso !== selectedDateISO) return false;
+          if (isAggregated) {
+            const m = Number(iso.slice(5, 7)) || 0;
+            if (!m || !monthSet.has(m)) return false;
+            if (allowedWeeks) {
+              const week = weekByDate.get(iso);
+              if (!week || !allowedWeeks.has(week)) return false;
+            }
+          }
+          return true;
+        }) as unknown as FSISComplianceLedgerDailyItem[];
+
+      const stations: ActivityStation[] = exportRows.map((row) => ({
+        province: row.provincename ?? "",
+        stationCode: row.stationcode ?? "",
+        stationName: row.stationname ?? "",
+        cityName: row.cityname ?? "",
+        lines: buildDayLines(
+          scopedRecords(row),
+          allDates ? null : selectedDateISO,
+          ledgerGranularity,
+          weekByDate,
+          weekRangeLabels,
+        ),
+      }));
+
+      await exportComplianceActivityWorkbook({
+        variant,
+        title: variant === "inspection" ? activityTitles.inspection : activityTitles.reinspection,
+        periodHeading:
+          ledgerGranularity === "day" ? "Date" : ledgerGranularity === "month" ? "Month" : "Period",
+        periodLabel: periodLabel ?? (allDates ? null : dayLabel(selectedDateISO)),
         year: Number(year),
-        interval: exportPeriod,
-        selectedMonths: [...selectedMonths],
-        quarter: filterState.quarter,
-        semester: filterState.semester,
-        selectedDay: allDates ? null : Number(selectedDateISO.slice(8, 10)) || null,
-        groups: exportRows.map((row) => ({
-          province: row.provincename ?? "",
-          stationCode: row.stationcode ?? "",
-          stationName: row.stationname ?? "",
-          compliancelist: (Array.isArray(row.compliancelist)
-            ? row.compliancelist
-            : []) as ComplianceExportRecord[],
-        })),
+        stations,
         signatory: {
           rank: user?.rankcode ?? user?.rankname ?? "",
           fullname: user?.fullname ?? user?.name ?? "",
@@ -803,12 +836,16 @@ export default function FireSafetyCompliancePage() {
         },
       });
 
-      toast.success("Fire Safety Compliance exported.");
+      toast.success(
+        variant === "inspection"
+          ? "Inspection & Issuance exported."
+          : "Reinspection activities exported.",
+      );
     } catch (err) {
       console.error(err);
       toast.error("Failed to export Fire Safety Compliance.");
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   };
 
@@ -829,19 +866,44 @@ export default function FireSafetyCompliancePage() {
         <div
           className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
         >
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={exporting || rows.length === 0}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Export
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={!!exporting || rows.length === 0}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Export
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  void handleExport("inspection");
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export Inspection &amp; Issuance
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  void handleExport("reinspection");
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export Reinspection
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button
             variant="outline"
             onClick={openMatrixGlobal}
@@ -1594,162 +1656,168 @@ function ComplianceLedgerCard({
           />
           {inspectionExpanded &&
             (lines.length === 0 ? (
-            <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
-              {emptyMessage}
-            </div>
-          ) : (
-            <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
-              <table className="w-full min-w-[1800px] border-separate border-spacing-0 text-xs">
-                <thead>
-                  <tr>
-                    <th
-                      rowSpan={3}
-                      className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
-                    >
-                      {periodHeading}
-                    </th>
-                    <th
-                      colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_SECTORS.length * 5}
-                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                    >
-                      Inspection
-                    </th>
-                    <th rowSpan={3} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
-                      Mode of Issuance
-                    </th>
-                    <th
-                      colSpan={FSEC_COLS.length}
-                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                    >
-                      FSEC
-                    </th>
-                    <th
-                      colSpan={FSIC_COLS.length}
-                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                    >
-                      FSIC
-                    </th>
-                    <th colSpan={NOTICE_COLS.length} className={`${headCell} sticky top-0 z-30`}>
-                      Issued Notices
-                    </th>
-                  </tr>
-                  <tr>
-                    {INSPECTION_PLAIN_COLS.map((c) => (
+              <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
+                {emptyMessage}
+              </div>
+            ) : (
+              <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
+                <table className="w-full min-w-[1800px] border-separate border-spacing-0 text-xs">
+                  <thead>
+                    <tr>
                       <th
-                        key={c.key}
-                        rowSpan={2}
-                        className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${strongRight}`}
+                        rowSpan={3}
+                        className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                       >
-                        {c.label}
+                        {periodHeading}
                       </th>
-                    ))}
-                    {INSPECTION_SECTORS.map((s) => (
                       <th
-                        key={s.key}
-                        colSpan={5}
-                        className={`${headCell} sticky top-[30px] z-30 min-w-[16rem] ${strongRight}`}
+                        colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_SECTORS.length * 5}
+                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
                       >
-                        {s.label}
+                        Inspection
                       </th>
-                    ))}
-                    {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                      <th rowSpan={3} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
+                        Mode of Issuance
+                      </th>
                       <th
-                        key={c.key}
-                        rowSpan={2}
-                        className={`${headCell} sticky top-[30px] z-30 min-w-[5.5rem] ${strongRight}`}
+                        colSpan={FSEC_COLS.length}
+                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
                       >
-                        {c.label}
+                        FSEC
                       </th>
-                    ))}
-                  </tr>
-                  <tr>
-                    {INSPECTION_SECTORS.map((s) =>
-                      SECTOR_METRIC_LABELS.map((label, idx) => (
+                      <th
+                        colSpan={FSIC_COLS.length}
+                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                      >
+                        FSIC
+                      </th>
+                      <th colSpan={NOTICE_COLS.length} className={`${headCell} sticky top-0 z-30`}>
+                        Issued Notices
+                      </th>
+                    </tr>
+                    <tr>
+                      {INSPECTION_PLAIN_COLS.map((c) => (
                         <th
-                          key={`${s.key}-${label}`}
-                          className={`${subHeadCell} sticky top-[60px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
+                          key={c.key}
+                          rowSpan={2}
+                          className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${strongRight}`}
                         >
-                          <span className="block uppercase leading-[1.1]">{label}</span>
+                          {c.label}
                         </th>
-                      )),
-                    )}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {lines.map((l, lineIdx) => (
-                    <React.Fragment key={l.key}>
-                      <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
-                        <th scope="row" rowSpan={2} className={rowHeadCell}>
-                          {l.label}
+                      ))}
+                      {INSPECTION_SECTORS.map((s) => (
+                        <th
+                          key={s.key}
+                          colSpan={5}
+                          className={`${headCell} sticky top-[30px] z-30 min-w-[16rem] ${strongRight}`}
+                        >
+                          {s.label}
                         </th>
-                        {INSPECTION_PLAIN_COLS.map((c) => (
-                          <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
-                            <N v={l.inspection[c.key] ?? 0} />
-                          </td>
-                        ))}
-                        {INSPECTION_SECTORS.map((s) => (
-                          <SectorMetricCells
-                            key={s.key}
-                            metrics={lineMetrics[lineIdx][s.key]}
-                            cellClass={bodyCell}
-                            rowSpan={2}
-                          />
-                        ))}
-                        <td className={`${bodyCell} ${strongRight}`}>
-                          <ModeBadge label="MANUAL" />
-                        </td>
-                        {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
-                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                            <N v={l.manual[c.key] ?? 0} />
-                          </td>
-                        ))}
-                      </tr>
-                      <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
-                        <td className={`${bodyCell} ${strongRight}`}>
-                          <ModeBadge label="FSIS" />
-                        </td>
-                        {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
-                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                            <N v={l.fsis[c.key] ?? 0} />
-                          </td>
-                        ))}
-                      </tr>
-                    </React.Fragment>
-                  ))}
-                </tbody>
+                      ))}
+                      {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                        <th
+                          key={c.key}
+                          rowSpan={2}
+                          className={`${headCell} sticky top-[30px] z-30 min-w-[5.5rem] ${strongRight}`}
+                        >
+                          {c.label}
+                        </th>
+                      ))}
+                    </tr>
+                    <tr>
+                      {INSPECTION_SECTORS.map((s) =>
+                        SECTOR_METRIC_LABELS.map((label, idx) => (
+                          <th
+                            key={`${s.key}-${label}`}
+                            className={`${subHeadCell} sticky top-[60px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
+                          >
+                            <span className="block uppercase leading-[1.1]">{label}</span>
+                          </th>
+                        )),
+                      )}
+                    </tr>
+                  </thead>
 
-                <tfoot>
-                  {/* One combined total — MANUAL + FSIS are never split here. */}
-                  <tr>
-                    <th
-                      scope="row"
-                      className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
-                    >
-                      Total
-                    </th>
-                    {INSPECTION_PLAIN_COLS.map((c) => (
-                      <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
-                        <N v={totals.inspection[c.key]} />
-                      </td>
+                  <tbody>
+                    {lines.map((l, lineIdx) => (
+                      <React.Fragment key={l.key}>
+                        <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
+                          <th scope="row" rowSpan={2} className={rowHeadCell}>
+                            {l.label}
+                          </th>
+                          {INSPECTION_PLAIN_COLS.map((c) => (
+                            <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                              <N v={l.inspection[c.key] ?? 0} />
+                            </td>
+                          ))}
+                          {INSPECTION_SECTORS.map((s) => (
+                            <SectorMetricCells
+                              key={s.key}
+                              metrics={lineMetrics[lineIdx][s.key]}
+                              cellClass={bodyCell}
+                              rowSpan={2}
+                            />
+                          ))}
+                          <td className={`${bodyCell} ${strongRight}`}>
+                            <ModeBadge label="MANUAL" />
+                          </td>
+                          {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                            <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                              <N v={l.manual[c.key] ?? 0} />
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
+                          <td className={`${bodyCell} ${strongRight}`}>
+                            <ModeBadge label="FSIS" />
+                          </td>
+                          {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                            <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                              <N v={l.fsis[c.key] ?? 0} />
+                            </td>
+                          ))}
+                        </tr>
+                      </React.Fragment>
                     ))}
-                    {INSPECTION_SECTORS.map((s) => (
-                      <SectorMetricCells
-                        key={s.key}
-                        metrics={totalMetrics[s.key]}
-                        cellClass={`${footCell} sticky bottom-0 z-30`}
-                      />
-                    ))}
-                    <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
-                    {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
-                      <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
-                        <N v={totals.combined[c.key]} />
-                      </td>
-                    ))}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </tbody>
+
+                  <tfoot>
+                    {/* One combined total — MANUAL + FSIS are never split here. */}
+                    <tr>
+                      <th
+                        scope="row"
+                        className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
+                      >
+                        Total
+                      </th>
+                      {INSPECTION_PLAIN_COLS.map((c) => (
+                        <td
+                          key={c.key}
+                          className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                        >
+                          <N v={totals.inspection[c.key]} />
+                        </td>
+                      ))}
+                      {INSPECTION_SECTORS.map((s) => (
+                        <SectorMetricCells
+                          key={s.key}
+                          metrics={totalMetrics[s.key]}
+                          cellClass={`${footCell} sticky bottom-0 z-30`}
+                        />
+                      ))}
+                      <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
+                      {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                        <td
+                          key={c.key}
+                          className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                        >
+                          <N v={totals.combined[c.key]} />
+                        </td>
+                      ))}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             ))}
         </section>
 
@@ -1762,110 +1830,119 @@ function ComplianceLedgerCard({
           />
           {reinspectionExpanded &&
             (lines.length === 0 ? (
-            <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
-              {emptyMessage}
-            </div>
-          ) : (
-            <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
-              <table className="w-full min-w-[1300px] border-separate border-spacing-0 text-xs">
-                <thead>
-                  <tr>
-                    <th
-                      rowSpan={2}
-                      className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] text-left border-r border-r-border/50`}
-                    >
-                      {periodHeading}
-                    </th>
-                    <th
-                      colSpan={REINSPECTION_COLS.length}
-                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                    >
-                      Reinspection
-                    </th>
-                    <th rowSpan={2} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
-                      Mode of Issuance
-                    </th>
-                    <th
-                      colSpan={RE_FSIC_COLS.length}
-                      className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                    >
-                      Re-FSIC
-                    </th>
-                    <th colSpan={RE_NOTICE_COLS.length} className={`${headCell} sticky top-0 z-30`}>
-                      Re-Issued Notices
-                    </th>
-                  </tr>
-                  <tr>
-                    {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c, idx) => (
+              <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
+                {emptyMessage}
+              </div>
+            ) : (
+              <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
+                <table className="w-full min-w-[1300px] border-separate border-spacing-0 text-xs">
+                  <thead>
+                    <tr>
                       <th
-                        key={`${c.key}-${idx}`}
-                        className={`${headCell} sticky top-[30px] z-30 min-w-[6rem] ${strongRight}`}
+                        rowSpan={2}
+                        className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] text-left border-r border-r-border/50`}
                       >
-                        {c.label}
+                        {periodHeading}
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {lines.map((l) => (
-                    <React.Fragment key={l.key}>
-                      <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
-                        <th scope="row" rowSpan={2} className={rowHeadCell}>
-                          {l.label}
+                      <th
+                        colSpan={REINSPECTION_COLS.length}
+                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                      >
+                        Reinspection
+                      </th>
+                      <th rowSpan={2} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
+                        Mode of Issuance
+                      </th>
+                      <th
+                        colSpan={RE_FSIC_COLS.length}
+                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                      >
+                        Re-FSIC
+                      </th>
+                      <th
+                        colSpan={RE_NOTICE_COLS.length}
+                        className={`${headCell} sticky top-0 z-30`}
+                      >
+                        Re-Issued Notices
+                      </th>
+                    </tr>
+                    <tr>
+                      {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c, idx) => (
+                        <th
+                          key={`${c.key}-${idx}`}
+                          className={`${headCell} sticky top-[30px] z-30 min-w-[6rem] ${strongRight}`}
+                        >
+                          {c.label}
                         </th>
-                        {REINSPECTION_COLS.map((c) => (
-                          <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
-                            <N v={l.reinspection[c.key] ?? 0} />
-                          </td>
-                        ))}
-                        <td className={`${bodyCell} ${strongRight}`}>
-                          <ModeBadge label="MANUAL" />
-                        </td>
-                        {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
-                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                            <N v={l.manual[c.key] ?? 0} />
-                          </td>
-                        ))}
-                      </tr>
-                      <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
-                        <td className={`${bodyCell} ${strongRight}`}>
-                          <ModeBadge label="FSIS" />
-                        </td>
-                        {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
-                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                            <N v={l.fsis[c.key] ?? 0} />
-                          </td>
-                        ))}
-                      </tr>
-                    </React.Fragment>
-                  ))}
-                </tbody>
+                      ))}
+                    </tr>
+                  </thead>
 
-                <tfoot>
-                  <tr>
-                    <th
-                      scope="row"
-                      className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
-                    >
-                      Total
-                    </th>
-                    {REINSPECTION_COLS.map((c) => (
-                      <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
-                        <N v={totals.reinspection[c.key]} />
-                      </td>
+                  <tbody>
+                    {lines.map((l) => (
+                      <React.Fragment key={l.key}>
+                        <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
+                          <th scope="row" rowSpan={2} className={rowHeadCell}>
+                            {l.label}
+                          </th>
+                          {REINSPECTION_COLS.map((c) => (
+                            <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                              <N v={l.reinspection[c.key] ?? 0} />
+                            </td>
+                          ))}
+                          <td className={`${bodyCell} ${strongRight}`}>
+                            <ModeBadge label="MANUAL" />
+                          </td>
+                          {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                            <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                              <N v={l.manual[c.key] ?? 0} />
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
+                          <td className={`${bodyCell} ${strongRight}`}>
+                            <ModeBadge label="FSIS" />
+                          </td>
+                          {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                            <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                              <N v={l.fsis[c.key] ?? 0} />
+                            </td>
+                          ))}
+                        </tr>
+                      </React.Fragment>
                     ))}
-                    <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
-                    {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
-                      <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
-                        <N v={totals.combined[c.key]} />
-                      </td>
-                    ))}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          ))}
+                  </tbody>
+
+                  <tfoot>
+                    <tr>
+                      <th
+                        scope="row"
+                        className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
+                      >
+                        Total
+                      </th>
+                      {REINSPECTION_COLS.map((c) => (
+                        <td
+                          key={c.key}
+                          className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                        >
+                          <N v={totals.reinspection[c.key]} />
+                        </td>
+                      ))}
+                      <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
+                      {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                        <td
+                          key={c.key}
+                          className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                        >
+                          <N v={totals.combined[c.key]} />
+                        </td>
+                      ))}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ))}
         </section>
 
         <div className="text-[10px] text-muted-foreground dark:text-slate-400">

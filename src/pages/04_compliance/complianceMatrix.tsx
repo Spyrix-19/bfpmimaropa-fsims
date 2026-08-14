@@ -73,12 +73,52 @@ type ComplianceCategory = "INSPECTION" | "FSEC" | "FSIC" | "NOTICES";
  *   INSPECTION → During | After | 1st BPLO (Target/Issuance) | 1st GOV | 1st PEZA | 1st TIEZA
  *   FSEC / FSIC / NOTICES → flat leaf columns
  */
+/** Derived (computed) leaf kinds — never stored, always calculated. */
+type DerivedKind = "variance" | "positive" | "pct";
+interface DerivedDef {
+  kind: DerivedKind;
+  targetKey: string;
+  accKey: string;
+}
+
+interface ColumnKey {
+  key: string;
+  label: string;
+  /** Present → the column is computed from its target/accomplished pair. */
+  derived?: DerivedDef;
+}
+
 interface ColumnGroup {
   category: ComplianceCategory;
   label: string;
-  /** true → the group renders a Target/Issuance sub-header row. */
+  /** true → the group renders a Target/Accomplished/… sub-header row. */
   grouped: boolean;
-  keys: { key: string; label: string }[];
+  keys: ColumnKey[];
+}
+
+/**
+ * Sector group (BPLO / GOV / PEZA / TIEZA) — five leaves:
+ *   TARGET | ACCOMPLISHED | VARIANCE | POSITIVE LISTING | %
+ * Variance / Positive Listing / % follow the same rules used across compliance:
+ *   VARIANCE         = MAX(target - accomplished, 0)
+ *   POSITIVE LISTING = MAX(accomplished - target, 0)
+ *   %                = (accomplished - target) / target  (0 target & 0 acc -> 0%)
+ */
+function sectorGroup(label: string, targetKey: string, accKey: string): ColumnGroup {
+  const slug = label.toLowerCase();
+  const derived = (kind: DerivedKind): DerivedDef => ({ kind, targetKey, accKey });
+  return {
+    category: "INSPECTION",
+    label,
+    grouped: true,
+    keys: [
+      { key: targetKey, label: "Target" },
+      { key: accKey, label: "Accomplished" },
+      { key: `__variance_${slug}`, label: "Variance", derived: derived("variance") },
+      { key: `__positive_${slug}`, label: "Positive Listing", derived: derived("positive") },
+      { key: `__pct_${slug}`, label: "%", derived: derived("pct") },
+    ],
+  };
 }
 
 const COLUMN_GROUPS: ColumnGroup[] = [
@@ -94,42 +134,11 @@ const COLUMN_GROUPS: ColumnGroup[] = [
     grouped: false,
     keys: [{ key: "inspectaftercount", label: "After" }],
   },
-  {
-    category: "INSPECTION",
-    label: "BPLO",
-    grouped: true,
-    keys: [
-      { key: "monthlytargetbplo", label: "Target" },
-      { key: "inspectbplocount", label: "Issuance" },
-    ],
-  },
-  {
-    category: "INSPECTION",
-    label: "GOV",
-    grouped: true,
-    keys: [
-      { key: "monthlytargetgov", label: "Target" },
-      { key: "inspectgovcount", label: "Issuance" },
-    ],
-  },
-  {
-    category: "INSPECTION",
-    label: "PEZA",
-    grouped: true,
-    keys: [
-      { key: "monthlytargetpeza", label: "Target" },
-      { key: "inspectpezacount", label: "Issuance" },
-    ],
-  },
-  {
-    category: "INSPECTION",
-    label: "TIEZA",
-    grouped: true,
-    keys: [
-      { key: "monthlytargettieza", label: "Target" },
-      { key: "inspecttiezacount", label: "Issuance" },
-    ],
-  },
+  sectorGroup("BPLO", "monthlytargetbplo", "inspectbplocount"),
+  sectorGroup("GOV", "monthlytargetgov", "inspectgovcount"),
+  sectorGroup("PEZA", "monthlytargetpeza", "inspectpezacount"),
+  sectorGroup("TIEZA", "monthlytargettieza", "inspecttiezacount"),
+
 
   {
     category: "FSEC",
@@ -211,6 +220,7 @@ const COMPLIANCE_FIELDS: {
   category: ComplianceCategory;
   group?: string;
   leafLabel?: string;
+  derived?: DerivedDef;
 }[] = COLUMN_GROUPS.flatMap((g) =>
   g.keys.map((k) => ({
     key: k.key,
@@ -218,8 +228,27 @@ const COMPLIANCE_FIELDS: {
     category: g.category,
     group: g.grouped ? g.label : undefined,
     leafLabel: g.grouped ? k.label : undefined,
+    derived: k.derived,
   })),
 );
+
+/** Derived columns keyed by field key — used by both the modal and the export. */
+const DERIVED_BY_KEY = new Map<string, DerivedDef>(
+  COMPLIANCE_FIELDS.filter((f) => f.derived).map((f) => [String(f.key), f.derived as DerivedDef]),
+);
+
+/** Stored (non-derived) fields — the only keys ever bucketed/aggregated. */
+const DATA_FIELDS = COMPLIANCE_FIELDS.filter((f) => !f.derived);
+
+/** Variance / Positive Listing / % — one shared rule set. */
+function derivedValue(def: DerivedDef, bucket: Record<string, number> | undefined) {
+  const t = num(bucket?.[def.targetKey]);
+  const a = num(bucket?.[def.accKey]);
+  if (def.kind === "variance") return Math.max(t - a, 0);
+  if (def.kind === "positive") return Math.max(a - t, 0);
+  return t > 0 ? ((a - t) / t) * 100 : a > 0 ? 100 : 0;
+}
+
 
 const CATEGORY_STYLE: Record<ComplianceCategory, string> = {
   INSPECTION: STYLE.catInsp,
@@ -707,8 +736,15 @@ export default function ComplianceMatrixTable({
           }
         }
 
+        // Respect the on-screen filters: the API may return more stations than
+        // were requested, so keep only the stations currently in scope.
+        const allowedStations = new Set(
+          provincesPayload.flatMap((p) => p.stationnos).filter(Boolean),
+        );
         for (const s of stationList) {
+          if (allowedStations.size > 0 && s.stationno && !allowedStations.has(s.stationno)) continue;
           const key = s.stationno || `${s.stationcode ?? ""}-${s.stationname ?? ""}`;
+
           const entry = stationMap.get(key) ?? {
             stationno: s.stationno,
             stationCode: s.stationcode ?? "",
@@ -749,10 +785,35 @@ export default function ComplianceMatrixTable({
           groupsByProvince.set(provinceName, bucket);
           return groupsByProvince;
         }, new Map());
-      const merged = Array.from(mergedMap.entries()).map(([province, stations]) => ({
-        province,
-        stations,
-      }));
+      const merged = Array.from(mergedMap.entries())
+        .map(([province, stations]) => ({
+          province,
+          stations,
+        }))
+        .sort((a, b) => (a.province || "").localeCompare(b.province || ""));
+
+      // Fallback — if the Export endpoint returns nothing, mirror exactly what
+      // the on-screen matrix is showing so both stay in sync.
+      const exportGroups =
+        merged.some((g) => g.stations.length > 0)
+          ? merged
+          : sourceGroups.map((g) => ({
+              province: g.province || "Unknown Province",
+              stations: g.stations.map((s) => ({
+                stationno: s.stationno,
+                stationCode: s.stationcode,
+                stationName: s.stationname,
+                cityName: s.cityname,
+                months: s.months,
+                modes: ISSUANCE_MODES.map((mode) => ({
+                  label: mode.label,
+                  months: s.modeMonths[mode.key],
+                })),
+              })),
+            }));
+
+
+
 
       const flatFields = COMPLIANCE_FIELDS.map((f) => ({
         key: String(f.key),
@@ -764,7 +825,7 @@ export default function ComplianceMatrixTable({
 
       await exportComplianceMatrix({
         year,
-        groups: merged,
+        groups: exportGroups,
         fields: flatFields,
         signatory: {
           rank:
