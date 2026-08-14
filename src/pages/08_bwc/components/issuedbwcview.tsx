@@ -116,7 +116,12 @@ export default function BwcView({
               <SectionTitle icon={icon} title={`${entityLabel} Breakdown`} />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {fields.map((f) => (
-                  <StatBox key={f.key} label={f.label} value={displayNumber(num(row, f.key))} tone={f.tone} />
+                  <StatBox
+                    key={f.key}
+                    label={f.label}
+                    value={displayNumber(num(row, f.key))}
+                    tone={f.tone}
+                  />
                 ))}
                 <StatBox label={totalLabel} value={displayNumber(total)} tone="primary" />
               </div>

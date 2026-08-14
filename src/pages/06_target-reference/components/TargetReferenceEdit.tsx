@@ -477,7 +477,6 @@ export default function TargetReferenceForm({
     user?.provinceno,
   ]);
 
-
   // Load existing values for edit — Detail endpoint returns the station's
   // full year in a single call, including database TargetNo for each cell.
   React.useEffect(() => {
@@ -598,8 +597,6 @@ export default function TargetReferenceForm({
     return Object.keys(next);
   };
 
-
-
   const buildExistingTargetData = (detail: TargetReferenceDetailModel | null) => {
     const nextCells: CellMap = {};
     const nextIds: Record<string, string> = {};
@@ -716,7 +713,6 @@ export default function TargetReferenceForm({
       toast.error(`Please fix invalid target values: ${detail}`);
       return;
     }
-
 
     let resolvedExistingTargetNos = existingTargetNos;
     if (isEdit) {

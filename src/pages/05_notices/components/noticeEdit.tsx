@@ -1133,7 +1133,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                 </tfoot>
               </table>
             </div>
-
           </Card>
 
           {/* General Remarks card */}

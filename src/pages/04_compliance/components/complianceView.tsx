@@ -941,14 +941,22 @@ function ActivityTable({
               const cells: React.ReactNode[] = [];
               if (col.target) {
                 const targetField = col.target;
-                const totalTarget = days.reduce((sum, d) => sum + num(d.inspection[targetField]), 0);
-                const totalAccomplished = days.reduce((sum, d) => sum + num(d.inspection[col.api]), 0);
+                const totalTarget = days.reduce(
+                  (sum, d) => sum + num(d.inspection[targetField]),
+                  0,
+                );
+                const totalAccomplished = days.reduce(
+                  (sum, d) => sum + num(d.inspection[col.api]),
+                  0,
+                );
                 const totalVariance = days.reduce(
-                  (sum, d) => sum + Math.max(num(d.inspection[targetField]) - num(d.inspection[col.api]), 0),
+                  (sum, d) =>
+                    sum + Math.max(num(d.inspection[targetField]) - num(d.inspection[col.api]), 0),
                   0,
                 );
                 const totalPositive = days.reduce(
-                  (sum, d) => sum + Math.max(num(d.inspection[col.api]) - num(d.inspection[targetField]), 0),
+                  (sum, d) =>
+                    sum + Math.max(num(d.inspection[col.api]) - num(d.inspection[targetField]), 0),
                   0,
                 );
                 const { text: totalPctText, className: totalPctClass } = getInspectionPct(

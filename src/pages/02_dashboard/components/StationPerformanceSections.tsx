@@ -73,8 +73,6 @@ function MonthlyBreakdown({ station }: { station: RankedStation }) {
   );
 }
 
-
-
 function SectionCard({
   icon,
   title,
@@ -250,7 +248,6 @@ function PerfectStationRow({
   );
 }
 
-
 /**
  * Top 10 Performing Stations + 100% Performing Stations.
  *
@@ -275,10 +272,11 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
             ))}
           </div>
         ) : topStations.length === 0 ? (
-          <EmptyState>No station performance data is available for the current reporting period.</EmptyState>
+          <EmptyState>
+            No station performance data is available for the current reporting period.
+          </EmptyState>
         ) : (
           <div className="w-full max-h-[26rem] overflow-y-auto overflow-x-hidden overscroll-contain">
-
             <ol>
               {topStations.map((s, i) => (
                 <TopStationRow key={s.stationno || s.stationcode || i} station={s} rank={s.rank} />

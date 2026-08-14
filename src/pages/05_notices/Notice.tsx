@@ -372,7 +372,8 @@ function mapDetailToRecord(
       (Array.isArray(entry?.noticeaccomlist) ? entry.noticeaccomlist : []).some((accom) =>
         NOTICE_CATEGORIES.some(
           (category) =>
-            num((accom as unknown as Record<string, unknown>)?.[CATEGORY_COUNT_KEY[category]]) !== 0,
+            num((accom as unknown as Record<string, unknown>)?.[CATEGORY_COUNT_KEY[category]]) !==
+            0,
         ),
       ),
   );

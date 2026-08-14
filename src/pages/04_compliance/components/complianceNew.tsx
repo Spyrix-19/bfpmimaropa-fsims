@@ -1293,7 +1293,6 @@ function InspectionsNewBody({
         )}
       </Card>
 
-
       {/* Actions ----------------------------------------------------------- */}
       <div className="flex flex-wrap justify-end gap-2">
         {needsRevisionRequest ? (

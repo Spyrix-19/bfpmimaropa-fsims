@@ -472,7 +472,11 @@ function YoYYearMultiSelect({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full shrink-0 justify-between sm:w-[176px]">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full shrink-0 justify-between sm:w-[176px]"
+        >
           <span className="truncate">{label}</span>
           <ChevronDown className="h-4 w-4" />
         </Button>
@@ -1098,7 +1102,10 @@ export function DashboardBody() {
   } = useRecentActivity(isAuthenticated);
 
   const inspectionBreakdown = [
-    { label: "During Construction", value: sumBy(compliance?.inspectionList, (r) => r.totalduring) },
+    {
+      label: "During Construction",
+      value: sumBy(compliance?.inspectionList, (r) => r.totalduring),
+    },
     { label: "After Completion", value: sumBy(compliance?.inspectionList, (r) => r.totalafter) },
     { label: "Reinspection", value: sumBy(compliance?.inspectionList, (r) => r.totalreinspection) },
   ];

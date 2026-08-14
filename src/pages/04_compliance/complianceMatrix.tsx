@@ -139,7 +139,6 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   sectorGroup("PEZA", "monthlytargetpeza", "inspectpezacount"),
   sectorGroup("TIEZA", "monthlytargettieza", "inspecttiezacount"),
 
-
   {
     category: "FSEC",
     label: "Building",
@@ -249,6 +248,12 @@ function derivedValue(def: DerivedDef, bucket: Record<string, number> | undefine
   return t > 0 ? ((a - t) / t) * 100 : a > 0 ? 100 : 0;
 }
 
+/** Value of any leaf (stored or derived) for a given bucket. */
+function leafValue(key: string, bucket: Record<string, number> | undefined) {
+  const def = DERIVED_BY_KEY.get(key);
+  return def ? derivedValue(def, bucket) : num(bucket?.[key]);
+}
+const isPctKey = (key: string) => DERIVED_BY_KEY.get(key)?.kind === "pct";
 
 const CATEGORY_STYLE: Record<ComplianceCategory, string> = {
   INSPECTION: STYLE.catInsp,
@@ -342,6 +347,20 @@ function num(v: unknown): number {
 }
 
 /**
+ * The Export endpoint exposes monthly targets (`monthlytarget*`) while the
+ * Ledger endpoint returns per-day targets (`dailytarget*`). The matrix columns
+ * are keyed on the monthly names, so fall back to the daily field (summed per
+ * month) whenever the monthly one is absent — this keeps the on-screen modal
+ * and the Excel export showing identical numbers.
+ */
+const FIELD_ALIASES: Record<string, string> = {
+  monthlytargetbplo: "dailytargetbplo",
+  monthlytargetgov: "dailytargetgov",
+  monthlytargetpeza: "dailytargetpeza",
+  monthlytargettieza: "dailytargettieza",
+};
+
+/**
  * Resolve the month of a compliance record. The Export endpoint returns
  * `reportmonth` directly; the Ledger endpoint returns a `dateinspected`.
  */
@@ -380,7 +399,7 @@ function plotComplianceRecord(
   // Inspection counts — month level, plotted on the MANUAL row.
   const manualBucket = modeBuckets[0].bucket;
   for (const k of INSPECTION_KEYS) {
-    const v = num(source[k]);
+    const v = num(source[k] ?? source[FIELD_ALIASES[k] ?? ""]);
     manualBucket[k] += v;
     combinedBucket[k] += v;
   }
@@ -742,7 +761,8 @@ export default function ComplianceMatrixTable({
           provincesPayload.flatMap((p) => p.stationnos).filter(Boolean),
         );
         for (const s of stationList) {
-          if (allowedStations.size > 0 && s.stationno && !allowedStations.has(s.stationno)) continue;
+          if (allowedStations.size > 0 && s.stationno && !allowedStations.has(s.stationno))
+            continue;
           const key = s.stationno || `${s.stationcode ?? ""}-${s.stationname ?? ""}`;
 
           const entry = stationMap.get(key) ?? {
@@ -794,26 +814,22 @@ export default function ComplianceMatrixTable({
 
       // Fallback — if the Export endpoint returns nothing, mirror exactly what
       // the on-screen matrix is showing so both stay in sync.
-      const exportGroups =
-        merged.some((g) => g.stations.length > 0)
-          ? merged
-          : sourceGroups.map((g) => ({
-              province: g.province || "Unknown Province",
-              stations: g.stations.map((s) => ({
-                stationno: s.stationno,
-                stationCode: s.stationcode,
-                stationName: s.stationname,
-                cityName: s.cityname,
-                months: s.months,
-                modes: ISSUANCE_MODES.map((mode) => ({
-                  label: mode.label,
-                  months: s.modeMonths[mode.key],
-                })),
+      const exportGroups = merged.some((g) => g.stations.length > 0)
+        ? merged
+        : sourceGroups.map((g) => ({
+            province: g.province || "Unknown Province",
+            stations: g.stations.map((s) => ({
+              stationno: s.stationno,
+              stationCode: s.stationcode,
+              stationName: s.stationname,
+              cityName: s.cityname,
+              months: s.months,
+              modes: ISSUANCE_MODES.map((mode) => ({
+                label: mode.label,
+                months: s.modeMonths[mode.key],
               })),
-            }));
-
-
-
+            })),
+          }));
 
       const flatFields = COMPLIANCE_FIELDS.map((f) => ({
         key: String(f.key),
@@ -821,6 +837,7 @@ export default function ComplianceMatrixTable({
         category: f.category,
         group: f.group,
         leafLabel: f.leafLabel,
+        derived: f.derived,
       }));
 
       await exportComplianceMatrix({
@@ -1333,6 +1350,7 @@ function DrillCell({
   boundary,
   rowClass,
   rowSpan,
+  pct,
 }: {
   value: number;
   onClick?: () => void;
@@ -1340,10 +1358,14 @@ function DrillCell({
   boundary?: boolean;
   rowClass?: string;
   rowSpan?: number;
+  pct?: boolean;
 }) {
   const base = `border-b px-2 py-1.5 text-center tabular-nums ${
     boundary ? "border-r-2 border-r-slate-300 dark:border-r-slate-700" : "border-r"
   } ${bold ? "font-bold" : ""} ${value === 0 && !bold ? "text-muted-foreground/60" : ""} ${rowClass ?? ""}`;
+  const text = pct
+    ? `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`
+    : value.toLocaleString();
   if (onClick) {
     return (
       <td
@@ -1352,13 +1374,13 @@ function DrillCell({
         onClick={onClick}
         title="Open monthly details"
       >
-        {value.toLocaleString()}
+        {text}
       </td>
     );
   }
   return (
     <td rowSpan={rowSpan} className={base}>
-      {value.toLocaleString()}
+      {text}
     </td>
   );
 }
@@ -1421,7 +1443,8 @@ function StationDataRow({
                   return (
                     <DrillCell
                       key={`${station.stationno}-insp-${mv}-${k}`}
-                      value={combinedBucket?.[k] ?? 0}
+                      value={leafValue(k, combinedBucket)}
+                      pct={isPctKey(k)}
                       rowSpan={2}
                       boundary={i === fieldKeys.length - 1 && quarterEnd}
                     />
@@ -1430,7 +1453,8 @@ function StationDataRow({
                 return (
                   <DrillCell
                     key={`${station.stationno}-${mode.key}-${mv}-${k}`}
-                    value={bucket?.[k] ?? 0}
+                    value={leafValue(k, bucket)}
+                    pct={isPctKey(k)}
                     boundary={i === fieldKeys.length - 1 && quarterEnd}
                   />
                 );
@@ -1443,7 +1467,8 @@ function StationDataRow({
                   return (
                     <DrillCell
                       key={`${station.stationno}-insp-${grp}-${k}`}
-                      value={combinedAgg[grp][k] ?? 0}
+                      value={leafValue(k, combinedAgg[grp])}
+                      pct={isPctKey(k)}
                       rowSpan={2}
                       bold
                       boundary={i === fieldKeys.length - 1}
@@ -1453,7 +1478,8 @@ function StationDataRow({
                 return (
                   <DrillCell
                     key={`${station.stationno}-${mode.key}-${grp}-${k}`}
-                    value={agg[grp][k] ?? 0}
+                    value={leafValue(k, agg[grp])}
+                    pct={isPctKey(k)}
                     bold
                     boundary={i === fieldKeys.length - 1}
                   />
@@ -1469,98 +1495,59 @@ function StationDataRow({
 
 function ProvincialTotalRow({
   months,
-  modeMonths,
   province,
   fieldKeys,
 }: {
   months: Record<number, Record<string, number>>;
-  modeMonths: Record<IssuanceMode, MonthBuckets>;
+  modeMonths?: Record<IssuanceMode, MonthBuckets>;
   province: string;
   fieldKeys: string[];
 }) {
+  // Single total row — MANUAL and FSIS are combined into one line.
   const combinedAgg = computeAgg(months, fieldKeys);
   return (
-    <>
-      {ISSUANCE_MODES.map((mode, mi) => {
-        const mMonths = modeMonths[mode.key] ?? {};
-        const agg = computeAgg(mMonths, fieldKeys);
-        return (
-          <tr key={`pt-${province}-${mode.key}`}>
-            {mi === 0 ? (
-              <td
-                rowSpan={2}
-                className={`sticky left-0 z-10 border-b border-r px-3 py-2 text-[11px] uppercase tracking-wider ${STYLE.provTotalRow}`}
-              >
-                Provincial Total — {province}
-              </td>
-            ) : null}
-            <td
-              className={`sticky left-[240px] z-10 border-b border-r px-3 py-2 text-center text-[11px] font-bold uppercase ${STYLE.provTotalRow}`}
-            >
-              {mode.label}
-            </td>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mv) => {
-              const b = mMonths[mv] ?? {};
-              const cb = months[mv] ?? {};
-              const quarterEnd = mv === 3 || mv === 6 || mv === 9 || mv === 12;
-              return fieldKeys.map((k, i) => {
-                if (INSPECTION_KEY_SET.has(k)) {
-                  if (mi !== 0) return null;
-                  return (
-                    <DrillCell
-                      key={`pt-${province}-insp-${mv}-${k}`}
-                      value={cb[k] ?? 0}
-                      rowSpan={2}
-                      bold
-                      boundary={i === fieldKeys.length - 1 && quarterEnd}
-                      rowClass={STYLE.provTotalRow}
-                    />
-                  );
-                }
-                return (
-                  <DrillCell
-                    key={`pt-${province}-${mode.key}-${mv}-${k}`}
-                    value={b[k] ?? 0}
-                    bold
-                    boundary={i === fieldKeys.length - 1 && quarterEnd}
-                    rowClass={STYLE.provTotalRow}
-                  />
-                );
-              });
-            })}
-            {(["q1", "q2", "q3", "q4", "sem1", "sem2", "annual"] as const).map((grp) =>
-              fieldKeys.map((k, i) => {
-                if (INSPECTION_KEY_SET.has(k)) {
-                  if (mi !== 0) return null;
-                  return (
-                    <DrillCell
-                      key={`pt-${province}-insp-${grp}-${k}`}
-                      value={combinedAgg[grp][k] ?? 0}
-                      rowSpan={2}
-                      bold
-                      boundary={i === fieldKeys.length - 1}
-                      rowClass={STYLE.provTotalRow}
-                    />
-                  );
-                }
-                return (
-                  <DrillCell
-                    key={`pt-${province}-${mode.key}-${grp}-${k}`}
-                    value={agg[grp][k] ?? 0}
-                    bold
-                    boundary={i === fieldKeys.length - 1}
-                    rowClass={STYLE.provTotalRow}
-                  />
-                );
-              }),
-            )}
-          </tr>
-        );
+    <tr key={`pt-${province}`}>
+      <td
+        className={`sticky left-0 z-10 border-b border-r px-3 py-2 text-[11px] uppercase tracking-wider ${STYLE.provTotalRow}`}
+      >
+        Provincial Total — {province}
+      </td>
+      <td
+        className={`sticky left-[240px] z-10 border-b border-r px-3 py-2 text-center text-[11px] font-bold uppercase ${STYLE.provTotalRow}`}
+      >
+        MANUAL + FSIS
+      </td>
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mv) => {
+        const cb = months[mv] ?? {};
+        const quarterEnd = mv === 3 || mv === 6 || mv === 9 || mv === 12;
+        return fieldKeys.map((k, i) => (
+          <DrillCell
+            key={`pt-${province}-${mv}-${k}`}
+            value={leafValue(k, cb)}
+            pct={isPctKey(k)}
+            bold
+            boundary={i === fieldKeys.length - 1 && quarterEnd}
+            rowClass={STYLE.provTotalRow}
+          />
+        ));
       })}
-    </>
+      {(["q1", "q2", "q3", "q4", "sem1", "sem2", "annual"] as const).map((grp) =>
+        fieldKeys.map((k, i) => (
+          <DrillCell
+            key={`pt-${province}-${grp}-${k}`}
+            value={leafValue(k, combinedAgg[grp])}
+            pct={isPctKey(k)}
+            bold
+            boundary={i === fieldKeys.length - 1}
+            rowClass={STYLE.provTotalRow}
+          />
+        )),
+      )}
+    </tr>
   );
 }
 
 // keep imports referenced when strict TS is on
 void MIMAROPA_REGION_CODE;
 void buildGroupsFromLedger;
+void DATA_FIELDS;

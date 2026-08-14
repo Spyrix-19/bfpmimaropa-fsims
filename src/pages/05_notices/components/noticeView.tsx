@@ -419,9 +419,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
               <Table2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">
-                Complied Notices Details
-              </DialogTitle>
+              <DialogTitle className="text-base font-bold">Complied Notices Details</DialogTitle>
               <DialogDescription>
                 {record.stationname ? `${record.stationname} · ` : ""}
                 {monthName} {year}

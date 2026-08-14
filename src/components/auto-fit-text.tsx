@@ -36,7 +36,7 @@ export function AutoFitText({
         const needed = inner.scrollWidth;
         const next =
           needed > available
-            ? Math.max(minFontSize, Math.floor((baseFontSize * available) / needed * 100) / 100)
+            ? Math.max(minFontSize, Math.floor(((baseFontSize * available) / needed) * 100) / 100)
             : baseFontSize;
         inner.style.fontSize = `${next}px`;
         setFontSize(next);

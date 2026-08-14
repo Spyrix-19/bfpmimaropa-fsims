@@ -28,8 +28,10 @@ export interface ComplianceField {
   category?: string;
   /** Sub-group label (e.g. "1st BPLO"); undefined for flat columns. */
   group?: string;
-  /** Leaf label under a sub-group (e.g. "Target" / "Issuance"). */
+  /** Leaf label under a sub-group (e.g. "Target" / "Accomplished"). */
   leafLabel?: string;
+  /** Computed leaf — written as an Excel formula from its target/acc pair. */
+  derived?: { kind: "variance" | "positive" | "pct"; targetKey: string; accKey: string };
 }
 
 export interface ComplianceExportMode {
@@ -102,6 +104,37 @@ export async function exportComplianceMatrix(opts: {
   const catSpan = fields.length;
 
   const isInspection = (f: ComplianceField) => (f.category ?? "") === "INSPECTION";
+
+  const idxByKey = new Map(fields.map((f, i) => [f.key, i]));
+  const PCT_FMT = "0.0%";
+  /**
+   * Derived leaves (Variance / Positive Listing / %) — same rules as the modal:
+   *   VARIANCE         = MAX(target - accomplished, 0)
+   *   POSITIVE LISTING = MAX(accomplished - target, 0)
+   *   %                = (accomplished - target) / target (0 target -> 0% / 100%)
+   */
+  const writeDerivedCell = (rowNumber: number, baseCol: number, ci: number) => {
+    const d = fields[ci].derived;
+    if (!d) return false;
+    const ti = idxByKey.get(d.targetKey);
+    const ai = idxByKey.get(d.accKey);
+    const cell = ws.getRow(rowNumber).getCell(baseCol + ci);
+    if (ti === undefined || ai === undefined) {
+      cell.value = 0;
+      return true;
+    }
+    const t = ws.getCell(rowNumber, baseCol + ti).address;
+    const a = ws.getCell(rowNumber, baseCol + ai).address;
+    const formula =
+      d.kind === "variance"
+        ? `MAX(${t}-${a},0)`
+        : d.kind === "positive"
+          ? `MAX(${a}-${t},0)`
+          : `IF(${t}>0,(${a}-${t})/${t},IF(${a}>0,1,0))`;
+    cell.value = { formula } as ExcelJS.CellFormulaValue;
+    cell.numFmt = d.kind === "pct" ? PCT_FMT : NUMBER_FMT;
+    return true;
+  };
 
   // Contiguous category runs (INSPECTION | FSEC | FSIC | NOTICES).
   type Run = { category: string; start: number; end: number };
@@ -323,6 +356,7 @@ export async function exportComplianceMatrix(opts: {
     quarters.forEach((q, qi) => {
       fields.forEach((f, ci) => {
         if (!only(f)) return;
+        if (writeDerivedCell(rowNumber, qtotalCol(qi, 0), ci)) return;
         const refs = q.months.map((mIdx) => ws.getCell(rowNumber, monthCatCol(mIdx, ci)).address);
         const cell = row.getCell(qtotalCol(qi, ci));
         cell.value = { formula: `SUM(${refs.join(",")})` } as ExcelJS.CellFormulaValue;
@@ -331,6 +365,12 @@ export async function exportComplianceMatrix(opts: {
     });
     fields.forEach((f, ci) => {
       if (!only(f)) return;
+      if (f.derived) {
+        [SEM1_START, SEM2_START, ANN_START].forEach((base) =>
+          writeDerivedCell(rowNumber, base, ci),
+        );
+        return;
+      }
       const q1 = ws.getCell(rowNumber, qtotalCol(0, ci)).address;
       const q2 = ws.getCell(rowNumber, qtotalCol(1, ci)).address;
       const q3 = ws.getCell(rowNumber, qtotalCol(2, ci)).address;
@@ -399,6 +439,11 @@ export async function exportComplianceMatrix(opts: {
         const bucket = mode.months[m + 1] ?? {};
         const combined = station.months[m + 1] ?? {};
         fields.forEach((f, ci) => {
+          if (f.derived) {
+            if (mi !== 0 && isInspection(f)) return;
+            writeDerivedCell(rowNumber, monthCatCol(m, 0), ci);
+            return;
+          }
           if (isInspection(f)) {
             if (mi !== 0) return; // merged vertically onto the anchor row
             const cell = row.getCell(monthCatCol(m, ci));
@@ -433,120 +478,100 @@ export async function exportComplianceMatrix(opts: {
     return anchor;
   };
 
+  /** Single provincial total row — MANUAL + FSIS combined. */
   const writeProvinceTotals = (province: string, anchors: number[], modeLabels: string[]) => {
-    const start = cursor;
-    const last = start + modeLabels.length - 1;
+    const rowNumber = cursor;
+    const modeCount = Math.max(1, modeLabels.length);
+    const row = ws.getRow(rowNumber);
+    row.getCell(COL.MODE).value = modeLabels.join(" + ");
 
-    modeLabels.forEach((label, mi) => {
-      const rowNumber = start + mi;
-      const row = ws.getRow(rowNumber);
-      row.getCell(COL.MODE).value = label;
-
-      for (let col = COL.MONTHS_START; col <= LAST; col++) {
-        const ci = (col - COL.MONTHS_START) % catSpan;
-        const field = fields[ci];
-        const inspection = isInspection(field);
-        if (inspection && mi !== 0) continue;
-        const cell = row.getCell(col);
-        if (anchors.length > 0) {
-          const refs = anchors
-            .map((a) => ws.getCell(inspection ? a : a + mi, col).address)
-            .join(",");
-          cell.value = { formula: `SUM(${refs})` } as ExcelJS.CellFormulaValue;
-        } else {
-          cell.value = 0;
-        }
-        cell.numFmt = NUMBER_FMT;
+    for (let col = COL.MONTHS_START; col <= LAST; col++) {
+      const ci = (col - COL.MONTHS_START) % catSpan;
+      const field = fields[ci];
+      const inspection = isInspection(field);
+      const cell = row.getCell(col);
+      if (field.derived) {
+        writeDerivedCell(rowNumber, col - ci, ci);
         cell.font = { bold: true, size: 10, color: { argb: "FF713F12" } };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.fill = fill(FILL.provTotal);
         cell.border = border();
+        continue;
       }
-
-      const labelCell = row.getCell(COL.NO);
-      if (mi === 0) labelCell.value = `PROVINCIAL TOTAL — ${province.toUpperCase()}`;
-      [COL.NO, COL.PROV, COL.CITY, COL.STATION, COL.MODE].forEach((c) => {
-        const cell = row.getCell(c);
-        cell.font = { bold: true, size: 10, color: { argb: "FF713F12" } };
-        cell.alignment = { horizontal: "center", vertical: "middle" };
-        cell.fill = fill(FILL.provTotal);
-        cell.border = border("medium", "FF334155");
-      });
-      row.height = 22;
-    });
-
-    if (modeLabels.length > 1) {
-      ws.mergeCells(start, COL.NO, last, COL.STATION);
-      const mergeInspection = (baseCol: number) => {
-        fields.forEach((f, ci) => {
-          if (isInspection(f)) ws.mergeCells(start, baseCol + ci, last, baseCol + ci);
+      if (anchors.length > 0) {
+        const refs: string[] = [];
+        anchors.forEach((a) => {
+          if (inspection) {
+            refs.push(ws.getCell(a, col).address);
+          } else {
+            for (let mi = 0; mi < modeCount; mi++) refs.push(ws.getCell(a + mi, col).address);
+          }
         });
-      };
-      for (let m = 0; m < 12; m++) mergeInspection(monthCatCol(m, 0));
-      for (let qi = 0; qi < 4; qi++) mergeInspection(qtotalCol(qi, 0));
-      [SEM1_START, SEM2_START, ANN_START].forEach((base) => mergeInspection(base));
-    } else {
-      ws.mergeCells(start, COL.NO, start, COL.STATION);
+        cell.value = { formula: `SUM(${refs.join(",")})` } as ExcelJS.CellFormulaValue;
+      } else {
+        cell.value = 0;
+      }
+      cell.numFmt = NUMBER_FMT;
+      cell.font = { bold: true, size: 10, color: { argb: "FF713F12" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.fill = fill(FILL.provTotal);
+      cell.border = border();
     }
 
-    cursor = last + 1;
+    row.getCell(COL.NO).value = `PROVINCIAL TOTAL — ${province.toUpperCase()}`;
+    [COL.NO, COL.PROV, COL.CITY, COL.STATION, COL.MODE].forEach((c) => {
+      const cell = row.getCell(c);
+      cell.font = { bold: true, size: 10, color: { argb: "FF713F12" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.fill = fill(FILL.provTotal);
+      cell.border = border("medium", "FF334155");
+    });
+    row.height = 22;
+    ws.mergeCells(rowNumber, COL.NO, rowNumber, COL.STATION);
+
+    cursor = rowNumber + 1;
   };
 
-  /** Regional grand total rows — sums the provincial total rows. */
+  /** Single regional grand total row — sums the provincial total rows. */
   const writeGrandTotals = (provinceStarts: number[], modeLabels: string[]) => {
-    const start = cursor;
-    const last = start + modeLabels.length - 1;
+    const rowNumber = cursor;
     const GRAND = "FF0F766E";
+    const row = ws.getRow(rowNumber);
+    row.getCell(COL.MODE).value = modeLabels.join(" + ");
 
-    modeLabels.forEach((label, mi) => {
-      const rowNumber = start + mi;
-      const row = ws.getRow(rowNumber);
-      row.getCell(COL.MODE).value = label;
-
-      for (let col = COL.MONTHS_START; col <= LAST; col++) {
-        const ci = (col - COL.MONTHS_START) % catSpan;
-        const field = fields[ci];
-        const inspection = isInspection(field);
-        if (inspection && mi !== 0) continue;
-        const cell = row.getCell(col);
-        const refs = provinceStarts
-          .map((p) => ws.getCell(inspection ? p : p + mi, col).address)
-          .join(",");
-        cell.value = { formula: `SUM(${refs})` } as ExcelJS.CellFormulaValue;
-        cell.numFmt = NUMBER_FMT;
+    for (let col = COL.MONTHS_START; col <= LAST; col++) {
+      const ci = (col - COL.MONTHS_START) % catSpan;
+      const field = fields[ci];
+      const cell = row.getCell(col);
+      if (field.derived) {
+        writeDerivedCell(rowNumber, col - ci, ci);
         cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.fill = fill(GRAND);
         cell.border = border();
+        continue;
       }
-
-      const labelCell = row.getCell(COL.NO);
-      if (mi === 0) labelCell.value = "REGIONAL GRAND TOTAL — MIMAROPA";
-      [COL.NO, COL.PROV, COL.CITY, COL.STATION, COL.MODE].forEach((c) => {
-        const cell = row.getCell(c);
-        cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
-        cell.alignment = { horizontal: "center", vertical: "middle" };
-        cell.fill = fill(GRAND);
-        cell.border = border("medium", "FF334155");
-      });
-      row.height = 22;
-    });
-
-    if (modeLabels.length > 1) {
-      ws.mergeCells(start, COL.NO, last, COL.STATION);
-      const mergeInspection = (baseCol: number) => {
-        fields.forEach((f, ci) => {
-          if (isInspection(f)) ws.mergeCells(start, baseCol + ci, last, baseCol + ci);
-        });
-      };
-      for (let m = 0; m < 12; m++) mergeInspection(monthCatCol(m, 0));
-      for (let qi = 0; qi < 4; qi++) mergeInspection(qtotalCol(qi, 0));
-      [SEM1_START, SEM2_START, ANN_START].forEach((base) => mergeInspection(base));
-    } else {
-      ws.mergeCells(start, COL.NO, start, COL.STATION);
+      const refs = provinceStarts.map((p) => ws.getCell(p, col).address).join(",");
+      cell.value = { formula: `SUM(${refs})` } as ExcelJS.CellFormulaValue;
+      cell.numFmt = NUMBER_FMT;
+      cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.fill = fill(GRAND);
+      cell.border = border();
     }
 
-    cursor = last + 1;
+    row.getCell(COL.NO).value = "REGIONAL GRAND TOTAL — MIMAROPA";
+    [COL.NO, COL.PROV, COL.CITY, COL.STATION, COL.MODE].forEach((c) => {
+      const cell = row.getCell(c);
+      cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.fill = fill(GRAND);
+      cell.border = border("medium", "FF334155");
+    });
+    row.height = 22;
+    ws.mergeCells(rowNumber, COL.NO, rowNumber, COL.STATION);
+
+    cursor = rowNumber + 1;
   };
 
   const provinceTotalStarts: number[] = [];

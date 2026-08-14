@@ -151,8 +151,7 @@ export function daysEncoded(rows: ComplianceDailyCounts[]): number {
     rows,
     (r) => r.dateinspected,
     (r) =>
-      isValidRecordId(r.fsisno) ||
-      ALL_NUMERIC_FIELDS.some((f) => (Number(r[f] ?? 0) || 0) !== 0),
+      isValidRecordId(r.fsisno) || ALL_NUMERIC_FIELDS.some((f) => (Number(r[f] ?? 0) || 0) !== 0),
   );
 }
 
@@ -422,10 +421,10 @@ export const MONTH_SHORT = [
 /* ---------------------------------------------------------------------------
  * Report Matrix (Target | Actual)
  *
- * Extends `buildMatrix` output so every field carries BOTH a target and
- * an actual value. Actuals come from the same daily compliance rows as
- * `buildMatrix`. Targets are derived deterministically from those rows so
- * the report remains consistent without needing a separate dataset.
+ * Extends `buildMatrix` output so every field carries BOTH a target and an
+ * actual value. Both come from the live compliance rows: actuals from the
+ * inspection/issuance counts, targets from the API `dailytarget*` fields.
+ * Fields with no target column in the API report a target of 0.
  * ------------------------------------------------------------------------ */
 
 export interface TargetActualCell {
@@ -451,25 +450,14 @@ export interface ReportMatrixProvinceGroup {
   provincialTotal: Record<number, Record<string, TargetActualCell>>;
 }
 
-function deriveTarget(actual: number, seed: number): number {
-  let s = (seed * 2654435761) >>> 0;
-  s = (s * 1664525 + 1013904223) >>> 0;
-  const jitter = (s / 0x100000000) * 0.35;
-  const base = Math.max(actual, 3);
-  return Math.round(base * (1.1 + jitter)) + 2;
-}
-
-function hashKey(...parts: (string | number)[]): number {
-  let h = 2166136261 >>> 0;
-  for (const p of parts) {
-    const s = String(p);
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 16777619) >>> 0;
-    }
-  }
-  return h;
-}
+/** UI field key -> API target field(s) that back it. */
+const TARGET_SOURCES: Record<string, readonly (keyof ComplianceDailyCounts)[]> = {
+  insp_bplo: ["dailytargetbplo"],
+  insp_gov: ["dailytargetgov"],
+  insp_peza: ["dailytargetpeza"],
+  insp_tieza: ["dailytargettieza"],
+  insp_total: ["dailytargetbplo", "dailytargetgov", "dailytargetpeza", "dailytargettieza"],
+};
 
 export function buildReportMatrix(
   rows: ComplianceDailyCounts[],
@@ -479,15 +467,33 @@ export function buildReportMatrix(
   const fields = CATEGORY_FIELDS[category];
   const fieldKeys = fields.map((f) => String(f.key));
 
+  // stationno|month -> field key -> summed target
+  const targets = new Map<string, Record<string, number>>();
+  for (const r of rows) {
+    if (r.deletedat) continue;
+    const { month } = parseISODate(r.dateinspected);
+    if (!month) continue;
+    const key = `${r.stationno}|${month}`;
+    let bucket = targets.get(key);
+    if (!bucket) {
+      bucket = Object.fromEntries(fieldKeys.map((k) => [k, 0]));
+      targets.set(key, bucket);
+    }
+    for (const k of fieldKeys) {
+      const src = TARGET_SOURCES[k];
+      if (!src) continue;
+      for (const f of src) bucket[k] += Number(r[f] ?? 0) || 0;
+    }
+  }
+
   return base.map<ReportMatrixProvinceGroup>((g) => {
     const stations = g.stations.map<ReportMatrixStationRow>((s) => {
       const months: Record<number, Record<string, TargetActualCell>> = {};
       for (let m = 1; m <= 12; m++) {
         const bucket: Record<string, TargetActualCell> = {};
+        const monthTargets = targets.get(`${s.stationno}|${m}`);
         for (const k of fieldKeys) {
-          const actual = s.months[m]?.[k] ?? 0;
-          const target = deriveTarget(actual, hashKey(s.stationno, m, k));
-          bucket[k] = { target, actual };
+          bucket[k] = { target: monthTargets?.[k] ?? 0, actual: s.months[m]?.[k] ?? 0 };
         }
         months[m] = bucket;
       }
@@ -523,6 +529,7 @@ export function buildReportMatrix(
     };
   });
 }
+
 
 export function sumReportMonths(
   months: Record<number, Record<string, TargetActualCell>>,

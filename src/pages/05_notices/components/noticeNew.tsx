@@ -589,11 +589,11 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           : null,
       );
 
+      const detailList = Array.isArray(detail?.noticedetallist) ? detail.noticedetallist : [];
       const entry =
-        (Array.isArray(detail?.noticedetallist) ? detail?.noticedetallist : []).find(
-          (e) => String(e.dateaccomplish ?? "").slice(0, 10) === selectedDateKey,
-        ) ??
-        (detail?.noticedetallist?.[0] || null);
+        detailList.find((e) => String(e.dateaccomplish ?? "").slice(0, 10) === selectedDateKey) ??
+        detailList[0] ??
+        null;
 
       if (entry) {
         setPendingExistingRecord(entry);

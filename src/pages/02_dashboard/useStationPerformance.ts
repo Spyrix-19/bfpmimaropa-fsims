@@ -121,7 +121,8 @@ export function useStationPerformance(selectedYear?: number) {
 
   const now = React.useMemo(() => new Date(), []);
   const year = selectedYear ?? now.getFullYear();
-  const lastMonth = year === now.getFullYear() ? now.getMonth() + 1 : year < now.getFullYear() ? 12 : 0;
+  const lastMonth =
+    year === now.getFullYear() ? now.getMonth() + 1 : year < now.getFullYear() ? 12 : 0;
 
   const ranked = React.useMemo<RankedStation[]>(() => {
     if (lastMonth < 1) return [];
@@ -186,7 +187,6 @@ export function useStationPerformance(selectedYear?: number) {
     () => ranked.filter((s) => s.monthsCounted > 0 && s.rank <= 10),
     [ranked],
   );
-
 
   const perfectStations = React.useMemo(
     () =>

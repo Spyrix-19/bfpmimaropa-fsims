@@ -7,7 +7,6 @@ import { AppShell } from "@/components/AppShell";
 import { Toaster } from "@/components/ui/sonner";
 import { PwaStatus } from "@/components/PwaStatus";
 
-
 const Dashboard = lazy(() => import("@/pages/02_dashboard/Dashboard"));
 const Monitoring = lazy(() => import("./pages/04_compliance/Compliance.tsx"));
 const ComplianceViewPage = lazy(
@@ -241,7 +240,6 @@ export default function App() {
             </AppShell>
             <Toaster richColors position="top-right" />
             <PwaStatus />
-
           </BrowserRouter>
         </FiltersProvider>
       </AuthProvider>
