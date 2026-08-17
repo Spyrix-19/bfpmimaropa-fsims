@@ -165,6 +165,7 @@ const FSIC_COLS: IssuanceCol[] = [
 const NOTICE_COLS: IssuanceCol[] = [
   { api: "nodcount", label: "NOD" },
   { api: "ntccount", label: "NTC" },
+  { api: "closedcount", label: "Non Operational" },
 ];
 
 
@@ -201,7 +202,6 @@ const HIDDEN_DAILY_NOTICE_FIELDS: IssuanceField[] = [
   "ntcvcount",
   "abatementcount",
   "closurecount",
-  "closedcount",
 ];
 
 const ALL_ISSUANCE_FIELDS: IssuanceField[] = [

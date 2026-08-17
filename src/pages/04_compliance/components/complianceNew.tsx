@@ -195,11 +195,12 @@ const ISSUANCE_FSIC_FIELDS: NumericFieldSpec[] = [
 const OTHERS_FIELDS: NumericFieldSpec[] = [
   { key: "not_nod", label: "NOD", tooltip: "Notice Of Disapproval" },
   { key: "not_ntc", label: "NTC", tooltip: "Notice to Comply" },
+  { key: "not_non_operational", label: "Non Operational", tooltip: "Closed / non-operational" },
 ];
 
-/** Inspection / Issuance only ever issues NOD and NTC. */
+/** Inspection / Issuance issues NOD, NTC, and Non Operational. */
 const ISSUANCE_NOTICE_FIELDS: NumericFieldSpec[] = OTHERS_FIELDS.filter(
-  (f) => f.key === "not_nod" || f.key === "not_ntc",
+  (f) => f.key === "not_nod" || f.key === "not_ntc" || f.key === "not_non_operational",
 );
 
 const ISSUANCE_FIELDS = [
@@ -487,6 +488,7 @@ function InspectionsNewBody({
       fsic_tieza: Number(row?.fsictiezacount ?? 0),
       not_nod: Number(row?.nodcount ?? 0),
       not_ntc: Number(row?.ntccount ?? 0),
+      not_non_operational: Number(row?.closedcount ?? 0),
     });
 
     const fromReinspection = (row?: { [k: string]: unknown }) => ({
@@ -828,6 +830,7 @@ function InspectionsNewBody({
           fsictiezacount: vals.fsic_tieza ?? 0,
           nodcount: vals.not_nod ?? 0,
           ntccount: vals.not_ntc ?? 0,
+          closedcount: vals.not_non_operational ?? 0,
           // NTCV / Abatement / Closure are reinspection-only categories.
           ntcvcount: 0,
           abatementcount: 0,

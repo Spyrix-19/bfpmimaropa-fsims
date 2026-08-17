@@ -79,6 +79,7 @@ type IssuanceField =
   | "fsictiezacount"
   | "nodcount"
   | "ntccount"
+  | "closedcount"
   | "ntcvcount"
   | "abatementcount"
   | "closurecount"
@@ -128,10 +129,11 @@ const FSIC_COLS: IssuanceCol[] = [
   { api: "fsictiezacount", label: "TIEZA" },
 ];
 
-/** Inspection / Issuance only issues NOD and NTC — NTCV / Abatement / Closure are reinspection-only. */
+/** Inspection / Issuance issues NOD, NTC, and Non Operational — NTCV / Abatement / Closure remain reinspection-only. */
 const NOTICE_COLS: IssuanceCol[] = [
   { api: "nodcount", label: "NOD" },
   { api: "ntccount", label: "NTC" },
+  { api: "closedcount", label: "Non Operational" },
 ];
 
 

@@ -83,13 +83,21 @@ export function useComplianceSummary() {
   return { compliance: data, loading };
 }
 
+/** Normalizes notice names so the API can send variants like "NON OPERATIONAL",
+ * "NON-OPERATIONAL", or "NONOPERATIONAL" without breaking the lookup.
+ */
+export function normalizeNoticeName(value: string | null | undefined): string {
+  return (value ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 /** Case-insensitive notice lookup with a zeroed fallback. */
 export function getNotice(
   compliance: DashboardComplianceModel | null,
   name: string,
 ): { pending: number; accomplished: number } {
+  const target = normalizeNoticeName(name);
   const found: DashboardNoticeModel | undefined = (compliance?.noticeList ?? []).find(
-    (x) => (x.noticename ?? "").trim().toUpperCase() === name.trim().toUpperCase(),
+    (x) => normalizeNoticeName(x.noticename) === target,
   );
   return {
     pending: found?.totalpending ?? 0,
