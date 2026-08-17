@@ -349,23 +349,27 @@ function NoticeCard({
   icon,
   accent,
   data,
+  singleValue = false,
 }: {
   label: string;
   icon: React.ReactNode;
   accent?: string;
   data: { pending: number; accomplished: number };
+  singleValue?: boolean;
 }) {
   const total = data.pending;
   const remaining = data.pending - data.accomplished;
   const pct = total ? Math.round((data.accomplished / total) * 100) : 0;
   const [expanded, setExpanded] = useState(false);
 
+  const isExpandable = !singleValue;
+
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
       <button
         type="button"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={isExpandable ? expanded : undefined}
+        onClick={() => isExpandable && setExpanded((v) => !v)}
         className="flex w-full items-start justify-between gap-3 text-left"
       >
         <div className="min-w-0">
@@ -373,7 +377,9 @@ function NoticeCard({
             {label}
           </div>
           <div className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums">
-            {expanded ? (
+            {singleValue ? (
+              total.toLocaleString()
+            ) : expanded ? (
               total.toLocaleString()
             ) : (
               <>
@@ -383,7 +389,7 @@ function NoticeCard({
               </>
             )}
           </div>
-          {!expanded && (
+          {!singleValue && !expanded && (
             <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               Complied / Issued
             </div>
@@ -397,15 +403,15 @@ function NoticeCard({
           >
             {icon}
           </div>
-          {expanded ? (
+          {isExpandable && (expanded ? (
             <ChevronUp className="h-4 w-4 text-muted-foreground" />
           ) : (
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          )}
+          ))}
         </div>
       </button>
 
-      {expanded && (
+      {isExpandable && expanded && (
         <>
           <div className="mt-3 space-y-1.5 border-t border-border/60 pt-3">
             {[
@@ -1153,7 +1159,7 @@ export function DashboardBody() {
       </div>
 
       {/* Running notices — pending / accomplished / remaining */}
-      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <NoticeCard
           label="NTC"
           icon={<AlertCircle className="h-5 w-5" />}
@@ -1183,6 +1189,13 @@ export function DashboardBody() {
           icon={<Ban className="h-5 w-5" />}
           accent="bg-destructive/10 text-destructive"
           data={getNotice(compliance, "CLOSURE")}
+        />
+        <NoticeCard
+          label="Non Operational"
+          icon={<Ban className="h-5 w-5" />}
+          accent="bg-muted/10 text-muted-foreground"
+          data={{ pending: 0, accomplished: 0 }}
+          singleValue
         />
       </div>
 
