@@ -115,6 +115,7 @@ type IssuanceField =
   | "ntcvcount"
   | "abatementcount"
   | "closurecount"
+  | "closedcount"
   | "refsicoccupancycount"
   | "refsicbplonewcount"
   | "refsicbplorenewcount"
@@ -161,7 +162,6 @@ const FSIC_COLS: IssuanceCol[] = [
   { api: "fsictiezacount", label: "TIEZA" },
 ];
 
-/** Inspection / Issuance only issues NOD and NTC — NTCV / Abatement / Closure are reinspection-only. */
 const NOTICE_COLS: IssuanceCol[] = [
   { api: "nodcount", label: "NOD" },
   { api: "ntccount", label: "NTC" },
@@ -197,18 +197,18 @@ const ALL_INSPECTION_FIELDS: InspectionField[] = [
   ...REINSPECT_COLS.map((c) => c.api),
 ];
 
-/** Kept in state (always 0 for inspection/issuance) but never rendered. */
-const HIDDEN_ISSUANCE_NOTICE_FIELDS: IssuanceField[] = [
+const HIDDEN_DAILY_NOTICE_FIELDS: IssuanceField[] = [
   "ntcvcount",
   "abatementcount",
   "closurecount",
+  "closedcount",
 ];
 
 const ALL_ISSUANCE_FIELDS: IssuanceField[] = [
   ...FSEC_COLS.map((c) => c.api),
   ...FSIC_COLS.map((c) => c.api),
   ...NOTICE_COLS.map((c) => c.api),
-  ...HIDDEN_ISSUANCE_NOTICE_FIELDS,
+  ...HIDDEN_DAILY_NOTICE_FIELDS,
   ...REFSIC_COLS.map((c) => c.api),
   ...RENOTICE_COLS.map((c) => c.api),
 ];
@@ -804,6 +804,7 @@ function ComplianceEditBody({
           ntcvcount: src.ntcvcount,
           abatementcount: src.abatementcount,
           closurecount: src.closurecount,
+          closedcount: src.closedcount,
           refsicoccupancycount: src.refsicoccupancycount,
           refsicbplonewcount: src.refsicbplonewcount,
           refsicbplorenewcount: src.refsicbplorenewcount,
