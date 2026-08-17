@@ -365,81 +365,54 @@ function NoticeCard({
   const isExpandable = !singleValue;
 
   return (
-    <Card
-      className={
-        singleValue
-          ? "border-border/60 bg-slate-100/80 p-4 shadow-soft"
-          : "border-border/60 bg-card p-4 shadow-soft"
-      }
-    >
+    <Card className="border-border/60 bg-card p-4 shadow-soft">
+
       <button
         type="button"
         aria-expanded={isExpandable ? expanded : undefined}
         onClick={() => isExpandable && setExpanded((v) => !v)}
-        className={
-          singleValue ? "block w-full text-left" : "flex w-full items-start justify-between gap-3 text-left"
-        }
+        className="flex w-full flex-col text-left"
       >
-        {singleValue ? (
-          <div className="w-full min-w-0">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {label}
-                </div>
-              </div>
-              <div
-                className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-                  accent ?? "bg-primary/10 text-primary"
-                }`}
-              >
-                {icon}
-              </div>
-            </div>
-            <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">{total.toLocaleString()}</div>
-            <div className="mt-1 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Total Non Operational
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {label}
             </div>
           </div>
-        ) : (
-          <>
-            <div className="min-w-0">
-              <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {label}
-              </div>
-              <div className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums">
-                {expanded ? (
-                  total.toLocaleString()
-                ) : (
-                  <>
-                    {data.accomplished.toLocaleString()}
-                    <span className="mx-1 text-muted-foreground">/</span>
-                    {data.pending.toLocaleString()}
-                  </>
-                )}
-              </div>
-              {!expanded && (
-                <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Complied / Issued
-                </div>
-              )}
+          <div className="flex shrink-0 items-center gap-2">
+            <div
+              className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
+                accent ?? "bg-primary/10 text-primary"
+              }`}
+            >
+              {icon}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <div
-                className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-                  accent ?? "bg-primary/10 text-primary"
-                }`}
-              >
-                {icon}
-              </div>
-              {expanded ? (
+            {!singleValue &&
+              (expanded ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
-          </>
-        )}
+              ))}
+          </div>
+        </div>
+
+        <div className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums">
+          {singleValue ? (
+            total.toLocaleString()
+          ) : expanded ? (
+            total.toLocaleString()
+          ) : (
+            <>
+              {data.accomplished.toLocaleString()}
+              <span className="mx-1 text-muted-foreground">/</span>
+              {data.pending.toLocaleString()}
+            </>
+          )}
+        </div>
+
+        <div className="mt-auto pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {singleValue ? "Total Non Operational" : expanded ? null : "Complied / Issued"}
+        </div>
       </button>
 
       {isExpandable && expanded && (
@@ -1224,7 +1197,7 @@ export function DashboardBody() {
         <NoticeCard
           label="Non Operational"
           icon={<Ban className="h-5 w-5" />}
-          accent="bg-slate-200 text-slate-700"
+          accent="bg-primary/10 text-primary"
           data={getNotice(compliance, "NON OPERATIONAL")}
           singleValue
         />
