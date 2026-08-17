@@ -64,6 +64,7 @@ export interface FSISIssuanceClassDTO {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+  closedcount: number;
   refsicoccupancycount: number;
   refsicbplonewcount: number;
   refsicbplorenewcount: number;
@@ -100,6 +101,7 @@ export interface FSISIssuanceDetailClassModel {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+  closedcount: number;
   refsicoccupancycount?: number;
   refsicbplonewcount?: number;
   refsicbplorenewcount?: number;
@@ -268,6 +270,7 @@ export interface FSISIssuanceClassModel {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
+  closedcount: number;      
   refsicoccupancycount?: number;
   refsicbplonewcount?: number;
   refsicbplorenewcount?: number;
