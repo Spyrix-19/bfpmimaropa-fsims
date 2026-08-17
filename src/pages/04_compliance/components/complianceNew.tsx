@@ -195,9 +195,6 @@ const ISSUANCE_FSIC_FIELDS: NumericFieldSpec[] = [
 const OTHERS_FIELDS: NumericFieldSpec[] = [
   { key: "not_nod", label: "NOD", tooltip: "Notice Of Disapproval" },
   { key: "not_ntc", label: "NTC", tooltip: "Notice to Comply" },
-  { key: "not_ntcv", label: "NTCV", tooltip: "Notice To Correct Violation" },
-  { key: "not_abatement", label: "ABATEMENT" },
-  { key: "not_closure", label: "Closure" },
 ];
 
 /** Inspection / Issuance only ever issues NOD and NTC. */
@@ -1810,10 +1807,12 @@ const REINSPECTION_FSIC_FIELDS: NumericFieldSpec[] = [
   { key: "fsic_tieza", label: "FSIC - TIEZA" },
 ];
 
-/** Reinspection notices reuse the existing notice categories minus NOD and NTC. */
-const REINSPECTION_NOTICE_FIELDS: NumericFieldSpec[] = OTHERS_FIELDS.filter(
-  (f) => f.key !== "not_nod" && f.key !== "not_ntc",
-);
+/** Reinspection notices — only the reinspection-only categories. */
+const REINSPECTION_NOTICE_FIELDS: NumericFieldSpec[] = [
+  { key: "not_ntcv", label: "NTCV", tooltip: "Notice To Correct Violation" },
+  { key: "not_abatement", label: "ABATEMENT" },
+  { key: "not_closure", label: "Closure" },
+];
 
 const REINSPECTION_FIELDS = [...REINSPECTION_FSIC_FIELDS, ...REINSPECTION_NOTICE_FIELDS];
 
