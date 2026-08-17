@@ -365,15 +365,19 @@ function NoticeCard({
   const isExpandable = !singleValue;
 
   return (
-    <Card className="border-border/60 bg-card p-4 shadow-soft">
+    <Card
+      className={
+        singleValue
+          ? "border-border/60 bg-slate-100/80 p-4 shadow-soft"
+          : "border-border/60 bg-card p-4 shadow-soft"
+      }
+    >
       <button
         type="button"
         aria-expanded={isExpandable ? expanded : undefined}
         onClick={() => isExpandable && setExpanded((v) => !v)}
         className={
-          singleValue
-            ? "block w-full rounded-lg bg-muted/10 p-2 text-left"
-            : "flex w-full items-start justify-between gap-3 text-left"
+          singleValue ? "block w-full text-left" : "flex w-full items-start justify-between gap-3 text-left"
         }
       >
         {singleValue ? (
@@ -392,7 +396,7 @@ function NoticeCard({
                 {icon}
               </div>
             </div>
-            <div className="mt-3 text-2xl font-bold tracking-tight tabular-nums">{total.toLocaleString()}</div>
+            <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">{total.toLocaleString()}</div>
             <div className="mt-1 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               Total Non Operational
             </div>
