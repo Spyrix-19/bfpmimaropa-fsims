@@ -31,13 +31,33 @@ export function useComplianceSummary() {
   const rangeKey = `${range.interval}|${range.startdate}|${range.enddate}`;
 
   // Stable primitive key so the effect only refires on real filter changes.
+  // If the user selected stations but left provinces empty, derive the
+  // provinces payload from the selected stations so the API receives a
+  // non-empty `provinces` array containing both provinceno and stationnos.
   const provincesKey = React.useMemo(() => {
-    const provinces: DashboardClass[] = filters.provinces.map((p) => ({
-      provinceno: p.locationno,
-      stationnos: filters.stations
-        .filter((s) => s.provinceno === p.locationno)
-        .map((s) => s.stationno),
-    }));
+    let provinces: DashboardClass[] = [];
+
+    if ((filters.provinces ?? []).length > 0) {
+      provinces = filters.provinces.map((p) => ({
+        provinceno: p.locationno,
+        stationnos: filters.stations
+          .filter((s) => s.provinceno === p.locationno)
+          .map((s) => s.stationno),
+      }));
+    } else if ((filters.stations ?? []).length > 0) {
+      const map = new Map<string, string[]>();
+      filters.stations.forEach((s) => {
+        if (!s.provinceno || !s.stationno) return;
+        const list = map.get(s.provinceno) ?? [];
+        if (!list.includes(s.stationno)) list.push(s.stationno);
+        map.set(s.provinceno, list);
+      });
+      provinces = Array.from(map.entries()).map(([provinceno, stationnos]) => ({
+        provinceno,
+        stationnos,
+      }));
+    }
+
     return JSON.stringify(provinces);
   }, [filters.provinces, filters.stations]);
 
