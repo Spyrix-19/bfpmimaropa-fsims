@@ -701,6 +701,7 @@ export default function TargetReferenceForm({
     }
     const invalidKeys = validate();
     if (invalidKeys.length > 0) {
+      console.debug("TargetReference validation failed", { invalidKeys, cells });
       const detail = invalidKeys
         .slice(0, 3)
         .map((k) => {
