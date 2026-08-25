@@ -64,37 +64,43 @@ export function useComplianceSummary() {
   React.useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    (async () => {
-      setLoading(true);
-      const resp = await dashboardAPI.getComplianceSummary(
-        {
-          reportyear,
-          interval: range.interval,
-          startdate: range.startdate,
-          enddate: range.enddate,
-          provinces: JSON.parse(provincesKey) as DashboardClass[],
-        },
-        {
-          suppressGlobalLoading: true,
-          suppressErrorToast: true,
-          signal: controller.signal,
-          timeout: 90000,
-          retries: 3,
-          retryDelayMs: 800,
-        },
-      );
-      const { ok, data: payload, error, canceled } = unwrap<DashboardComplianceModel>(resp);
-      if (cancelled || canceled) return;
-      if (!ok) {
-        toast.error(isGenericError(error) ? "Unable to load compliance summary." : error);
-        setData(null);
-      } else {
-        setData(payload ?? null);
-      }
-      setLoading(false);
-    })();
+
+    // Debounce rapid filter updates so only the latest fetch runs.
+    const timer = setTimeout(() => {
+      (async () => {
+        setLoading(true);
+        const resp = await dashboardAPI.getComplianceSummary(
+          {
+            reportyear,
+            interval: range.interval,
+            startdate: range.startdate,
+            enddate: range.enddate,
+            provinces: JSON.parse(provincesKey) as DashboardClass[],
+          },
+          {
+            suppressGlobalLoading: true,
+            suppressErrorToast: true,
+            signal: controller.signal,
+            timeout: 90000,
+            retries: 3,
+            retryDelayMs: 800,
+          },
+        );
+        const { ok, data: payload, error, canceled } = unwrap<DashboardComplianceModel>(resp);
+        if (cancelled || canceled) return;
+        if (!ok) {
+          toast.error(isGenericError(error) ? "Unable to load compliance summary." : error);
+          setData(null);
+        } else {
+          setData(payload ?? null);
+        }
+        setLoading(false);
+      })();
+    }, 200);
+
     return () => {
       cancelled = true;
+      clearTimeout(timer);
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
