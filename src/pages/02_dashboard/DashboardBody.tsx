@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useComplianceSummary, getNotice, sumBy } from "@/pages/02_dashboard/useComplianceSummary";
+import { useComplianceSummary, getNotice, sumBy, normalizeNoticeName } from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
 import { useTargetVsActual } from "@/pages/02_dashboard/useTargetVsActual";
@@ -354,11 +354,26 @@ function NoticeCard({
   label: string;
   icon: React.ReactNode;
   accent?: string;
-  data: { pending: number; accomplished: number };
+  data: {
+    pending: number;
+    accomplished: number;
+    ntcvPending?: number;
+    abatementPending?: number;
+  };
   singleValue?: boolean;
 }) {
   const total = data.pending;
-  const remaining = data.pending - data.accomplished;
+  const ntcvPending = data.ntcvPending ?? 0;
+  const abatementPending = data.abatementPending ?? 0;
+  const normalized = normalizeNoticeName(label);
+  const isNtc = normalized === "NTC";
+  const isNtcv = normalized === "NTCV";
+  const rawRemaining = isNtc
+    ? data.pending - data.accomplished - ntcvPending
+    : isNtcv
+    ? data.pending - data.accomplished - abatementPending
+    : data.pending - data.accomplished;
+  const remaining = rawRemaining;
   const pct = total ? Math.round((data.accomplished / total) * 100) : 0;
   const [expanded, setExpanded] = useState(false);
 
@@ -1168,7 +1183,7 @@ export function DashboardBody() {
           label="NTC"
           icon={<AlertCircle className="h-5 w-5" />}
           accent="bg-warning/10 text-warning"
-          data={getNotice(compliance, "NTC")}
+          data={{ ...getNotice(compliance, "NTC"), ntcvPending: getNotice(compliance, "NTCV").pending }}
         />
         <NoticeCard
           label="NOD"
@@ -1180,7 +1195,7 @@ export function DashboardBody() {
           label="NTCV"
           icon={<ShieldAlert className="h-5 w-5" />}
           accent="bg-destructive/10 text-destructive"
-          data={getNotice(compliance, "NTCV")}
+          data={{ ...getNotice(compliance, "NTCV"), abatementPending: getNotice(compliance, "ABATEMENT").pending }}
         />
         <NoticeCard
           label="Abatement"
