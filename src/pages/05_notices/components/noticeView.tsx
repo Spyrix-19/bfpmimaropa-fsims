@@ -96,7 +96,6 @@ interface DayRow {
   day: number;
   date: string;
   label: string;
-  remarks: string;
   breakdown: Record<NoticeCategory, NoticeCategoryCounts>;
   modes: { manual: ModeCounts; fsis: ModeCounts };
 }
@@ -363,7 +362,6 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
           day: "numeric",
           year: "numeric",
         }),
-        remarks: existing?.remarks ?? "",
         breakdown: existing?.breakdown ?? emptyBreakdown(),
         modes: existing?.modes ?? { manual: emptyMode(), fsis: emptyMode() },
       };
@@ -512,10 +510,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                 { label: "Province", value: record.provincename || record.province || "" },
               ]}
             />
-
-            {/* Issued vs. Complied ---------------------------------------- */}
-            <NoticeAccomplishmentPanel days={days} periodLabel={`${monthName} ${year}`} />
-
+           
             {/* Daily Complied Notices Details ------------------------------------------- */}
             <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -532,7 +527,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                 className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
                 style={{ maxHeight: "70vh" }}
               >
-                <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
+                <table className="w-full min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
                   <thead className="sticky top-0 z-30">
                     <tr>
                       <th
@@ -570,15 +565,6 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                         )}
                       >
                         Total
-                      </th>
-                      <th
-                        rowSpan={2}
-                        className={cn(
-                          "min-w-[220px] border-b px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                          MONITORING_THEME.headerSub,
-                        )}
-                      >
-                        Remarks
                       </th>
                     </tr>
                     <tr>
@@ -634,20 +620,12 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                                 );
                               })}
                               {modeIndex === 0 && (
-                                <>
-                                  <td
-                                    rowSpan={2}
-                                    className="border-b border-r px-3 py-1.5 text-center align-middle font-bold tabular-nums"
-                                  >
-                                    {displayNumber(rowTotal(entry)).toLocaleString()}
-                                  </td>
-                                  <td
-                                    rowSpan={2}
-                                    className="border-b px-2 py-1.5 align-middle text-muted-foreground"
-                                  >
-                                    {entry.remarks || "—"}
-                                  </td>
-                                </>
+                                <td
+                                  rowSpan={2}
+                                  className="border-b border-r px-3 py-1.5 text-center align-middle font-bold tabular-nums"
+                                >
+                                  {displayNumber(rowTotal(entry)).toLocaleString()}
+                                </td>
                               )}
                             </tr>
                           ))}
@@ -672,7 +650,6 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                       <td className="total-row-strong border-r border-t-2 border-grid-strong px-3 py-2 text-center tabular-nums">
                         {displayNumber(grandTotal).toLocaleString()}
                       </td>
-                      <td className="total-row border-t-2 border-grid-strong px-3 py-2" />
                     </tr>
                   </tfoot>
                 </table>

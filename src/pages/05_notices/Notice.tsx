@@ -118,7 +118,6 @@ type NoticeGranularity = "day" | "month" | "quarter" | "semester" | "annual";
 interface NoticeDayEntry {
   day: number;
   date: string;
-  remarks: string;
   breakdown: Record<NoticeCategory, NoticeCategoryCounts>;
   /** Per mode-of-issuance counts (96 = MANUAL, 97 = FSIS). */
   modes: { manual: ModeCounts; fsis: ModeCounts };
@@ -341,7 +340,6 @@ function mapDetailToRecord(
       return {
         day: Number(iso.slice(8, 10)) || 0,
         date: iso,
-        remarks: "",
         breakdown,
         modes,
       } satisfies NoticeDayEntry;

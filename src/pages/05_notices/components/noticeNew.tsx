@@ -479,7 +479,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   const { user, systemAccess } = useAuth();
   const [reportingDate, setReportingDate] = React.useState<Date>(new Date());
   const [dateOpen, setDateOpen] = React.useState(false);
-  const [remarks, setRemarks] = React.useState("");
   const [manualValues, setManualValues] = React.useState<NoticeCounts>(emptyCounts());
   const [fsisValues, setFsisValues] = React.useState<NoticeCounts>(emptyCounts());
   const [saving, setSaving] = React.useState(false);
@@ -521,7 +520,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   React.useEffect(() => {
     if (!open) return;
     setReportingDate(new Date());
-    setRemarks("");
     setManualValues(emptyCounts());
     setFsisValues(emptyCounts());
     setExistingNoticeNo(null);
@@ -562,7 +560,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
       // API returns a record for that exact date.
       setManualValues(emptyCounts());
       setFsisValues(emptyCounts());
-      setRemarks("");
 
       const resp = await noticeAPI.getDetailBydate(
         {
@@ -624,7 +621,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
         setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
         setManualValues(emptyCounts());
         setFsisValues(emptyCounts());
-        setRemarks("");
       }
     })();
 
@@ -889,18 +885,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               locked={fieldsLocked}
             />
 
-            <Field label="Compliance Remarks">
-              <Textarea
-                rows={3}
-                value={remarks}
-                readOnly={fieldsLocked}
-                onChange={(e) => {
-                  if (fieldsLocked) return;
-                  setRemarks(e.target.value.slice(0, 1000));
-                }}
-                placeholder="Notes on the notices complied (compliance, closure, abatement) for this period…"
-              />
-            </Field>
           </Card>
 
           {/* Actions ---------------------------------------------------------- */}

@@ -227,7 +227,7 @@ export default function TargetReferenceForm({
   React.useEffect(() => {
     if (dateOpen && selectedDate) setCalendarMonth(parseDateInputValue(selectedDate));
   }, [dateOpen, selectedDate]);
-  const [remarks, setRemarks] = React.useState<string>("");
+  // `remarks` removed: no per-date remarks field for target reference
 
   // ── Existing-record (per target date) detection ────────────────────────────
   const [existingTargetno, setExistingTargetno] = React.useState<string | null>(null);
@@ -431,7 +431,6 @@ export default function TargetReferenceForm({
     setAutoEdit(false);
     setDuplicatePrompted(false);
     setSelectedDate(formatDateInputValue(new Date()));
-    setRemarks("");
     setExistingTargetno(null);
     setPendingExistingRecord(null);
     setDateDuplicateOpen(false);
@@ -568,7 +567,6 @@ export default function TargetReferenceForm({
         return next;
       });
       setBaselineCells({});
-      setRemarks("");
       setErrors({});
 
       const resp = await targetreferenceAPI.getDetailByTargetdate(
@@ -620,7 +618,6 @@ export default function TargetReferenceForm({
           return next;
         });
         setBaselineCells({});
-        setRemarks("");
       }
     })();
 
@@ -648,7 +645,6 @@ export default function TargetReferenceForm({
     };
     setCells((prev) => ({ ...prev, ...loaded }));
     setBaselineCells(loaded);
-    setRemarks(rec.remarks ?? "");
     setExistingTargetno(rec.targetno);
     setErrors({});
   }
@@ -691,22 +687,74 @@ export default function TargetReferenceForm({
       next.date = "Required";
     }
 
-    ["bplo", "gov", "peza", "tieza"].forEach((key) => {
-      const value = cells[key] ?? "";
-      if (value === "") {
-        next[key] = "Required";
-        return;
-      }
-      const n = Number(value);
-      if (!Number.isInteger(n) || n < 0) next[key] = "Invalid";
-    });
+    // If editing a full month grid, only validate days that were modified
+    if (isEdit) {
+      for (const d of days) {
+        const bploKey = `${d}-${SECTOR_NO.BPLO}`;
+        const govKey = `${d}-${SECTOR_NO.GOV}`;
+        const pezaKey = `${d}-${SECTOR_NO.PEZA}`;
+        const tiezaKey = `${d}-${SECTOR_NO.TIEZA}`;
+        const bplototal = Number(cells[bploKey] ?? 0);
+        const govtotal = Number(cells[govKey] ?? 0);
+        const pezatotal = Number(cells[pezaKey] ?? 0);
+        const tiezatotal = Number(cells[tiezaKey] ?? 0);
 
-    Object.entries(cells).forEach(([k, v]) => {
-      if (["bplo", "gov", "peza", "tieza"].includes(k)) return;
-      if (v === "") return;
-      const n = Number(v);
-      if (!Number.isInteger(n) || n < 0) next[k] = "Invalid";
-    });
+        const baselineBplo = Number(baselineCells[bploKey] ?? 0);
+        const baselineGov = Number(baselineCells[govKey] ?? 0);
+        const baselinePeza = Number(baselineCells[pezaKey] ?? 0);
+        const baselineTieza = Number(baselineCells[tiezaKey] ?? 0);
+
+        const changed =
+          bplototal !== baselineBplo ||
+          govtotal !== baselineGov ||
+          pezatotal !== baselinePeza ||
+          tiezatotal !== baselineTieza;
+
+        if (!changed) continue;
+
+        // Validate the four sector totals for the changed row
+        [[bploKey, bplototal], [govKey, govtotal], [pezaKey, pezatotal], [tiezaKey, tiezatotal]].forEach(
+          ([k, v]) => {
+            if (v === "" || v === null || v === undefined) {
+              next[String(k)] = "Required";
+              return;
+            }
+            const n = Number(v);
+            if (!Number.isInteger(n) || n < 0) next[String(k)] = "Invalid";
+          },
+        );
+      }
+    } else {
+      // Add mode (single date). If creating new (no existingTargetno) require all
+      // four sector totals. If updating an existing date, only validate fields
+      // that differ from the baseline (or remarks if changed).
+      const keys = ["bplo", "gov", "peza", "tieza"];
+      if (!existingTargetno) {
+        keys.forEach((key) => {
+          const value = cells[key] ?? "";
+          if (value === "") {
+            next[key] = "Required";
+            return;
+          }
+          const n = Number(value);
+          if (!Number.isInteger(n) || n < 0) next[key] = "Invalid";
+        });
+      } else {
+        // Updating existing single-date record: validate only changed fields
+        keys.forEach((key) => {
+          const value = cells[key] ?? "";
+          const base = baselineCells[key] ?? "";
+          if (String(value).trim() === String(base).trim()) return;
+          if (value === "") {
+            next[key] = "Required";
+            return;
+          }
+          const n = Number(value);
+          if (!Number.isInteger(n) || n < 0) next[key] = "Invalid";
+        });
+        // Remarks may also be changed; no numeric validation required.
+      }
+    }
 
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -775,51 +823,75 @@ export default function TargetReferenceForm({
       return;
     }
 
-    const list: TargetReferenceClass[] = isEdit
-      ? days.map((d) => {
-          const bploKey = `${d}-${SECTOR_NO.BPLO}`;
-          const govKey = `${d}-${SECTOR_NO.GOV}`;
-          const pezaKey = `${d}-${SECTOR_NO.PEZA}`;
-          const tiezaKey = `${d}-${SECTOR_NO.TIEZA}`;
-          const bplototal = Number(cells[bploKey] ?? 0);
-          const govtotal = Number(cells[govKey] ?? 0);
-          const pezatotal = Number(cells[pezaKey] ?? 0);
-          const tiezatotal = Number(cells[tiezaKey] ?? 0);
-          // isaccomplished = true when any of the four totals differ from the
-          // originally loaded baseline (from targetreferenceAPI.getDetail).
-          const isaccomplished =
-            bplototal !== Number(baselineCells[bploKey] ?? 0) ||
-            govtotal !== Number(baselineCells[govKey] ?? 0) ||
-            pezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
-            tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
-          const existingTargetNo = existingTargetNos[String(d)];
-          return {
-            // Edit mode: send the saved target id so the backend UPDATEs the
-            // existing day instead of creating a duplicate row.
-            targetno:
-              existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
-            targetdate: toTargetDate(Number(year), Number(month), Number(d)),
-            bplototal,
-            govtotal,
-            pezatotal,
-            tiezatotal,
-            isaccomplished,
-          } as TargetReferenceClass;
-        })
-      : [
-          {
-            // When an existing record was loaded for this date, send its
-            // targetno so the backend performs an UPDATE instead of a CREATE.
-            targetno: existingTargetno || EMPTY_GUID,
-            targetdate: toTargetDate(selectedYear, selectedMonth, selectedDay),
-            bplototal: Number(cells[`bplo`] ?? 0),
-            govtotal: Number(cells[`gov`] ?? 0),
-            pezatotal: Number(cells[`peza`] ?? 0),
-            tiezatotal: Number(cells[`tieza`] ?? 0),
-            isaccomplished: Boolean(existingTargetno),
-            ...(remarks ? { remarks } : {}),
-          } as TargetReferenceClass,
-        ];
+    const list: TargetReferenceClass[] = [];
+
+    if (isEdit) {
+      for (const d of days) {
+        const bploKey = `${d}-${SECTOR_NO.BPLO}`;
+        const govKey = `${d}-${SECTOR_NO.GOV}`;
+        const pezaKey = `${d}-${SECTOR_NO.PEZA}`;
+        const tiezaKey = `${d}-${SECTOR_NO.TIEZA}`;
+        const bplototal = Number(cells[bploKey] ?? 0);
+        const govtotal = Number(cells[govKey] ?? 0);
+        const pezatotal = Number(cells[pezaKey] ?? 0);
+        const tiezatotal = Number(cells[tiezaKey] ?? 0);
+
+        const isaccomplished =
+          bplototal !== Number(baselineCells[bploKey] ?? 0) ||
+          govtotal !== Number(baselineCells[govKey] ?? 0) ||
+          pezatotal !== Number(baselineCells[pezaKey] ?? 0) ||
+          tiezatotal !== Number(baselineCells[tiezaKey] ?? 0);
+
+        if (!isaccomplished) continue; // only include changed rows
+
+        const existingTargetNo = existingTargetNos[String(d)];
+        list.push({
+          targetno: existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
+          targetdate: toTargetDate(Number(year), Number(month), Number(d)),
+          bplototal,
+          govtotal,
+          pezatotal,
+          tiezatotal,
+          isaccomplished,
+        } as TargetReferenceClass);
+      }
+    } else {
+      const bplototal = Number(cells[`bplo`] ?? 0);
+      const govtotal = Number(cells[`gov`] ?? 0);
+      const pezatotal = Number(cells[`peza`] ?? 0);
+      const tiezatotal = Number(cells[`tieza`] ?? 0);
+
+      const changed =
+        bplototal !== Number(baselineCells[`bplo`] ?? 0) ||
+        govtotal !== Number(baselineCells[`gov`] ?? 0) ||
+        pezatotal !== Number(baselineCells[`peza`] ?? 0) ||
+        tiezatotal !== Number(baselineCells[`tieza`] ?? 0);
+
+      // If nothing changed and there is no existing target, treat as create
+      // only when there are values (validate above will have enforced this).
+      if (!changed && !existingTargetno) {
+        // nothing to save
+      } else if (!changed && existingTargetno) {
+        // No changes detected for existing record — nothing to send
+      } else {
+        list.push({
+          targetno: existingTargetno || EMPTY_GUID,
+          targetdate: toTargetDate(selectedYear, selectedMonth, selectedDay),
+          bplototal,
+          govtotal,
+          pezatotal,
+          tiezatotal,
+          isaccomplished: Boolean(existingTargetno),
+          
+        } as TargetReferenceClass);
+      }
+    }
+
+    // If there are no changed rows to send, inform the user and do nothing.
+    if (list.length === 0) {
+      toast.info("No changes to save.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -1020,23 +1092,7 @@ export default function TargetReferenceForm({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="target-reference-remarks">Remarks</Label>
-        <textarea
-          id="target-reference-remarks"
-          value={remarks}
-          readOnly={addFieldsLocked}
-          onChange={(event) => {
-            if (addFieldsLocked) return;
-            setRemarks(event.target.value);
-          }}
-          className={cn(
-            "min-h-[120px] w-full resize-none rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary",
-            addFieldsLocked && lockedFieldClass,
-          )}
-          placeholder="Add remarks here..."
-        />
-      </div>
+      {/* Remarks removed from Target Reference form */}
     </div>
   );
 

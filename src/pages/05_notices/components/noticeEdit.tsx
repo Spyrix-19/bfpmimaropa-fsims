@@ -36,7 +36,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/numeric-input";
 import {
   Select,
@@ -45,7 +44,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 import { cn, buildYears } from "@/lib/utils";
 import { toast } from "@/lib/toast";
@@ -114,17 +112,20 @@ function emptyModes(): Record<ModeKey, ModeCounts> {
 /** One day of encoded notice data, keyed by its accomplishment date. */
 interface DaySource {
   modes: Record<ModeKey, ModeCounts>;
-  remarks: string;
   editablestatus: number;
   isrevisionrequest: boolean;
+}
+
+interface DaySourceExt extends DaySource {
+  accomNos?: Record<ModeKey, { accomplishno?: string; noticeno?: string }>;
 }
 
 /**
  * Bind the station detail payload into a `date → MANUAL/FSIS counts` map so
  * every row is plotted on its own accomplishment date.
  */
-function parseDetailToDays(detail: NoticeDetailModel | null | undefined): Map<string, DaySource> {
-  const map = new Map<string, DaySource>();
+function parseDetailToDays(detail: NoticeDetailModel | null | undefined): Map<string, DaySourceExt> {
+  const map = new Map<string, DaySourceExt>();
   const list = Array.isArray(detail?.noticedetallist) ? detail!.noticedetallist : [];
   for (const entry of list) {
     const iso = String(entry?.dateaccomplish ?? "").slice(0, 10);
@@ -139,8 +140,18 @@ function parseDetailToDays(detail: NoticeDetailModel | null | undefined): Map<st
       } satisfies DaySource);
     current.editablestatus = Number(entry?.editablestatus ?? current.editablestatus) || 0;
     current.isrevisionrequest = Boolean(entry?.isrevisionrequest) || current.isrevisionrequest;
+    // Initialize accomNos with the parent noticeno when present so we don't
+    // lose parent/child linkage when the API returns only top-level noticeno.
+    current.accomNos = current.accomNos ?? {
+      manual: { accomplishno: EMPTY_GUID, noticeno: String(entry?.noticeno ?? EMPTY_GUID) },
+      fsis: { accomplishno: EMPTY_GUID, noticeno: String(entry?.noticeno ?? EMPTY_GUID) },
+    };
     for (const accom of Array.isArray(entry?.noticeaccomlist) ? entry.noticeaccomlist : []) {
       const key: ModeKey = Number(accom?.fsicmode) === MODE_FSIS ? "fsis" : "manual";
+      current.accomNos[key] = {
+        accomplishno: String((accom as any)?.accomplishno ?? EMPTY_GUID),
+        noticeno: String((accom as any)?.noticeno ?? entry?.noticeno ?? EMPTY_GUID),
+      };
       for (const category of NOTICE_CATEGORIES) {
         const raw = (accom as unknown as Record<string, unknown>)[CATEGORY_COUNT_KEY[category]];
         current.modes[key][category] += Number(raw ?? 0) || 0;
@@ -440,9 +451,9 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   const [days, setDays] = React.useState<DayRow[]>([]);
   /** date → signature of the loaded values, used to send only changed rows. */
   const [baselineRows, setBaselineRows] = React.useState<Map<string, string>>(new Map());
-  const [generalRemarks, setGeneralRemarks] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [daySourceMap, setDaySourceMap] = React.useState<Map<string, DaySourceExt>>(new Map());
 
   /* --------------------------- Revision requests -------------------------- */
   const [revisionOpen, setRevisionOpen] = React.useState(false);
@@ -461,32 +472,31 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     }[]
   >([]);
 
-  /** Seed from the ledger row so the grid renders instantly, per date. */
-  const seedFromRecord = React.useCallback((src: NoticeRecord): Map<string, DaySource> => {
-    const map = new Map<string, DaySource>();
-    for (const entry of src.dailyEntries) {
-      const iso = String(entry.date ?? "").slice(0, 10);
-      if (!iso) continue;
-      map.set(iso, {
-        modes: {
-          manual: { ...emptyModeCounts(), ...(entry.modes?.manual ?? {}) },
-          fsis: { ...emptyModeCounts(), ...(entry.modes?.fsis ?? {}) },
+  /** Build an empty per-day source map for the given month (EMPTY_GUID ids). */
+  const createEmptyDaySourceMap = React.useCallback((y: number, m: number) => {
+    const map = new Map<string, DaySourceExt>();
+    const total = calendarDaysInMonth(y, m);
+    for (let d = 1; d <= total; d += 1) {
+      const date = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      map.set(date, {
+        modes: emptyModes(),
+        editablestatus: 0,
+        isrevisionrequest: false,
+        accomNos: {
+          manual: { accomplishno: EMPTY_GUID, noticeno: EMPTY_GUID },
+          fsis: { accomplishno: EMPTY_GUID, noticeno: EMPTY_GUID },
         },
-        remarks: entry.remarks ?? "",
-        editablestatus: Number((entry as any)?.editablestatus ?? 0) || 0,
-        isrevisionrequest: Boolean((entry as any)?.isrevisionrequest),
       });
     }
     return map;
   }, []);
 
-  /** Stable signature of a row's editable values (counts + remarks). */
+  /** Stable signature of a row's editable values. */
   const rowSignature = React.useCallback(
     (entry: DayRow) =>
       JSON.stringify([
         NOTICE_CATEGORIES.map((c) => Number(entry.modes.manual[c] ?? 0)),
         NOTICE_CATEGORIES.map((c) => Number(entry.modes.fsis[c] ?? 0)),
-        String(entry.remarks ?? "").trim(),
       ]),
     [],
   );
@@ -497,7 +507,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   );
 
   const buildDays = React.useCallback(
-    (source: Map<string, DaySource>, y: number, m: number): DayRow[] => {
+    (source: Map<string, DaySourceExt>, y: number, m: number): DayRow[] => {
       const monthLocked = hasPstLockActivated(y, m);
       const total = calendarDaysInMonth(y, m);
       return Array.from({ length: total }, (_, i) => {
@@ -513,7 +523,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             day: "numeric",
             year: "numeric",
           }),
-          remarks: existing?.remarks ?? "",
           isLocked: editablestatus === 153 ? false : monthLocked || isDayPassed(date),
           editablestatus,
           isrevisionrequest: Boolean(existing?.isrevisionrequest),
@@ -528,12 +537,13 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     if (!record || !open) return;
     setMonth(record.reportMonth);
     setYear(record.reportYear);
-    const seeded = buildDays(seedFromRecord(record), record.reportYear, record.reportMonth);
+    const seedMap = createEmptyDaySourceMap(record.reportYear, record.reportMonth);
+    const seeded = buildDays(seedMap, record.reportYear, record.reportMonth);
     setDays(seeded);
     setBaselineRows(captureBaseline(seeded));
-    setGeneralRemarks("");
+    setDaySourceMap(seedMap);
     setSaveError(null);
-  }, [record, open, buildDays, seedFromRecord, captureBaseline]);
+  }, [record, open, buildDays, captureBaseline, createEmptyDaySourceMap]);
 
   const stationno = record?.stationno ?? "";
   const provinceno = record?.provinceno ?? "";
@@ -552,14 +562,38 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
-      const { ok, data } = unwrap<NoticeDetailModel | NoticeDetailModel[]>(resp);
+      const { ok, data } = unwrap<NoticeDetailModel | NoticeDetailModel[] | NoticeDetailClassModel[]>(resp);
       if (!ok || !data) return;
-      const detail = Array.isArray(data)
-        ? (data.find((d) => d?.stationno === stationno) ?? data[0] ?? null)
-        : data;
-      const loaded = buildDays(parseDetailToDays(detail), year, month);
-      setDays(loaded);
-      setBaselineRows(captureBaseline(loaded));
+
+      // Normalize different API shapes into a single `noticedetallist` source
+      // so `parseDetailToDays` can work uniformly.
+      let parsed: Map<string, DaySourceExt> = new Map();
+      if (Array.isArray(data)) {
+        // Case A: API returned an array of full `NoticeDetailModel` wrappers
+        if (data.length > 0 && Array.isArray((data[0] as any).noticedetallist)) {
+          const detail = (data as any[]).find((d) => d?.stationno === stationno) ?? data[0] ?? null;
+          parsed = parseDetailToDays(detail as NoticeDetailModel);
+        } else {
+          // Case B: API returned a flat array of `NoticeDetailClassModel` items
+          parsed = parseDetailToDays({ noticedetallist: data as any } as NoticeDetailModel);
+        }
+      } else {
+        // Single object returned — could be either wrapper or a single detail entry
+        if (Array.isArray((data as any).noticedetallist)) {
+          parsed = parseDetailToDays(data as NoticeDetailModel);
+        } else {
+          parsed = parseDetailToDays({ noticedetallist: [data as any] } as NoticeDetailModel);
+        }
+      }
+      const loaded = buildDays(parsed, year, month);
+      // Only overwrite the seeded days when the detail response actually
+      // contains encoded records. If the API returns no noticedetallist the
+      // seeded ledger row (from the parent `record`) should remain visible.
+      if (parsed.size > 0) {
+        setDays(loaded);
+        setBaselineRows(captureBaseline(loaded));
+        setDaySourceMap(parsed);
+      }
     })();
     return () => {
       cancelled = true;
@@ -678,12 +712,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     );
   };
 
-  const updateRemarks = (day: number, value: string) => {
-    setDays((prev) =>
-      prev.map((entry) => (entry.day === day ? { ...entry, remarks: value } : entry)),
-    );
-  };
-
   const rowTotal = (entry: DayRow) =>
     NOTICE_CATEGORIES.reduce(
       (sum, c) => sum + (entry.modes.manual[c] ?? 0) + (entry.modes.fsis[c] ?? 0),
@@ -727,20 +755,24 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       }
 
       for (const entry of editable) {
+        const src = daySourceMap.get(entry.date);
+        const parentNoticeno =
+          src?.accomNos?.manual?.noticeno || src?.accomNos?.fsis?.noticeno || EMPTY_GUID;
+
         const payload = {
-          noticeno: EMPTY_GUID,
+          noticeno: parentNoticeno,
           stationno: record.stationno,
           dateaccomplish: `${entry.date}T00:00:00`,
           encodedby: user?.memberno ?? "",
           accomnoticeList: MODE_ROWS.map((mode) => ({
-            accomplishno: EMPTY_GUID,
-            noticeno: EMPTY_GUID,
+            accomplishno: src?.accomNos?.[mode.key]?.accomplishno ?? EMPTY_GUID,
+            noticeno: src?.accomNos?.[mode.key]?.noticeno ?? parentNoticeno,
             fsicmode: mode.code,
-            nodcount: entry.modes[mode.key].NOD ?? 0,
-            ntccount: entry.modes[mode.key].NTC ?? 0,
-            ntcvcount: entry.modes[mode.key].NTCV ?? 0,
-            abatementcount: entry.modes[mode.key].Abatement ?? 0,
-            closurecount: entry.modes[mode.key].Closure ?? 0,
+            nodcount: Number(entry.modes[mode.key].NOD ?? 0) || 0,
+            ntccount: Number(entry.modes[mode.key].NTC ?? 0) || 0,
+            ntcvcount: Number(entry.modes[mode.key].NTCV ?? 0) || 0,
+            abatementcount: Number(entry.modes[mode.key].Abatement ?? 0) || 0,
+            closurecount: Number(entry.modes[mode.key].Closure ?? 0) || 0,
           })),
         };
         const resp = await noticeAPI.create(payload, { suppressGlobalLoading: true });
@@ -864,13 +896,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             ]}
           />
 
-          {/* Issued vs. Complied ---------------------------------------- */}
-          <NoticeAccomplishmentPanel
-            days={days}
-            issuedByCategory={issuedByCategory}
-            periodLabel={`${monthName} ${year}`}
-          />
-
           {/* Daily Complied Notices Details ------------------------------------------- */}
           <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -887,7 +912,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
               className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
               style={{ maxHeight: "70vh" }}
             >
-              <table className="min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
+              <table className="w-full min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
                 <thead className="sticky top-0 z-30">
                   <tr>
                     <th
@@ -934,15 +959,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                       )}
                     >
                       Total
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "min-w-[220px] border-b px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerSub,
-                      )}
-                    >
-                      Remarks
                     </th>
                   </tr>
                   <tr>
@@ -1087,21 +1103,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                                 >
                                   {rowTotal(entry).toLocaleString()}
                                 </td>
-                                <td rowSpan={2} className="border-b px-2 py-1.5 align-middle">
-                                  {entry.isLocked ? (
-                                    <span className="text-muted-foreground">
-                                      {entry.remarks || "—"}
-                                    </span>
-                                  ) : (
-                                    <Input
-                                      value={entry.remarks}
-                                      placeholder="Remarks"
-                                      aria-label={`Remarks for ${entry.label}`}
-                                      onChange={(e) => updateRemarks(entry.day, e.target.value)}
-                                      className="h-8 w-full rounded-sm border-border/70 px-2 py-1"
-                                    />
-                                  )}
-                                </td>
                               </>
                             )}
                           </tr>
@@ -1128,27 +1129,9 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                     <td className="total-row-strong border-r border-t-2 border-grid-strong px-3 py-2 text-center tabular-nums">
                       {grandTotal.toLocaleString()}
                     </td>
-                    <td className="total-row border-t-2 border-grid-strong px-3 py-2" />
                   </tr>
                 </tfoot>
               </table>
-            </div>
-          </Card>
-
-          {/* General Remarks card */}
-          <Card className="mt-4">
-            <div className="space-y-2 border-t border-border/60 p-4">
-              <label className="text-xs font-medium text-muted-foreground">
-                General Remarks (applies to all days)
-              </label>
-              <Textarea
-                rows={3}
-                value={generalRemarks}
-                onChange={(e) => setGeneralRemarks(e.target.value.slice(0, 1000))}
-                placeholder="Additional notes…"
-                className="mt-2"
-                disabled={allLocked}
-              />
             </div>
           </Card>
 
