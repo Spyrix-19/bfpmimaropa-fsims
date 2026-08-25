@@ -574,25 +574,24 @@ export default function TargetReferenceForm({
   const validate = (): string[] => {
     const next: Record<string, string> = {};
     const normalized: CellMap = {};
-    let changed = false;
 
     Object.entries(cells).forEach(([k, v]) => {
       const raw = String(v ?? "").trim();
       if (raw === "") return;
       const cleaned = raw.replace(/[,\s_]/g, "");
+      if (cleaned === "") return;
       const n = Number(cleaned);
-      if (!Number.isFinite(n) || n < 0) {
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
         next[k] = "Invalid";
         return;
       }
       const whole = String(Math.trunc(n));
-      if (whole !== v) {
+      if (whole !== cleaned) {
         normalized[k] = whole;
-        changed = true;
       }
     });
 
-    if (changed) setCells((prev) => ({ ...prev, ...normalized }));
+    if (Object.keys(normalized).length > 0) setCells((prev) => ({ ...prev, ...normalized }));
     setErrors(next);
     return Object.keys(next);
   };
