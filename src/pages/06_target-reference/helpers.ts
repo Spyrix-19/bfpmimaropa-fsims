@@ -7,7 +7,7 @@
 import type { TargetReferenceClassModel } from "@/types/targetreferenceType";
 import type { AuthUser } from "@/types/authType";
 import { resolveLocationScope } from "@/lib/auth";
-import { isValidRecordId } from "@/lib/complianceHelpers";
+import { isValidRecordId, normalizeDayKey } from "@/lib/complianceHelpers";
 import type { TargetReferenceParams, TargetReferenceParamClass } from "@/types/targetreferenceType";
 import {
   isAllDays,
