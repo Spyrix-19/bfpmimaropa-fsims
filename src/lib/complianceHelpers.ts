@@ -105,18 +105,42 @@ export function isValidRecordId(value: unknown): boolean {
   return true;
 }
 
-/** Normalize any date-ish value to `yyyy-mm-dd`, or "" when unusable. */
+/**
+ * Normalize any date-ish value to `yyyy-mm-dd`, or "" when unusable.
+ *
+ * Accepts `Date`, ISO strings (`2026-09-01T00:00:00Z`) and `MM/DD/YYYY`.
+ * ISO strings are read as calendar text (never re-parsed through `Date`) so a
+ * UTC timestamp can never shift the day by the browser timezone. Sentinel
+ * "no date" values (any year <= 1900, e.g. 1899-12-30 / 1900-01-01) return "".
+ */
 export function normalizeDayKey(value: unknown): string {
   if (!value) return "";
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) return "";
     const y = value.getFullYear();
+    if (y <= 1900) return "";
     const m = String(value.getMonth() + 1).padStart(2, "0");
     const d = String(value.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
-  const iso = String(value).slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || iso.startsWith("1900")) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  let iso = "";
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    iso = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  } else {
+    // MM/DD/YYYY (the format the API expects/emits for date filters).
+    const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!slash) return "";
+    iso = `${slash[3]}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
+  }
+
+  const [y, m, d] = iso.split("-").map(Number);
+  if (y <= 1900 || m < 1 || m > 12 || d < 1) return "";
+  // Reject impossible days (e.g. Feb 30) — leap-year aware.
+  if (d > calendarDaysInMonth(y, m)) return "";
   return iso;
 }
 
@@ -124,21 +148,41 @@ export function normalizeDayKey(value: unknown): string {
  * Shared "day has actual data" rule: a calendar date is counted once when at
  * least one of its records has a valid record id OR a non-zero actual count.
  * Targets never make a day count.
+ *
+ * `allowedDays` (optional) restricts counting to a known set of `yyyy-mm-dd`
+ * keys — the calendar days of the browsed period — so records from other
+ * months/days can never push the badge above its denominator.
  */
 export function countDaysWithData<T>(
   rows: readonly T[] | null | undefined,
   getDate: (row: T) => unknown,
   hasData: (row: T) => boolean,
+  allowedDays?: ReadonlySet<string> | null,
 ): number {
   const set = new Set<string>();
   for (const row of rows ?? []) {
     const key = normalizeDayKey(getDate(row));
     if (!key) continue;
+    if (allowedDays && !allowedDays.has(key)) continue;
     if (!hasData(row)) continue;
     set.add(key);
   }
   return set.size;
 }
+
+/** Every `yyyy-mm-dd` key of the given months in a year (leap-year aware). */
+export function calendarDayKeys(year: number, months: readonly number[]): Set<string> {
+  const out = new Set<string>();
+  for (const m of months) {
+    if (!m || m < 1 || m > 12) continue;
+    const total = calendarDaysInMonth(year, m);
+    for (let d = 1; d <= total; d++) {
+      out.add(`${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+    }
+  }
+  return out;
+}
+
 
 /** COUNT(DISTINCT dateinspected) across rows that carry actual recorded data. */
 export function daysEncoded(rows: ComplianceDailyCounts[]): number {
