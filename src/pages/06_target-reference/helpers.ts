@@ -210,13 +210,17 @@ export function normalizeTargetDate(it: TargetReferenceClassModel): TargetRefere
   // Read the calendar parts straight from the date text (never through `Date`)
   // so a UTC timestamp such as `2026-09-01T00:00:00Z` can never shift a day
   // backwards/forwards with the browser timezone. Sentinel dates yield "".
+  // The API often echoes `reportyear/reportmonth/reportday` as 0 instead of
+  // omitting them, so treat any falsy part as missing and fall back to the
+  // parsed `targetdate` — otherwise valid rows never match their day.
   const iso = normalizeDayKey(it.targetdate);
   const parts = iso ? iso.split("-").map(Number) : null;
-  const reportyear = it.reportyear ?? (parts ? parts[0] : 0);
-  const reportmonth = it.reportmonth ?? (parts ? parts[1] : 0);
-  const reportday = it.reportday ?? (parts ? parts[2] : 0);
+  const reportyear = Number(it.reportyear) || (parts ? parts[0] : 0);
+  const reportmonth = Number(it.reportmonth) || (parts ? parts[1] : 0);
+  const reportday = Number(it.reportday) || (parts ? parts[2] : 0);
   return { ...it, reportyear, reportmonth, reportday };
 }
+
 
 /**
  * Bucket a station's targetreferencelist row into a BPLO/Gov/PEZA/TIEZA bucket.
