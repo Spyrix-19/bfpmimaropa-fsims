@@ -3,7 +3,7 @@ import FilterField from "@/components/filter-field";
 import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
-import { EMPTY_GUID } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import type { SearchLocationModel } from "@/types/locationType";
 import type { SearchStationModel } from "@/types/stationTypes";

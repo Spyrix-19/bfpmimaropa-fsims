@@ -13,6 +13,8 @@ import type {
   ComplianceMatrixStationRow,
 } from "@/types/complianceType";
 
+import { EMPTY_GUID } from "@/lib/fsims-constants";
+
 /** Field definitions per category — drives table columns, matrix columns, and totals. */
 export const CATEGORY_FIELDS: Record<
   ComplianceCategoryKey,
@@ -88,8 +90,6 @@ export function calendarDaysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
 
-export const EMPTY_GUID_VALUE = "00000000-0000-0000-0000-000000000000";
-
 /**
  * A record key (fsisno / noticeno / targetno) counts as a real record only when
  * it is a non-empty, non-default GUID.
@@ -99,7 +99,7 @@ export function isValidRecordId(value: unknown): boolean {
     .trim()
     .toLowerCase();
   if (!id) return false;
-  if (id === EMPTY_GUID_VALUE) return false;
+  if (id === EMPTY_GUID) return false;
   if (/^0[-0]*$/.test(id)) return false;
   return true;
 }

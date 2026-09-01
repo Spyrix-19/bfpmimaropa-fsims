@@ -20,7 +20,7 @@ import { unwrap } from "@/lib/api-envelope";
 import { sumMonths, MONTH_NAMES } from "@/lib/complianceHelpers";
 import { complianceAPI } from "@/services/complianceAPI";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
-import { EMPTY_GUID } from "@/lib/utils";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { resolveTargetScope } from "@/pages/06_target-reference/helpers";
