@@ -41,6 +41,10 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useAuth, type AppModule } from "@/lib/auth";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { prefetchRoute } from "@/lib/route-prefetch";
+import {
+  MatrixReportsOnHoldDialog,
+  MATRIX_REPORTS_ON_HOLD,
+} from "@/pages/10_reports/MatrixReports";
 
 interface NavItem {
   to: string;
@@ -155,6 +159,7 @@ const GROUPS: NavGroup[] = [
 export function AppSidebar() {
   const { user, logout, canAccess, systemAccess } = useAuth();
   const [signoutOpen, setSignoutOpen] = useState(false);
+  const [reportsHoldOpen, setReportsHoldOpen] = useState(false);
   const { state, setOpenMobile, isMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
@@ -167,6 +172,14 @@ export function AppSidebar() {
   };
 
   const canSee = (item: NavItem) => canAccess(item.module);
+
+  const handleMatrixReportsClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!MATRIX_REPORTS_ON_HOLD) return;
+
+    event.preventDefault();
+    closeOnMobile();
+    setReportsHoldOpen(true);
+  };
 
   const displayName = user
     ? [user.rankcode, user.fullname].filter(Boolean).join(" ") || user.fullname || user.name
@@ -226,7 +239,13 @@ export function AppSidebar() {
                           <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.label}>
                             <Link
                               to={item.to}
-                              onClick={closeOnMobile}
+                              onClick={(event) => {
+                                if (item.to === "/reports") {
+                                  handleMatrixReportsClick(event);
+                                  return;
+                                }
+                                closeOnMobile();
+                              }}
                               onMouseEnter={() => prefetchRoute(item.to)}
                               onFocus={() => prefetchRoute(item.to)}
                               onPointerDown={() => prefetchRoute(item.to)}
@@ -292,6 +311,10 @@ export function AppSidebar() {
           );
         })}
       </SidebarContent>
+
+      {MATRIX_REPORTS_ON_HOLD && (
+        <MatrixReportsOnHoldDialog open={reportsHoldOpen} onOpenChange={setReportsHoldOpen} />
+      )}
 
       <SidebarFooter className="border-t border-sidebar-border">
         {user && (

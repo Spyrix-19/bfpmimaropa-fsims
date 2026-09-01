@@ -155,6 +155,31 @@ const QUARTERS = [
   { label: "Quarter 4", months: [10, 11, 12] },
 ];
 
+export const MATRIX_REPORTS_ON_HOLD = true;
+
+export function MatrixReportsOnHoldDialog({
+  open = true,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange ?? (() => {})}
+      ContentIcon={AlertTriangle}
+      contentIconBgClass="tone-danger-soft"
+      contentIconColorClass="text-destructive"
+      title="Report generation temporarily unavailable"
+      description="Report generation is currently on hold. Please contact your system administrator for assistance. This feature will be available soon."
+      confirmLabel="OK"
+      cancelClassName="hidden"
+      onConfirm={() => {}}
+    />
+  );
+}
+
 export default function Reports() {
   const { user, systemAccess, isPersonnel } = useAuth();
   const scope = React.useMemo(
@@ -178,7 +203,7 @@ export default function Reports() {
   // Feature flag: put Matrix Reports on hold and show the existing "on hold"
   // notice (same wording used by Forgot Password). Toggle to `false` to
   // re-enable the report UI.
-  const REPORTS_ON_HOLD = true;
+  const REPORTS_ON_HOLD = MATRIX_REPORTS_ON_HOLD;
 
   const fields = CATEGORY_FIELDS[category];
   const fieldKeys = fields.map((f) => String(f.key));
@@ -227,20 +252,7 @@ export default function Reports() {
   const [holdOpen, setHoldOpen] = React.useState(REPORTS_ON_HOLD);
 
   if (REPORTS_ON_HOLD) {
-    return (
-      <ConfirmDialog
-        open={holdOpen}
-        onOpenChange={setHoldOpen}
-        ContentIcon={AlertTriangle}
-        contentIconBgClass="tone-danger-soft"
-        contentIconColorClass="text-destructive"
-        title="Report generation temporarily unavailable"
-        description="Report generation is currently on hold. Please contact your system administrator for assistance. This feature will be available soon."
-        confirmLabel="OK"
-        cancelClassName="hidden"
-        onConfirm={() => {}}
-      />
-    );
+    return <MatrixReportsOnHoldDialog open={holdOpen} onOpenChange={setHoldOpen} />;
   }
 
   if (restricted) {
