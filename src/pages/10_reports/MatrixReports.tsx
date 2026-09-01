@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FileBarChart2, Loader2, LayoutGrid, AlertTriangle } from "lucide-react";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
 
 import AvatarWithFallback from "@/components/avatar-with-fallback";
@@ -221,6 +222,27 @@ export default function Reports() {
     };
   }, [year, category, search, province, scope.provinceLocked, scope.provincename, user]);
 
+  // If reports are on hold, show the existing 'on hold' notice to everyone
+  // regardless of role.
+  const [holdOpen, setHoldOpen] = React.useState(REPORTS_ON_HOLD);
+
+  if (REPORTS_ON_HOLD) {
+    return (
+      <ConfirmDialog
+        open={holdOpen}
+        onOpenChange={setHoldOpen}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-danger-soft"
+        contentIconColorClass="text-destructive"
+        title="Report generation temporarily unavailable"
+        description="Report generation is currently on hold. Please contact your system administrator for assistance. This feature will be available soon."
+        confirmLabel="OK"
+        cancelClassName="hidden"
+        onConfirm={() => {}}
+      />
+    );
+  }
+
   if (restricted) {
     return (
       <Banner
@@ -228,29 +250,6 @@ export default function Reports() {
         title="Reports are restricted"
         description="Sign in as an administrator to generate reports."
       />
-    );
-  }
-
-  if (REPORTS_ON_HOLD) {
-    return (
-      <div className="flex w-full items-center justify-center py-12">
-        <Card className="max-w-xl">
-          <div className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="rounded-full tone-danger-soft p-2">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Report generation temporarily unavailable</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Report generation is currently on hold. Please contact your system administrator for
-                  assistance. This feature will be available soon.
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
     );
   }
 
