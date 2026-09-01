@@ -191,14 +191,14 @@ export default function StationSearchSelect({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search unit / station…"
-              className="h-9 w-full rounded-md border border-primary/30 bg-background pl-8 pr-9 text-sm transition-colors hover:border-primary/50 focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+              className="h-9 w-full rounded-md border border-primary/30 bg-background pl-8 pr-9 text-sm transition-colors focus:border-primary focus:outline-none focus-visible:outline-none"
             />
             {search.trim().length > 0 ? (
               <button
                 type="button"
                 aria-label="Clear search"
                 onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-primary"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-transparent hover:text-primary"
               >
                 <X className="h-4 w-4" />
               </button>

@@ -68,7 +68,7 @@ export default function SearchKey({
           type="button"
           aria-label="Clear"
           onClick={() => commit("")}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted/20"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-transparent hover:text-primary"
         >
           <XIcon className="h-4 w-4" />
         </button>
