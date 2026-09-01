@@ -63,6 +63,7 @@ import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import {
   calendarDaysInMonth,
+  calendarDayKeys,
   countDaysWithData,
   isValidRecordId,
   normalizeDayKey,
@@ -182,6 +183,7 @@ function mapMonthlyItemToRow(
   item: FSISComplianceMonthlyItem,
   fallbackYear = 0,
   fallbackMonth = 0,
+  allowedMonths?: number[],
 ): LedgerRow {
   const daily = Array.isArray(item.complianceLedgerList) ? item.complianceLedgerList : [];
   const breakdown = {
@@ -217,7 +219,20 @@ function mapMonthlyItemToRow(
     return isValidRecordId(fsisno) || hasNonZeroCounts(d);
   };
 
-  const encodedDays = countDaysWithData(daily, (d) => d.dateinspected, rowHasData);
+  // Only calendar days of the browsed period may count, so a stray record from
+  // another month can never inflate the "days encoded / calendar days" badge.
+  const scopeYear = Number((item as { reportyear?: number }).reportyear) || fallbackYear || 0;
+  const scopeMonths =
+    allowedMonths && allowedMonths.length
+      ? allowedMonths
+      : [Number((item as { reportmonth?: number }).reportmonth) || fallbackMonth || 0];
+  const allowedDayKeys = scopeYear ? calendarDayKeys(scopeYear, scopeMonths) : null;
+  const encodedDays = countDaysWithData(
+    daily,
+    (d) => d.dateinspected,
+    rowHasData,
+    allowedDayKeys,
+  );
   let latestDate = "";
   for (const d of daily) {
     const iso = normalizeDayKey(d.dateinspected);
@@ -634,7 +649,12 @@ export default function FireSafetyCompliancePage() {
         }
 
         const mapped = items.map((it) => {
-          const mappedRow = mapMonthlyItemToRow(it, Number(year), it.month);
+          const mappedRow = mapMonthlyItemToRow(
+            it,
+            Number(year),
+            it.month,
+            isAggregated ? selectedMonths.map(Number) : [Number(it.month)],
+          );
           if (!isAggregated) return mappedRow;
           return {
             ...mappedRow,
