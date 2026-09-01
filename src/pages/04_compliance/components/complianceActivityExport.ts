@@ -94,6 +94,7 @@ const FSIC_COLS: Col[] = [
 const NOTICE_COLS: Col[] = [
   { key: "nodcount", label: "NOD" },
   { key: "ntccount", label: "NTC" },
+  { key: "closedcount", label: "NON OPERATIONAL" },
   // NTCV / Abatement / Closure are reinspection-only categories.
 
 ];
