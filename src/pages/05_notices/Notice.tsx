@@ -18,7 +18,12 @@ import { useAuth, resolveLocationScope } from "@/lib/auth";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import { MONTHS } from "@/lib/fsims-constants";
-import { calendarDaysInMonth, countDaysWithData, isValidRecordId } from "@/lib/complianceHelpers";
+import {
+  calendarDaysInMonth,
+  calendarDayKeys,
+  countDaysWithData,
+  isValidRecordId,
+} from "@/lib/complianceHelpers";
 import {
   ScopedLocationMultiFilterPair,
   useScopedLocationMulti,
@@ -374,6 +379,8 @@ function mapDetailToRecord(
             0,
         ),
       ),
+    // Restrict to the calendar days of the browsed period.
+    calendarDayKeys(year, months),
   );
   const lastupdated = dailyEntries.length ? dailyEntries[dailyEntries.length - 1].date : "";
   const primaryMonth = months[0] ?? 1;
