@@ -207,10 +207,14 @@ export const sumBucket = (b: TargetBucket) => b.bplo + b.gov + b.peza + b.tieza;
  * `targetdate` as a fallback.
  */
 export function normalizeTargetDate(it: TargetReferenceClassModel): TargetReferenceClassModel {
-  const fallback = it.targetdate ? new Date(it.targetdate) : null;
-  const reportyear = it.reportyear ?? (fallback ? fallback.getFullYear() : 0);
-  const reportmonth = it.reportmonth ?? (fallback ? fallback.getMonth() + 1 : 0);
-  const reportday = it.reportday ?? (fallback ? fallback.getDate() : 0);
+  // Read the calendar parts straight from the date text (never through `Date`)
+  // so a UTC timestamp such as `2026-09-01T00:00:00Z` can never shift a day
+  // backwards/forwards with the browser timezone. Sentinel dates yield "".
+  const iso = normalizeDayKey(it.targetdate);
+  const parts = iso ? iso.split("-").map(Number) : null;
+  const reportyear = it.reportyear ?? (parts ? parts[0] : 0);
+  const reportmonth = it.reportmonth ?? (parts ? parts[1] : 0);
+  const reportday = it.reportday ?? (parts ? parts[2] : 0);
   return { ...it, reportyear, reportmonth, reportday };
 }
 
