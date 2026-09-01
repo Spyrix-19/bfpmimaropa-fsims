@@ -55,7 +55,11 @@ import { noticeAPI } from "@/services/noticeAPI";
 import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceTheme";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
-import type { NoticeCategory, NoticeDetailModel } from "@/types/noticeType";
+import type {
+  NoticeCategory,
+  NoticeDetailModel,
+  NoticeDetailClassModel,
+} from "@/types/noticeType";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
@@ -112,6 +116,7 @@ function emptyModes(): Record<ModeKey, ModeCounts> {
 /** One day of encoded notice data, keyed by its accomplishment date. */
 interface DaySource {
   modes: Record<ModeKey, ModeCounts>;
+  remarks: string;
   editablestatus: number;
   isrevisionrequest: boolean;
 }
@@ -480,6 +485,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       const date = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       map.set(date, {
         modes: emptyModes(),
+        remarks: "",
         editablestatus: 0,
         isrevisionrequest: false,
         accomNos: {
@@ -526,6 +532,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
           isLocked: editablestatus === 153 ? false : monthLocked || isDayPassed(date),
           editablestatus,
           isrevisionrequest: Boolean(existing?.isrevisionrequest),
+          remarks: existing?.remarks ?? "",
           modes: existing?.modes ?? emptyModes(),
         } satisfies DayRow;
       });
