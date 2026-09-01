@@ -362,7 +362,7 @@ function NoticeCard({
   };
   singleValue?: boolean;
 }) {
-  const total = data.pending;
+  const total = singleValue ? data.accomplished : data.pending;
   const ntcvPending = data.ntcvPending ?? 0;
   const abatementPending = data.abatementPending ?? 0;
   const normalized = normalizeNoticeName(label);
