@@ -96,7 +96,6 @@ const NOTICE_COLS: Col[] = [
   { key: "ntccount", label: "NTC" },
   { key: "closedcount", label: "NON OPERATIONAL" },
   // NTCV / Abatement / Closure are reinspection-only categories.
-
 ];
 
 const REINSPECTION_COLS: Col[] = [

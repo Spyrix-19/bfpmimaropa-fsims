@@ -995,10 +995,10 @@ export default function AccomplishedNotice() {
  * ---------------------------------------------------------------------- */
 
 const headCell =
-  "border border-border/50 bg-blue-50 dark:bg-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300 whitespace-nowrap text-center";
+  "border border-border/50 head-soft px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap text-center";
 const bodyCell = "border border-border/40 px-2 py-1.5 text-xs tabular-nums text-center";
 const footCell =
-  "border border-border/50 bg-blue-100 dark:bg-slate-800 px-2 py-1.5 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
+  "border border-border/50 total-row px-2 py-1.5 text-xs font-bold tabular-nums text-center";
 
 function NoticeLedgerCard({
   record,
@@ -1043,16 +1043,16 @@ function NoticeLedgerCard({
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
       {/* Header — station details */}
-      <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-blue-50 dark:from-slate-700/40 via-blue-50/50 dark:via-slate-700/20 to-transparent dark:to-transparent p-4">
+      <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-4">
         <AvatarWithFallback
           entity={{ name: record.stationname }}
           src={record.logourl || undefined}
           name={record.stationname}
-          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-blue-200 dark:ring-slate-600"
+          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-primary/20"
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
               {record.stationcode}
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
@@ -1068,7 +1068,7 @@ function NoticeLedgerCard({
           </div>
         </div>
         <div
-          className="grid h-10 w-14 place-items-center rounded-lg bg-blue-100 dark:bg-slate-600 text-center text-blue-700 dark:text-blue-300"
+          className="grid h-10 w-14 place-items-center rounded-lg bg-primary/10 text-center text-primary"
           title="Total Complied notices"
         >
           <div className="text-[8px] font-bold uppercase leading-none">Total</div>
@@ -1133,7 +1133,7 @@ function NoticeLedgerCard({
                         {line.label}
                       </th>
                       <td
-                        className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}
+                        className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-primary`}
                       >
                         MANUAL
                       </td>
@@ -1143,9 +1143,9 @@ function NoticeLedgerCard({
                         </td>
                       ))}
                     </tr>
-                    <tr className="bg-blue-50 dark:bg-slate-700">
+                    <tr className="row-alt">
                       <td
-                        className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-blue-700 dark:text-blue-300`}
+                        className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-primary`}
                       >
                         FSIS
                       </td>

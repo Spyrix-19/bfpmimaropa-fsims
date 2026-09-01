@@ -113,7 +113,10 @@ export function useComplianceSummary() {
  * "NON-OPERATIONAL", or "NONOPERATIONAL" without breaking the lookup.
  */
 export function normalizeNoticeName(value: string | null | undefined): string {
-  return (value ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return (value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
 }
 
 /** Case-insensitive notice lookup with a zeroed fallback. */

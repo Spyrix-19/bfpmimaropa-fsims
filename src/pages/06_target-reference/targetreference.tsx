@@ -695,17 +695,17 @@ function TargetCard({
   return (
     <Card className="flex flex-col overflow-hidden border-border/60 shadow-soft transition-shadow hover:shadow-elegant">
       {/* Header — station details */}
-      <div className="flex items-start gap-3 border-b border-border/40 bg-gradient-to-r from-blue-50 via-blue-50/50 to-transparent dark:from-slate-700/40 dark:via-slate-700/20 dark:to-transparent p-4">
+      <div className="flex items-start gap-3 border-b border-border/40 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-4">
         <AvatarWithFallback
           src={group.logoUrl || undefined}
           entity={{ name: group.stationName }}
           name={group.stationName}
           alt={group.stationName}
-          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-blue-200 dark:ring-slate-600"
+          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-primary/20"
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
               {group.stationCode}
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
@@ -727,7 +727,7 @@ function TargetCard({
           </div>
         </div>
         <div
-          className="grid h-10 w-14 place-items-center rounded-lg bg-blue-100 text-center text-blue-700 dark:bg-slate-600 dark:text-blue-300"
+          className="grid h-10 w-14 place-items-center rounded-lg bg-primary/10 text-center text-primary"
           title="Annual Total"
         >
           <div className="text-[8px] font-bold uppercase leading-none">Total</div>

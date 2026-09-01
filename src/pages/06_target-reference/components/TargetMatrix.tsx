@@ -149,7 +149,7 @@ function normalizeTargetReferenceRow(item: any): TargetReferenceClassModel | nul
     return null;
   }
 
-    return {
+  return {
     targetno: String(item.targetno ?? item.Targetno ?? ""),
     targetdate: targetdate == null ? undefined : String(targetdate),
     reportyear: item.reportyear ?? item.Reportyear,

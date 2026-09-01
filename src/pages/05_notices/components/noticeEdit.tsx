@@ -55,11 +55,7 @@ import { noticeAPI } from "@/services/noticeAPI";
 import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceTheme";
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
-import type {
-  NoticeCategory,
-  NoticeDetailModel,
-  NoticeDetailClassModel,
-} from "@/types/noticeType";
+import type { NoticeCategory, NoticeDetailModel, NoticeDetailClassModel } from "@/types/noticeType";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
@@ -129,7 +125,9 @@ interface DaySourceExt extends DaySource {
  * Bind the station detail payload into a `date → MANUAL/FSIS counts` map so
  * every row is plotted on its own accomplishment date.
  */
-function parseDetailToDays(detail: NoticeDetailModel | null | undefined): Map<string, DaySourceExt> {
+function parseDetailToDays(
+  detail: NoticeDetailModel | null | undefined,
+): Map<string, DaySourceExt> {
   const map = new Map<string, DaySourceExt>();
   const list = Array.isArray(detail?.noticedetallist) ? detail!.noticedetallist : [];
   for (const entry of list) {
@@ -569,7 +567,9 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         { suppressGlobalLoading: true },
       );
       if (cancelled) return;
-      const { ok, data } = unwrap<NoticeDetailModel | NoticeDetailModel[] | NoticeDetailClassModel[]>(resp);
+      const { ok, data } = unwrap<
+        NoticeDetailModel | NoticeDetailModel[] | NoticeDetailClassModel[]
+      >(resp);
       if (!ok || !data) return;
 
       // Normalize different API shapes into a single `noticedetallist` source

@@ -221,7 +221,6 @@ export function normalizeTargetDate(it: TargetReferenceClassModel): TargetRefere
   return { ...it, reportyear, reportmonth, reportday };
 }
 
-
 /**
  * Bucket a station's targetreferencelist row into a BPLO/Gov/PEZA/TIEZA bucket.
  */

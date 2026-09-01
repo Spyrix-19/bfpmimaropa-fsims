@@ -713,16 +713,19 @@ export default function TargetReferenceForm({
         if (!changed) continue;
 
         // Validate the four sector totals for the changed row
-        [[bploKey, bplototal], [govKey, govtotal], [pezaKey, pezatotal], [tiezaKey, tiezatotal]].forEach(
-          ([k, v]) => {
-            if (v === "" || v === null || v === undefined) {
-              next[String(k)] = "Required";
-              return;
-            }
-            const n = Number(v);
-            if (!Number.isInteger(n) || n < 0) next[String(k)] = "Invalid";
-          },
-        );
+        [
+          [bploKey, bplototal],
+          [govKey, govtotal],
+          [pezaKey, pezatotal],
+          [tiezaKey, tiezatotal],
+        ].forEach(([k, v]) => {
+          if (v === "" || v === null || v === undefined) {
+            next[String(k)] = "Required";
+            return;
+          }
+          const n = Number(v);
+          if (!Number.isInteger(n) || n < 0) next[String(k)] = "Invalid";
+        });
       }
     } else {
       // Add mode (single date). If creating new (no existingTargetno) require all
@@ -846,7 +849,8 @@ export default function TargetReferenceForm({
 
         const existingTargetNo = existingTargetNos[String(d)];
         list.push({
-          targetno: existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
+          targetno:
+            existingTargetNo && existingTargetNo !== EMPTY_GUID ? existingTargetNo : EMPTY_GUID,
           targetdate: toTargetDate(Number(year), Number(month), Number(d)),
           bplototal,
           govtotal,
@@ -882,7 +886,6 @@ export default function TargetReferenceForm({
           pezatotal,
           tiezatotal,
           isaccomplished: Boolean(existingTargetno),
-          
         } as TargetReferenceClass);
       }
     }

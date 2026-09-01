@@ -884,7 +884,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               setFsisValues={setFsisValues}
               locked={fieldsLocked}
             />
-
           </Card>
 
           {/* Actions ---------------------------------------------------------- */}

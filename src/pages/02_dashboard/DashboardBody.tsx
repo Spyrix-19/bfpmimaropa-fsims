@@ -39,7 +39,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useComplianceSummary, getNotice, sumBy, normalizeNoticeName } from "@/pages/02_dashboard/useComplianceSummary";
+import {
+  useComplianceSummary,
+  getNotice,
+  sumBy,
+  normalizeNoticeName,
+} from "@/pages/02_dashboard/useComplianceSummary";
 import { useIssuanceGap } from "@/pages/02_dashboard/useIssuanceGap";
 import { useInspectionSummary } from "@/pages/02_dashboard/useInspectionSummary";
 import { useTargetVsActual } from "@/pages/02_dashboard/useTargetVsActual";
@@ -371,8 +376,8 @@ function NoticeCard({
   const rawRemaining = isNtc
     ? data.pending - data.accomplished - ntcvPending
     : isNtcv
-    ? data.pending - data.accomplished - abatementPending
-    : data.pending - data.accomplished;
+      ? data.pending - data.accomplished - abatementPending
+      : data.pending - data.accomplished;
   const remaining = rawRemaining;
   const pct = total ? Math.round((data.accomplished / total) * 100) : 0;
   const [expanded, setExpanded] = useState(false);
@@ -381,7 +386,6 @@ function NoticeCard({
 
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
-
       <button
         type="button"
         aria-expanded={isExpandable ? expanded : undefined}
@@ -1183,7 +1187,10 @@ export function DashboardBody() {
           label="NTC"
           icon={<AlertCircle className="h-5 w-5" />}
           accent="bg-warning/10 text-warning"
-          data={{ ...getNotice(compliance, "NTC"), ntcvPending: getNotice(compliance, "NTCV").pending }}
+          data={{
+            ...getNotice(compliance, "NTC"),
+            ntcvPending: getNotice(compliance, "NTCV").pending,
+          }}
         />
         <NoticeCard
           label="NOD"
@@ -1195,7 +1202,10 @@ export function DashboardBody() {
           label="NTCV"
           icon={<ShieldAlert className="h-5 w-5" />}
           accent="bg-destructive/10 text-destructive"
-          data={{ ...getNotice(compliance, "NTCV"), abatementPending: getNotice(compliance, "ABATEMENT").pending }}
+          data={{
+            ...getNotice(compliance, "NTCV"),
+            abatementPending: getNotice(compliance, "ABATEMENT").pending,
+          }}
         />
         <NoticeCard
           label="Abatement"

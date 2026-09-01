@@ -136,7 +136,6 @@ const NOTICE_COLS: IssuanceCol[] = [
   { api: "closedcount", label: "Non Operational" },
 ];
 
-
 /* -- Daily Reinspection ---------------------------------------------------- */
 const REINSPECT_COLS: InspectionCol[] = [
   { api: "reinspectoccupancycount", label: "Occupancy" },

@@ -77,7 +77,6 @@ export const FSIC_FIELDS = [
 /** Inspection-side notices only — NTCV / Abatement / Closure belong to reinspection. */
 export const NOTICES_FIELDS = ["not_nod", "not_ntc"] as const;
 
-
 export const ALL_NUMERIC_FIELDS = [
   ...INSPECTION_FIELDS,
   ...FSEC_FIELDS,
@@ -182,7 +181,6 @@ export function calendarDayKeys(year: number, months: readonly number[]): Set<st
   }
   return out;
 }
-
 
 /** COUNT(DISTINCT dateinspected) across rows that carry actual recorded data. */
 export function daysEncoded(rows: ComplianceDailyCounts[]): number {
@@ -568,7 +566,6 @@ export function buildReportMatrix(
     };
   });
 }
-
 
 export function sumReportMonths(
   months: Record<number, Record<string, TargetActualCell>>,

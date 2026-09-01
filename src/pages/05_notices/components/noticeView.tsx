@@ -510,7 +510,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                 { label: "Province", value: record.provincename || record.province || "" },
               ]}
             />
-           
+
             {/* Daily Complied Notices Details ------------------------------------------- */}
             <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

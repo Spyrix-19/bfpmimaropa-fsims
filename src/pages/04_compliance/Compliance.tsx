@@ -227,12 +227,7 @@ function mapMonthlyItemToRow(
       ? allowedMonths
       : [Number((item as { reportmonth?: number }).reportmonth) || fallbackMonth || 0];
   const allowedDayKeys = scopeYear ? calendarDayKeys(scopeYear, scopeMonths) : null;
-  const encodedDays = countDaysWithData(
-    daily,
-    (d) => d.dateinspected,
-    rowHasData,
-    allowedDayKeys,
-  );
+  const encodedDays = countDaysWithData(daily, (d) => d.dateinspected, rowHasData, allowedDayKeys);
   let latestDate = "";
   for (const d of daily) {
     const iso = normalizeDayKey(d.dateinspected);
@@ -1189,7 +1184,6 @@ const NOTICE_COLS: LedgerCol[] = [
   { key: "closedcount", label: "NON OPERATIONAL" },
 ];
 
-
 /** Reinspection counts live on the compliance record itself. */
 const REINSPECTION_COLS: LedgerCol[] = [
   { key: "reinspectoccupancycount", label: "Occupancy" },
@@ -1488,12 +1482,12 @@ function calculateLedgerTotals(lines: DayLine[]): LedgerTotals {
 /* ------------------------------ Presentation ------------------------------ */
 
 const headCell =
-  "border-b border-border/40 bg-blue-50/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-blue-700/90 dark:text-blue-300/90 whitespace-nowrap text-center";
+  "border-b border-border/40 head-soft backdrop-blur-sm px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap text-center";
 const subHeadCell = `${headCell} px-1 py-1 normal-case`;
 const bodyCell =
   "border-b border-border/25 px-2.5 py-1.5 text-xs tabular-nums text-center text-foreground/90";
 const footCell =
-  "border-t border-border/50 bg-blue-100/90 dark:bg-slate-800/95 backdrop-blur-sm px-2.5 py-2 text-xs font-bold tabular-nums text-center text-blue-800 dark:text-blue-200";
+  "border-t border-border/50 total-row backdrop-blur-sm px-2.5 py-2 text-xs font-bold tabular-nums text-center";
 const rowHeadCell =
   "sticky left-0 z-10 border-b border-border/25 border-r border-r-border/50 bg-inherit px-2.5 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]";
 const strongRight = "border-r-2 border-r-border/80";
@@ -1510,7 +1504,7 @@ function N({ v }: { v: number }) {
 
 function ModeBadge({ label }: { label: string }) {
   return (
-    <span className="rounded bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-blue-700 dark:text-blue-300">
+    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-primary">
       {label}
     </span>
   );
@@ -1632,16 +1626,16 @@ function ComplianceLedgerCard({
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
       {/* Header — station details */}
-      <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-blue-50 dark:from-slate-700/40 via-blue-50/50 dark:via-slate-700/20 to-transparent dark:to-transparent p-4">
+      <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-4">
         <AvatarWithFallback
           entity={{ name: row.stationname }}
           src={row.logoUrl || undefined}
           name={row.stationname}
-          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-blue-200 dark:ring-slate-600"
+          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-primary/20"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="rounded-md bg-blue-100 dark:bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
               {row.stationcode}
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
@@ -1658,7 +1652,7 @@ function ComplianceLedgerCard({
           </div>
         </div>
         <div
-          className="grid h-10 w-14 place-items-center rounded-lg bg-blue-100 dark:bg-slate-600 text-center text-blue-700 dark:text-blue-300"
+          className="grid h-10 w-14 place-items-center rounded-lg bg-primary/10 text-center text-primary"
           title="Grand Total"
         >
           <div className="text-[8px] font-bold uppercase leading-none">Total</div>
@@ -1761,7 +1755,7 @@ function ComplianceLedgerCard({
                   <tbody>
                     {lines.map((l, lineIdx) => (
                       <React.Fragment key={l.key}>
-                        <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
+                        <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
                           <th scope="row" rowSpan={2} className={rowHeadCell}>
                             {l.label}
                           </th>
@@ -1787,7 +1781,7 @@ function ComplianceLedgerCard({
                             </td>
                           ))}
                         </tr>
-                        <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
+                        <tr className="group row-alt transition-colors hover:bg-primary/5">
                           <td className={`${bodyCell} ${strongRight}`}>
                             <ModeBadge label="FSIS" />
                           </td>
@@ -1901,7 +1895,7 @@ function ComplianceLedgerCard({
                   <tbody>
                     {lines.map((l) => (
                       <React.Fragment key={l.key}>
-                        <tr className="group bg-card even:bg-muted/20 dark:bg-slate-800 dark:even:bg-slate-800/70 transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-700/60">
+                        <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
                           <th scope="row" rowSpan={2} className={rowHeadCell}>
                             {l.label}
                           </th>
@@ -1919,7 +1913,7 @@ function ComplianceLedgerCard({
                             </td>
                           ))}
                         </tr>
-                        <tr className="group bg-blue-50/60 dark:bg-slate-700/70 transition-colors hover:bg-blue-50 dark:hover:bg-slate-700">
+                        <tr className="group row-alt transition-colors hover:bg-primary/5">
                           <td className={`${bodyCell} ${strongRight}`}>
                             <ModeBadge label="FSIS" />
                           </td>
@@ -2026,7 +2020,7 @@ function SectionToggleHeader({
       }}
       className="flex cursor-pointer select-none items-center justify-between gap-3 rounded-lg px-1 py-1 transition-colors hover:bg-muted/40"
     >
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary">
         {title}
       </h3>
       <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground" />

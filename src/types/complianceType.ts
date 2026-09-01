@@ -270,7 +270,7 @@ export interface FSISIssuanceClassModel {
   ntcvcount: number;
   abatementcount: number;
   closurecount: number;
-  closedcount: number;      
+  closedcount: number;
   refsicoccupancycount?: number;
   refsicbplonewcount?: number;
   refsicbplorenewcount?: number;

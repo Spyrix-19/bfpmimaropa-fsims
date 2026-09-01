@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { ChevronDown, ChevronLeft, ChevronRight, Search, Loader2, Check } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Search, Loader2, Check, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { personnelAPI } from "@/services/personnelAPI";
@@ -143,8 +143,18 @@ export function PersonnelMultiSelect({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search personnel…"
-              className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm"
+              className="h-9 w-full rounded-md border border-primary/30 bg-background pl-8 pr-9 text-sm transition-colors hover:border-primary/50 focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
             />
+            {search.trim().length > 0 ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-primary"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
         </div>
 

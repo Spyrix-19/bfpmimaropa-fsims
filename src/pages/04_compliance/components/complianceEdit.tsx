@@ -168,7 +168,6 @@ const NOTICE_COLS: IssuanceCol[] = [
   { api: "closedcount", label: "Non Operational" },
 ];
 
-
 /* -- Daily Reinspection ---------------------------------------------------- */
 const REINSPECT_COLS: InspectionCol[] = [
   { api: "reinspectoccupancycount", label: "Occupancy" },
@@ -198,11 +197,7 @@ const ALL_INSPECTION_FIELDS: InspectionField[] = [
   ...REINSPECT_COLS.map((c) => c.api),
 ];
 
-const HIDDEN_DAILY_NOTICE_FIELDS: IssuanceField[] = [
-  "ntcvcount",
-  "abatementcount",
-  "closurecount",
-];
+const HIDDEN_DAILY_NOTICE_FIELDS: IssuanceField[] = ["ntcvcount", "abatementcount", "closurecount"];
 
 const ALL_ISSUANCE_FIELDS: IssuanceField[] = [
   ...FSEC_COLS.map((c) => c.api),
@@ -212,7 +207,6 @@ const ALL_ISSUANCE_FIELDS: IssuanceField[] = [
   ...REFSIC_COLS.map((c) => c.api),
   ...RENOTICE_COLS.map((c) => c.api),
 ];
-
 
 /* ========================================================================== */
 /*  Editable model                                                           */

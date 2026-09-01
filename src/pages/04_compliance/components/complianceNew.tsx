@@ -209,7 +209,6 @@ const ISSUANCE_FIELDS = [
   ...ISSUANCE_NOTICE_FIELDS,
 ];
 
-
 const ALL_NUMERIC_FIELDS = [...DAILY_INSPECTION_FIELDS];
 
 /* -------------------------------------------------------------------------- */
