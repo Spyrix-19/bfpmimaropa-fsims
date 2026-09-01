@@ -47,7 +47,8 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/auth";
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { stationAPI } from "@/services/stationAPI";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import type { SearchStationModel } from "@/types/stationTypes";
 
 import type { TargetReferenceClass, TargetReferenceDetailModel } from "@/types/targetreferenceType";

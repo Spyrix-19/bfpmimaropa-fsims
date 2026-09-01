@@ -6,7 +6,8 @@ import { ChevronDown, ChevronLeft, ChevronRight, Search, Loader2, Check, X } fro
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { stationAPI } from "@/services/stationAPI";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import type { SearchStationModel } from "@/types/stationTypes";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { cn } from "@/lib/utils";

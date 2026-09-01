@@ -14,8 +14,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
-import { useAuth, FSIMS_SYSTEMNO } from "@/lib/auth";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { useAuth } from "@/lib/auth";
+import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { formatDateTime } from "@/lib/date-format";
 import { notificationAPI } from "@/services/notificationAPI";
 import type { NotificationModel } from "@/types/notificationType";

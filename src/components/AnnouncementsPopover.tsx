@@ -44,9 +44,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
-import { useAuth, FSIMS_SYSTEMNO } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
 import { formatDateTime, toDateInput } from "@/lib/date-format";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { announcementAPI } from "@/services/announcementAPI";
 import type {
   AnnouncementLedgerModel,

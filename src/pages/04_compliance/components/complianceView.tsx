@@ -34,7 +34,8 @@ import StationInfoCard from "@/components/station-info-card";
 import { complianceAPI } from "@/services/complianceAPI";
 import { MONITORING_THEME } from "./complianceTheme";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { MONTHS } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import type {

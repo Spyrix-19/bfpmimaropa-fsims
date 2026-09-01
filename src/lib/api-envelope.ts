@@ -13,7 +13,7 @@
  * envelope. These helpers make it easy to pull the inner payload + paging info.
  */
 
-export const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+
 
 export interface Envelope<T> {
   statusCode: number;

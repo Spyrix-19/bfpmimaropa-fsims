@@ -5,8 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
-
 export function getInitials(name?: string, size = 2, upper = true): string {
   const s = (name || "").trim();
   if (!s) return "";

@@ -49,7 +49,8 @@ import { MIMAROPA_REGION_CODE, MONTHS, QUARTERS, HALVES } from "@/lib/fsims-cons
 import { buildYears } from "@/lib/utils";
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { stationAPI } from "@/services/stationAPI";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type { TargetReferenceModel, TargetReferenceParamClass } from "@/types/targetreferenceType";
 

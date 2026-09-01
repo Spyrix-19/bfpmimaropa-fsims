@@ -48,7 +48,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { formatLongDate } from "@/lib/date-format";
 import { useAuth } from "@/lib/auth";
 import { noticeAPI } from "@/services/noticeAPI";

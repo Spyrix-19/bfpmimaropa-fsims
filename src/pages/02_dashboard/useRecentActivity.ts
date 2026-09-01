@@ -1,7 +1,7 @@
 import * as React from "react";
 import { journalAPI } from "@/services/journalAPI";
 import { unwrap } from "@/lib/api-envelope";
-import { FSIMS_SYSTEMNO } from "@/lib/auth";
+import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
 import type { JournalModel } from "@/types/journalType";
 
 /**

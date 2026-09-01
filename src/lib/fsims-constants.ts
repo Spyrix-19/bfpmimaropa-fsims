@@ -11,6 +11,24 @@ export const REGION_CODE = "Region IV-B";
 /** MIMAROPA region GUID — used as parentcode for all PROVINCE location lookups. */
 export const MIMAROPA_REGION_CODE = "a2f126b7-cb86-403a-906b-c41d63fc2e36";
 
+export const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+
+/**
+ * FSIMS system identity. `systemno` is the authoritative key returned by the
+ * Login API's `member.systemaccess[]`; `systemcode` is kept as a fallback for
+ * older responses that omit systemno.
+ */
+export const FSIMS_SYSTEMNO = "52166724-25eb-4812-b3ea-0bdcbe14ed48";
+export const FSIMS_SYSTEMCODE = "FSIMS";
+
+/**
+ * FSIMS role codes returned by the Login API.
+ * roleno 1 = SUPER, 2 = ADMIN, 3 = PERSONNEL.
+ */
+export const SUPER = "SUPER";
+export const ADMIN = "ADMIN";
+export const PERSONNEL = "PERSONNEL";
+
 export type Semester = "1" | "2";
 
 export const MONTHS: { value: number; name: string; short: string }[] = [

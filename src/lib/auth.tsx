@@ -18,22 +18,9 @@ import type {
 import { authAPI } from "@/services/authAPI";
 import { personnelAPI } from "@/services/personnelAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { FSIMS_SYSTEMNO, FSIMS_SYSTEMCODE, SUPER, ADMIN, PERSONNEL } from "@/lib/fsims-constants";
 
-/**
- * FSIMS system identity. `systemno` is the authoritative key returned by the
- * Login API's `member.systemaccess[]`; `systemcode` is kept as a fallback for
- * older responses that omit systemno.
- */
-export const FSIMS_SYSTEMNO = "52166724-25eb-4812-b3ea-0bdcbe14ed48";
-export const FSIMS_SYSTEMCODE = "FSIMS";
 
-/**
- * FSIMS role codes returned by the Login API.
- * roleno 1 = SUPER, 2 = ADMIN, 3 = PERSONNEL.
- */
-const SUPER = "SUPER";
-const ADMIN = "ADMIN";
-const PERSONNEL = "PERSONNEL";
 
 /** Modules a user may be authorized against. Drives sidebar + route guards. */
 export type AppModule =

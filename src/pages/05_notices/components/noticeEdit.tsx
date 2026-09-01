@@ -47,7 +47,8 @@ import {
 
 import { cn, buildYears } from "@/lib/utils";
 import { toast } from "@/lib/toast";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
 import { MONTHS } from "@/lib/fsims-constants";
 import { calendarDaysInMonth } from "@/lib/complianceHelpers";

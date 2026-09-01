@@ -1,6 +1,7 @@
 import * as React from "react";
 import { stationAPI } from "@/services/stationAPI";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import type { SearchStationModel } from "@/types/stationTypes";
 import { useAuth } from "@/lib/auth";
 

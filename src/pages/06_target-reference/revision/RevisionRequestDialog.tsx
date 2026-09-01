@@ -14,7 +14,8 @@ import { MONTHS } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
 import type { RevisionModule } from "./types";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 
 interface Props {
   open: boolean;

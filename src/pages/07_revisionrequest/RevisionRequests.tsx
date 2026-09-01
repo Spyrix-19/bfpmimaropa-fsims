@@ -32,7 +32,8 @@ import { type RevisionModule } from "@/pages/06_target-reference/revision/types"
 
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 
 interface TargetRevisionRequestsProps {
   /** Restrict the ledger to a specific source module. Omit to show all. */

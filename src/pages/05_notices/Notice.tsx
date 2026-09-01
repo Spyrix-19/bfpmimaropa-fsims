@@ -46,7 +46,8 @@ import AvatarWithFallback from "@/components/avatar-with-fallback";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
-import { unwrap, EMPTY_GUID } from "@/lib/api-envelope";
+import { unwrap } from "@/lib/api-envelope";
+import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { noticeAPI } from "@/services/noticeAPI";
 import { toISODate } from "@/lib/filters";
 import type {

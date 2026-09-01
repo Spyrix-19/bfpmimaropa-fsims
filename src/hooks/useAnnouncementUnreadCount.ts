@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { announcementAPI } from "@/services/announcementAPI";
-import { useAuth, FSIMS_SYSTEMNO } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
 import type { AnnouncementLedgerModel } from "@/types/announcementType";
 
 /** How often the unread badge re-syncs with the backend (ms). */

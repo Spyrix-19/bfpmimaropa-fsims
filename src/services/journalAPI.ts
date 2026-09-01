@@ -7,6 +7,7 @@ import {
   JournalModel,
   JournalDeleteParams,
 } from "@/types/journalType";
+import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
 
 export const journalAPI = {
   async create(params: JournalDTO) {
@@ -22,8 +23,9 @@ export const journalAPI = {
   },
 
   async getLedger(params?: JournalLedgerParams, options?: import("@/lib/api").ApiOptions) {
+    const p = { ...(params ?? {}), systemno: params?.systemno ?? FSIMS_SYSTEMNO };
     return await apiGet<JournalModel[]>("/api/v1/Journal/Ledger", {
-      params,
+      params: p,
       ...GET_RETRY,
       ...options,
     });

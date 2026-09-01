@@ -33,7 +33,8 @@ import {
 } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
-import { useAuth, FSIMS_SYSTEMNO } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
 import { personnelAPI } from "@/services/personnelAPI";
 import { gentableAPI } from "@/services/gentableAPI";
 import { unwrap } from "@/lib/api-envelope";
