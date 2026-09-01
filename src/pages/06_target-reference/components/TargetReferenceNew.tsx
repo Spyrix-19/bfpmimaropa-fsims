@@ -141,7 +141,7 @@ function resolveDetailDay(
   if (it.reportmonth != null) {
     if (Number(it.reportmonth) !== Number(month)) return null;
     if (it.reportyear != null && Number(it.reportyear) !== Number(year)) return null;
-    return Number(it.reportday ?? 0) || null;
+    return Number(it.reportday || 0) || null;
   }
   return null;
 }
@@ -1133,7 +1133,7 @@ export default function TargetReferenceForm({
             const activeReq = revisionRequests.find(
               (req) =>
                 Number(req.reportmonth) === Number(month) &&
-                Number((req as { reportday?: number }).reportday ?? d) === Number(d) &&
+                Number((req as { reportday?: number }).reportday || d) === Number(d) &&
                 req.statuscode?.toUpperCase() === "PENDING",
             );
             const editablestatus = existingEditableStatus[String(d)];

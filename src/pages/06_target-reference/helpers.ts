@@ -286,7 +286,7 @@ export function computeDailyFromList(
     const it = normalizeTargetDate(raw);
     if (Number(it.reportyear) !== Number(reportYear)) return;
     if (Number(it.reportmonth) !== Number(reportMonth)) return;
-    const d = Number(it.reportday ?? 1);
+    const d = Number(it.reportday || 1);
     if (!daily[d]) return;
     const bucket = resolveBucket(it);
     daily[d] = addBucket(daily[d], bucket);

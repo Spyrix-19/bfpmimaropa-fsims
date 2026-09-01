@@ -149,12 +149,12 @@ function normalizeTargetReferenceRow(item: any): TargetReferenceClassModel | nul
     return null;
   }
 
-  return {
+    return {
     targetno: String(item.targetno ?? item.Targetno ?? ""),
     targetdate: targetdate == null ? undefined : String(targetdate),
     reportyear: item.reportyear ?? item.Reportyear,
     reportmonth: reportmonth == null ? undefined : Number(reportmonth),
-    reportday: item.reportday ?? item.Reportday,
+    reportday: item.reportday || item.Reportday,
     remarks: item.remarks ?? item.Remarks,
     bplototal,
     govtotal,
