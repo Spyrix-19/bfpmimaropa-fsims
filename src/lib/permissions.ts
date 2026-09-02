@@ -19,6 +19,8 @@ export function canManageTargetAndCompliance(
 ): boolean {
   const roleno = Number(systemAccess?.roleno ?? 0) || 0;
   const stationtype = Number(user?.stationtype ?? 0) || 0;
+  // Super Administrator (roleno === 1) may always manage.
+  if (roleno === 1) return true;
   return roleno === 3 && MANAGE_STATION_TYPES.has(stationtype);
 }
 
@@ -38,7 +40,9 @@ export function isEditRestricted(
 ): boolean {
   const roleno = Number(systemAccess?.roleno ?? 0) || 0;
   const stationtype = Number(user?.stationtype ?? 0) || 0;
-  return (roleno === 1 || roleno === 2) && VIEW_ONLY_STATION_TYPES.has(stationtype);
+  // Only Administrator (roleno === 2) is restricted for these station types.
+  // Super (roleno === 1) should not be restricted.
+  return roleno === 2 && VIEW_ONLY_STATION_TYPES.has(stationtype);
 }
 
 /** Convenience inverse of {@link isEditRestricted}. */

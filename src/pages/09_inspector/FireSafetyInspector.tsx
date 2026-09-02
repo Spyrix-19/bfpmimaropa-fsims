@@ -170,8 +170,9 @@ export default function FireSafetyInspectorPage() {
   const { page, setPage, pageSize, setPageSize } = usePagination({ initialPageSize: 10 });
 
   const canManage =
-    (systemAccess?.roleno ?? 0) === 3 &&
-    !RESTRICTED_STATION_TYPES.includes(Number(user?.stationtype ?? 0));
+    (systemAccess?.roleno ?? 0) === 1 ||
+    ((systemAccess?.roleno ?? 0) === 3 &&
+      !RESTRICTED_STATION_TYPES.includes(Number(user?.stationtype ?? 0)));
 
   const scope = React.useMemo(
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),

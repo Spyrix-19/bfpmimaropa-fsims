@@ -31,6 +31,7 @@ export type LocationMultiSelectProps = {
   onChange: (selected: SelectedLocation[]) => void;
   hideCode?: boolean;
   useStationApi?: boolean;
+  reportyear?: number;
 };
 
 export function LocationMultiSelect(props: LocationMultiSelectProps) {
@@ -44,6 +45,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
     className,
     hideCode = false,
     useStationApi = false,
+    reportyear = 0,
   } = props;
 
   const [open, setOpen] = React.useState(false);
@@ -67,7 +69,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
         const resp = await stationAPI.searchStationMultiple(
           {
             searchkey: debounced || "",
-            reportyear: 0,
+            reportyear: Number(reportyear) || 0,
             provinces: [],
           },
           { Pagenumber: page, Pagesize: PAGE_SIZE },
@@ -76,21 +78,56 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
         const { ok, data, total, totalPages } = unwrap<unknown[]>(resp);
         if (cancelled) return;
         const provinceRows = Array.isArray(data)
-          ? Array.from(
-              new Map(
-                (data as Array<{ provinceno?: string; provincename?: string }>).map((item) => [
-                  item.provinceno ?? item.provincename ?? "",
-                  {
-                    locationno: item.provinceno ?? "",
-                    locationcode: item.provinceno ?? "",
-                    locationname: item.provincename ?? "",
+          ? (() => {
+              const entries = (data as Array<Record<string, any>>).map((item) => {
+                const provinceno =
+                  item.provinceno ?? item.provinceNo ?? item.province_no ?? item.provinceid ?? item.provinceId ?? null;
+                const provincename =
+                  item.provincename ?? item.provinceName ?? item.province_name ?? item.provname ?? item.province ?? null;
+                return { provinceno, provincename };
+              });
+
+              const map = new Map<string, SearchLocationModel>();
+              for (const e of entries) {
+                if (!e.provinceno && !e.provincename) continue;
+                const key = String(e.provinceno ?? e.provincename);
+                if (!map.has(key)) {
+                  map.set(key, {
+                    locationno: String(e.provinceno ?? ""),
+                    locationcode: String(e.provinceno ?? ""),
+                    locationname: String(e.provincename ?? ""),
                     locationtype: "PROVINCE",
                     sortorder: 0,
-                  } satisfies SearchLocationModel,
-                ]),
-              ).values(),
-            )
+                  });
+                }
+              }
+
+              return Array.from(map.values());
+            })()
           : [];
+
+        // If station API returned no province grouping, fallback to location API.
+        if (!provinceRows.length) {
+          const locResp = await locationAPI.search(
+            {
+              searchkey: debounced || "",
+              parentcode: parentcode || "",
+              locationtype: "PROVINCE",
+              pagenumber: page,
+              pagesize: PAGE_SIZE,
+            },
+            { suppressGlobalLoading: true },
+          );
+          const { ok: lok, data: ldata, total: ltotal, totalPages: ltotalPages } = unwrap<SearchLocationModel[] | null>(locResp);
+          const loaded = lok && Array.isArray(ldata) ? ldata : [];
+          setRows(loaded);
+          setPageCount(
+            resolvePageCount({ total: ltotal ?? 0, totalPages: ltotalPages ?? 0, pageSize: PAGE_SIZE, page, rowCount: loaded.length }),
+          );
+          setLoading(false);
+          return;
+        }
+
         setRows(provinceRows);
         setPageCount(
           resolvePageCount({
@@ -127,7 +164,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
     return () => {
       cancelled = true;
     };
-  }, [open, debounced, page, parentcode, locationtype, useStationApi]);
+  }, [open, debounced, page, parentcode, locationtype, useStationApi, reportyear]);
 
   const isSelected = (no: string) => value.some((v) => v.locationno === no);
 

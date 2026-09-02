@@ -136,7 +136,9 @@ function canManageAnnouncements(
 ): boolean {
   const role = Number(roleno ?? 0);
   const station = Number(stationtype ?? 0);
-  return role > 0 && (role === 1 || role === 2) && (station === 25 || station === 26);
+  // Super Administrator (roleno === 1) may always manage announcements.
+  if (role === 1) return true;
+  return role === 2 && (station === 25 || station === 26);
 }
 
 /**

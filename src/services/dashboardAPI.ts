@@ -10,12 +10,24 @@ import {
   DashboardYearlyInspectionModel,
   DashboardYearToYearDTO,
   StationMonthlyPerformanceModel,
+  DashboardNTCVStationModel,
 } from "@/types/dashboardType";
 
 export const dashboardAPI = {
   async getComplianceSummary(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardComplianceModel>(
       "/api/v1/Dashboard/FSIMS/Compliance/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
+  },
+
+  async getNTCVStations(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
+    return await apiPost<DashboardNTCVStationModel>(
+      "/api/v1/Dashboard/FSIMS/NTCV/Stations",
       body,
       {
         ...MUTATION_RETRY_LIGHT,

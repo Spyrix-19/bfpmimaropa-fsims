@@ -19,6 +19,21 @@ export interface DashboardYearToYearDTO {
   Provinces: DashboardClass[];
 }
 
+export interface DashboardNTCVStationModel {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  cityno: string;
+  cityname: string;
+  logourl?: string | null;
+  issued: number;
+  accomplished: number;
+  abatement: number;
+  pending: number;
+}
+
 export interface DashboardComplianceModel {
   year: number;
   totaltargetbplo: number;
