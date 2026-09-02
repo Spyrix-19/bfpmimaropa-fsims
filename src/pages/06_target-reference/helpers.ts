@@ -44,12 +44,12 @@ export function resolveIntervalCode(state: ModuleFilterState): number {
 
 /** Sentinel date sent whenever a specific day is NOT selected. */
 function epochDate(): string {
-  return "1900-01-01T00:00:00";
+  return "1900-01-01";
 }
 
 function toApiDate(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T00:00:00`;
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 /**

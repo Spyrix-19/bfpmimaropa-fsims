@@ -1,11 +1,13 @@
 /**
  * Central date-formatting helpers. Any year <= 1900 is treated as an empty
- * sentinel value (databases frequently emit 1899-12-30 or 1900-01-01 for
- * "no date"). Empty / invalid / sentinel values all render as the provided
+ * sentinel value. Empty / invalid / sentinel values all render as the provided
  * placeholder (default: empty string).
+ *
+ * The API expects calendar-only dates in the form `yyyy-MM-dd`; no time or
+ * timezone suffix is included.
  */
 
-export const EMPTY_DATE_VALUE = "1900-01-01T00:00:00";
+export const EMPTY_DATE_VALUE = "1900-01-01";
 export const PHILIPPINE_TIMEZONE = "Asia/Manila";
 
 const isSentinel = (d: Date) => d.getFullYear() <= 1900;
@@ -24,10 +26,6 @@ function getManilaDateParts(date: Date): Record<string, string> {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
   });
   const parts = formatter.formatToParts(date);
   const map = Object.fromEntries(parts.filter((p) => p.type !== "literal").map((p) => [p.type, p.value]));
@@ -35,9 +33,6 @@ function getManilaDateParts(date: Date): Record<string, string> {
     year: map.year ?? String(date.getFullYear()),
     month: map.month ?? String(date.getMonth() + 1).padStart(2, "0"),
     day: map.day ?? String(date.getDate()).padStart(2, "0"),
-    hour: map.hour ?? "00",
-    minute: map.minute ?? "00",
-    second: map.second ?? "00",
   };
 }
 
@@ -46,8 +41,8 @@ export function serializePhilippineDateTime(value?: Date | string | null): strin
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return EMPTY_DATE_VALUE;
   if (date.getFullYear() <= 1900) return EMPTY_DATE_VALUE;
-  const { year, month, day, hour, minute, second } = getManilaDateParts(date);
-  return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+  const { year, month, day } = getManilaDateParts(date);
+  return `${year}-${month}-${day}`;
 }
 
 export function formatDate(v?: string | Date | null, placeholder = ""): string {

@@ -518,7 +518,7 @@ export default function FireSafetyCompliancePage() {
       const provinces = JSON.parse(locationParamsKey) as FSISComplianceParamClass[];
       // DAILY: interval 1. Specific date -> `dateinspected`; ALL dates -> empty.
       // MONTHLY: interval 2, no specific date, every selected month is plotted.
-      const dateinspected = allDates ? "" : `${selectedDateISO}T00:00:00`;
+      const dateinspected = allDates ? "" : `${selectedDateISO}`;
 
       const reportmonth = [...selectedMonths];
       const resp = await complianceAPI.getLedger(
@@ -527,7 +527,7 @@ export default function FireSafetyCompliancePage() {
             searchkey: "",
             reportyear: Number(year),
             interval: intervalCode,
-            targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
+            targetdate: `${year}-${String(month).padStart(2, "0")}-01`,
             dateinspected,
             reportmonth,
             provinces,
@@ -727,7 +727,7 @@ export default function FireSafetyCompliancePage() {
     (async () => {
       setPanelLoading(true);
       const resp = await complianceAPI.getTargetAccomplishment(
-        { stationno: panelStationNo, dateinspected: `${selectedDateISO}T00:00:00` },
+        { stationno: panelStationNo, dateinspected: `${selectedDateISO}` },
         { suppressGlobalLoading: true },
       );
       const { ok, data } = unwrap<TargetAccomplishmentModel | TargetAccomplishmentModel[]>(resp);
@@ -781,8 +781,8 @@ export default function FireSafetyCompliancePage() {
             searchkey: "",
             reportyear: Number(year),
             interval: intervalCode,
-            targetdate: `${year}-${String(month).padStart(2, "0")}-01T00:00:00`,
-            dateinspected: allDates ? "" : `${selectedDateISO}T00:00:00`,
+            targetdate: `${year}-${String(month).padStart(2, "0")}-01`,
+            dateinspected: allDates ? "" : `${selectedDateISO}`,
             reportmonth: [...selectedMonths],
             provinces,
           },

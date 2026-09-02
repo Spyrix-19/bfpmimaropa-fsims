@@ -770,7 +770,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         const payload = {
           noticeno: parentNoticeno,
           stationno: record.stationno,
-          dateaccomplish: `${entry.date}T00:00:00`,
+          dateaccomplish: `${entry.date}`,
           encodedby: user?.memberno ?? "",
           accomnoticeList: MODE_ROWS.map((mode) => ({
             accomplishno: src?.accomNos?.[mode.key]?.accomplishno ?? EMPTY_GUID,

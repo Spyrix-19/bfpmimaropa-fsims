@@ -347,7 +347,7 @@ export function NoticeMatrixModal({ open, onOpenChange, record }: NoticeMatrixMo
             searchkey: "",
             reportyear: Number(year),
             interval: 1,
-            dateaccomplish: `${year}-01-01T00:00:00`,
+            dateaccomplish: `${year}-01-01`,
             reportmonth: Array.from({ length: 12 }, (_, i) => i + 1),
             provinces: [],
           },
