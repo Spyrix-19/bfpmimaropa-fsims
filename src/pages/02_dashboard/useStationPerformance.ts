@@ -77,7 +77,17 @@ function normalizeComparativeSectorPct(value: number): number {
   return pct === 0 ? 100 : pct;
 }
 
+function hasActualSectorData(month: MonthlyPerformance): boolean {
+  return (
+    toNumber(month.bploPercentage) > 0 ||
+    toNumber(month.govPercentage) > 0 ||
+    toNumber(month.pezaPercentage) > 0 ||
+    toNumber(month.tiezaPercentage) > 0
+  );
+}
+
 function isPerfectMonth(month: MonthlyPerformance): boolean {
+  if (!hasActualSectorData(month)) return false;
   return (
     normalizeComparativeSectorPct(month.bploPercentage) === 100 &&
     normalizeComparativeSectorPct(month.govPercentage) === 100 &&
@@ -155,6 +165,7 @@ export function useStationPerformance(selectedYear?: number) {
           if (mYear !== year) continue;
           if (mMonth < 1 || mMonth > lastMonth) continue;
           if (seen.has(mMonth)) continue;
+          if (!hasActualSectorData(m)) continue;
           seen.add(mMonth);
           months.push(m);
           values.push(clampPct(toNumber(m.overallPercentage)));

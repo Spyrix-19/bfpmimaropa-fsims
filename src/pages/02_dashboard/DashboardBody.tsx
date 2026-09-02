@@ -43,6 +43,13 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   useComplianceSummary,
   getNotice,
   sumBy,
@@ -384,8 +391,10 @@ function NoticeCard({
   const remaining = rawRemaining;
   const pct = total ? Math.round((data.accomplished / total) * 100) : 0;
   const [expanded, setExpanded] = useState(false);
+  const [showStationList, setShowStationList] = useState(false);
 
   const isExpandable = !singleValue;
+  const showSeeListButton = normalized === "NTCV";
 
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
@@ -474,7 +483,39 @@ function NoticeCard({
               />
             </div>
           </div>
+
+          {showSeeListButton && (
+            <div className="mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full justify-center text-[11px]"
+                onClick={() => setShowStationList(true)}
+              >
+                See List of Stations
+              </Button>
+            </div>
+          )}
         </>
+      )}
+
+      {showSeeListButton && (
+        <Dialog open={showStationList} onOpenChange={setShowStationList}>
+          <DialogContent className="max-w-md gap-0 p-0 sm:rounded-lg">
+            <DialogHeader className="border-b border-border/60 bg-muted/30 px-5 py-4 text-left">
+              <DialogTitle className="text-base font-semibold">NTCV Stations</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Station list for NTCV.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="p-5">
+              <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+                No station list available yet.
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </Card>
   );
@@ -767,19 +808,25 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
         name: r.name,
         ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
       }));
+      const provinceTotals = rows.map((r, i) => ({
+        name: r.name,
+        value: SECTORS.reduce((sum, sector) => sum + (r[sector] ?? 0), 0),
+        color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
+      }));
       return {
         data: nextData,
         series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
-        pieData: rows.map((r, i) => ({
-          name: r.name,
-          value: Math.max(0, (r.BPLO ?? 0) + (r.GOVT ?? 0) + (r.PEZA ?? 0) + (r.TIEZA ?? 0)),
-          color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
-        })),
+        pieData: provinceTotals,
       };
     }
     const nextData = SECTORS.map((s) => ({
       name: s as string,
       ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
+    }));
+    const sectorTotals = SECTORS.map((sector, i) => ({
+      name: sector,
+      value: rows.reduce((total, r) => total + (r[sector] ?? 0), 0),
+      color: SECTOR_COLORS[sector],
     }));
     return {
       data: nextData,
@@ -787,11 +834,7 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
         key: r.name,
         color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
       })),
-      pieData: SECTORS.map((sector, i) => ({
-        name: sector,
-        value: rows.reduce((total, r) => total + (r[sector] ?? 0), 0),
-        color: SECTOR_COLORS[sector],
-      })),
+      pieData: sectorTotals,
     };
   }, [rows, groupBy]);
 
@@ -901,19 +944,25 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
         name: r.name,
         ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
       }));
+      const provinceTotals = rows.map((r, i) => ({
+        name: r.name,
+        value: SECTORS.reduce((sum, sector) => sum + (r[sector] ?? 0), 0),
+        color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
+      }));
       return {
         data: nextData,
         series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
-        pieData: rows.map((r, i) => ({
-          name: r.name,
-          value: Math.max(0, (r.BPLO ?? 0) + (r.GOVT ?? 0) + (r.PEZA ?? 0) + (r.TIEZA ?? 0)),
-          color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
-        })),
+        pieData: provinceTotals,
       };
     }
     const nextData = SECTORS.map((s) => ({
       name: s as string,
       ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
+    }));
+    const sectorTotals = SECTORS.map((sector, i) => ({
+      name: sector,
+      value: rows.reduce((total, r) => total + (r[sector] ?? 0), 0),
+      color: SECTOR_COLORS[sector],
     }));
     return {
       data: nextData,
@@ -921,11 +970,7 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
         key: r.name,
         color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
       })),
-      pieData: SECTORS.map((sector, i) => ({
-        name: sector,
-        value: rows.reduce((total, r) => total + (r[sector] ?? 0), 0),
-        color: SECTOR_COLORS[sector],
-      })),
+      pieData: sectorTotals,
     };
   }, [rows, groupBy]);
 
