@@ -79,6 +79,13 @@ import { LocationMultiSelect, type SelectedLocation } from "@/components/locatio
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import StationPerformanceSections from "@/pages/02_dashboard/components/StationPerformanceSections";
 import PaginationControls from "@/components/pagination";
+import FilterField from "@/components/filter-field";
+import {
+  buildDashboardProvinces,
+  provincesPayloadKey,
+} from "@/pages/02_dashboard/buildProvincesPayload";
+import type { JournalModel } from "@/types/journalType";
+import type { DashboardComplianceModel, DashboardNTCVStationModel } from "@/types/dashboardType";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
@@ -269,11 +276,31 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
   );
 }
 
+const NTCV_STATION_COLUMNS = [
+  { key: "issued", label: "Issued", tone: "text-warning" },
+  { key: "accomplished", label: "Complied", tone: "text-success" },
+  { key: "abatement", label: "Abatement", tone: "text-foreground" },
+  { key: "pending", label: "Pending", tone: "text-destructive" },
+] as const;
+
+/**
+ * NTCV station list shown inside the NTCV card dialog.
+ *
+ * Province / station pickers mirror the Dashboard filter bar exactly
+ * (same components, same role-based locking, same cascade rules) and the
+ * result set uses the shared server-side pagination controls.
+ */
 function NtcvStationList() {
   const { filters } = useFilters();
-  const [localProvinces, setLocalProvinces] = useState<SelectedLocation[]>(filters.provinces ?? []);
-  const [localStations, setLocalStations] = useState<SelectedStation[]>(filters.stations ?? []);
-  const [rows, setRows] = useState<import("@/types/dashboardType").DashboardNTCVStationModel[]>([]);
+  const { user, systemAccess } = useAuth();
+  const scope = useMemo(
+    () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
+
+  const [provinces, setProvinces] = useState<SelectedLocation[]>(filters.provinces ?? []);
+  const [stations, setStations] = useState<SelectedStation[]>(filters.stations ?? []);
+  const [rows, setRows] = useState<DashboardNTCVStationModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -286,38 +313,53 @@ function NtcvStationList() {
   );
   const rangeKey = `${range.interval}|${range.startdate}|${range.enddate}`;
 
-  // Derive backend `provinces` payload from the local modal filters. If the
-  // user selected provinces, include those and any selected stations that
-  // belong to them. If only stations are selected, derive the province ->
-  // station mapping from the station list.
-  const provincesKey = useMemo(() => {
-    let provinces: { provinceno: string; stationnos: string[] }[] = [];
+  const payload = useMemo(
+    () =>
+      buildDashboardProvinces(
+        provinces.map((p) => ({ locationno: p.locationno })),
+        stations,
+      ),
+    [provinces, stations],
+  );
+  const payloadKey = useMemo(() => provincesPayloadKey(payload), [payload]);
 
-    if ((localProvinces ?? []).length > 0) {
-      provinces = localProvinces.map((p) => ({
-        provinceno: p.locationno,
-        stationnos: localStations.filter((s) => s.provinceno === p.locationno).map((s) => s.stationno),
-      }));
-    } else if ((localStations ?? []).length > 0) {
-      const map = new Map<string, string[]>();
-      localStations.forEach((s) => {
-        if (!s.provinceno || !s.stationno) return;
-        const list = map.get(s.provinceno) ?? [];
-        if (!list.includes(s.stationno)) list.push(s.stationno);
-        map.set(s.provinceno, list);
-      });
-      provinces = Array.from(map.entries()).map(([provinceno, stationnos]) => ({ provinceno, stationnos }));
+  const handleProvincesChange = (next: SelectedLocation[]) => {
+    if (next.length === 0) {
+      setProvinces([]);
+      setStations([]);
+      return;
     }
+    const allowed = new Set(next.map((p) => p.locationno));
+    setProvinces(next);
+    setStations((prev) => prev.filter((s) => allowed.has(s.provinceno)));
+  };
 
-    return JSON.stringify(provinces);
-  }, [localProvinces, localStations]);
+  const handleStationsChange = (next: SelectedStation[]) => {
+    setStations(next);
+    setProvinces((prev) => {
+      const merged = [...prev];
+      const known = new Set(merged.map((p) => p.locationno));
+      next.forEach((s) => {
+        if (!s.provinceno || known.has(s.provinceno)) return;
+        known.add(s.provinceno);
+        merged.push({ locationno: s.provinceno, locationname: s.provincename });
+      });
+      return merged;
+    });
+  };
+
+  // Any filter change restarts the list at page 1 so pagination never points
+  // at a page that no longer exists.
+  useEffect(() => {
+    setPage(1);
+  }, [payloadKey, rangeKey, reportyear, pageSize]);
 
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
 
     const timer = setTimeout(() => {
-      (async () => {
+      void (async () => {
         setLoading(true);
         const resp = await dashboardAPI.getNTCVStations(
           {
@@ -325,7 +367,7 @@ function NtcvStationList() {
             interval: range.interval,
             startdate: range.startdate,
             enddate: range.enddate,
-            provinces: JSON.parse(provincesKey) as any[],
+            provinces: payload,
           },
           {
             suppressGlobalLoading: true,
@@ -334,110 +376,177 @@ function NtcvStationList() {
             timeout: 90000,
           },
         );
-        const { ok, data, total: t, pageNumber: returnedPage } = unwrap<any[]>(resp);
-        if (cancelled) return;
-        const loaded = ok && Array.isArray(data) ? data : [];
-        setRows(loaded);
-        setTotal(Number(t ?? 0));
-        // Keep client page in sync with server-returned page when available.
-        if (returnedPage && returnedPage !== page) setPage(returnedPage);
+        const { ok, data, total: totalCount, canceled } = unwrap<DashboardNTCVStationModel[]>(resp);
+        if (cancelled || canceled) return;
+        setRows(ok && Array.isArray(data) ? data : []);
+        setTotal(Number(totalCount ?? 0));
         setLoading(false);
       })();
     }, 120);
+
     return () => {
       cancelled = true;
       clearTimeout(timer);
       controller.abort();
     };
-  }, [page, pageSize, reportyear, rangeKey, provincesKey]);
-
-  // Reset to first page when modal filters or page size change.
-  useEffect(() => {
-    setPage(1);
-  }, [provincesKey, pageSize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, reportyear, rangeKey, payloadKey]);
 
   return (
-    <div>
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <LocationMultiSelect
-          mode="location"
-          value={localProvinces}
-          locationtype="PROVINCE"
-          onChange={(v) => setLocalProvinces(v)}
-          className="w-full"
-          useStationApi
-          parentcode={""}
-          reportyear={reportyear}
-        />
-        <StationMultiSelect
-          mode="station"
-          value={localStations}
-          provinces={JSON.parse(provincesKey) as any}
-          reportyear={reportyear}
-          onChange={(v) => setLocalStations(v)}
-        />
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-soft sm:grid-cols-2">
+        <FilterField label="Provinces">
+          {scope.provinceLocked ? (
+            <ReadOnlyField
+              value={scope.provincename}
+              placeholder="All provinces"
+              title="Restricted to your assigned province"
+            />
+          ) : (
+            <LocationMultiSelect
+              mode="location"
+              value={provinces}
+              locationtype="PROVINCE"
+              parentcode={MIMAROPA_REGION_CODE}
+              onChange={handleProvincesChange}
+              placeholder="All provinces"
+              hideCode
+              className="w-full"
+            />
+          )}
+        </FilterField>
+
+        <FilterField label="Stations">
+          {scope.stationLocked ? (
+            <ReadOnlyField
+              value={scope.stationname}
+              placeholder="All stations"
+              title="Restricted to your assigned station"
+            />
+          ) : (
+            <StationMultiSelect
+              mode="station"
+              value={stations}
+              provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+              reportyear={reportyear}
+              onChange={handleStationsChange}
+              placeholder="All stations"
+              alwaysEnabled
+              className="w-full"
+            />
+          )}
+        </FilterField>
       </div>
+
       {loading ? (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex items-center justify-center rounded-xl border border-border/60 bg-card py-12">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : rows.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-10 text-center text-sm text-muted-foreground">
           No stations match the current filters.
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="overflow-auto rounded-md border border-border/50 max-h-[48vh]">
-            <table className="w-full min-w-[760px] table-auto text-sm">
+        <>
+          {/* Desktop / tablet table */}
+          <div className="hidden overflow-auto rounded-xl border border-border/60 bg-card shadow-soft sm:block sm:max-h-[46vh]">
+            <table className="w-full min-w-[720px] table-auto text-sm">
               <thead>
-                <tr className="bg-muted/10 text-xs text-muted-foreground">
-                  <th className="sticky top-0 z-20 text-left px-4 py-3 font-medium bg-card/90 backdrop-blur-sm border-b border-border/60">STATIONS</th>
-                  <th className="sticky top-0 z-20 text-right px-4 py-3 font-medium bg-card/90 backdrop-blur-sm border-b border-border/60">ISSUED</th>
-                  <th className="sticky top-0 z-20 text-right px-4 py-3 font-medium bg-card/90 backdrop-blur-sm border-b border-border/60">ACCOMPLISHED</th>
-                  <th className="sticky top-0 z-20 text-right px-4 py-3 font-medium bg-card/90 backdrop-blur-sm border-b border-border/60">ABATEMENT</th>
-                  <th className="sticky top-0 z-20 text-right px-4 py-3 font-medium bg-card/90 backdrop-blur-sm border-b border-border/60">PENDING</th>
+                <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="sticky top-0 z-20 border-b border-border/60 bg-card/95 px-4 py-3 text-left backdrop-blur">
+                    Station
+                  </th>
+                  {NTCV_STATION_COLUMNS.map((col) => (
+                    <th
+                      key={col.key}
+                      className="sticky top-0 z-20 border-b border-border/60 bg-card/95 px-4 py-3 text-right backdrop-blur"
+                    >
+                      {col.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.stationno} className="border-t last:border-b">
+                  <tr
+                    key={r.stationno}
+                    className="border-b border-border/40 transition-colors last:border-b-0 hover:bg-muted/30"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <AvatarWithFallback
                           name={r.stationname}
                           src={r.logourl ?? null}
                           alt={r.stationname}
-                          className="h-11 w-11 shrink-0 border border-border/60"
+                          className="h-10 w-10 shrink-0 border border-border/60"
                         />
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold">{r.stationname}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {`${r.stationcode ?? ""}${r.provincename ? ` - ${r.provincename}` : ""}`}
+                          <div className="truncate text-xs text-muted-foreground">
+                            {r.provincename || "—"}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{Number(r.issued ?? 0)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{Number(r.accomplished ?? 0)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{Number(r.abatement ?? 0)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{Number(r.pending ?? 0)}</td>
+                    {NTCV_STATION_COLUMNS.map((col) => (
+                      <td
+                        key={col.key}
+                        className={`px-4 py-3 text-right font-semibold tabular-nums ${col.tone}`}
+                      >
+                        {Number(r[col.key] ?? 0).toLocaleString()}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
+          {/* Mobile cards */}
+          <div className="space-y-3 sm:hidden">
+            {rows.map((r) => (
+              <Card key={r.stationno} className="border-border/60 bg-card p-3 shadow-soft">
+                <div className="flex items-center gap-3">
+                  <AvatarWithFallback
+                    name={r.stationname}
+                    src={r.logourl ?? null}
+                    alt={r.stationname}
+                    className="h-10 w-10 shrink-0 border border-border/60"
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold">{r.stationname}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {r.provincename || "—"}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-4 gap-2 border-t border-border/60 pt-3 text-center">
+                  {NTCV_STATION_COLUMNS.map((col) => (
+                    <div key={col.key}>
+                      <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {col.label}
+                      </div>
+                      <div className={`text-sm font-bold tabular-nums ${col.tone}`}>
+                        {Number(r[col.key] ?? 0).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+
           <PaginationControls
             page={page}
             pageSize={pageSize}
             total={total}
-            onPageChange={(p) => setPage(p)}
+            onPageChange={setPage}
             onPageSizeChange={(s) => {
               setPageSize(s);
               setPage(1);
             }}
           />
-        </div>
+        </>
       )}
     </div>
   );
@@ -680,7 +789,10 @@ function NoticeCard({
 
       {showSeeListButton && (
         <Dialog open={showStationList} onOpenChange={setShowStationList}>
-          <DialogContent preventOutsideClick className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[min(100vw-1rem,980px)] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+          <DialogContent
+            preventOutsideClick
+            className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[min(100vw-1rem,980px)] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+          >
             <DialogHeader className="space-y-1 border-b border-border/60 bg-card px-5 py-4 text-left">
               <DialogTitle className="text-base font-semibold">NTCV Stations</DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
@@ -1081,7 +1193,10 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
                 <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
-            <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [value, "Gap"]} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(value) => [Number(value ?? 0), "Gap"]}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
           </PieChart>
         </ResponsiveContainer>
@@ -1217,7 +1332,10 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
                 <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
-            <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [value, "Inspections"]} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(value) => [Number(value ?? 0), "Inspections"]}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
           </PieChart>
         </ResponsiveContainer>
