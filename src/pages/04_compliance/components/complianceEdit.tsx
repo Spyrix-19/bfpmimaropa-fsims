@@ -469,12 +469,14 @@ function ComplianceEditBody({
   month: initialMonth,
   onSaved,
   onCancel,
+  onPeriodChange,
 }: {
   stationno: string;
   year: number;
   month: number;
   onSaved: () => void;
   onCancel: () => void;
+  onPeriodChange?: (year: number, month: number) => void;
 }) {
   const { user, systemAccess } = useAuth();
 
@@ -712,6 +714,8 @@ function ComplianceEditBody({
     }
     setMonth(nextMonth);
     setYear(nextYear);
+    // Notify parent (modal) so headers or other wrappers can react.
+    onPeriodChange?.(nextYear, nextMonth);
   };
 
   /* ------------------------------- Handlers ------------------------------ */
@@ -1668,7 +1672,17 @@ export function ComplianceEditModal({
   stationName?: string;
   onSaved?: () => void;
 }) {
-  const monthName = MONTHS.find((mo) => mo.value === month)?.name ?? month;
+  const [viewPeriod, setViewPeriod] = React.useState<{ year: number; month: number }>(
+    { year, month },
+  );
+
+  React.useEffect(() => setViewPeriod({ year, month }), [year, month]);
+
+  const handlePeriodChange = React.useCallback((y: number, m: number) => {
+    setViewPeriod({ year: y, month: m });
+  }, []);
+
+  const monthName = MONTHS.find((mo) => mo.value === viewPeriod.month)?.name ?? viewPeriod.month;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1688,7 +1702,7 @@ export function ComplianceEditModal({
               </DialogTitle>
               <DialogDescription>
                 {stationName ? `${stationName} · ` : ""}
-                {monthName} {year}
+                {monthName} {viewPeriod.year}
               </DialogDescription>
               {IS_PAST_DATE_LOCK_ENABLED && (
                 <p className="mt-1 text-[11px] text-muted-foreground/90">
@@ -1716,6 +1730,7 @@ export function ComplianceEditModal({
                 onOpenChange(false);
               }}
               onCancel={() => onOpenChange(false)}
+              onPeriodChange={handlePeriodChange}
             />
           ) : null}
         </div>
