@@ -148,7 +148,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
     value.length === 0
       ? "ALL"
       : value.length === 1
-        ? value[0].stationname
+        ? `${value[0].stationname}${value[0].provincename ? ` (${value[0].provincename})` : ""}`
         : `${value.length} selected`;
 
   const showPrev = page > 1;
@@ -245,6 +245,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
                         <div className="truncate font-medium">{r.stationname}</div>
                         <div className="truncate text-xs text-muted-foreground">
                           {r.stationcode}
+                          {r.provincename ? " · " + r.provincename : ""}
                         </div>
                       </div>
                     </div>
