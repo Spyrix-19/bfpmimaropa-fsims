@@ -21,9 +21,12 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -756,25 +759,38 @@ type GapRow = { name: string; BPLO: number; GOVT: number; PEZA: number; TIEZA: n
 
 function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
   const [groupBy, setGroupBy] = useState<"province" | "sector">("province");
+  const [chartType, setChartType] = useState<"line" | "pie">("line");
 
-  const { data, series } = useMemo(() => {
+  const { data, series, pieData } = useMemo(() => {
     if (groupBy === "province") {
+      const nextData = rows.map((r) => ({
+        name: r.name,
+        ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
+      }));
       return {
-        data: rows.map((r) => ({
-          name: r.name,
-          ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
-        })),
+        data: nextData,
         series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
+        pieData: rows.map((r, i) => ({
+          name: r.name,
+          value: Math.max(0, (r.BPLO ?? 0) + (r.GOVT ?? 0) + (r.PEZA ?? 0) + (r.TIEZA ?? 0)),
+          color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
+        })),
       };
     }
+    const nextData = SECTORS.map((s) => ({
+      name: s as string,
+      ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
+    }));
     return {
-      data: SECTORS.map((s) => ({
-        name: s as string,
-        ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
-      })),
+      data: nextData,
       series: rows.map((r, i) => ({
         key: r.name,
         color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
+      })),
+      pieData: SECTORS.map((sector, i) => ({
+        name: sector,
+        value: rows.reduce((total, r) => total + (r[sector] ?? 0), 0),
+        color: SECTOR_COLORS[sector],
       })),
     };
   }, [rows, groupBy]);
@@ -784,23 +800,42 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
       title="Target Gap by Province"
       subtitle={
         groupBy === "province"
-          ? "Remaining gap per province · line per sector"
-          : "Remaining gap per sector · line per province"
+          ? chartType === "line"
+            ? "Remaining gap per province · line per sector"
+            : "Remaining gap per province · pie by province"
+          : chartType === "line"
+            ? "Remaining gap per sector · line per province"
+            : "Remaining gap per sector · pie by sector"
       }
       height="h-72"
       actions={
-        <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
-          {(["province", "sector"] as const).map((g) => (
-            <Button
-              key={g}
-              variant={groupBy === g ? "secondary" : "ghost"}
-              size="sm"
-              className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
-              onClick={() => setGroupBy(g)}
-            >
-              By {g}
-            </Button>
-          ))}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
+            {(["province", "sector"] as const).map((g) => (
+              <Button
+                key={g}
+                variant={groupBy === g ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
+                onClick={() => setGroupBy(g)}
+              >
+                By {g}
+              </Button>
+            ))}
+          </div>
+          <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
+            {(["line", "pie"] as const).map((type) => (
+              <Button
+                key={type}
+                variant={chartType === type ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
+                onClick={() => setChartType(type)}
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
         </div>
       }
     >
@@ -810,6 +845,25 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
         <div className="grid h-full place-items-center text-sm text-muted-foreground">
           No data for the selected year.
         </div>
+      ) : chartType === "pie" ? (
+        <ResponsiveContainer>
+          <PieChart margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <Pie
+              data={pieData}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={90}
+              innerRadius={36}
+              paddingAngle={2}
+            >
+              {pieData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [value, "Gap"]} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+          </PieChart>
+        </ResponsiveContainer>
       ) : (
         <ResponsiveContainer>
           <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -839,25 +893,38 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
 
 function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
   const [groupBy, setGroupBy] = useState<"province" | "sector">("province");
+  const [chartType, setChartType] = useState<"line" | "pie">("line");
 
-  const { data, series } = useMemo(() => {
+  const { data, series, pieData } = useMemo(() => {
     if (groupBy === "province") {
+      const nextData = rows.map((r) => ({
+        name: r.name,
+        ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
+      }));
       return {
-        data: rows.map((r) => ({
-          name: r.name,
-          ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
-        })),
+        data: nextData,
         series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
+        pieData: rows.map((r, i) => ({
+          name: r.name,
+          value: Math.max(0, (r.BPLO ?? 0) + (r.GOVT ?? 0) + (r.PEZA ?? 0) + (r.TIEZA ?? 0)),
+          color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
+        })),
       };
     }
+    const nextData = SECTORS.map((s) => ({
+      name: s as string,
+      ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
+    }));
     return {
-      data: SECTORS.map((s) => ({
-        name: s as string,
-        ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
-      })),
+      data: nextData,
       series: rows.map((r, i) => ({
         key: r.name,
         color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
+      })),
+      pieData: SECTORS.map((sector, i) => ({
+        name: sector,
+        value: rows.reduce((total, r) => total + (r[sector] ?? 0), 0),
+        color: SECTOR_COLORS[sector],
       })),
     };
   }, [rows, groupBy]);
@@ -867,23 +934,42 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
       title="Inspections"
       subtitle={
         groupBy === "province"
-          ? "Actual inspections per province · line per sector"
-          : "Actual inspections per sector · line per province"
+          ? chartType === "line"
+            ? "Actual inspections per province · line per sector"
+            : "Actual inspections per province · pie by province"
+          : chartType === "line"
+            ? "Actual inspections per sector · line per province"
+            : "Actual inspections per sector · pie by sector"
       }
       height="h-72"
       actions={
-        <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
-          {(["province", "sector"] as const).map((g) => (
-            <Button
-              key={g}
-              variant={groupBy === g ? "secondary" : "ghost"}
-              size="sm"
-              className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
-              onClick={() => setGroupBy(g)}
-            >
-              By {g}
-            </Button>
-          ))}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
+            {(["province", "sector"] as const).map((g) => (
+              <Button
+                key={g}
+                variant={groupBy === g ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
+                onClick={() => setGroupBy(g)}
+              >
+                By {g}
+              </Button>
+            ))}
+          </div>
+          <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
+            {(["line", "pie"] as const).map((type) => (
+              <Button
+                key={type}
+                variant={chartType === type ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
+                onClick={() => setChartType(type)}
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
         </div>
       }
     >
@@ -893,6 +979,25 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
         <div className="grid h-full place-items-center text-sm text-muted-foreground">
           No data for the selected year.
         </div>
+      ) : chartType === "pie" ? (
+        <ResponsiveContainer>
+          <PieChart margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <Pie
+              data={pieData}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={90}
+              innerRadius={36}
+              paddingAngle={2}
+            >
+              {pieData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [value, "Inspections"]} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+          </PieChart>
+        </ResponsiveContainer>
       ) : (
         <ResponsiveContainer>
           <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>

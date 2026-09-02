@@ -86,6 +86,7 @@ import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { serializePhilippineDateTime } from "@/lib/date-format";
 
 interface Props {
   open: boolean;
@@ -118,7 +119,7 @@ type CellMap = Record<string, string>;
  */
 /** Builds the ISO date-time the Create endpoint expects for a target day. */
 function toTargetDate(year: number, month: number, day: number): string {
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0)).toISOString();
+  return serializePhilippineDateTime(new Date(year, month - 1, day, 0, 0, 0));
 }
 
 /**

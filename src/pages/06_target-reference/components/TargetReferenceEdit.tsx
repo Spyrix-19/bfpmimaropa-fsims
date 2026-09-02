@@ -59,6 +59,7 @@ import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { serializePhilippineDateTime } from "@/lib/date-format";
 
 interface Props {
   open: boolean;
@@ -91,7 +92,7 @@ type CellMap = Record<string, string>;
  */
 /** Builds the ISO date-time the Create endpoint expects for a target day. */
 function toTargetDate(year: number, month: number, day: number): string {
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0)).toISOString();
+  return serializePhilippineDateTime(new Date(year, month - 1, day, 0, 0, 0));
 }
 
 /**
@@ -1226,9 +1227,9 @@ export default function TargetReferenceForm({
           }
           dateinspected={
             revisionDay != null
-              ? new Date(Date.UTC(Number(year), Number(month) - 1, Number(revisionDay), 0, 0, 0))
-                  .toISOString()
-                  .slice(0, 10)
+              ? serializePhilippineDateTime(
+                  new Date(Number(year), Number(month) - 1, Number(revisionDay), 0, 0, 0),
+                ).slice(0, 10)
               : undefined
           }
           onSubmitted={() => setReloadNonce((n) => n + 1)}

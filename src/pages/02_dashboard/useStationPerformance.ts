@@ -70,6 +70,22 @@ function clampPct(value: number): number {
   return Math.min(Math.max(value, 0), 100);
 }
 
+function normalizeComparativeSectorPct(value: number): number {
+  const pct = clampPct(toNumber(value));
+  // Zero means the station has no record for that sector in that month, so it
+  // is treated as "nothing to compare" and therefore qualifies as 100%.
+  return pct === 0 ? 100 : pct;
+}
+
+function isPerfectMonth(month: MonthlyPerformance): boolean {
+  return (
+    normalizeComparativeSectorPct(month.bploPercentage) === 100 &&
+    normalizeComparativeSectorPct(month.govPercentage) === 100 &&
+    normalizeComparativeSectorPct(month.pezaPercentage) === 100 &&
+    normalizeComparativeSectorPct(month.tiezaPercentage) === 100
+  );
+}
+
 /** Format a percentage without excessive decimals (98.75%, 91.3%, 100%). */
 export function formatPct(value: number): string {
   const v = clampPct(value);
@@ -146,7 +162,7 @@ export function useStationPerformance(selectedYear?: number) {
         months.sort((a, b) => toNumber(a.month) - toNumber(b.month));
         const monthsCounted = values.length;
         const sum = values.reduce((a, b) => a + b, 0);
-        const perfectMonths = values.filter((v) => v === 100).length;
+        const perfectMonths = months.filter((m) => isPerfectMonth(m)).length;
         return {
           stationno: s.stationno,
           stationcode: s.stationcode ?? "",

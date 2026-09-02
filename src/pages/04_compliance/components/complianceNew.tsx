@@ -69,7 +69,7 @@ import type {
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
-import { formatLongDate } from "@/lib/date-format";
+import { formatLongDate, serializePhilippineDateTime } from "@/lib/date-format";
 import { Ban, FilePen, Trash2, Lock } from "lucide-react";
 import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
@@ -137,9 +137,7 @@ function startOfToday(): number {
 
 /** Builds the ISO date-time the Create endpoint expects for an inspection day. */
 function toInspectedDate(date: Date): string {
-  return new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
-  ).toISOString();
+  return serializePhilippineDateTime(new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0));
 }
 
 /** Normalises any raw input into a non-negative whole number. */

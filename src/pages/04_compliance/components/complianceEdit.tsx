@@ -254,12 +254,18 @@ function normalizeDateKey(v: string | Date | null | undefined): string | null {
   if (v == null || v === "") return null;
   if (typeof v === "string") {
     const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    if (m) {
+      const year = Number(m[1]);
+      if (year <= 1900) return null;
+      return `${m[1]}-${m[2]}-${m[3]}`;
+    }
     const d = new Date(v);
     if (Number.isNaN(d.getTime())) return null;
+    if (d.getFullYear() <= 1900) return null;
     return toLocalKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
   }
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    if (v.getFullYear() <= 1900) return null;
     return toLocalKey(v.getFullYear(), v.getMonth() + 1, v.getDate());
   }
   return null;

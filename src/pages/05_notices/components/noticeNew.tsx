@@ -50,7 +50,7 @@ import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { unwrap } from "@/lib/api-envelope";
 import { EMPTY_GUID } from "@/lib/fsims-constants";
-import { formatLongDate } from "@/lib/date-format";
+import { formatLongDate, serializePhilippineDateTime } from "@/lib/date-format";
 import { useAuth } from "@/lib/auth";
 import { noticeAPI } from "@/services/noticeAPI";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
@@ -732,14 +732,16 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
       const payload: FSISNoticeDTO = {
         noticeno,
         stationno: record.stationno,
-        dateaccomplish: new Date(
-          reportingDate.getFullYear(),
-          reportingDate.getMonth(),
-          reportingDate.getDate(),
-          12,
-          0,
-          0,
-        ).toISOString(),
+        dateaccomplish: serializePhilippineDateTime(
+          new Date(
+            reportingDate.getFullYear(),
+            reportingDate.getMonth(),
+            reportingDate.getDate(),
+            12,
+            0,
+            0,
+          ),
+        ),
         encodedby,
         accomnoticeList: [
           buildAccom(FSIC_MODE.MANUAL, manualValues),
