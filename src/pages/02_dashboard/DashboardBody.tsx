@@ -1459,6 +1459,7 @@ function ChartScopeFilters({
 
 export function DashboardBody() {
   const { user, systemAccess, isAuthenticated } = useAuth();
+  const { filters } = useFilters();
   const scope = useMemo(
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
@@ -1472,17 +1473,34 @@ export function DashboardBody() {
   const targetProvinceLocked =
     isAuthenticated && [27, 28, 29, 30, 31].includes(Number(user?.stationtype ?? 0));
   const [targetVsActualYear, setTargetVsActualYear] = useState<number>(currentYear);
-  const [targetVsActualScope, setTargetVsActualScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
+  const [targetVsActualScope, setTargetVsActualScope] = useState<ChartScope>(() => ({
+    provinces: filters.provinces,
+    stations: filters.stations,
+  }));
   useEffect(() => {
     if (targetProvinceLocked && scope.provinceno) {
-      setTargetVsActualScope({
+      const locked = {
         provinces: [{ locationno: scope.provinceno, locationname: scope.provincename }],
         stations: [],
-      });
-    } else {
-      setTargetVsActualScope(EMPTY_CHART_SCOPE);
+      };
+      setTargetVsActualScope((prev) =>
+        prev.provinces.length === locked.provinces.length &&
+        prev.provinces.every((p, i) => p.locationno === locked.provinces[i]?.locationno) &&
+        prev.stations.length === locked.stations.length
+          ? prev
+          : locked,
+      );
+      return;
     }
-  }, [targetProvinceLocked, scope.provinceno, scope.provincename]);
+    setTargetVsActualScope((prev) =>
+      prev.provinces.length === filters.provinces.length &&
+      prev.provinces.every((p, i) => p.locationno === filters.provinces[i]?.locationno) &&
+      prev.stations.length === filters.stations.length &&
+      prev.stations.every((s, i) => s.stationno === filters.stations[i]?.stationno)
+        ? prev
+        : { provinces: filters.provinces, stations: filters.stations },
+    );
+  }, [targetProvinceLocked, scope.provinceno, scope.provincename, filters.provinces, filters.stations]);
   const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual({
     selectedYear: targetVsActualYear,
     selectedProvinces: targetVsActualScope.provinces,
@@ -1490,14 +1508,20 @@ export function DashboardBody() {
   });
 
   const [monthlyTrendYear, setMonthlyTrendYear] = useState<number>(currentYear);
-  const [monthlyTrendScope, setMonthlyTrendScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
+  const [monthlyTrendScope, setMonthlyTrendScope] = useState<ChartScope>(() => ({
+    provinces: filters.provinces,
+    stations: filters.stations,
+  }));
   const { rows: monthlyTrendRows, loading: monthlyTrendLoading } = useMonthlyTargetVsActual({
     selectedYear: monthlyTrendYear,
     selectedProvinces: monthlyTrendScope.provinces,
     selectedStations: monthlyTrendScope.stations,
   });
   const [monthlySectorYear, setMonthlySectorYear] = useState<number>(currentYear);
-  const [monthlySectorScope, setMonthlySectorScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
+  const [monthlySectorScope, setMonthlySectorScope] = useState<ChartScope>(() => ({
+    provinces: filters.provinces,
+    stations: filters.stations,
+  }));
   const { rows: monthlySectorRows, loading: monthlySectorLoading } = useMonthlySectorTrend({
     selectedYear: monthlySectorYear,
     selectedProvinces: monthlySectorScope.provinces,
@@ -1509,7 +1533,10 @@ export function DashboardBody() {
     currentYear - 1,
     currentYear,
   ]);
-  const [yoYScope, setYoYScope] = useState<ChartScope>(EMPTY_CHART_SCOPE);
+  const [yoYScope, setYoYScope] = useState<ChartScope>(() => ({
+    provinces: filters.provinces,
+    stations: filters.stations,
+  }));
   const {
     rows: yoYRows,
     years: yoYYears,
@@ -1519,6 +1546,42 @@ export function DashboardBody() {
     selectedProvinces: yoYScope.provinces,
     selectedStations: yoYScope.stations,
   });
+
+  useEffect(() => {
+    const next = { provinces: filters.provinces, stations: filters.stations };
+    setTargetVsActualScope((prev) => {
+      const same =
+        prev.provinces.length === next.provinces.length &&
+        prev.provinces.every((p, i) => p.locationno === next.provinces[i]?.locationno) &&
+        prev.stations.length === next.stations.length &&
+        prev.stations.every((s, i) => s.stationno === next.stations[i]?.stationno);
+      return same ? prev : next;
+    });
+    setMonthlyTrendScope((prev) => {
+      const same =
+        prev.provinces.length === next.provinces.length &&
+        prev.provinces.every((p, i) => p.locationno === next.provinces[i]?.locationno) &&
+        prev.stations.length === next.stations.length &&
+        prev.stations.every((s, i) => s.stationno === next.stations[i]?.stationno);
+      return same ? prev : next;
+    });
+    setMonthlySectorScope((prev) => {
+      const same =
+        prev.provinces.length === next.provinces.length &&
+        prev.provinces.every((p, i) => p.locationno === next.provinces[i]?.locationno) &&
+        prev.stations.length === next.stations.length &&
+        prev.stations.every((s, i) => s.stationno === next.stations[i]?.stationno);
+      return same ? prev : next;
+    });
+    setYoYScope((prev) => {
+      const same =
+        prev.provinces.length === next.provinces.length &&
+        prev.provinces.every((p, i) => p.locationno === next.provinces[i]?.locationno) &&
+        prev.stations.length === next.stations.length &&
+        prev.stations.every((s, i) => s.stationno === next.stations[i]?.stationno);
+      return same ? prev : next;
+    });
+  }, [filters.provinces, filters.stations]);
 
   // Seed / enforce the user's assigned scope on every chart-level filter.
   useEffect(() => {
@@ -1556,10 +1619,22 @@ export function DashboardBody() {
       return sameProvinces && sameStations ? prev : { provinces, stations };
     };
 
-    setTargetVsActualScope(apply);
-    setMonthlyTrendScope(apply);
-    setMonthlySectorScope(apply);
-    setYoYScope(apply);
+    setTargetVsActualScope((prev) => {
+      const next = apply(prev);
+      return next === prev ? prev : next;
+    });
+    setMonthlyTrendScope((prev) => {
+      const next = apply(prev);
+      return next === prev ? prev : next;
+    });
+    setMonthlySectorScope((prev) => {
+      const next = apply(prev);
+      return next === prev ? prev : next;
+    });
+    setYoYScope((prev) => {
+      const next = apply(prev);
+      return next === prev ? prev : next;
+    });
   }, [
     isAuthenticated,
     scope.provinceLocked,

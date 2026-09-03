@@ -921,6 +921,37 @@ function ComplianceEditBody({
     );
   }, [days, station, month, year]);
 
+  /** Daily target vs. accomplishment (aggregated from editable days) */
+  const dailySummary: TargetAccomplishmentModel | null = React.useMemo(() => {
+    if (!station) return null;
+    return days.reduce<TargetAccomplishmentModel>(
+      (acc, d) => {
+        acc.totaltargetbplo += num(d.inspection.dailytargetbplo);
+        acc.totaltargetgov += num(d.inspection.dailytargetgov);
+        acc.totaltargetpeza += num(d.inspection.dailytargetpeza);
+        acc.totaltargettieza += num(d.inspection.dailytargettieza);
+        acc.totalAccomplishmentbplo += num(d.inspection.inspectbplocount);
+        acc.totalAccomplishmentgov += num(d.inspection.inspectgovcount);
+        acc.totalAccomplishmentpeza += num(d.inspection.inspectpezacount);
+        acc.totalAccomplishmenttieza += num(d.inspection.inspecttiezacount);
+        return acc;
+      },
+      {
+        stationno: station.stationno,
+        month,
+        year,
+        totaltargetbplo: 0,
+        totaltargetgov: 0,
+        totaltargetpeza: 0,
+        totaltargettieza: 0,
+        totalAccomplishmentbplo: 0,
+        totalAccomplishmentgov: 0,
+        totalAccomplishmentpeza: 0,
+        totalAccomplishmenttieza: 0,
+      },
+    );
+  }, [days, station, month, year]);
+
   // Keep the previously loaded period visible while a new period loads so the
   // form does not blink; only show the full loader on the very first load.
   if (loading && editableDays.size === 0) {
@@ -999,6 +1030,26 @@ function ComplianceEditBody({
           { label: "Province", value: station?.provincename ?? "" },
         ]}
       />
+      {/* Daily Dashboard -------------------------------------------------------- */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          title="Daily Dashboard"
+          subtitle={`Reporting month · ${monthName} ${year}`}
+          expanded={dashboardExpanded}
+          onToggle={() => setDashboardExpanded((v) => !v)}
+        />
+
+        {dashboardExpanded && (
+          <TargetAccomplishmentPanel
+            stationno={stationno}
+            year={year}
+            month={month}
+            data={dailySummary}
+            variant="daily"
+            periodLabel={`Daily summary · ${monthName} ${year}`}
+          />
+        )}
+      </Card>
 
       {/* Monthly Dashboard ------------------------------------------------------ */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
@@ -1045,6 +1096,7 @@ function ComplianceEditBody({
             onRequestRevision={openRevisionRequest}
             onCancelRevision={setCancelRequestId}
             onDeleteRevision={setDeleteRequestId}
+            targetBreakdown={true}
           />
         )}
       </Card>
@@ -1074,6 +1126,7 @@ function ComplianceEditBody({
             onRequestRevision={openRevisionRequest}
             onCancelRevision={setCancelRequestId}
             onDeleteRevision={setDeleteRequestId}
+            targetBreakdown={true}
           />
         )}
       </Card>
@@ -1241,6 +1294,7 @@ function ActivityTable({
   onRequestRevision,
   onCancelRevision,
   onDeleteRevision,
+  targetBreakdown = false,
 }: {
   days: DayWithRevision[];
   stationno: string;
@@ -1258,8 +1312,12 @@ function ActivityTable({
   onRequestRevision: (day: EditableDay) => void;
   onCancelRevision: (requestno: string) => void;
   onDeleteRevision: (requestno: string) => void;
+  targetBreakdown?: boolean;
 }) {
-  const inspectionColspan = inspectionCols.reduce((n, c) => n + (c.target ? 2 : 1), 0);
+  const inspectionColspan = inspectionCols.reduce(
+    (n, c) => n + (c.target ? (targetBreakdown ? 5 : 2) : 1),
+    0,
+  );
   const issuanceCols = groups.flatMap((g) => g.cols);
 
   const issuanceCells = (day: DayWithRevision, mode: "manual" | "fsis") =>
@@ -1357,20 +1415,58 @@ function ActivityTable({
           <tr>
             {inspectionCols
               .filter((col) => col.target)
-              .flatMap((col) => [
-                <th
-                  key={`${col.api}__target`}
-                  className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
-                >
-                  Target
-                </th>,
-                <th
-                  key={`${col.api}__accomplished`}
-                  className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
-                >
-                  <span className="block leading-[1.1]">accomplished</span>
-                </th>,
-              ])}
+              .flatMap((col) => {
+                const base = `${col.api}__`;
+                if (targetBreakdown) {
+                  return [
+                    <th
+                      key={`${base}target`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      Target
+                    </th>,
+                    <th
+                      key={`${base}accomplished`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      <span className="block leading-[1.1]">Accomplished</span>
+                    </th>,
+                    <th
+                      key={`${base}variance`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      Variance
+                    </th>,
+                    <th
+                      key={`${base}positive`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      <span className="block leading-[1.1]">Positive</span>
+                      <span className="block leading-[1.1]">Listing</span>
+                    </th>,
+                    <th
+                      key={`${base}pct`}
+                      className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                    >
+                      %
+                    </th>,
+                  ];
+                }
+                return [
+                  <th
+                    key={`${base}target`}
+                    className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                  >
+                    Target
+                  </th>,
+                  <th
+                    key={`${base}accomplished`}
+                    className={`border-b border-r px-1.5 py-1 text-center text-[10px] font-semibold uppercase min-w-[72px] w-[72px] ${MONITORING_THEME.headerSofter}`}
+                  >
+                    <span className="block leading-[1.1]">accomplished</span>
+                  </th>,
+                ];
+              })}
           </tr>
         </thead>
         <tbody>
@@ -1453,33 +1549,85 @@ function ActivityTable({
                     const value = num(day.inspection[col.api]);
                     const cells: React.ReactNode[] = [];
                     if (col.target) {
+                      const target = num(day.inspection[col.target]);
+                      const accomplished = value;
+                      const variance = Math.max(target - accomplished, 0);
+                      const positive = Math.max(accomplished - target, 0);
+                      const pctValue = target > 0 ? (accomplished / target) * 100 : accomplished > 0 ? 100 : 0;
+                      const pctClass = pctValue < 0 ? "text-destructive" : pctValue > 0 ? "text-success" : "";
+
                       cells.push(
                         <td
                           key={`${col.api}__target`}
                           rowSpan={2}
                           className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums text-muted-foreground"
                         >
-                          {num(day.inspection[col.target]).toLocaleString()}
+                          {target.toLocaleString()}
+                        </td>,
+                      );
+
+                      cells.push(
+                        <td
+                          key={`${col.api}__accomplished`}
+                          rowSpan={2}
+                          className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle"
+                        >
+                          {day.isLocked ? (
+                            <span className="text-muted-foreground">{accomplished.toLocaleString()}</span>
+                          ) : (
+                            <NumericInput
+                              value={accomplished}
+                              onValueChange={(raw) => onInspectionChange(day.key, col.api, raw)}
+                              className={CELL_INPUT_CLASS}
+                            />
+                          )}
+                        </td>,
+                      );
+
+                      if (targetBreakdown) {
+                        cells.push(
+                          <td
+                            key={`${col.api}__variance`}
+                            rowSpan={2}
+                            className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums"
+                          >
+                            {variance.toLocaleString()}
+                          </td>,
+                          <td
+                            key={`${col.api}__positive`}
+                            rowSpan={2}
+                            className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums"
+                          >
+                            {positive.toLocaleString()}
+                          </td>,
+                          <td
+                            key={`${col.api}__pct`}
+                            rowSpan={2}
+                            className={`min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle tabular-nums ${pctClass}`}
+                          >
+                            {`${pctValue.toFixed(2)}%`}
+                          </td>,
+                        );
+                      }
+                    } else {
+                      cells.push(
+                        <td
+                          key={col.api}
+                          rowSpan={2}
+                          className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle"
+                        >
+                          {day.isLocked ? (
+                            <span className="text-muted-foreground">{value.toLocaleString()}</span>
+                          ) : (
+                            <NumericInput
+                              value={value}
+                              onValueChange={(raw) => onInspectionChange(day.key, col.api, raw)}
+                              className={CELL_INPUT_CLASS}
+                            />
+                          )}
                         </td>,
                       );
                     }
-                    cells.push(
-                      <td
-                        key={col.api}
-                        rowSpan={2}
-                        className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle"
-                      >
-                        {day.isLocked ? (
-                          <span className="text-muted-foreground">{value.toLocaleString()}</span>
-                        ) : (
-                          <NumericInput
-                            value={value}
-                            onValueChange={(raw) => onInspectionChange(day.key, col.api, raw)}
-                            className={CELL_INPUT_CLASS}
-                          />
-                        )}
-                      </td>,
-                    );
                     return cells;
                   })}
 
@@ -1520,25 +1668,69 @@ function ActivityTable({
               const cells: React.ReactNode[] = [];
               if (col.target) {
                 const targetField = col.target;
+                const totalTarget = days.reduce((sum, d) => sum + num(d.inspection[targetField]), 0);
+                const totalAccomplished = days.reduce((sum, d) => sum + num(d.inspection[col.api]), 0);
+                const totalVariance = days.reduce(
+                  (sum, d) => sum + Math.max(num(d.inspection[targetField]) - num(d.inspection[col.api]), 0),
+                  0,
+                );
+                const totalPositive = days.reduce(
+                  (sum, d) => sum + Math.max(num(d.inspection[col.api]) - num(d.inspection[targetField]), 0),
+                  0,
+                );
+                const totalPctValue = totalTarget > 0 ? (totalAccomplished / totalTarget) * 100 : totalAccomplished > 0 ? 100 : 0;
+                const totalPctClass = totalPctValue < 0 ? "text-destructive" : totalPctValue > 0 ? "text-success" : "";
+
                 cells.push(
                   <td
                     key={`${col.api}__target`}
                     className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums text-muted-foreground"
                   >
-                    {days
-                      .reduce((sum, d) => sum + num(d.inspection[targetField]), 0)
-                      .toLocaleString()}
+                    {totalTarget.toLocaleString()}
+                  </td>,
+                );
+
+                cells.push(
+                  <td
+                    key={`${col.api}__accomplished`}
+                    className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                  >
+                    {totalAccomplished.toLocaleString()}
+                  </td>,
+                );
+
+                if (targetBreakdown) {
+                  cells.push(
+                    <td
+                      key={`${col.api}__variance`}
+                      className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                    >
+                      {totalVariance.toLocaleString()}
+                    </td>,
+                    <td
+                      key={`${col.api}__positive`}
+                      className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                    >
+                      {totalPositive.toLocaleString()}
+                    </td>,
+                    <td
+                      key={`${col.api}__pct`}
+                      className={`min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums ${totalPctClass}`}
+                    >
+                      {`${totalPctValue.toFixed(2)}%`}
+                    </td>,
+                  );
+                }
+              } else {
+                cells.push(
+                  <td
+                    key={col.api}
+                    className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
+                  >
+                    {days.reduce((sum, d) => sum + num(d.inspection[col.api]), 0).toLocaleString()}
                   </td>,
                 );
               }
-              cells.push(
-                <td
-                  key={col.api}
-                  className="min-w-[72px] w-[72px] border-r border-t-2 border-grid-strong total-row px-1.5 py-2 text-center text-[11px] font-bold tabular-nums"
-                >
-                  {days.reduce((sum, d) => sum + num(d.inspection[col.api]), 0).toLocaleString()}
-                </td>,
-              );
               return cells;
             })}
             <td className="border-r border-t-2 border-grid-strong total-row px-2 py-2" />

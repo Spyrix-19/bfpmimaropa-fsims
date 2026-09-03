@@ -148,7 +148,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
     value.length === 0
       ? "ALL"
       : value.length === 1
-        ? `${value[0].stationname}${value[0].provincename ? ` (${value[0].provincename})` : ""}`
+        ? value[0].stationname
         : `${value.length} selected`;
 
   const showPrev = page > 1;
