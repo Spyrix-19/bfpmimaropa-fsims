@@ -174,5 +174,4 @@ export interface StationMonthlyPerformanceClass {
   govPercentage: number;
   pezaPercentage: number;
   tiezaPercentage: number;
-  overallPercentage: number;
 }

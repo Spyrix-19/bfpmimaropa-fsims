@@ -40,7 +40,6 @@ function MonthlyBreakdown({ station }: { station: RankedStation }) {
               <th className="px-1.5 py-1 text-right font-medium">GOV</th>
               <th className="px-1.5 py-1 text-right font-medium">PEZA</th>
               <th className="px-1.5 py-1 text-right font-medium">TIEZA</th>
-              <th className="px-1.5 py-1 text-right font-medium">Overall</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
@@ -60,9 +59,6 @@ function MonthlyBreakdown({ station }: { station: RankedStation }) {
                 </td>
                 <td className="whitespace-nowrap px-1.5 py-1 text-right">
                   {formatPct(Number(m.tiezaPercentage))}
-                </td>
-                <td className="whitespace-nowrap px-1.5 py-1 text-right font-semibold text-foreground">
-                  {formatPct(Number(m.overallPercentage))}
                 </td>
               </tr>
             ))}
@@ -252,11 +248,24 @@ function PerfectStationRow({
  * Top 10 Performing Stations + 100% Performing Stations.
  *
  * Both sections are derived from the station monthly performance endpoint and
- * use `monthlyperformanceList[].overallPercentage` exclusively.
+ * compare the averaged sector percentages for each month.
  */
 export default function StationPerformanceSections({ selectedYear }: { selectedYear?: number }) {
   const { loading, topStations, perfectStations, periodLabel, shortPeriodLabel, totalMonths } =
     useStationPerformance(selectedYear);
+
+  const perfectTitle = (() => {
+    if (!periodLabel) return "100% Performing Stations";
+    const match = periodLabel.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s*[–-]?\s*(.*?)(?:\s+\d{4})?$/i);
+    if (!match) return `100% Performing Stations (${periodLabel})`;
+
+    const start = match[1];
+    const end = match[2]?.trim();
+    if (!end || end.toLowerCase() === start.toLowerCase()) {
+      return `100% Performing Stations (${start})`;
+    }
+    return `100% Performing Stations (${start} - ${end})`;
+  })();
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -288,7 +297,7 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
 
       <SectionCard
         icon={<BadgeCheck className="h-4 w-4" />}
-        title="100% Performing Stations"
+        title={perfectTitle}
         subtitle={`Stations that achieved 100% overall performance in every month of the current reporting period (${periodLabel}).`}
       >
         {loading ? (

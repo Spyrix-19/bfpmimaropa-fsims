@@ -72,9 +72,21 @@ function clampPct(value: number): number {
 
 function normalizeComparativeSectorPct(value: number): number {
   const pct = clampPct(toNumber(value));
-  // Zero means the station has no record for that sector in that month, so it
-  // is treated as "nothing to compare" and therefore qualifies as 100%.
-  return pct === 0 ? 100 : pct;
+  // -1 is a non-comparable value; zero is treated as a real zero and should not
+  // pass the "100% performing" rule.
+  return pct;
+}
+
+function getMonthlyOverallPercentage(month: MonthlyPerformance): number {
+  const sectors = [
+    toNumber(month.bploPercentage),
+    toNumber(month.govPercentage),
+    toNumber(month.pezaPercentage),
+    toNumber(month.tiezaPercentage),
+  ].filter((value) => value !== -1);
+
+  if (sectors.length === 0) return 0;
+  return sectors.reduce((sum, value) => sum + clampPct(value), 0) / sectors.length;
 }
 
 function hasActualSectorData(month: MonthlyPerformance): boolean {
@@ -88,17 +100,24 @@ function hasActualSectorData(month: MonthlyPerformance): boolean {
 
 function isPerfectMonth(month: MonthlyPerformance): boolean {
   if (!hasActualSectorData(month)) return false;
-  return (
-    normalizeComparativeSectorPct(month.bploPercentage) === 100 &&
-    normalizeComparativeSectorPct(month.govPercentage) === 100 &&
-    normalizeComparativeSectorPct(month.pezaPercentage) === 100 &&
-    normalizeComparativeSectorPct(month.tiezaPercentage) === 100
-  );
+  const sectors = [
+    toNumber(month.bploPercentage),
+    toNumber(month.govPercentage),
+    toNumber(month.pezaPercentage),
+    toNumber(month.tiezaPercentage),
+  ];
+
+  return sectors.every((value) => value === -1 || value === 100);
 }
 
-/** Format a percentage without excessive decimals (98.75%, 91.3%, 100%). */
+/** Format a percentage without excessive decimals (98.75%, 91.3%, 100%).
+ * Values of -1 indicate "not comparable / no target" and should be shown as N/A.
+ */
 export function formatPct(value: number): string {
-  const v = clampPct(value);
+  const n = toNumber(value);
+  if (n === -1) return "N/A";
+  if (n === 0) return "0%";
+  const v = clampPct(n);
   const rounded = Math.round(v * 100) / 100;
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)}%`;
 }
@@ -147,8 +166,9 @@ export function useStationPerformance(selectedYear?: number) {
 
   const now = React.useMemo(() => new Date(), []);
   const year = selectedYear ?? now.getFullYear();
+  const currentMonth = year === now.getFullYear() ? now.getMonth() + 1 : 0;
   const lastMonth =
-    year === now.getFullYear() ? now.getMonth() + 1 : year < now.getFullYear() ? 12 : 0;
+    year === now.getFullYear() ? Math.max(1, currentMonth - 1) : year < now.getFullYear() ? 12 : 0;
 
   const ranked = React.useMemo<RankedStation[]>(() => {
     if (lastMonth < 1) return [];
@@ -168,12 +188,16 @@ export function useStationPerformance(selectedYear?: number) {
           if (!hasActualSectorData(m)) continue;
           seen.add(mMonth);
           months.push(m);
-          values.push(clampPct(toNumber(m.overallPercentage)));
+          values.push(getMonthlyOverallPercentage(m));
         }
         months.sort((a, b) => toNumber(a.month) - toNumber(b.month));
         const monthsCounted = values.length;
         const sum = values.reduce((a, b) => a + b, 0);
         const perfectMonths = months.filter((m) => isPerfectMonth(m)).length;
+        const expectedMonths = Array.from({ length: lastMonth }, (_, index) => index + 1);
+        const hasFullReportingPeriod =
+          monthsCounted > 0 && expectedMonths.every((monthNum) => seen.has(monthNum));
+
         return {
           stationno: s.stationno,
           stationcode: s.stationcode ?? "",
@@ -184,7 +208,7 @@ export function useStationPerformance(selectedYear?: number) {
           averageOverallPercentage: monthsCounted ? sum / monthsCounted : 0,
           monthsCounted,
           perfectMonths,
-          isPerfect: monthsCounted > 0 && perfectMonths === monthsCounted,
+          isPerfect: hasFullReportingPeriod && perfectMonths === monthsCounted,
           months,
           rank: 0,
         } as RankedStation;
