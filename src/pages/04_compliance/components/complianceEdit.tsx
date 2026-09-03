@@ -1504,7 +1504,7 @@ function ActivityTable({
                       const variance = Math.max(target - accomplished, 0);
                       const positive = Math.max(accomplished - target, 0);
                       const pctValue = target > 0 ? (accomplished / target) * 100 : accomplished > 0 ? 100 : 0;
-                      const pctClass = pctValue < 0 ? "text-destructive" : pctValue > 0 ? "text-success" : "";
+                      const pctClass = pctValue >= 100 ? "text-success" : "";
 
                       cells.push(
                         <td
@@ -1629,7 +1629,7 @@ function ActivityTable({
                   0,
                 );
                 const totalPctValue = totalTarget > 0 ? (totalAccomplished / totalTarget) * 100 : totalAccomplished > 0 ? 100 : 0;
-                const totalPctClass = totalPctValue < 0 ? "text-destructive" : totalPctValue > 0 ? "text-success" : "";
+                const totalPctClass = totalPctValue >= 100 ? "text-success" : "";
 
                 cells.push(
                   <td

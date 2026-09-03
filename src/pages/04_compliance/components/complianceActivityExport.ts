@@ -152,7 +152,8 @@ function calcSectorMetrics(target: number, accomplished: number): SectorMetrics 
     accomplished: a,
     variance: Math.max(t - a, 0),
     positive: Math.max(a - t, 0),
-    pct: t > 0 ? ((a - t) / t) * 100 : a > 0 ? 100 : 0,
+    // Align with on-screen ledger and dashboard: percent = (accomplished / target) * 100
+    pct: t > 0 ? (a / t) * 100 : a > 0 ? 100 : 0,
   };
 }
 

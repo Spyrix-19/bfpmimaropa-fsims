@@ -1248,12 +1248,14 @@ function calcSectorMetrics(target: number, accomplished: number): SectorMetrics 
   const a = num(accomplished);
   const variance = Math.max(t - a, 0);
   const positive = Math.max(a - t, 0);
-
-  // t === 0 && a === 0 -> nothing targeted, nothing done -> 0.00%
-  const value = t > 0 ? ((a - t) / t) * 100 : a > 0 ? 100 : 0;
+  // Use the same percentage convention as the dashboard/target panel:
+  // percent = (accomplished / target) * 100 when target > 0.
+  // If target === 0 and accomplished > 0 => treat as 100%.
+  // If both are zero => 0%.
+  const value = t > 0 ? (a / t) * 100 : a > 0 ? 100 : 0;
   const pctText = `${value.toFixed(2)}%`;
-  // `!` keeps the tone from being overridden by the footer/body cell text colors.
-  const pctClass = value < 0 ? "!text-destructive" : value > 0 ? "!text-success" : "";
+  // Use green for 100% and above; otherwise use default text color.
+  const pctClass = value >= 100 ? "!text-success" : "";
 
   return { target: t, accomplished: a, variance, positive, pctText, pctClass };
 }

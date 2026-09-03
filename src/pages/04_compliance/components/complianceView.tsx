@@ -222,7 +222,8 @@ function getInspectionPct(
   target: number,
 ): { text: string; className: string } {
   if (target > 0 && accomplished === 0) {
-    return { text: "-100.00%", className: "text-destructive" };
+    // No accomplishment against a positive target -> 0% (default color)
+    return { text: "0.00%", className: "" };
   }
   if (target === 0 && accomplished > 0) {
     return { text: "100.00%", className: "text-success" };
@@ -230,7 +231,7 @@ function getInspectionPct(
   const value = pct(accomplished, target);
   return {
     text: `${value.toFixed(2)}%`,
-    className: value > 0 ? "text-success" : "",
+    className: value >= 100 ? "text-success" : "",
   };
 }
 

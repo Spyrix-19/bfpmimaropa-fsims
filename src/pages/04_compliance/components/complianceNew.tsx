@@ -349,20 +349,23 @@ function InspectionsNewBody({
   const [issuanceExpanded, setIssuanceExpanded] = React.useState(false);
   const [reinspectionExpanded, setReinspectionExpanded] = React.useState(false);
 
-  const [province, setProvince] = React.useState<{ no: string; name: string; code: string }>(
-    scope.provinceLocked
-      ? { no: scope.provinceno, name: scope.provincename, code: "" }
-      : { no: "", name: "", code: "" },
-  );
+  const isSuper = Number(systemAccess?.roleno ?? 0) === 1;
+
+  const [province, setProvince] = React.useState<{ no: string; name: string; code: string }>(() => {
+    if (scope.provinceLocked) return { no: scope.provinceno, name: scope.provincename, code: "" };
+    if (isSuper && user?.provinceno) return { no: user.provinceno, name: user.provincename ?? "", code: "" };
+    return { no: "", name: "", code: "" };
+  });
+
   const [station, setStation] = React.useState<{
     no: string;
     name: string;
     model: SearchStationModel | null;
-  }>(
-    scope.stationLocked
-      ? { no: scope.stationno, name: scope.stationname, model: null }
-      : { no: "", name: "", model: null },
-  );
+  }>(() => {
+    if (scope.stationLocked) return { no: scope.stationno, name: scope.stationname, model: null };
+    if (isSuper && user?.stationno) return { no: user.stationno, name: user.stationname ?? "", model: null };
+    return { no: "", name: "", model: null };
+  });
 
   // Keep the locked values in sync if the authenticated user resolves after mount.
   React.useEffect(() => {
@@ -388,6 +391,21 @@ function InspectionsNewBody({
     scope.stationno,
     scope.stationname,
   ]);
+
+  // If the authenticated user is a super admin, default the province and
+  // station to the logged-in user's values when the modal/screen opens.
+  // Do not override if the scope locks the values or the user already chose
+  // a value (province.no / station.no).
+  React.useEffect(() => {
+    if (!isSuper) return;
+    if (!scope.provinceLocked && user?.provinceno && !province.no) {
+      setProvince({ no: user.provinceno, name: user.provincename ?? "", code: "" });
+    }
+    if (!scope.stationLocked && user?.stationno && !station.no) {
+      setStation({ no: user.stationno, name: user.stationname ?? "", model: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuper, user?.provinceno, user?.provincename, user?.stationno, user?.stationname, scope.provinceLocked, scope.stationLocked]);
 
   // Resolves station code / city / province / logo for the Station Information card.
   const stationDetails = useStationDetails({

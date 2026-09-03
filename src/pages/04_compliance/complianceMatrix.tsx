@@ -235,7 +235,8 @@ function derivedValue(def: DerivedDef, bucket: Record<string, number> | undefine
   const a = num(bucket?.[def.accKey]);
   if (def.kind === "variance") return Math.max(t - a, 0);
   if (def.kind === "positive") return Math.max(a - t, 0);
-  return t > 0 ? ((a - t) / t) * 100 : a > 0 ? 100 : 0;
+  // Use the same percent convention as the dashboard: (accomplished / target) * 100
+  return t > 0 ? (a / t) * 100 : a > 0 ? 100 : 0;
 }
 
 /** Value of any leaf (stored or derived) for a given bucket. */
