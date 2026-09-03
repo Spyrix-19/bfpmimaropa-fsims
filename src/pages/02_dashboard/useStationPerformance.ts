@@ -89,17 +89,16 @@ function getMonthlyOverallPercentage(month: MonthlyPerformance): number {
   return sectors.reduce((sum, value) => sum + clampPct(value), 0) / sectors.length;
 }
 
-function hasActualSectorData(month: MonthlyPerformance): boolean {
-  return (
-    toNumber(month.bploPercentage) > 0 ||
-    toNumber(month.govPercentage) > 0 ||
-    toNumber(month.pezaPercentage) > 0 ||
-    toNumber(month.tiezaPercentage) > 0
-  );
+function getStationAverageOverallPercentage(months: MonthlyPerformance[]): number {
+  const values = months
+    .map((month) => getMonthlyOverallPercentage(month))
+    .filter((value) => Number.isFinite(value));
+
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function isPerfectMonth(month: MonthlyPerformance): boolean {
-  if (!hasActualSectorData(month)) return false;
+function hasActualSectorData(month: MonthlyPerformance): boolean {
   const sectors = [
     toNumber(month.bploPercentage),
     toNumber(month.govPercentage),
@@ -107,7 +106,18 @@ function isPerfectMonth(month: MonthlyPerformance): boolean {
     toNumber(month.tiezaPercentage),
   ];
 
-  return sectors.every((value) => value === -1 || value === 100);
+  return sectors.some((value) => value > 0 || value === -1);
+}
+
+function isPerfectMonth(month: MonthlyPerformance): boolean {
+  const sectors = [
+    toNumber(month.bploPercentage),
+    toNumber(month.govPercentage),
+    toNumber(month.pezaPercentage),
+    toNumber(month.tiezaPercentage),
+  ];
+
+  return sectors.some((value) => value === 100) && sectors.every((value) => value === -1 || value === 100);
 }
 
 /** Format a percentage without excessive decimals (98.75%, 91.3%, 100%).
@@ -185,18 +195,29 @@ export function useStationPerformance(selectedYear?: number) {
           if (mYear !== year) continue;
           if (mMonth < 1 || mMonth > lastMonth) continue;
           if (seen.has(mMonth)) continue;
-          if (!hasActualSectorData(m)) continue;
           seen.add(mMonth);
           months.push(m);
           values.push(getMonthlyOverallPercentage(m));
         }
         months.sort((a, b) => toNumber(a.month) - toNumber(b.month));
         const monthsCounted = values.length;
-        const sum = values.reduce((a, b) => a + b, 0);
+        const averageOverallPercentage = getStationAverageOverallPercentage(months);
+        const roundedOverallPercentage = Math.round(averageOverallPercentage * 100) / 100;
         const perfectMonths = months.filter((m) => isPerfectMonth(m)).length;
         const expectedMonths = Array.from({ length: lastMonth }, (_, index) => index + 1);
+        const monthsPresent = new Set(months.map((m) => toNumber(m.month)));
         const hasFullReportingPeriod =
-          monthsCounted > 0 && expectedMonths.every((monthNum) => seen.has(monthNum));
+          monthsCounted > 0 && expectedMonths.every((monthNum) => monthsPresent.has(monthNum));
+        const allNAAcrossPeriod =
+          monthsCounted > 0 &&
+          months.every((month) =>
+            [
+              toNumber(month.bploPercentage),
+              toNumber(month.govPercentage),
+              toNumber(month.pezaPercentage),
+              toNumber(month.tiezaPercentage),
+            ].every((value) => value === -1),
+          );
 
         return {
           stationno: s.stationno,
@@ -205,10 +226,14 @@ export function useStationPerformance(selectedYear?: number) {
           provincename: s.provincename ?? "",
           cityname: s.cityname ?? "",
           logoSrc: resolveLogo(s.logourl),
-          averageOverallPercentage: monthsCounted ? sum / monthsCounted : 0,
+          averageOverallPercentage,
           monthsCounted,
           perfectMonths,
-          isPerfect: hasFullReportingPeriod && perfectMonths === monthsCounted,
+          isPerfect:
+            !allNAAcrossPeriod &&
+            monthsCounted > 0 &&
+            roundedOverallPercentage >= 99.995 &&
+            roundedOverallPercentage <= 100.005,
           months,
           rank: 0,
         } as RankedStation;

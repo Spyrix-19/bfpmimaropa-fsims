@@ -226,12 +226,12 @@ function PerfectStationRow({
             {[station.stationcode, station.provincename].filter(Boolean).join(" • ") || "—"}
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {shortPeriodLabel} • {station.perfectMonths}/{totalMonths || station.monthsCounted}{" "}
-            months at 100%
+            {shortPeriodLabel} • {station.monthsCounted}/{totalMonths || station.monthsCounted}{" "}
+            months tracked
           </div>
         </div>
         <span className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums tone-success-soft">
-          100%
+          {formatPct(station.averageOverallPercentage)}
         </span>
         {expanded ? (
           <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -298,7 +298,7 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
       <SectionCard
         icon={<BadgeCheck className="h-4 w-4" />}
         title={perfectTitle}
-        subtitle={`Stations that achieved 100% overall performance in every month of the current reporting period (${periodLabel}).`}
+        subtitle={`Stations whose overall displayed performance is 100% for the current reporting period (${periodLabel}).`}
       >
         {loading ? (
           <div className="divide-y divide-border/40">
@@ -308,7 +308,7 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
           </div>
         ) : perfectStations.length === 0 ? (
           <EmptyState>
-            No stations have achieved 100% performance for every month of the current reporting
+            No stations have an overall displayed performance of 100% for the current reporting
             period.
           </EmptyState>
         ) : (
