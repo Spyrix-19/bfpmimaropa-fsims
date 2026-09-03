@@ -921,37 +921,6 @@ function ComplianceEditBody({
     );
   }, [days, station, month, year]);
 
-  /** Daily target vs. accomplishment (aggregated from editable days) */
-  const dailySummary: TargetAccomplishmentModel | null = React.useMemo(() => {
-    if (!station) return null;
-    return days.reduce<TargetAccomplishmentModel>(
-      (acc, d) => {
-        acc.totaltargetbplo += num(d.inspection.dailytargetbplo);
-        acc.totaltargetgov += num(d.inspection.dailytargetgov);
-        acc.totaltargetpeza += num(d.inspection.dailytargetpeza);
-        acc.totaltargettieza += num(d.inspection.dailytargettieza);
-        acc.totalAccomplishmentbplo += num(d.inspection.inspectbplocount);
-        acc.totalAccomplishmentgov += num(d.inspection.inspectgovcount);
-        acc.totalAccomplishmentpeza += num(d.inspection.inspectpezacount);
-        acc.totalAccomplishmenttieza += num(d.inspection.inspecttiezacount);
-        return acc;
-      },
-      {
-        stationno: station.stationno,
-        month,
-        year,
-        totaltargetbplo: 0,
-        totaltargetgov: 0,
-        totaltargetpeza: 0,
-        totaltargettieza: 0,
-        totalAccomplishmentbplo: 0,
-        totalAccomplishmentgov: 0,
-        totalAccomplishmentpeza: 0,
-        totalAccomplishmenttieza: 0,
-      },
-    );
-  }, [days, station, month, year]);
-
   // Keep the previously loaded period visible while a new period loads so the
   // form does not blink; only show the full loader on the very first load.
   if (loading && editableDays.size === 0) {
@@ -1030,26 +999,7 @@ function ComplianceEditBody({
           { label: "Province", value: station?.provincename ?? "" },
         ]}
       />
-      {/* Daily Dashboard -------------------------------------------------------- */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-        <SectionTitle
-          title="Daily Dashboard"
-          subtitle={`Reporting month · ${monthName} ${year}`}
-          expanded={dashboardExpanded}
-          onToggle={() => setDashboardExpanded((v) => !v)}
-        />
-
-        {dashboardExpanded && (
-          <TargetAccomplishmentPanel
-            stationno={stationno}
-            year={year}
-            month={month}
-            data={dailySummary}
-            variant="daily"
-            periodLabel={`Daily summary · ${monthName} ${year}`}
-          />
-        )}
-      </Card>
+      {/* Daily Dashboard removed per request */}
 
       {/* Monthly Dashboard ------------------------------------------------------ */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
