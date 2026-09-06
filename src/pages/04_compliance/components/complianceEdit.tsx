@@ -1346,7 +1346,7 @@ function ActivityTable({
               <th
                 key={col.api}
                 rowSpan={col.target ? 1 : 2}
-                colSpan={col.target ? 2 : 1}
+                colSpan={col.target ? (targetBreakdown ? 5 : 2) : 1}
                 className={`border-b border-r px-1.5 py-1 text-center align-middle text-[10px] font-semibold uppercase min-w-[72px] ${MONITORING_THEME.headerSofter}`}
               >
                 {col.label}
