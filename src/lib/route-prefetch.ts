@@ -10,6 +10,7 @@ const LOADERS: Record<string, () => Promise<unknown>> = {
   "/target-revision-requests": () => import("@/pages/07_revisionrequest/RevisionRequests.tsx"),
   "/monitoring-revision-requests": () => import("@/pages/07_revisionrequest/RevisionRequests.tsx"),
   "/reports": () => import("@/pages/10_reports/MatrixReports.tsx"),
+  "/collection/fire-code-fees": () => import("@/pages/13_firecodefees/FireCodeFees.tsx"),
   "/logistics": () => import("@/pages/08_bwc/IssuedBwc.tsx"),
   "/logistics/issued-bwc": () => import("@/pages/08_bwc/IssuedBwc.tsx"),
   "/logistics/fire-safety-inspector": () => import("@/pages/09_inspector/FireSafetyInspector.tsx"),
