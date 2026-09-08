@@ -119,8 +119,27 @@ export const FEE_GROUPS: FeeGroup[] = [
   },
 ];
 
+/** One flat report column, carrying its fee category code (`Feecateg`). */
+export interface FeeColumn extends FeeCol {
+  /** `Feecateg` of this column — the report column position, 1-based. */
+  categ: number;
+  /** BFP account code of the crown this column sits under. */
+  code: string;
+  groupLabel: string;
+}
+
 /** Flat list of every report column, in report order. */
-export const FEE_KEYS: string[] = FEE_GROUPS.flatMap((g) => g.cols.map((c) => c.key));
+export const FEE_COLUMNS: FeeColumn[] = FEE_GROUPS.flatMap((g) =>
+  g.cols.map((c) => ({
+    key: c.key,
+    label: c.label,
+    code: g.code ?? "",
+    groupLabel: g.label,
+  })),
+).map((c, i) => ({ ...c, categ: i + 1 }));
+
+/** Fee category codes (`Feecateg`) of every report column, in report order. */
+export const FEE_CATEGS: number[] = FEE_COLUMNS.map((c) => c.categ);
 
 /** The four establishment sectors of the report, in printed order. */
 export const FEE_SECTORS: { key: FireCodeSectorKey; code: number; label: string; title: string }[] =

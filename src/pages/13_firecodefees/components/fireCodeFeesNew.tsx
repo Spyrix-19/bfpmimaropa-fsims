@@ -1056,7 +1056,7 @@ export function FireCodeFeesFormBody({
             if (existingLocked && pendingExisting) plotExisting(pendingExisting);
             else {
               setExistingFeeno(null);
-              setExistingItemNos({});
+              setExistingAccomplishNos({});
             }
             return;
           }

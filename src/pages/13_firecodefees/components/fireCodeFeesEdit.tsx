@@ -80,13 +80,11 @@ import {
 /* -------------------------------------------------------------------------- */
 
 export interface FeeEditorStation {
-  stationno: string;
-  stationcode?: string;
-  stationname: string;
-  provinceno?: string;
-  provincename?: string;
-  cityname?: string;
-  logoUrl?: string;
+  Stationno: string;
+  Stationcode?: string;
+  Stationname: string;
+  Provinceno?: string;
+  Provincename?: string;
 }
 
 interface MonthState {
@@ -184,20 +182,20 @@ export function FireCodeFeesYearEditorBody({
 
   /* Load every month of the year for this station ------------------------- */
   React.useEffect(() => {
-    if (!station.stationno) return;
+    if (!station.Stationno) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await fireCodeFeesAPI.getLedger(
+      const resp = await firecodefeesAPI.getLedger(
         {
           parameters: {
-            searchkey: "",
-            reportyear: year,
-            interval: 2,
-            targetdate: monthKey(year, 1),
-            reportmonth: MONTHS.map((m) => m.value),
-            provinces: [
-              { provinceno: station.provinceno || EMPTY_GUID, stationnos: [station.stationno] },
+            Searchkey: "",
+            Reportyear: year,
+            Reportmonth: MONTHS.map((m) => m.value),
+            Interval: 2,
+            Dateaccomplish: monthKey(year, 1),
+            Provinces: [
+              { Provinceno: station.Provinceno || EMPTY_GUID, Stationnos: [station.Stationno] },
             ],
           },
           pagenumber: 1,
@@ -206,16 +204,16 @@ export function FireCodeFeesYearEditorBody({
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
       if (cancelled) return;
-      const { ok, data, error } = unwrap<FireCodeFeeModel[]>(resp);
+      const { ok, data, error } = unwrap<FSISStationFeeDetailModel[]>(resp);
       const next = MONTHS.map((m) => freshMonth(m.value));
       if (!ok) {
         toast.error(error || "Unable to load the Fire Code Fees collection for this year.");
       } else {
         const st = (Array.isArray(data) ? data : []).find(
-          (s) => String(s.stationno) === String(station.stationno),
+          (s) => String(s.Stationno) === String(station.Stationno),
         );
-        for (const rec of Array.isArray(st?.collectionlist) ? st!.collectionlist : []) {
-          const iso = String(rec?.datecollected ?? "").slice(0, 10);
+        for (const rec of Array.isArray(st?.Feedetaillist) ? st!.Feedetaillist : []) {
+          const iso = String(rec?.Dateaccomplish ?? "").slice(0, 10);
           if (!iso || iso.startsWith("1900") || Number(iso.slice(0, 4)) !== year) continue;
           const m = Number(iso.slice(5, 7)) || 0;
           if (m >= 1 && m <= 12) next[m - 1] = fromRecord(m, rec);
@@ -227,20 +225,20 @@ export function FireCodeFeesYearEditorBody({
     return () => {
       cancelled = true;
     };
-  }, [station.stationno, station.provinceno, year, reloadNonce]);
+  }, [station.Stationno, station.Provinceno, year, reloadNonce]);
 
   /* Revision requests ----------------------------------------------------- */
   const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
   React.useEffect(() => {
-    if (!station.stationno) return;
+    if (!station.Stationno) return;
     let cancelled = false;
     (async () => {
       const resp = await revisionrequestAPI.getLedger(
         {
-          stationno: station.stationno,
+          stationno: station.Stationno,
           reportyear: year,
           reportmonth: 0,
-          provinceno: station.provinceno || EMPTY_GUID,
+          provinceno: station.Provinceno || EMPTY_GUID,
           requesttype: "COMPLIANCE",
           pagenumber: 1,
           pagesize: 100,
@@ -254,7 +252,7 @@ export function FireCodeFeesYearEditorBody({
     return () => {
       cancelled = true;
     };
-  }, [station.stationno, station.provinceno, year, reloadNonce]);
+  }, [station.Stationno, station.Provinceno, year, reloadNonce]);
 
   const pendingFor = React.useCallback(
     (m: MonthState) =>
@@ -267,22 +265,34 @@ export function FireCodeFeesYearEditorBody({
     [revisionRequests, year],
   );
 
+  /** Approved revision request that unlocks a month. */
+  const approvedFor = React.useCallback(
+    (m: MonthState) =>
+      revisionRequests.find((r) => {
+        if (r.statuscode?.toUpperCase() !== "APPROVED") return false;
+        if (m.feeno && String(r.referencekey) === m.feeno) return true;
+        if (r.dateinspected) return String(r.dateinspected).slice(0, 10) === monthKey(year, m.month);
+        return Number(r.reportmonth) === m.month && Number(r.reportyear) === year;
+      }) ?? null,
+    [revisionRequests, year],
+  );
+
   /** Per-month lock resolution — mirrors the compliance editor rules. */
   const lockInfo = React.useCallback(
     (m: MonthState) => {
-      const unlockedByApproval = m.editablestatus === 153;
+      const unlockedByApproval = !!approvedFor(m);
       const request = pendingFor(m);
-      const pending = !unlockedByApproval && (m.isrevisionrequest || !!request);
+      const pending = !unlockedByApproval && !!request;
       const past = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, m.month);
       const locked = readOnly || (!unlockedByApproval && (past || pending));
       const needsRequest = !readOnly && past && !unlockedByApproval && !pending;
       return { locked, pending, past, unlockedByApproval, request, needsRequest };
     },
-    [pendingFor, readOnly, year],
+    [approvedFor, pendingFor, readOnly, year],
   );
 
   const setAmount = React.useCallback(
-    (month: number, sector: FireCodeSectorKey, mode: ModeCode, key: string, raw: string) => {
+    (month: number, sector: FireCodeSectorKey, mode: ModeCode, feecateg: number, raw: string) => {
       setMonths((prev) =>
         prev.map((m) =>
           m.month !== month
@@ -293,7 +303,7 @@ export function FireCodeFeesYearEditorBody({
                   ...m.values,
                   [sector]: {
                     ...m.values[sector],
-                    [mode]: { ...m.values[sector][mode], [key]: toAmount(raw) },
+                    [mode]: { ...m.values[sector][mode], [feecateg]: toAmount(raw) },
                   },
                 },
               },
@@ -324,27 +334,36 @@ export function FireCodeFeesYearEditorBody({
     }
     setSaving(true);
     try {
-      const collectionlist: FireCodeFeeClassModel[] = updates.map((m) => {
-        const feelist: FireCodeFeeItemClass[] = [];
+      const fsisfeeList: FSISFeeCollectionClass[] = updates.map((m) => {
+        const fsisfeecollectionList: FSISFeeCollectionClassDTO[] = [];
         for (const s of FEE_SECTORS) {
           if (!visibleSectors[s.key]) continue;
           for (const mode of MODES) {
             const amounts = m.values[s.key][mode.code];
-            feelist.push({
-              itemno: m.itemNos[`${s.key}|${mode.code}`] || EMPTY_GUID,
-              sector: s.code,
-              fsicmode: mode.code,
-              ...(Object.fromEntries(FEE_KEYS.map((k) => [k, amounts[k] ?? 0])) as Record<string, number>),
-            } as FireCodeFeeItemClass);
+            for (const c of categories) {
+              fsisfeecollectionList.push({
+                Accomplishno: m.accomplishNos[`${s.key}|${mode.code}|${c.detno}`] || EMPTY_GUID,
+                Fsicmode: mode.code,
+                Feecateg: c.detno,
+                Collectedamount: amounts[c.detno] ?? 0,
+                Sectorno: s.code,
+              });
+            }
           }
         }
         return {
-          feeno: m.feeno || EMPTY_GUID,
-          datecollected: toCollectedDate(new Date(year, m.month - 1, 1)),
-          feelist,
+          Feeno: m.feeno || EMPTY_GUID,
+          Dateaccomplish: toDateaccomplish(year, m.month),
+          Isaccomplished: true,
+          Remarks: "",
+          fsisfeecollectionList,
         };
       });
-      const resp = await fireCodeFeesAPI.create({ stationno: station.stationno, encodedby, collectionlist });
+      const resp = await firecodefeesAPI.create({
+        Stationno: station.Stationno,
+        Encodedby: encodedby,
+        fsisfeeList,
+      });
       const { ok, error } = unwrap(resp);
       if (!ok) {
         toast.error(error || "Unable to save the Fire Code Fees collection.");
@@ -409,11 +428,11 @@ export function FireCodeFeesYearEditorBody({
 
       {/* 2. Station information */}
       <StationInfoCard
-        stationName={station.stationname}
-        unitCode={station.stationcode || ""}
-        logoUrl={station.logoUrl || null}
-        cityName={station.cityname || ""}
-        provinceName={station.provincename || ""}
+        stationName={station.Stationname}
+        unitCode={station.Stationcode || ""}
+        logoUrl={null}
+        cityName=""
+        provinceName={station.Provincename || ""}
       />
 
       {/* 3. Sector visibility */}
@@ -638,12 +657,12 @@ export function FireCodeFeesYearEditorBody({
           onOpenChange={(o) => !o && setRevisionMonth(null)}
           module="monitoring"
           station={{
-            stationno: station.stationno,
-            stationcode: station.stationcode ?? "",
-            stationname: station.stationname,
-            provinceno: station.provinceno ?? "",
-            provincename: station.provincename ?? "",
-            cityname: station.cityname ?? "",
+            stationno: station.Stationno,
+            stationcode: station.Stationcode ?? "",
+            stationname: station.Stationname,
+            provinceno: station.Provinceno ?? "",
+            provincename: station.Provincename ?? "",
+            cityname: "",
           }}
           year={year}
           month={revisionMonth.month}
@@ -665,7 +684,7 @@ export function FireCodeFeesYearEditorBody({
           if (!cancelRequestId) return;
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
-            stationno: station.stationno || EMPTY_GUID,
+            stationno: station.Stationno || EMPTY_GUID,
             requesttype: "COMPLIANCE",
             remarks: [reason, remarks].filter(Boolean).join(" — "),
             statusno: 155,

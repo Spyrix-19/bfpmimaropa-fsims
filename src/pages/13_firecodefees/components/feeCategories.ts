@@ -2,7 +2,7 @@ import * as React from "react";
 import { gentableAPI } from "@/services/gentableAPI";
 import { unwrap } from "@/lib/api-envelope";
 import type { SearchGentableModel } from "@/types/gentableType";
-import { FEE_GROUPS, FEE_KEYS } from "../feeColumns";
+import { FEE_COLUMNS } from "../feeColumns";
 
 /** Gentable lookup that drives the Fire Code Fees entry form layout. */
 export const FEE_CATEGORY_TABLE = "FIRE CODE FEES CATEGORY";
@@ -23,15 +23,13 @@ export interface FeeCategory {
  * the report column position until the gentable lookup resolves the real
  * `Feecateg` codes.
  */
-export const STATIC_FEE_CATEGORIES: FeeCategory[] = FEE_GROUPS.flatMap((g) =>
-  g.cols.map((c) => ({
-    key: c.key,
-    detno: 0,
-    code: g.code ?? "",
-    label: g.cols.length > 1 ? `${g.label} — ${c.label}` : g.label,
-    groupLabel: g.label,
-  })),
-).map((c, i) => ({ ...c, detno: i + 1 }));
+export const STATIC_FEE_CATEGORIES: FeeCategory[] = FEE_COLUMNS.map((c) => ({
+  key: c.key,
+  detno: c.categ,
+  code: c.code,
+  label: c.label === "Amount" ? c.groupLabel : `${c.groupLabel} — ${c.label}`,
+  groupLabel: c.groupLabel,
+}));
 
 /**
  * Loads the fee categories from `Gentable/Code`. The lookup is returned in
@@ -53,11 +51,11 @@ export function useFeeCategories() {
       const { ok, data } = unwrap<SearchGentableModel[]>(resp);
       if (cancelled) return;
       const rows = ok && Array.isArray(data) ? [...data] : [];
-      if (rows.length === FEE_KEYS.length) {
+      if (rows.length === FEE_COLUMNS.length) {
         rows.sort((a, b) => Number(a.sortorder ?? 0) - Number(b.sortorder ?? 0));
         setCategories(
           rows.map((r, i) => ({
-            key: FEE_KEYS[i],
+            key: FEE_COLUMNS[i].key,
             detno: Number(r.detno ?? 0) || STATIC_FEE_CATEGORIES[i].detno,
             code: String(r.recordcode ?? ""),
             label: String(r.description ?? STATIC_FEE_CATEGORIES[i].label),

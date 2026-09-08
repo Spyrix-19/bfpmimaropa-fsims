@@ -3,8 +3,7 @@ import {
   type LedgerExcelSignatory,
   type LedgerExcelStation,
 } from "@/lib/ledger-excel";
-import { FEE_SECTORS } from "../feeColumns";
-import type { FireCodeFeeLedgerRow } from "@/types/firecodefeesType";
+import { FEE_SECTORS, type FireCodeFeeLedgerRow } from "../feeColumns";
 
 /* ------------------------------------------------------------------ *
  * Fire Code Fees — station ledger workbook.
@@ -25,10 +24,10 @@ export async function exportFireCodeFeesLedgerWorkbook(opts: {
   signatory?: LedgerExcelSignatory;
 }) {
   const rows: LedgerExcelStation[] = opts.rows.map((r) => ({
-    stationname: r.stationname,
-    unitcode: r.stationcode,
-    cityname: r.cityname ?? "",
-    provincename: r.provincename,
+    stationname: r.Stationname,
+    unitcode: r.Stationcode,
+    cityname: "",
+    provincename: r.Provincename,
     bplo: r.sectorTotals.bplo,
     gov: r.sectorTotals.gov,
     peza: r.sectorTotals.peza,
