@@ -41,6 +41,20 @@ import {
 } from "@/types/firecodefeesType";
 import { FEE_GROUPS, FEE_KEYS, FEE_SECTORS, peso } from "./feeColumns";
 import { exportFireCodeFeesLedgerWorkbook } from "./components/fireCodeFeesLedgerExport";
+import EditButton from "@/components/edit-button";
+import FireCodeFeesFormModal from "./components/fireCodeFeesNew";
+
+/** Station + period context handed to the entry form when editing a ledger card. */
+interface FeeFormTarget {
+  year?: number;
+  month?: number;
+  station?: {
+    stationno: string;
+    stationname: string;
+    provinceno?: string;
+    provincename?: string;
+  };
+}
 
 /* ------------------------------------------------------------------ *
  * Helpers
@@ -252,7 +266,28 @@ export default function FireCodeFeesPage() {
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
   const [matrixOpen, setMatrixOpen] = React.useState(false);
-  const [addOpen, setAddOpen] = React.useState(false);
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [formTarget, setFormTarget] = React.useState<FeeFormTarget>({});
+  const [reloadKey, setReloadKey] = React.useState(0);
+
+  const openAddForm = React.useCallback(() => {
+    setFormTarget({ year: Number(year), month: Number(selectedMonths[0] ?? 1) });
+    setFormOpen(true);
+  }, [year, selectedMonths]);
+
+  const openEditForm = React.useCallback((row: FireCodeFeeLedgerRow) => {
+    setFormTarget({
+      year: row.year,
+      month: row.month,
+      station: {
+        stationno: row.stationno,
+        stationname: row.stationname,
+        provinceno: row.provinceno,
+        provincename: row.provincename,
+      },
+    });
+    setFormOpen(true);
+  }, []);
 
   React.useEffect(() => {
     if (!user) navigate("/");
@@ -350,7 +385,7 @@ export default function FireCodeFeesPage() {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month, monthsKey, intervalCode, locationParamsKey, page, pageSize]);
+  }, [year, month, monthsKey, intervalCode, locationParamsKey, page, pageSize, reloadKey]);
 
   React.useEffect(() => {
     setPage(1);
@@ -430,7 +465,7 @@ export default function FireCodeFeesPage() {
             <LayoutGrid className="h-4 w-4" /> Fire Code Fees Matrix
           </Button>
 
-          <AddButton onClick={() => setAddOpen(true)} className="w-full justify-center sm:w-auto">
+          <AddButton onClick={openAddForm} className="w-full justify-center sm:w-auto">
             <Plus className="h-4 w-4" /> Add Record
           </AddButton>
 
@@ -480,6 +515,7 @@ export default function FireCodeFeesPage() {
               row={r}
               groupBy={granularity}
               periodLabel={periodLabel}
+              onEdit={() => openEditForm(r)}
             />
           ))}
         </div>
@@ -517,7 +553,10 @@ export default function FireCodeFeesPage() {
                       Station
                     </th>
                     {FEE_SECTORS.map((sector) => (
-                      <th key={sector.key} className="bg-background px-3 py-2 text-right font-semibold">
+                      <th
+                        key={sector.key}
+                        className="bg-background px-3 py-2 text-right font-semibold"
+                      >
                         {sector.title}
                       </th>
                     ))}
@@ -535,9 +574,7 @@ export default function FireCodeFeesPage() {
                           {peso(row.sectorTotals[sector.key] ?? 0)}
                         </td>
                       ))}
-                      <td className="px-3 py-2 text-right font-semibold">
-                        {peso(row.grandTotal)}
-                      </td>
+                      <td className="px-3 py-2 text-right font-semibold">{peso(row.grandTotal)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -547,34 +584,17 @@ export default function FireCodeFeesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add Fire Code Fee Record</DialogTitle>
-            <DialogDescription>
-              Create a collection record from the ledger view. This screen currently prepares the
-              station and period context, and the actual record form can be added once the backend
-              create endpoint is confirmed.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 rounded-lg border border-dashed border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground">
-            <p>
-              The current Fire Code Fees module is read-focused. Use the existing filters and export
-              view to prepare the period before adding records in the configured backend workflow.
-            </p>
-            <p className="font-medium text-foreground">
-              Selected period: {periodLabel || `${monthLabel(String(year))} ${year}`}
-            </p>
-          </div>
-
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FireCodeFeesFormModal
+        open={formOpen}
+        onOpenChange={(o) => {
+          setFormOpen(o);
+          if (!o) setFormTarget({});
+        }}
+        initialYear={formTarget.year}
+        initialMonth={formTarget.month}
+        initialStation={formTarget.station}
+        onSaved={() => setReloadKey((k) => k + 1)}
+      />
     </div>
   );
 }
@@ -774,14 +794,15 @@ function FireCodeFeesLedgerCard({
   row,
   groupBy,
   periodLabel,
+  onEdit,
 }: {
   row: FireCodeFeeLedgerRow;
   groupBy: Granularity;
   periodLabel: string | null;
+  onEdit?: () => void;
 }) {
   const lines = React.useMemo(() => buildFeeLines(row.records, groupBy), [row.records, groupBy]);
-  const periodHeading =
-    groupBy === "month" ? "Month" : groupBy === "annual" ? "Year" : "Period";
+  const periodHeading = groupBy === "month" ? "Month" : groupBy === "annual" ? "Year" : "Period";
 
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   const toggle = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -814,12 +835,22 @@ function FireCodeFeesLedgerCard({
             {row.provincename}
           </div>
         </div>
-        <div
-          className="grid h-10 min-w-[6rem] place-items-center rounded-lg bg-primary/10 px-2 text-center text-primary"
-          title="Total collection"
-        >
-          <div className="text-[8px] font-bold uppercase leading-none">Total</div>
-          <div className="text-xs font-bold leading-none">{peso(row.grandTotal)}</div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div
+            className="grid h-10 min-w-[6rem] place-items-center rounded-lg bg-primary/10 px-2 text-center text-primary"
+            title="Total collection"
+          >
+            <div className="text-[8px] font-bold uppercase leading-none">Total</div>
+            <div className="text-xs font-bold leading-none">{peso(row.grandTotal)}</div>
+          </div>
+          {onEdit ? (
+            <EditButton
+              variant="circle"
+              onClick={onEdit}
+              ariaLabel={`Edit Fire Code Fees collection for ${row.stationname}`}
+              tooltip="Edit collection"
+            />
+          ) : null}
         </div>
       </div>
 

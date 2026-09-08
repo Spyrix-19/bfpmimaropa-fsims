@@ -363,7 +363,12 @@ export function FireCodeFeesFormBody({
   onCancel?: () => void;
   initialYear?: number;
   initialMonth?: number;
-  initialStation?: { stationno: string; stationname: string; provinceno?: string; provincename?: string };
+  initialStation?: {
+    stationno: string;
+    stationname: string;
+    provinceno?: string;
+    provincename?: string;
+  };
 }) {
   const { user, systemAccess } = useAuth();
   const scope = React.useMemo(
@@ -398,8 +403,7 @@ export function FireCodeFeesFormBody({
     if (scope.provinceLocked) return { no: scope.provinceno, name: scope.provincename };
     if (initialStation?.provinceno)
       return { no: initialStation.provinceno, name: initialStation.provincename ?? "" };
-    if (isSuper && user?.provinceno)
-      return { no: user.provinceno, name: user.provincename ?? "" };
+    if (isSuper && user?.provinceno) return { no: user.provinceno, name: user.provincename ?? "" };
     return { no: "", name: "" };
   });
   const [station, setStation] = React.useState<{
@@ -445,7 +449,6 @@ export function FireCodeFeesFormBody({
       >,
   );
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({ bplo: true });
-  const [remarks, setRemarks] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
 
@@ -475,7 +478,6 @@ export function FireCodeFeesFormBody({
 
   const clearValues = React.useCallback(() => {
     setValues(emptyValues());
-    setRemarks("");
     setErrors({});
   }, []);
 
@@ -501,7 +503,6 @@ export function FireCodeFeesFormBody({
     }
     setValues(next);
     setExistingItemNos(itemNos);
-    setRemarks(String(rec.remarks ?? ""));
     setExistingFeeno(String(rec.feeno));
     setErrors({});
   }, []);
@@ -671,7 +672,6 @@ export function FireCodeFeesFormBody({
           {
             feeno: existingFeeno || EMPTY_GUID,
             datecollected: toCollectedDate(collectedDate),
-            remarks,
             feelist,
           },
         ],
@@ -712,7 +712,11 @@ export function FireCodeFeesFormBody({
           <Field label="Date Collected" required>
             <Popover open={dateOpen} onOpenChange={setDateOpen}>
               <PopoverTrigger asChild>
-                <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start font-normal"
+                >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {format(collectedDate, "PPP")}
                 </Button>
@@ -782,7 +786,11 @@ export function FireCodeFeesFormBody({
                   if (scope.stationLocked) return;
                   setStation({ no, name, model: model ?? null });
                   if (errors.stationno) setErrors((e) => ({ ...e, stationno: "" }));
-                  if (!scope.provinceLocked && model?.provinceno && model.provinceno !== province.no) {
+                  if (
+                    !scope.provinceLocked &&
+                    model?.provinceno &&
+                    model.provinceno !== province.no
+                  ) {
                     setProvince({ no: model.provinceno, name: model.provincename ?? "" });
                     if (errors.provinceno) setErrors((e) => ({ ...e, provinceno: "" }));
                   }
@@ -834,7 +842,9 @@ export function FireCodeFeesFormBody({
                 }
               />
               <span>{s.label}</span>
-              <span className="font-normal text-muted-foreground">{s.title.replace(`${s.label} `, "")}</span>
+              <span className="font-normal text-muted-foreground">
+                {s.title.replace(`${s.label} `, "")}
+              </span>
             </label>
           ))}
         </div>
@@ -861,17 +871,9 @@ export function FireCodeFeesFormBody({
         </Card>
       ))}
 
-      {/* 5. Remarks + grand total */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-          <Field label="Remarks">
-            <Input
-              value={remarks}
-              disabled={fieldsLocked}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Optional note for this collection day"
-            />
-          </Field>
+      {/* 5. Grand total */}
+      <Card className="border-border/60 bg-card p-5 shadow-soft">
+        <div className="flex justify-end">
           <div className="rounded-lg bg-primary/10 px-4 py-2 text-right text-primary">
             <div className="text-[10px] font-bold uppercase">Grand Total</div>
             <div className="text-base font-bold tabular-nums">{peso(grandTotal)}</div>
