@@ -16,10 +16,10 @@ import {
 
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
-import { cn } from "@/lib/utils";
+import { buildYears, cn } from "@/lib/utils";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { EMPTY_GUID, MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
-import { formatLongDate, serializePhilippineDateTime } from "@/lib/date-format";
+import { serializePhilippineDateTime } from "@/lib/date-format";
 import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 
 import { Card } from "@/components/ui/card";
@@ -27,8 +27,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   Dialog,
@@ -64,18 +69,18 @@ import { groupCategories, useFeeCategories, type FeeCategory } from "./feeCatego
 /*  Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-const MODES = [
+export const MODES = [
   { code: FIRE_CODE_MODE_MANUAL, label: "MANUAL" },
   { code: FIRE_CODE_MODE_FSIC, label: "FSIC" },
 ] as const;
 
-type ModeCode = (typeof MODES)[number]["code"];
-type Amounts = Record<string, number>;
-type SectorValues = Record<FireCodeSectorKey, Record<ModeCode, Amounts>>;
+export type ModeCode = (typeof MODES)[number]["code"];
+export type Amounts = Record<string, number>;
+export type SectorValues = Record<FireCodeSectorKey, Record<ModeCode, Amounts>>;
 
 const emptyAmounts = (): Amounts => Object.fromEntries(FEE_KEYS.map((k) => [k, 0]));
 
-const emptyValues = (): SectorValues =>
+export const emptyValues = (): SectorValues =>
   Object.fromEntries(
     FEE_SECTORS.map((s) => [
       s.key,
@@ -83,13 +88,19 @@ const emptyValues = (): SectorValues =>
     ]),
   ) as SectorValues;
 
-/** Midnight of the current local day, in ms. */
-function startOfToday(): number {
+/** First day of the current month, in ms. Fire Code Fees are monthly, so a
+ *  reporting period only counts as "past" once its month has fully ended. */
+function startOfCurrentMonth(): number {
   const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+  return new Date(n.getFullYear(), n.getMonth(), 1).getTime();
 }
 
-function toCollectedDate(date: Date): string {
+/** True when the given year/month is earlier than the current month. */
+export function isPastMonth(year: number, month: number): boolean {
+  return new Date(year, month - 1, 1).getTime() < startOfCurrentMonth();
+}
+
+export function toCollectedDate(date: Date): string {
   return serializePhilippineDateTime(
     new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
   );
@@ -105,13 +116,13 @@ function sanitizeAmount(raw: string): string {
   return dec === undefined ? cleanWhole : `${cleanWhole}.${dec.slice(0, 2)}`;
 }
 
-const toAmount = (raw: string) => {
+export const toAmount = (raw: string) => {
   const n = Number(sanitizeAmount(raw));
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
 /** Pulls every collection day out of whatever shape the detail endpoint returns. */
-function pickFeeRecord(data: unknown): FireCodeFeeClassModel | null {
+export function pickFeeRecord(data: unknown): FireCodeFeeClassModel | null {
   const rows: FireCodeFeeClassModel[] = [];
   const walk = (value: unknown) => {
     if (!value || typeof value !== "object") return;
@@ -128,7 +139,7 @@ function pickFeeRecord(data: unknown): FireCodeFeeClassModel | null {
   return rows.find((r) => r.feeno && String(r.feeno) !== EMPTY_GUID) ?? null;
 }
 
-const sectorByCode = new Map<number, FireCodeSectorKey>(FEE_SECTORS.map((s) => [s.code, s.key]));
+export const sectorByCode = new Map<number, FireCodeSectorKey>(FEE_SECTORS.map((s) => [s.code, s.key]));
 
 /* -------------------------------------------------------------------------- */
 /*  Small presentational pieces                                                */
@@ -253,7 +264,7 @@ function AmountInput({
 }
 
 /** One sector panel: every fee category with a MANUAL and an FSIC amount. */
-function SectorPanel({
+export function SectorPanel({
   sectorTitle,
   categories,
   values,
@@ -378,23 +389,20 @@ export function FireCodeFeesFormBody({
   const isSuper = Number(systemAccess?.roleno ?? 0) === 1;
   const { categories } = useFeeCategories();
 
-  /* Reporting period ------------------------------------------------------ */
-  const [collectedDate, setCollectedDate] = React.useState<Date>(() => {
+  /* Reporting period (monthly basis — the record is keyed on the 1st) ------ */
+  const YEARS = React.useMemo(buildYears, []);
+  const [year, setYear] = React.useState<number>(() => {
     const now = new Date();
-    const y = initialYear && initialYear > 1900 ? initialYear : now.getFullYear();
-    const m =
-      initialMonth && initialMonth >= 1 && initialMonth <= 12 ? initialMonth : now.getMonth() + 1;
-    const lastDay = new Date(y, m, 0).getDate();
-    return new Date(y, m - 1, Math.min(now.getDate(), lastDay));
+    return initialYear && initialYear > 1900 ? initialYear : now.getFullYear();
   });
-  const [dateOpen, setDateOpen] = React.useState(false);
-  const [calendarMonth, setCalendarMonth] = React.useState<Date>(() => collectedDate);
-  React.useEffect(() => {
-    if (dateOpen) setCalendarMonth(collectedDate);
-  }, [dateOpen, collectedDate]);
-
-  const year = collectedDate.getFullYear();
-  const month = collectedDate.getMonth() + 1;
+  const [month, setMonth] = React.useState<number>(() => {
+    const now = new Date();
+    return initialMonth && initialMonth >= 1 && initialMonth <= 12
+      ? initialMonth
+      : now.getMonth() + 1;
+  });
+  const lockedPeriod = !!initialStation?.stationno && !!initialYear && !!initialMonth;
+  const collectedDate = React.useMemo(() => new Date(year, month - 1, 1), [year, month]);
   const monthName = MONTHS.find((m) => m.value === month)?.name ?? "";
   const selectedDateKey = format(collectedDate, "yyyy-MM-dd");
 
@@ -540,7 +548,7 @@ export function FireCodeFeesFormBody({
         editablestatus: Number(meta.editablestatus ?? 0),
       });
       setPendingExisting(record);
-      const isPast = IS_PAST_DATE_LOCK_ENABLED && collectedDate.getTime() < startOfToday();
+      const isPast = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, month);
       const unlocked = Number(meta.editablestatus ?? 0) === 153;
       const locked = !unlocked && (isPast || Boolean(meta.isrevisionrequest));
       setExistingLocked(locked);
@@ -594,7 +602,7 @@ export function FireCodeFeesFormBody({
     };
   }, [station.no, scope.stationLocked, scope.stationno, province.no, year, reloadNonce]);
 
-  const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && collectedDate.getTime() < startOfToday();
+  const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, month);
   const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
   const activeRequest = React.useMemo(
     () =>
@@ -720,38 +728,47 @@ export function FireCodeFeesFormBody({
 
       {/* 1. Reporting period */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-        <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
-        <div className="grid grid-cols-1 gap-4 sm:max-w-md">
-          <Field label="Date Collected" required>
-            <Popover open={dateOpen} onOpenChange={setDateOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-start font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(collectedDate, "PPP")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={collectedDate}
-                  defaultMonth={collectedDate}
-                  month={calendarMonth}
-                  onMonthChange={setCalendarMonth}
-                  onSelect={(d) => {
-                    if (d) {
-                      setCollectedDate(d);
-                      setDateOpen(false);
-                    }
-                  }}
-                  initialFocus
-                  className="pointer-events-auto p-3"
-                />
-              </PopoverContent>
-            </Popover>
+        <SectionTitle
+          icon={<CalendarIcon className="h-4 w-4" />}
+          title="Reporting Period"
+          subtitle="Fire Code Fees are collected and reported on a monthly basis."
+        />
+        <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+          <Field label="Month" required>
+            <Select
+              value={String(month)}
+              onValueChange={(v) => setMonth(Number(v))}
+              disabled={lockedPeriod}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={String(m.value)}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Year" required>
+            <Select
+              value={String(year)}
+              onValueChange={(v) => setYear(Number(v))}
+              disabled={lockedPeriod}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {YEARS.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
         <p className="text-[11px] text-muted-foreground">
@@ -1037,7 +1054,7 @@ export function FireCodeFeesFormBody({
         title="Fire Code Fees Collection Already Exists"
         description={`A collection record already exists for ${
           station.name || "this station"
-        } on ${formatLongDate(collectedDate)}.\n\n${
+        } for ${monthName} ${year}.\n\n${
           existingLocked
             ? "This record is already locked — it will be opened as read-only and any change will require a revision request."
             : "Do you want to open and edit the existing record?"
