@@ -16,6 +16,11 @@ export const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 export const FIRE_CODE_MODE_MANUAL = 96;
 export const FIRE_CODE_MODE_FSIC = 97;
 
+export const SECTOR_BPLO = 111;
+export const SECTOR_GOV = 112;
+export const SECTOR_PEZA = 113;
+export const SECTOR_TIEZA = 114;
+
 /**
  * FSIMS system identity. `systemno` is the authoritative key returned by the
  * Login API's `member.systemaccess[]`; `systemcode` is kept as a fallback for
