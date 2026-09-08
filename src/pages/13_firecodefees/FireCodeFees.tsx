@@ -10,12 +10,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import AddButton from "@/components/add-button";
-import { Coins, Download, Loader2, ChevronDown, ChevronUp, LayoutGrid, Plus } from "lucide-react";
+import {
+  Coins,
+  Download,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  LayoutGrid,
+  Plus,
+  Eye,
+} from "lucide-react";
 
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
-import { canManageTargetAndCompliance } from "@/lib/permissions";
+import { canManageTargetAndCompliance, canShowEditAction } from "@/lib/permissions";
 import { MONTHS } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { usePagination } from "@/hooks/usePagination";
@@ -43,7 +52,12 @@ import {
 import { FEE_GROUPS, FEE_KEYS, FEE_SECTORS, peso } from "./feeColumns";
 import { exportFireCodeFeesLedgerWorkbook } from "./components/fireCodeFeesLedgerExport";
 import EditButton from "@/components/edit-button";
+import DeleteButton from "@/components/delete-button";
+import SecureDeleteDialog from "@/components/secure-delete-dialog";
 import FireCodeFeesFormModal from "./components/fireCodeFeesNew";
+import FireCodeFeesYearEditorModal, {
+  type FeeEditorStation,
+} from "./components/fireCodeFeesEdit";
 
 /** Station + period context handed to the entry form when editing a ledger card. */
 interface FeeFormTarget {
@@ -196,8 +210,10 @@ export default function FireCodeFeesPage() {
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
   );
+  // Edit / Delete require Personnel at station types 28–31 (or Super Admin)
+  // and must stay hidden for the restricted role/station-type combinations.
   const canManage = React.useMemo(
-    () => canManageTargetAndCompliance(user, systemAccess),
+    () => canManageTargetAndCompliance(user, systemAccess) && canShowEditAction(user, systemAccess),
     [user, systemAccess],
   );
 
@@ -271,9 +287,21 @@ export default function FireCodeFeesPage() {
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
   const [matrixOpen, setMatrixOpen] = React.useState(false);
+  const [matrixRow, setMatrixRow] = React.useState<FireCodeFeeLedgerRow | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
   const [formTarget, setFormTarget] = React.useState<FeeFormTarget>({});
   const [reloadKey, setReloadKey] = React.useState(0);
+
+  // Year editor (View / Edit) for one station.
+  const [editorOpen, setEditorOpen] = React.useState(false);
+  const [editorReadOnly, setEditorReadOnly] = React.useState(true);
+  const [editorStation, setEditorStation] = React.useState<FeeEditorStation | null>(null);
+  const [editorYear, setEditorYear] = React.useState<number>(Number(filterState.year));
+
+  // Secure delete
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<FireCodeFeeLedgerRow | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const openAddForm = React.useCallback(() => {
     // New collections always start on today's date, never on the list filters.
@@ -281,19 +309,57 @@ export default function FireCodeFeesPage() {
     setFormOpen(true);
   }, []);
 
-  const openEditForm = React.useCallback((row: FireCodeFeeLedgerRow) => {
-    setFormTarget({
-      year: row.year,
-      month: row.month,
-      station: {
-        stationno: row.stationno,
-        stationname: row.stationname,
-        provinceno: row.provinceno,
-        provincename: row.provincename,
-      },
-    });
-    setFormOpen(true);
+  const toEditorStation = (row: FireCodeFeeLedgerRow): FeeEditorStation => ({
+    stationno: row.stationno,
+    stationcode: row.stationcode,
+    stationname: row.stationname,
+    provinceno: row.provinceno,
+    provincename: row.provincename,
+    cityname: row.cityname,
+    logoUrl: row.logoUrl,
+  });
+
+  const openEditor = React.useCallback((row: FireCodeFeeLedgerRow, readOnly: boolean) => {
+    setEditorStation(toEditorStation(row));
+    setEditorYear(Number(row.year));
+    setEditorReadOnly(readOnly);
+    setEditorOpen(true);
   }, []);
+
+  const openStationMatrix = React.useCallback((row: FireCodeFeeLedgerRow) => {
+    setMatrixRow(row);
+    setMatrixOpen(true);
+  }, []);
+
+  const askDelete = React.useCallback((row: FireCodeFeeLedgerRow) => {
+    setDeleteTarget(row);
+    setDeleteOpen(true);
+  }, []);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const resp = await fireCodeFeesAPI.delete({
+        stationno: deleteTarget.stationno,
+        reportyear: Number(deleteTarget.year),
+        reportmonth: Number(deleteTarget.month),
+        deletedby: user?.memberno ?? "",
+        roleno: Number(systemAccess?.roleno ?? 0) || 0,
+      });
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || "Unable to delete this Fire Code Fees collection record.");
+        return;
+      }
+      toast.success("Fire Code Fees collection record deleted.");
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+      setReloadKey((k) => k + 1);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   React.useEffect(() => {
     if (!user) navigate("/");
@@ -479,7 +545,10 @@ export default function FireCodeFeesPage() {
 
           <Button
             variant="outline"
-            onClick={() => setMatrixOpen(true)}
+            onClick={() => {
+              setMatrixRow(null);
+              setMatrixOpen(true);
+            }}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
           >
             <LayoutGrid className="h-4 w-4" /> Fire Code Fees Matrix
@@ -523,7 +592,11 @@ export default function FireCodeFeesPage() {
               row={r}
               groupBy={granularity}
               periodLabel={periodLabel}
-              onEdit={canManage ? () => openEditForm(r) : undefined}
+              canManage={canManage}
+              onView={() => openEditor(r, true)}
+              onEdit={() => openEditor(r, false)}
+              onDelete={() => askDelete(r)}
+              onMatrix={() => openStationMatrix(r)}
             />
           ))}
         </div>
@@ -539,17 +612,29 @@ export default function FireCodeFeesPage() {
         />
       </div>
 
-      <Dialog open={matrixOpen} onOpenChange={setMatrixOpen}>
+      <Dialog
+        open={matrixOpen}
+        onOpenChange={(o) => {
+          setMatrixOpen(o);
+          if (!o) setMatrixRow(null);
+        }}
+      >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Fire Code Fees Matrix</DialogTitle>
+            <DialogTitle>
+              {matrixRow ? `${matrixRow.stationname} — Fire Code Fees Matrix` : "Fire Code Fees Matrix"}
+            </DialogTitle>
             <DialogDescription>
-              Sector totals for the current Fire Code Fees ledger period.
+              {matrixRow
+                ? `Sector totals per period for this station · ${periodLabel}`
+                : "Sector totals for the current Fire Code Fees ledger period."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="max-h-[70vh] overflow-auto rounded-lg border border-border/60">
-            {rows.length === 0 ? (
+            {matrixRow ? (
+              <StationMatrixTable row={matrixRow} groupBy={granularity} />
+            ) : rows.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
                 No collection records for the selected period.
               </div>
@@ -602,6 +687,35 @@ export default function FireCodeFeesPage() {
         initialMonth={formTarget.month}
         initialStation={formTarget.station}
         onSaved={() => setReloadKey((k) => k + 1)}
+      />
+
+      <FireCodeFeesYearEditorModal
+        open={editorOpen}
+        onOpenChange={(o) => {
+          setEditorOpen(o);
+          if (!o) setEditorStation(null);
+        }}
+        station={editorStation}
+        year={editorYear}
+        readOnly={editorReadOnly}
+        onSaved={() => setReloadKey((k) => k + 1)}
+      />
+
+      <SecureDeleteDialog
+        open={deleteOpen}
+        onOpenChange={(o) => !deleting && setDeleteOpen(o)}
+        title="Delete Fire Code Fees collection?"
+        subject={
+          deleteTarget ? (
+            <>
+              {deleteTarget.stationname} — {periodLabel}
+            </>
+          ) : null
+        }
+        description="This deletes the Fire Code Fees collection records for the selected station and period. This action cannot be undone."
+        confirmLabel="Delete"
+        deleting={deleting}
+        onConfirm={confirmDelete}
       />
     </div>
   );
@@ -798,16 +912,94 @@ function SectorTable({
   );
 }
 
+/** Per-station matrix: one row per period bucket, sector totals across. */
+function StationMatrixTable({
+  row,
+  groupBy,
+}: {
+  row: FireCodeFeeLedgerRow;
+  groupBy: Granularity;
+}) {
+  const lines = React.useMemo(() => buildFeeLines(row.records, groupBy), [row.records, groupBy]);
+
+  if (lines.length === 0) {
+    return (
+      <div className="p-6 text-center text-sm text-muted-foreground">
+        No collection records for this station in the selected period.
+      </div>
+    );
+  }
+
+  return (
+    <table className="min-w-full border-separate border-spacing-0 text-sm">
+      <thead>
+        <tr>
+          <th className="sticky left-0 top-0 bg-background px-3 py-2 text-left font-semibold">
+            Period
+          </th>
+          {FEE_SECTORS.map((sector) => (
+            <th key={sector.key} className="bg-background px-3 py-2 text-right font-semibold">
+              {sector.title}
+            </th>
+          ))}
+          <th className="bg-background px-3 py-2 text-right font-semibold">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {lines.map((line) => {
+          const perSector = FEE_SECTORS.map((s) => ({
+            key: s.key,
+            value: sumAmounts(totalsForSector([line], s.key).combined),
+          }));
+          const lineTotal = perSector.reduce((a, b) => a + b.value, 0);
+          return (
+            <tr key={line.key} className="border-t border-border/40">
+              <td className="sticky left-0 bg-background px-3 py-2 text-left font-medium">
+                {line.label}
+              </td>
+              {perSector.map((s) => (
+                <td key={s.key} className="px-3 py-2 text-right">
+                  {peso(s.value)}
+                </td>
+              ))}
+              <td className="px-3 py-2 text-right font-semibold">{peso(lineTotal)}</td>
+            </tr>
+          );
+        })}
+        <tr className="border-t border-border/60">
+          <td className="sticky left-0 bg-background px-3 py-2 text-left text-xs font-bold uppercase">
+            Total
+          </td>
+          {FEE_SECTORS.map((sector) => (
+            <td key={sector.key} className="px-3 py-2 text-right font-semibold">
+              {peso(row.sectorTotals[sector.key] ?? 0)}
+            </td>
+          ))}
+          <td className="px-3 py-2 text-right font-bold">{peso(row.grandTotal)}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
 function FireCodeFeesLedgerCard({
   row,
   groupBy,
   periodLabel,
+  canManage,
+  onView,
   onEdit,
+  onDelete,
+  onMatrix,
 }: {
   row: FireCodeFeeLedgerRow;
   groupBy: Granularity;
   periodLabel: string | null;
-  onEdit?: () => void;
+  canManage: boolean;
+  onView: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onMatrix: () => void;
 }) {
   const lines = React.useMemo(() => buildFeeLines(row.records, groupBy), [row.records, groupBy]);
   const periodHeading = groupBy === "month" ? "Month" : groupBy === "annual" ? "Year" : "Period";
@@ -851,14 +1043,6 @@ function FireCodeFeesLedgerCard({
             <div className="text-[8px] font-bold uppercase leading-none">Total</div>
             <div className="text-xs font-bold leading-none">{peso(row.grandTotal)}</div>
           </div>
-          {onEdit ? (
-            <EditButton
-              variant="circle"
-              onClick={onEdit}
-              ariaLabel={`Edit Fire Code Fees collection for ${row.stationname}`}
-              tooltip="Edit collection"
-            />
-          ) : null}
         </div>
       </div>
 
@@ -879,6 +1063,30 @@ function FireCodeFeesLedgerCard({
         <div className="text-[10px] text-muted-foreground dark:text-slate-400">
           Last updated: {row.lastupdated ? new Date(row.lastupdated).toLocaleDateString() : "—"}
         </div>
+      </div>
+
+      {/* Card actions */}
+      <div className="flex flex-wrap items-center justify-end gap-1.5 border-t bg-muted/20 p-2">
+        <button
+          type="button"
+          onClick={onView}
+          aria-label={`View Fire Code Fees collection for ${row.stationname}`}
+          title="View"
+          className="rounded-md border border-border bg-card p-2 text-primary transition-colors hover:bg-primary hover:text-white"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+        {canManage && <EditButton onClick={onEdit} tooltip="Edit" />}
+        {canManage && <DeleteButton onClick={onDelete} tooltip="Delete" />}
+        <button
+          type="button"
+          onClick={onMatrix}
+          aria-label={`Fire Code Fees matrix for ${row.stationname}`}
+          title="Fire Code Fees Matrix"
+          className="rounded-md border border-border bg-card p-2 text-primary transition-colors hover:bg-primary hover:text-white"
+        >
+          <LayoutGrid className="h-4 w-4" />
+        </button>
       </div>
     </Card>
   );

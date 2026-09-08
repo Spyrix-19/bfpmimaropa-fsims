@@ -1,4 +1,5 @@
-import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
+import type { ApiResponse } from "@/lib/api";
+import type { Envelope } from "@/lib/api-envelope";
 import type {
   FireCodeFeeDeleteParams,
   FireCodeFeeLedgerParams,
@@ -7,45 +8,56 @@ import type {
   FireCodeFeeDetailByDateParams,
 } from "@/types/firecodefeesType";
 
-/**
- * Fire Code Fees Collection endpoints. The contract mirrors
- * `/api/v1/FSISCompliance/*` so the collection ledger behaves exactly like
- * the Fire Safety Compliance ledger.
- */
+/* -------------------------------------------------------------------------
+ * Fire Code Fees Collection — endpoints intentionally blanked out while the
+ * real/corrected API contract is being finalized.
+ *
+ * Every method below is a no-op stub that resolves with an empty, successful
+ * envelope so the UI keeps rendering (empty ledger, no requests, no errors).
+ * Replace each body with the real `apiGet` / `apiPost` / `apiDelete` call.
+ * ---------------------------------------------------------------------- */
+
+function emptyEnvelope<T>(data: T): ApiResponse<Envelope<T>> {
+  return {
+    statusCode: 200,
+    isSuccess: true,
+    errorMessages: "",
+    canceled: false,
+    data: {
+      statusCode: 200,
+      isSuccess: true,
+      errorMessages: "",
+      draw: 0,
+      recordsTotal: 0,
+      recordsFiltered: 0,
+      pageNumber: 1,
+      pageSize: 0,
+      totalPages: 0,
+      data,
+    },
+  };
+}
+
 export const fireCodeFeesAPI = {
-  async getLedger(request: FireCodeFeeLedgerParams, options?: import("@/lib/api").ApiOptions) {
-    return await apiPost<FireCodeFeeModel[]>(
-      "/api/v1/FireCodeFees/Ledger",
-      request.parameters,
-      {
-        params: {
-          Pagenumber: request.pagenumber ?? 1,
-          Pagesize: request.pagesize ?? 10,
-        },
-        ...options,
-      },
-    );
+  async getLedger(
+    _request: FireCodeFeeLedgerParams,
+    _options?: import("@/lib/api").ApiOptions,
+  ): Promise<ApiResponse<Envelope<FireCodeFeeModel[]>>> {
+    return emptyEnvelope<FireCodeFeeModel[]>([]);
   },
 
-  async create(params: FireCodeFeeDTO) {
-    return await apiPost("/api/v1/FireCodeFees/Create", params, { ...NO_RETRY });
+  async create(_params: FireCodeFeeDTO): Promise<ApiResponse<Envelope<unknown>>> {
+    return emptyEnvelope<unknown>(null);
   },
 
   async getDetailBydate(
-    params?: FireCodeFeeDetailByDateParams,
-    options?: import("@/lib/api").ApiOptions,
-  ) {
-    return await apiGet<unknown>("/api/v1/FireCodeFees/Detail/Date", {
-      params,
-      ...GET_RETRY,
-      ...options,
-    });
+    _params?: FireCodeFeeDetailByDateParams,
+    _options?: import("@/lib/api").ApiOptions,
+  ): Promise<ApiResponse<Envelope<unknown>>> {
+    return emptyEnvelope<unknown>(null);
   },
 
-  async delete(params?: FireCodeFeeDeleteParams) {
-    return await apiDelete("/api/v1/FireCodeFees/Delete", undefined, {
-      params,
-      ...MUTATION_RETRY_LIGHT,
-    });
+  async delete(_params?: FireCodeFeeDeleteParams): Promise<ApiResponse<Envelope<unknown>>> {
+    return emptyEnvelope<unknown>(null);
   },
 };

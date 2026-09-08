@@ -600,7 +600,7 @@ export function FireCodeFeesYearEditorBody({
                         );
                       })}
                     </div>
-                  );
+                  )}
                 </div>
               );
             })}
