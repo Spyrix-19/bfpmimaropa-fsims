@@ -9,4 +9,13 @@ export const gentableAPI = {
       ...options,
     });
   },
+
+  /** Full (unpaged) code list of a gentable, e.g. "FIRE CODE FEES CATEGORY". */
+  async getCode(tablename: string, options?: import("@/lib/api").ApiOptions) {
+    return await apiGet<SearchGentableModel[]>("/api/v1/Gentable/Code", {
+      params: { Tablename: tablename },
+      ...GET_RETRY,
+      ...options,
+    });
+  },
 };

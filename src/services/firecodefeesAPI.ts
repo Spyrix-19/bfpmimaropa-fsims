@@ -1,8 +1,10 @@
-import { apiPost, apiDelete, MUTATION_RETRY_LIGHT } from "@/lib/api";
+import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
 import type {
   FireCodeFeeDeleteParams,
   FireCodeFeeLedgerParams,
   FireCodeFeeModel,
+  FireCodeFeeDTO,
+  FireCodeFeeDetailByDateParams,
 } from "@/types/firecodefeesType";
 
 /**
@@ -23,6 +25,21 @@ export const fireCodeFeesAPI = {
         ...options,
       },
     );
+  },
+
+  async create(params: FireCodeFeeDTO) {
+    return await apiPost("/api/v1/FireCodeFees/Create", params, { ...NO_RETRY });
+  },
+
+  async getDetailBydate(
+    params?: FireCodeFeeDetailByDateParams,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiGet<unknown>("/api/v1/FireCodeFees/Detail/Date", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
   },
 
   async delete(params?: FireCodeFeeDeleteParams) {

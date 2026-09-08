@@ -113,6 +113,20 @@ export interface FireCodeFeeLedgerParams {
   pagesize?: number;
 }
 
+/** Create / update payload — mirrors the Fire Safety Compliance DTO. */
+export interface FireCodeFeeDTO {
+  stationno: string;
+  encodedby: string;
+  collectionlist: FireCodeFeeClassModel[];
+}
+
+/** Lookup of an existing collection day for a station. */
+export interface FireCodeFeeDetailByDateParams {
+  stationno: string;
+  /** Non-padded US format, e.g. 8/1/2026. */
+  datecollected: string;
+}
+
 export interface FireCodeFeeDeleteParams {
   stationno: string;
   reportyear: number;

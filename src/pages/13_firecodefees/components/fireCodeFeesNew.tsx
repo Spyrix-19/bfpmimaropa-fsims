@@ -1,0 +1,1122 @@
+import * as React from "react";
+import { format } from "date-fns";
+import {
+  AlertTriangle,
+  Ban,
+  CalendarIcon,
+  ChevronDown,
+  ChevronUp,
+  Coins,
+  FilePen,
+  Loader2,
+  Lock,
+  Save,
+  Trash2,
+} from "lucide-react";
+
+import { toast } from "@/lib/toast";
+import { unwrap } from "@/lib/api-envelope";
+import { cn } from "@/lib/utils";
+import { resolveLocationScope, useAuth } from "@/lib/auth";
+import { EMPTY_GUID, MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
+import { formatLongDate, serializePhilippineDateTime } from "@/lib/date-format";
+import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
+import LocationSearchSelect from "@/components/location-search-select";
+import StationSearchSelect from "@/components/station-search-select";
+import StationInfoCard, { StationReadOnlyField } from "@/components/station-info-card";
+import { useStationDetails } from "@/hooks/useStationDetails";
+import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
+import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
+
+import { fireCodeFeesAPI } from "@/services/firecodefeesAPI";
+import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import type { SearchStationModel } from "@/types/stationTypes";
+import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import {
+  FIRE_CODE_MODE_FSIC,
+  FIRE_CODE_MODE_MANUAL,
+  type FireCodeFeeClassModel,
+  type FireCodeFeeItemClass,
+  type FireCodeSectorKey,
+} from "@/types/firecodefeesType";
+import { FEE_KEYS, FEE_SECTORS, peso } from "../feeColumns";
+import { groupCategories, useFeeCategories, type FeeCategory } from "./feeCategories";
+
+/* -------------------------------------------------------------------------- */
+/*  Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+const MODES = [
+  { code: FIRE_CODE_MODE_MANUAL, label: "MANUAL" },
+  { code: FIRE_CODE_MODE_FSIC, label: "FSIC" },
+] as const;
+
+type ModeCode = (typeof MODES)[number]["code"];
+type Amounts = Record<string, number>;
+type SectorValues = Record<FireCodeSectorKey, Record<ModeCode, Amounts>>;
+
+const emptyAmounts = (): Amounts => Object.fromEntries(FEE_KEYS.map((k) => [k, 0]));
+
+const emptyValues = (): SectorValues =>
+  Object.fromEntries(
+    FEE_SECTORS.map((s) => [
+      s.key,
+      { [FIRE_CODE_MODE_MANUAL]: emptyAmounts(), [FIRE_CODE_MODE_FSIC]: emptyAmounts() },
+    ]),
+  ) as SectorValues;
+
+/** Midnight of the current local day, in ms. */
+function startOfToday(): number {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+}
+
+function toCollectedDate(date: Date): string {
+  return serializePhilippineDateTime(
+    new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
+  );
+}
+
+/** Keeps digits and a single decimal point, max two decimals. */
+function sanitizeAmount(raw: string): string {
+  let s = String(raw ?? "").replace(/[^0-9.]/g, "");
+  const first = s.indexOf(".");
+  if (first >= 0) s = s.slice(0, first + 1) + s.slice(first + 1).replace(/\./g, "");
+  const [whole, dec] = s.split(".");
+  const cleanWhole = whole.replace(/^0+(?=\d)/, "");
+  return dec === undefined ? cleanWhole : `${cleanWhole}.${dec.slice(0, 2)}`;
+}
+
+const toAmount = (raw: string) => {
+  const n = Number(sanitizeAmount(raw));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+/** Pulls every collection day out of whatever shape the detail endpoint returns. */
+function pickFeeRecord(data: unknown): FireCodeFeeClassModel | null {
+  const rows: FireCodeFeeClassModel[] = [];
+  const walk = (value: unknown) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) return value.forEach(walk);
+    const obj = value as Record<string, unknown>;
+    if (obj.feeno) {
+      rows.push(obj as unknown as FireCodeFeeClassModel);
+      return;
+    }
+    if (Array.isArray(obj.collectionlist)) (obj.collectionlist as unknown[]).forEach(walk);
+    if (Array.isArray(obj.feelist)) (obj.feelist as unknown[]).forEach(walk);
+  };
+  walk(data);
+  return rows.find((r) => r.feeno && String(r.feeno) !== EMPTY_GUID) ?? null;
+}
+
+const sectorByCode = new Map<number, FireCodeSectorKey>(FEE_SECTORS.map((s) => [s.code, s.key]));
+
+/* -------------------------------------------------------------------------- */
+/*  Small presentational pieces                                                */
+/* -------------------------------------------------------------------------- */
+
+function SectionTitle({
+  title,
+  subtitle,
+  icon,
+  expanded,
+  onToggle,
+  right,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  expanded?: boolean;
+  onToggle?: () => void;
+  right?: React.ReactNode;
+}) {
+  const ToggleIcon = expanded ? ChevronUp : ChevronDown;
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3",
+        onToggle && "cursor-pointer select-none",
+      )}
+      onClick={onToggle}
+      role={onToggle ? "button" : undefined}
+      aria-expanded={onToggle ? expanded : undefined}
+      tabIndex={onToggle ? 0 : undefined}
+      onKeyDown={
+        onToggle
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggle();
+              }
+            }
+          : undefined
+      }
+    >
+      <div className="min-w-0">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          {icon}
+          {title}
+        </h2>
+        {subtitle ? <p className="text-[11px] text-muted-foreground">{subtitle}</p> : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {right}
+        {onToggle ? <ToggleIcon className="h-4 w-4 text-muted-foreground" /> : null}
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  required,
+  error,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">
+        {label} {required && <span className="text-destructive">*</span>}
+      </Label>
+      {children}
+      {error && <p className="text-[11px] font-medium text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Peso amount input (digits + up to two decimals). */
+function AmountInput({
+  value,
+  onValueChange,
+  disabled,
+}: {
+  value: number;
+  onValueChange: (raw: string) => void;
+  disabled?: boolean;
+}) {
+  const [text, setText] = React.useState(() => (value ? String(value) : "0"));
+  React.useEffect(() => {
+    setText(value ? String(value) : "0");
+  }, [value]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      value={text}
+      disabled={disabled}
+      readOnly={disabled}
+      className={cn("h-9 text-right tabular-nums", disabled && "cursor-not-allowed opacity-60")}
+      onFocus={(e) => {
+        if (disabled) return;
+        if (e.target.value === "0") setText("");
+        else e.target.select();
+      }}
+      onBlur={() => {
+        if (disabled) return;
+        setText(String(toAmount(text)));
+        onValueChange(String(toAmount(text)));
+      }}
+      onChange={(e) => {
+        if (disabled) return;
+        const next = sanitizeAmount(e.target.value);
+        setText(next);
+        onValueChange(next);
+      }}
+    />
+  );
+}
+
+/** One sector panel: every fee category with a MANUAL and an FSIC amount. */
+function SectorPanel({
+  sectorTitle,
+  categories,
+  values,
+  onChange,
+  locked,
+}: {
+  sectorTitle: string;
+  categories: FeeCategory[];
+  values: Record<ModeCode, Amounts>;
+  onChange: (mode: ModeCode, key: string, raw: string) => void;
+  locked?: boolean;
+}) {
+  const groups = React.useMemo(() => groupCategories(categories), [categories]);
+  const totals = MODES.map((m) => FEE_KEYS.reduce((a, k) => a + (values[m.code][k] ?? 0), 0));
+  const grand = totals.reduce((a, b) => a + b, 0);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/60">
+      <table className="w-full border-separate border-spacing-0 text-xs">
+        <thead>
+          <tr className="bg-muted/50">
+            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Fee Category
+            </th>
+            {MODES.map((m) => (
+              <th
+                key={m.code}
+                className="w-[9.5rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+              >
+                {m.label}
+              </th>
+            ))}
+            <th className="w-[7rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => (
+            <React.Fragment key={`${sectorTitle}-${g.label}`}>
+              <tr className="bg-primary/5">
+                <td
+                  colSpan={4}
+                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary"
+                >
+                  {g.label}
+                  {g.code ? (
+                    <span className="ml-2 font-normal normal-case text-muted-foreground">
+                      {g.code}
+                    </span>
+                  ) : null}
+                </td>
+              </tr>
+              {g.items.map((c) => {
+                const rowTotal = MODES.reduce((a, m) => a + (values[m.code][c.key] ?? 0), 0);
+                return (
+                  <tr key={c.key} className="border-t border-border/40">
+                    <td className="px-3 py-1.5 align-middle text-foreground/90">{c.label}</td>
+                    {MODES.map((m) => (
+                      <td key={m.code} className="px-2 py-1.5">
+                        <AmountInput
+                          value={values[m.code][c.key] ?? 0}
+                          disabled={locked}
+                          onValueChange={(raw) => onChange(m.code, c.key, raw)}
+                        />
+                      </td>
+                    ))}
+                    <td className="px-3 py-1.5 text-right font-semibold tabular-nums">
+                      {peso(rowTotal)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="bg-muted/60">
+            <td className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider">Total</td>
+            {totals.map((t, i) => (
+              <td key={MODES[i].code} className="px-3 py-2 text-right font-bold tabular-nums">
+                {peso(t)}
+              </td>
+            ))}
+            <td className="px-3 py-2 text-right font-bold tabular-nums text-primary">
+              {peso(grand)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Form body                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export function FireCodeFeesFormBody({
+  onSaved,
+  onCancel,
+  initialYear,
+  initialMonth,
+  initialStation,
+}: {
+  onSaved?: () => void;
+  onCancel?: () => void;
+  initialYear?: number;
+  initialMonth?: number;
+  initialStation?: { stationno: string; stationname: string; provinceno?: string; provincename?: string };
+}) {
+  const { user, systemAccess } = useAuth();
+  const scope = React.useMemo(
+    () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
+  const isSuper = Number(systemAccess?.roleno ?? 0) === 1;
+  const { categories } = useFeeCategories();
+
+  /* Reporting period ------------------------------------------------------ */
+  const [collectedDate, setCollectedDate] = React.useState<Date>(() => {
+    const now = new Date();
+    const y = initialYear && initialYear > 1900 ? initialYear : now.getFullYear();
+    const m =
+      initialMonth && initialMonth >= 1 && initialMonth <= 12 ? initialMonth : now.getMonth() + 1;
+    const lastDay = new Date(y, m, 0).getDate();
+    return new Date(y, m - 1, Math.min(now.getDate(), lastDay));
+  });
+  const [dateOpen, setDateOpen] = React.useState(false);
+  const [calendarMonth, setCalendarMonth] = React.useState<Date>(() => collectedDate);
+  React.useEffect(() => {
+    if (dateOpen) setCalendarMonth(collectedDate);
+  }, [dateOpen, collectedDate]);
+
+  const year = collectedDate.getFullYear();
+  const month = collectedDate.getMonth() + 1;
+  const monthName = MONTHS.find((m) => m.value === month)?.name ?? "";
+  const selectedDateKey = format(collectedDate, "yyyy-MM-dd");
+
+  /* Province / station ---------------------------------------------------- */
+  const [province, setProvince] = React.useState<{ no: string; name: string }>(() => {
+    if (scope.provinceLocked) return { no: scope.provinceno, name: scope.provincename };
+    if (initialStation?.provinceno)
+      return { no: initialStation.provinceno, name: initialStation.provincename ?? "" };
+    if (isSuper && user?.provinceno)
+      return { no: user.provinceno, name: user.provincename ?? "" };
+    return { no: "", name: "" };
+  });
+  const [station, setStation] = React.useState<{
+    no: string;
+    name: string;
+    model: SearchStationModel | null;
+  }>(() => {
+    if (scope.stationLocked) return { no: scope.stationno, name: scope.stationname, model: null };
+    if (initialStation?.stationno)
+      return { no: initialStation.stationno, name: initialStation.stationname, model: null };
+    if (isSuper && user?.stationno)
+      return { no: user.stationno, name: user.stationname ?? "", model: null };
+    return { no: "", name: "", model: null };
+  });
+
+  React.useEffect(() => {
+    if (scope.provinceLocked) setProvince({ no: scope.provinceno, name: scope.provincename });
+    if (scope.stationLocked)
+      setStation({ no: scope.stationno, name: scope.stationname, model: null });
+  }, [
+    scope.provinceLocked,
+    scope.provinceno,
+    scope.provincename,
+    scope.stationLocked,
+    scope.stationno,
+    scope.stationname,
+  ]);
+
+  const stationDetails = useStationDetails({
+    stationno: station.no,
+    preloaded: station.model,
+    searchKey: station.model?.stationcode || station.name || "",
+    provinceno: province.no,
+  });
+
+  /* Values + sector visibility ------------------------------------------- */
+  const [values, setValues] = React.useState<SectorValues>(emptyValues);
+  const [visibleSectors, setVisibleSectors] = React.useState<Record<FireCodeSectorKey, boolean>>(
+    () =>
+      Object.fromEntries(FEE_SECTORS.map((s) => [s.key, true])) as Record<
+        FireCodeSectorKey,
+        boolean
+      >,
+  );
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({ bplo: true });
+  const [remarks, setRemarks] = React.useState("");
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [saving, setSaving] = React.useState(false);
+
+  const setAmount = React.useCallback(
+    (sector: FireCodeSectorKey, mode: ModeCode, key: string, raw: string) => {
+      setValues((prev) => ({
+        ...prev,
+        [sector]: { ...prev[sector], [mode]: { ...prev[sector][mode], [key]: toAmount(raw) } },
+      }));
+    },
+    [],
+  );
+
+  /* Existing record detection -------------------------------------------- */
+  const [existingFeeno, setExistingFeeno] = React.useState<string | null>(null);
+  const [existingItemNos, setExistingItemNos] = React.useState<Record<string, string>>({});
+  const [checkingExisting, setCheckingExisting] = React.useState(false);
+  const [pendingExisting, setPendingExisting] = React.useState<FireCodeFeeClassModel | null>(null);
+  const [duplicateOpen, setDuplicateOpen] = React.useState(false);
+  const [existingLocked, setExistingLocked] = React.useState(false);
+  const [existingMeta, setExistingMeta] = React.useState({
+    isrevisionrequest: false,
+    editablestatus: 0,
+  });
+  const promptedKeyRef = React.useRef<string | null>(null);
+  const [reloadNonce, setReloadNonce] = React.useState(0);
+
+  const clearValues = React.useCallback(() => {
+    setValues(emptyValues());
+    setRemarks("");
+    setErrors({});
+  }, []);
+
+  const resetExisting = React.useCallback(() => {
+    setExistingFeeno(null);
+    setExistingItemNos({});
+    setPendingExisting(null);
+    setExistingLocked(false);
+    setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+  }, []);
+
+  const plotExisting = React.useCallback((rec: FireCodeFeeClassModel) => {
+    const next = emptyValues();
+    const itemNos: Record<string, string> = {};
+    for (const item of Array.isArray(rec.feelist) ? rec.feelist : []) {
+      const sector = sectorByCode.get(Number(item.sector));
+      if (!sector) continue;
+      const mode: ModeCode =
+        Number(item.fsicmode) === FIRE_CODE_MODE_FSIC ? FIRE_CODE_MODE_FSIC : FIRE_CODE_MODE_MANUAL;
+      const src = item as unknown as Record<string, unknown>;
+      for (const k of FEE_KEYS) next[sector][mode][k] = Number(src[k] ?? 0) || 0;
+      if (item.itemno) itemNos[`${sector}|${mode}`] = String(item.itemno);
+    }
+    setValues(next);
+    setExistingItemNos(itemNos);
+    setRemarks(String(rec.remarks ?? ""));
+    setExistingFeeno(String(rec.feeno));
+    setErrors({});
+  }, []);
+
+  React.useEffect(() => {
+    const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
+    if (!activeStationNo || activeStationNo === EMPTY_GUID) {
+      resetExisting();
+      clearValues();
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setCheckingExisting(true);
+      clearValues();
+      const resp = await fireCodeFeesAPI.getDetailBydate(
+        { stationno: activeStationNo, datecollected: format(collectedDate, "M/d/yyyy") },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<unknown>(resp);
+      const record = ok ? pickFeeRecord(data) : null;
+      setCheckingExisting(false);
+
+      if (!record) {
+        promptedKeyRef.current = null;
+        setDuplicateOpen(false);
+        resetExisting();
+        return;
+      }
+
+      const meta = record as unknown as Record<string, unknown>;
+      setExistingMeta({
+        isrevisionrequest: Boolean(meta.isrevisionrequest),
+        editablestatus: Number(meta.editablestatus ?? 0),
+      });
+      setPendingExisting(record);
+      const isPast = IS_PAST_DATE_LOCK_ENABLED && collectedDate.getTime() < startOfToday();
+      const unlocked = Number(meta.editablestatus ?? 0) === 153;
+      const locked = !unlocked && (isPast || Boolean(meta.isrevisionrequest));
+      setExistingLocked(locked);
+
+      const key = `${activeStationNo}|${selectedDateKey}`;
+      if (promptedKeyRef.current !== key) {
+        promptedKeyRef.current = key;
+        setDuplicateOpen(true);
+      } else if (locked) {
+        plotExisting(record);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [station.no, scope.stationLocked, scope.stationno, selectedDateKey, reloadNonce]);
+
+  /* Revision requests ----------------------------------------------------- */
+  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
+  const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
+  const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
+  const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
+    if (!activeStationNo || activeStationNo === EMPTY_GUID) {
+      setRevisionRequests([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const resp = await revisionrequestAPI.getLedger(
+        {
+          stationno: activeStationNo,
+          reportyear: Number(year),
+          reportmonth: 0,
+          provinceno: province.no || EMPTY_GUID,
+          requesttype: "COMPLIANCE",
+          pagenumber: 1,
+          pagesize: 100,
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      if (cancelled) return;
+      const { ok, data } = unwrap<FSISEditRequestModel[]>(resp);
+      setRevisionRequests(ok && Array.isArray(data) ? data : []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [station.no, scope.stationLocked, scope.stationno, province.no, year, reloadNonce]);
+
+  const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && collectedDate.getTime() < startOfToday();
+  const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
+  const activeRequest = React.useMemo(
+    () =>
+      revisionRequests.find((r) => {
+        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
+        if (existingFeeno && String(r.referencekey) === String(existingFeeno)) return true;
+        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === selectedDateKey : false;
+      }) ?? null,
+    [revisionRequests, selectedDateKey, existingFeeno],
+  );
+  const hasPendingRevision =
+    !unlockedByApproval && (existingMeta.isrevisionrequest || !!activeRequest);
+  const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
+  const fieldsLocked = !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
+
+  /* Totals ---------------------------------------------------------------- */
+  const grandTotal = React.useMemo(() => {
+    let sum = 0;
+    for (const s of FEE_SECTORS) {
+      if (!visibleSectors[s.key]) continue;
+      for (const m of MODES) for (const k of FEE_KEYS) sum += values[s.key][m.code][k] ?? 0;
+    }
+    return sum;
+  }, [values, visibleSectors]);
+
+  /* Submit ---------------------------------------------------------------- */
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const nextErrors: Record<string, string> = {};
+    if (!province.no) nextErrors.provinceno = "Province is required";
+    const submitStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
+    if (!submitStationNo || submitStationNo === EMPTY_GUID)
+      nextErrors.stationno = "Station is required";
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      toast.error("Please fix the highlighted fields.");
+      return;
+    }
+    setErrors({});
+
+    if (fieldsLocked) {
+      toast.error("This date is locked. Submit a revision request to enable editing.");
+      return;
+    }
+
+    const encodedby = user?.memberno ? String(user.memberno) : "";
+    if (!encodedby || encodedby === EMPTY_GUID) {
+      toast.error("Your session is missing an encoder ID. Please sign in again.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const feelist: FireCodeFeeItemClass[] = [];
+      for (const s of FEE_SECTORS) {
+        if (!visibleSectors[s.key]) continue;
+        for (const m of MODES) {
+          const amounts = values[s.key][m.code];
+          feelist.push({
+            itemno: existingItemNos[`${s.key}|${m.code}`] || EMPTY_GUID,
+            sector: s.code,
+            fsicmode: m.code,
+            ...(Object.fromEntries(FEE_KEYS.map((k) => [k, amounts[k] ?? 0])) as Record<
+              string,
+              number
+            >),
+          } as FireCodeFeeItemClass);
+        }
+      }
+
+      const resp = await fireCodeFeesAPI.create({
+        stationno: submitStationNo,
+        encodedby,
+        collectionlist: [
+          {
+            feeno: existingFeeno || EMPTY_GUID,
+            datecollected: toCollectedDate(collectedDate),
+            remarks,
+            feelist,
+          },
+        ],
+      });
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || "Unable to save the Fire Code Fees collection.");
+        return;
+      }
+      toast.success(
+        existingFeeno ? "Fire Code Fees collection updated." : "Fire Code Fees collection saved.",
+      );
+      onSaved?.();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ----------------------------------------------------------------------- */
+
+  return (
+    <form onSubmit={submit} className="space-y-6" noValidate>
+      {fieldsLocked && (
+        <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+          <span>
+            {hasPendingRevision
+              ? "A revision request for this date is pending approval. Fields stay locked until it is approved."
+              : "This date has already passed and is locked. Submit a revision request to enable editing."}
+          </span>
+        </div>
+      )}
+
+      {/* 1. Reporting period */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
+        <div className="grid grid-cols-1 gap-4 sm:max-w-md">
+          <Field label="Date Collected" required>
+            <Popover open={dateOpen} onOpenChange={setDateOpen}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(collectedDate, "PPP")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={collectedDate}
+                  defaultMonth={collectedDate}
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
+                  onSelect={(d) => {
+                    if (d) {
+                      setCollectedDate(d);
+                      setDateOpen(false);
+                    }
+                  }}
+                  initialFocus
+                  className="pointer-events-auto p-3"
+                />
+              </PopoverContent>
+            </Popover>
+          </Field>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Reporting month · {monthName} {year}
+        </p>
+        <PastDatesLockedNote />
+      </Card>
+
+      {/* 2. Station information */}
+      <StationInfoCard
+        stationName={stationDetails.stationName || station.name || ""}
+        unitCode={stationDetails.stationCode || ""}
+        logoUrl={stationDetails.logoUrl || null}
+        fields={[]}
+      >
+        {!(scope.provinceLocked && scope.stationLocked) && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Province" required error={errors.provinceno}>
+              <LocationSearchSelect
+                locationtype="PROVINCE"
+                parentcode={MIMAROPA_REGION_CODE}
+                value={province.no || undefined}
+                valueName={province.name}
+                placeholder="Select province"
+                hideCode
+                disabled={scope.provinceLocked}
+                onChange={(no, name) => {
+                  if (scope.provinceLocked) return;
+                  setProvince({ no, name });
+                  setStation({ no: "", name: "", model: null });
+                  if (errors.provinceno) setErrors((e) => ({ ...e, provinceno: "" }));
+                }}
+              />
+            </Field>
+            <Field label="Station" required error={errors.stationno}>
+              <StationSearchSelect
+                value={station.no || undefined}
+                valueName={station.name}
+                provinceno={province.no || undefined}
+                disabled={scope.stationLocked}
+                placeholder={
+                  scope.stationLocked ? station.name || "Assigned station" : "Select station"
+                }
+                onChange={(no, name, _prov, model) => {
+                  if (scope.stationLocked) return;
+                  setStation({ no, name, model: model ?? null });
+                  if (errors.stationno) setErrors((e) => ({ ...e, stationno: "" }));
+                  if (!scope.provinceLocked && model?.provinceno && model.provinceno !== province.no) {
+                    setProvince({ no: model.provinceno, name: model.provincename ?? "" });
+                    if (errors.provinceno) setErrors((e) => ({ ...e, provinceno: "" }));
+                  }
+                }}
+              />
+            </Field>
+          </div>
+        )}
+
+        {(station.no || stationDetails.stationName) && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StationReadOnlyField
+              label="Station Code"
+              value={stationDetails.stationCode || (stationDetails.loading ? "Loading…" : "")}
+            />
+            <StationReadOnlyField
+              label="City / Municipality"
+              value={stationDetails.cityName || (stationDetails.loading ? "Loading…" : "")}
+            />
+            <StationReadOnlyField
+              label="Province"
+              value={
+                stationDetails.provinceName ||
+                province.name ||
+                (stationDetails.loading ? "Loading…" : "")
+              }
+            />
+          </div>
+        )}
+      </StationInfoCard>
+
+      {/* 3. Sector visibility */}
+      <Card className="space-y-3 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          icon={<Coins className="h-4 w-4" />}
+          title="Establishment Sectors"
+          subtitle="Tick a sector to encode its collection for this date."
+        />
+        <div className="flex flex-wrap gap-4">
+          {FEE_SECTORS.map((s) => (
+            <label
+              key={s.key}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold"
+            >
+              <Checkbox
+                checked={visibleSectors[s.key]}
+                onCheckedChange={(v) =>
+                  setVisibleSectors((prev) => ({ ...prev, [s.key]: Boolean(v) }))
+                }
+              />
+              <span>{s.label}</span>
+              <span className="font-normal text-muted-foreground">{s.title.replace(`${s.label} `, "")}</span>
+            </label>
+          ))}
+        </div>
+      </Card>
+
+      {/* 4. Sector encoding panels */}
+      {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => (
+        <Card key={s.key} className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+          <SectionTitle
+            title={s.title}
+            subtitle="MANUAL and FSIC amounts per fee category"
+            expanded={!!expanded[s.key]}
+            onToggle={() => setExpanded((p) => ({ ...p, [s.key]: !p[s.key] }))}
+          />
+          {expanded[s.key] && (
+            <SectorPanel
+              sectorTitle={s.title}
+              categories={categories}
+              values={values[s.key]}
+              locked={fieldsLocked}
+              onChange={(mode, key, raw) => setAmount(s.key, mode, key, raw)}
+            />
+          )}
+        </Card>
+      ))}
+
+      {/* 5. Remarks + grand total */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+          <Field label="Remarks">
+            <Input
+              value={remarks}
+              disabled={fieldsLocked}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Optional note for this collection day"
+            />
+          </Field>
+          <div className="rounded-lg bg-primary/10 px-4 py-2 text-right text-primary">
+            <div className="text-[10px] font-bold uppercase">Grand Total</div>
+            <div className="text-base font-bold tabular-nums">{peso(grandTotal)}</div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Actions */}
+      <div className="flex flex-wrap justify-end gap-2">
+        {needsRevisionRequest ? (
+          <Button
+            type="button"
+            onClick={() => {
+              if (!station.no) {
+                toast.info("Select a station first.");
+                return;
+              }
+              setAddRevisionOpen(true);
+            }}
+            className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
+          >
+            <FilePen className="h-4 w-4" /> Request Revision
+          </Button>
+        ) : hasPendingRevision ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                activeRequest
+                  ? setCancelRequestId(activeRequest.requestno)
+                  : toast.info("No active revision request to cancel.")
+              }
+            >
+              <Ban className="h-4 w-4" /> Cancel Request
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="gap-2"
+              onClick={() =>
+                activeRequest
+                  ? setDeleteRequestId(activeRequest.requestno)
+                  : toast.info("No revision request to delete.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Delete Request
+            </Button>
+          </>
+        ) : (
+          <>
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+            <Button
+              type="submit"
+              disabled={saving || checkingExisting}
+              className="bg-gradient-primary text-primary-foreground shadow-elegant"
+            >
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {saving ? "Saving…" : existingFeeno ? "Update" : "Save Collection"}
+            </Button>
+          </>
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={duplicateOpen}
+        onOpenChange={(v) => {
+          if (!v) {
+            setDuplicateOpen(false);
+            if (existingLocked && pendingExisting) plotExisting(pendingExisting);
+            else {
+              setExistingFeeno(null);
+              setExistingItemNos({});
+            }
+            return;
+          }
+          setDuplicateOpen(v);
+        }}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
+        title="Fire Code Fees Collection Already Exists"
+        description={`A collection record already exists for ${
+          station.name || "this station"
+        } on ${formatLongDate(collectedDate)}.\n\n${
+          existingLocked
+            ? "This record is already locked — it will be opened as read-only and any change will require a revision request."
+            : "Do you want to open and edit the existing record?"
+        }`}
+        confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
+        showCancel={false}
+        dismissible={false}
+        onConfirm={() => {
+          if (pendingExisting) plotExisting(pendingExisting);
+          setDuplicateOpen(false);
+        }}
+      />
+
+      {addRevisionOpen && (
+        <RevisionRequestDialog
+          open={addRevisionOpen}
+          onOpenChange={setAddRevisionOpen}
+          module="monitoring"
+          station={{
+            stationno: station.no,
+            stationcode: stationDetails.stationCode ?? "",
+            stationname: station.name || stationDetails.stationName || "",
+            provinceno: province.no,
+            provincename: province.name,
+            cityname: stationDetails.cityName ?? "",
+          }}
+          year={year}
+          month={month}
+          referencekey={existingFeeno || EMPTY_GUID}
+          dateinspected={selectedDateKey}
+          onSubmitted={() => setReloadNonce((n) => n + 1)}
+        />
+      )}
+
+      <ReasonRemarksDialog
+        open={!!cancelRequestId}
+        onOpenChange={(v) => !v && setCancelRequestId(null)}
+        title="Cancel Revision Request"
+        description="Provide the reason for cancelling this pending request."
+        reasonLabel="Cancellation Reason"
+        confirmLabel="Cancel Request"
+        confirmVariant="destructive"
+        onConfirm={async ({ reason, remarks: cancelRemarks }) => {
+          if (!cancelRequestId) return;
+          const resp = await revisionrequestAPI.status({
+            requestno: cancelRequestId,
+            stationno: station.no || EMPTY_GUID,
+            requesttype: "COMPLIANCE",
+            remarks: [reason, cancelRemarks].filter(Boolean).join(" — "),
+            statusno: 155,
+            taggedby: user?.memberno ?? "",
+          });
+          const { ok, error } = unwrap(resp);
+          if (!ok) {
+            toast.error(error || "Unable to cancel revision request.");
+            return;
+          }
+          toast.success("Revision request cancelled.");
+          setCancelRequestId(null);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteRequestId}
+        onOpenChange={(v) => !v && setDeleteRequestId(null)}
+        title="Delete Revision Request?"
+        description="This will permanently delete the selected revision request."
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        onConfirm={async () => {
+          if (!deleteRequestId) return;
+          const resp = await revisionrequestAPI.delete({
+            requestno: deleteRequestId,
+            deletedby: user?.memberno ?? "",
+            roleno: Number(systemAccess?.roleno ?? 0),
+          });
+          const { ok, error } = unwrap(resp);
+          if (!ok) {
+            toast.error(error || "Unable to delete revision request.");
+            return;
+          }
+          toast.success("Revision request deleted.");
+          setDeleteRequestId(null);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
+    </form>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Modal wrapper — used by the Fire Code Fees ledger Add / Edit buttons.      */
+/* -------------------------------------------------------------------------- */
+
+export default function FireCodeFeesFormModal({
+  open,
+  onOpenChange,
+  onSaved,
+  initialYear,
+  initialMonth,
+  initialStation,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onSaved?: () => void;
+  initialYear?: number;
+  initialMonth?: number;
+  initialStation?: {
+    stationno: string;
+    stationname: string;
+    provinceno?: string;
+    provincename?: string;
+  };
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+      >
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-primary/10 p-2">
+              <Coins className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-bold">Fire Code Fees Collection</DialogTitle>
+              <DialogDescription>
+                Select a collection date and station, then encode the amounts collected per sector.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {open ? (
+            <FireCodeFeesFormBody
+              initialYear={initialYear}
+              initialMonth={initialMonth}
+              initialStation={initialStation}
+              onSaved={() => {
+                onSaved?.();
+                onOpenChange(false);
+              }}
+              onCancel={() => onOpenChange(false)}
+            />
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
