@@ -45,27 +45,32 @@ import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 
-import { fireCodeFeesAPI } from "@/services/firecodefeesAPI";
+import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import type {
+  FSISFeeCollectionClass,
+  FSISFeeCollectionClassDTO,
+  FSISFeeCollectionDetailModel,
+  FSISStationFeeDetailModel,
+} from "@/types/firecodefeesType";
 import {
+  FEE_SECTORS,
   FIRE_CODE_MODE_FSIC,
   FIRE_CODE_MODE_MANUAL,
-  type FireCodeFeeClassModel,
-  type FireCodeFeeItemClass,
-  type FireCodeFeeModel,
+  SECTOR_BY_CODE,
+  peso,
   type FireCodeSectorKey,
-} from "@/types/firecodefeesType";
-import { FEE_KEYS, FEE_SECTORS, peso } from "../feeColumns";
+} from "../feeColumns";
 import { useFeeCategories } from "./feeCategories";
 import {
   MODES,
   SectorPanel,
   emptyValues,
   isPastMonth,
-  sectorByCode,
+  sumAmounts,
   toAmount,
-  toCollectedDate,
+  toDateaccomplish,
   type ModeCode,
   type SectorValues,
 } from "./fireCodeFeesNew";
@@ -87,10 +92,8 @@ export interface FeeEditorStation {
 interface MonthState {
   month: number;
   feeno: string | null;
-  itemNos: Record<string, string>;
+  accomplishNos: Record<string, string>;
   values: SectorValues;
-  isrevisionrequest: boolean;
-  editablestatus: number;
   baseline: string;
 }
 
@@ -101,49 +104,45 @@ const freshMonth = (month: number): MonthState => {
   return {
     month,
     feeno: null,
-    itemNos: {},
+    accomplishNos: {},
     values,
-    isrevisionrequest: false,
-    editablestatus: 0,
     baseline: snapshot(values),
   };
 };
 
 /** Converts a raw collection record into an editable month state. */
-function fromRecord(month: number, rec: FireCodeFeeClassModel): MonthState {
+function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthState {
   const values = emptyValues();
-  const itemNos: Record<string, string> = {};
-  for (const item of Array.isArray(rec.feelist) ? rec.feelist : []) {
-    const sector = sectorByCode.get(Number(item.sector));
+  const accomplishNos: Record<string, string> = {};
+  for (const item of Array.isArray(rec.Accomfeelist) ? rec.Accomfeelist : []) {
+    const sector = SECTOR_BY_CODE.get(Number(item.Sectorno));
     if (!sector) continue;
     const mode: ModeCode =
-      Number(item.fsicmode) === FIRE_CODE_MODE_FSIC ? FIRE_CODE_MODE_FSIC : FIRE_CODE_MODE_MANUAL;
-    const src = item as unknown as Record<string, unknown>;
-    for (const k of FEE_KEYS) values[sector][mode][k] = Number(src[k] ?? 0) || 0;
-    if (item.itemno) itemNos[`${sector}|${mode}`] = String(item.itemno);
+      Number(item.Fsicmode) === FIRE_CODE_MODE_FSIC ? FIRE_CODE_MODE_FSIC : FIRE_CODE_MODE_MANUAL;
+    const feecateg = Number(item.Feecateg) || 0;
+    values[sector][mode][feecateg] = Number(item.Collectedamount ?? 0) || 0;
+    if (item.Accomplishno) accomplishNos[`${sector}|${mode}|${feecateg}`] = String(item.Accomplishno);
   }
-  const meta = rec as unknown as Record<string, unknown>;
   return {
     month,
-    feeno: rec.feeno && String(rec.feeno) !== EMPTY_GUID ? String(rec.feeno) : null,
-    itemNos,
+    feeno: rec.Feeno && String(rec.Feeno) !== EMPTY_GUID ? String(rec.Feeno) : null,
+    accomplishNos,
     values,
-    isrevisionrequest: Boolean(meta.isrevisionrequest),
-    editablestatus: Number(meta.editablestatus ?? 0) || 0,
     baseline: snapshot(values),
   };
 }
 
 const monthTotal = (v: SectorValues) =>
   FEE_SECTORS.reduce(
-    (a, s) => a + MODES.reduce((b, m) => b + FEE_KEYS.reduce((c, k) => c + (v[s.key][m.code][k] ?? 0), 0), 0),
+    (a, s) => a + MODES.reduce((b, m) => b + sumAmounts(v[s.key][m.code]), 0),
     0,
   );
 
 const sectorTotal = (v: SectorValues, sector: FireCodeSectorKey) =>
-  MODES.reduce((b, m) => b + FEE_KEYS.reduce((c, k) => c + (v[sector][m.code][k] ?? 0), 0), 0);
+  MODES.reduce((b, m) => b + sumAmounts(v[sector][m.code]), 0);
 
 const monthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, "0")}-01`;
+
 
 /* -------------------------------------------------------------------------- */
 /*  Body                                                                       */

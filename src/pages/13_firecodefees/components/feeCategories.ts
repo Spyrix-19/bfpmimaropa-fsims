@@ -8,9 +8,9 @@ import { FEE_GROUPS, FEE_KEYS } from "../feeColumns";
 export const FEE_CATEGORY_TABLE = "FIRE CODE FEES CATEGORY";
 
 export interface FeeCategory {
-  /** Amount field key on the payload (see `FireCodeFeeAmounts`). */
+  /** Stable React key of the report column. */
   key: string;
-  /** Gentable `detno` when the lookup resolved, otherwise 0. */
+  /** Fee category code sent as `Feecateg` (gentable `detno`). */
   detno: number;
   /** BFP account code, e.g. "628-BFP-01". */
   code: string;
@@ -18,7 +18,11 @@ export interface FeeCategory {
   groupLabel: string;
 }
 
-/** Local fallback built from the printed report columns. */
+/**
+ * Local fallback built from the printed report columns. `detno` falls back to
+ * the report column position until the gentable lookup resolves the real
+ * `Feecateg` codes.
+ */
 export const STATIC_FEE_CATEGORIES: FeeCategory[] = FEE_GROUPS.flatMap((g) =>
   g.cols.map((c) => ({
     key: c.key,
@@ -27,12 +31,12 @@ export const STATIC_FEE_CATEGORIES: FeeCategory[] = FEE_GROUPS.flatMap((g) =>
     label: g.cols.length > 1 ? `${g.label} — ${c.label}` : g.label,
     groupLabel: g.label,
   })),
-);
+).map((c, i) => ({ ...c, detno: i + 1 }));
 
 /**
  * Loads the fee categories from `Gentable/Code`. The lookup is returned in
- * `sortorder` 1..32 which maps one-to-one onto `FEE_KEYS` (the report column
- * order), so the API drives the labels while the payload keys stay stable.
+ * `sortorder` 1..32 which maps one-to-one onto the report column order, so the
+ * API drives both the labels and the `Feecateg` codes used on the payload.
  */
 export function useFeeCategories() {
   const [categories, setCategories] = React.useState<FeeCategory[]>(STATIC_FEE_CATEGORIES);
@@ -54,7 +58,7 @@ export function useFeeCategories() {
         setCategories(
           rows.map((r, i) => ({
             key: FEE_KEYS[i],
-            detno: Number(r.detno ?? 0),
+            detno: Number(r.detno ?? 0) || STATIC_FEE_CATEGORIES[i].detno,
             code: String(r.recordcode ?? ""),
             label: String(r.description ?? STATIC_FEE_CATEGORIES[i].label),
             groupLabel: STATIC_FEE_CATEGORIES[i].groupLabel,

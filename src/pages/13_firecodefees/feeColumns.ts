@@ -1,10 +1,22 @@
-import type { FireCodeSectorKey } from "@/types/firecodefeesType";
+import type { FSISFeeCollectionDetailModel } from "@/types/firecodefeesType";
 
 /* ------------------------------------------------------------------ *
  * Column model of the Summary Accomplishment Report on Fire Code Fees
  * Collection (BFP-QSF-FSED-052E Rev.01). Crown = the grouped header,
  * leaves = the individual amount columns underneath it.
  * ------------------------------------------------------------------ */
+
+/** Mode of issuance (`Fsicmode`). */
+export const FIRE_CODE_MODE_MANUAL = 96;
+export const FIRE_CODE_MODE_FSIC = 97;
+
+/** Establishment sector (`Sectorno`). */
+export const SECTOR_BPLO = 111;
+export const SECTOR_GOV = 112;
+export const SECTOR_PEZA = 113;
+export const SECTOR_TIEZA = 114;
+
+export type FireCodeSectorKey = "bplo" | "gov" | "peza" | "tieza";
 
 export interface FeeCol {
   key: string;
@@ -107,17 +119,43 @@ export const FEE_GROUPS: FeeGroup[] = [
   },
 ];
 
-/** Flat list of every amount key, in report order. */
+/** Flat list of every report column, in report order. */
 export const FEE_KEYS: string[] = FEE_GROUPS.flatMap((g) => g.cols.map((c) => c.key));
 
 /** The four establishment sectors of the report, in printed order. */
 export const FEE_SECTORS: { key: FireCodeSectorKey; code: number; label: string; title: string }[] =
   [
-    { key: "bplo", code: 1, label: "BPLO", title: "BPLO (Business Establishments)" },
-    { key: "gov", code: 2, label: "GOV", title: "GOV (Government Buildings)" },
-    { key: "peza", code: 3, label: "PEZA", title: "PEZA (PEZA Establishments)" },
-    { key: "tieza", code: 4, label: "TIEZA", title: "TIEZA (Other Economic Zones)" },
+    { key: "bplo", code: SECTOR_BPLO, label: "BPLO", title: "BPLO (Business Establishments)" },
+    { key: "gov", code: SECTOR_GOV, label: "GOV", title: "GOV (Government Buildings)" },
+    { key: "peza", code: SECTOR_PEZA, label: "PEZA", title: "PEZA (PEZA Establishments)" },
+    { key: "tieza", code: SECTOR_TIEZA, label: "TIEZA", title: "TIEZA (Other Economic Zones)" },
   ];
+
+/** Sector code (`Sectorno`) → sector key of the report. */
+export const SECTOR_BY_CODE = new Map<number, FireCodeSectorKey>(
+  FEE_SECTORS.map((s) => [s.code, s.key]),
+);
+
+/**
+ * Collected amounts of one sector + mode, keyed by fee category (`Feecateg`).
+ */
+export type FeeAmounts = Record<number, number>;
+
+/** Row of the Fire Code Fees ledger card list. */
+export interface FireCodeFeeLedgerRow {
+  key: string;
+  Stationno: string;
+  Stationcode: string;
+  Stationname: string;
+  Provinceno: string;
+  Provincename: string;
+  year: number;
+  month: number;
+  grandTotal: number;
+  sectorTotals: Record<FireCodeSectorKey, number>;
+  lastupdated: string;
+  Feedetaillist: FSISFeeCollectionDetailModel[];
+}
 
 /** Peso display used by every amount cell. */
 export const peso = (value: number) =>
