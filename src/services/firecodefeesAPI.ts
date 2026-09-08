@@ -1,63 +1,64 @@
-import type { ApiResponse } from "@/lib/api";
-import type { Envelope } from "@/lib/api-envelope";
-import type {
-  FireCodeFeeDeleteParams,
-  FireCodeFeeLedgerParams,
-  FireCodeFeeModel,
-  FireCodeFeeDTO,
-  FireCodeFeeDetailByDateParams,
+import { apiPost, apiGet, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
+import {
+  FSISFeeCollectionDTO,
+  FSISFeeCollectionDetailModel,
+  FSISFeeCollectionDetailParams,
+  FSISFeeCollectionDeleteParams,
+  FSISFeeCollectionLedgerParams,
+  FSISStationFeeDetailModel,
+  FSISFeeCollectionDetailByDateParams,
+  ExportFSISFeeCollectionDTO
 } from "@/types/firecodefeesType";
 
-/* -------------------------------------------------------------------------
- * Fire Code Fees Collection — endpoints intentionally blanked out while the
- * real/corrected API contract is being finalized.
- *
- * Every method below is a no-op stub that resolves with an empty, successful
- * envelope so the UI keeps rendering (empty ledger, no requests, no errors).
- * Replace each body with the real `apiGet` / `apiPost` / `apiDelete` call.
- * ---------------------------------------------------------------------- */
-
-function emptyEnvelope<T>(data: T): ApiResponse<Envelope<T>> {
-  return {
-    statusCode: 200,
-    isSuccess: true,
-    errorMessages: "",
-    canceled: false,
-    data: {
-      statusCode: 200,
-      isSuccess: true,
-      errorMessages: "",
-      draw: 0,
-      recordsTotal: 0,
-      recordsFiltered: 0,
-      pageNumber: 1,
-      pageSize: 0,
-      totalPages: 0,
-      data,
-    },
-  };
-}
-
-export const fireCodeFeesAPI = {
-  async getLedger(
-    _request: FireCodeFeeLedgerParams,
-    _options?: import("@/lib/api").ApiOptions,
-  ): Promise<ApiResponse<Envelope<FireCodeFeeModel[]>>> {
-    return emptyEnvelope<FireCodeFeeModel[]>([]);
-  },
-
-  async create(_params: FireCodeFeeDTO): Promise<ApiResponse<Envelope<unknown>>> {
-    return emptyEnvelope<unknown>(null);
+export const firecodefeesAPI = {
+  async create(params: FSISFeeCollectionDTO) {
+    return await apiPost("/api/v1/FSISFeeCollection/Create", params, { ...NO_RETRY });
   },
 
   async getDetailBydate(
-    _params?: FireCodeFeeDetailByDateParams,
-    _options?: import("@/lib/api").ApiOptions,
-  ): Promise<ApiResponse<Envelope<unknown>>> {
-    return emptyEnvelope<unknown>(null);
+    params?: FSISFeeCollectionDetailByDateParams,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiGet<FSISFeeCollectionDetailModel>("/api/v1/FSISFeeCollection/Detail/Date", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
   },
 
-  async delete(_params?: FireCodeFeeDeleteParams): Promise<ApiResponse<Envelope<unknown>>> {
-    return emptyEnvelope<unknown>(null);
+  async getDetail(params?: FSISFeeCollectionDetailParams, options?: import("@/lib/api").ApiOptions) {
+    return await apiGet<FSISFeeCollectionDetailModel>("/api/v1/FSISFeeCollection/Detail", {
+      params,
+      ...GET_RETRY,
+      ...options,
+    });
+  },
+
+  async getLedger(request: FSISFeeCollectionLedgerParams, options?: import("@/lib/api").ApiOptions) {
+    return await apiPost<FSISStationFeeDetailModel[]>(
+      "/api/v1/FSISFeeCollection/Ledger",
+      request.parameters,
+      {
+        params: {
+          Pagenumber: request.pagenumber ?? 1,
+          Pagesize: request.pagesize ?? 10,
+        },
+        ...options,
+      },
+    );
+  },
+
+  async delete(params?: FSISFeeCollectionDeleteParams) {
+    return await apiDelete("/api/v1/FSISFeeCollection/Delete", undefined, {
+      params,
+      ...MUTATION_RETRY_LIGHT,
+    });
+  },
+
+  async export(body: ExportFSISFeeCollectionDTO, options?: import("@/lib/api").ApiOptions) {
+    return await apiPost("/api/v1/FSISFeeCollection/Export", body, {
+      ...GET_RETRY,
+      ...options,
+    });
   },
 };

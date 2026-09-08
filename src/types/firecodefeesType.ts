@@ -1,156 +1,108 @@
-/* -------------------------------------------------------------------------
- * Fire Code Fees Collection — Summary Accomplishment Report (BFP-QSF-FSED-052E)
- *
- * Mirrors the Fire Safety Compliance contract so the collection module can
- * reuse the same ledger / filter / export plumbing. Amounts are pesos.
- * ---------------------------------------------------------------------- */
-
-/** Establishment sector groups of the FSED Form 5/5 report. */
-export type FireCodeSectorKey = "bplo" | "gov" | "peza" | "tieza";
-
-/** Backend sector codes: 1 Business (BPLO), 2 Government, 3 PEZA, 4 Other Economic Zones (TIEZA). */
-export const FIRE_CODE_SECTOR_CODE: Record<FireCodeSectorKey, number> = {
-  bplo: 1,
-  gov: 2,
-  peza: 3,
-  tieza: 4,
-};
-
-/** Mode of issuance codes shared with the compliance module. 96 = MANUAL, 97 = FSIC. */
-export const FIRE_CODE_MODE_MANUAL = 96;
-export const FIRE_CODE_MODE_FSIC = 97;
-
-/** Every collectible amount column of the report (one leaf per Excel column). */
-export interface FireCodeFeeAmounts {
-  constructiontaxamount: number;
-  realtytaxamount: number;
-  premiumtaxamount: number;
-  salestaxamount: number;
-  proceedstaxamount: number;
-
-  fsifoccupancyamount: number;
-  fsifbusinessamount: number;
-
-  storageclearanceamount: number;
-  conveyanceclearanceamount: number;
-
-  installbseamount: number;
-  installafssamount: number;
-  installfdasamount: number;
-  installkhssamount: number;
-  installtankamount: number;
-  installlpgasamount: number;
-  installotheramount: number;
-
-  adminfinesamount: number;
-
-  feefireworksamount: number;
-  feeelectricalamount: number;
-  feefilingfsecamount: number;
-  feecertifiedcopyamount: number;
-  feefumigationamount: number;
-  feefireincidentamount: number;
-  feeprotestamount: number;
-  feefiredrillamount: number;
-  feeappealamount: number;
-  feeopenflameamount: number;
-  feeseminaramount: number;
-  feesoundstageamount: number;
-  feeweldingamount: number;
-  feeotheramount: number;
-
-  cocfeesamount: number;
+export class FSISFeeCollectionDTO {
+  Stationno: string = "";
+  Encodedby: string = "";
+  fsisfeeList: FSISFeeCollectionClass[] = [];
 }
 
-/** One collected line: a sector + mode of issuance pair with its amounts. */
-export interface FireCodeFeeItemClass extends Partial<FireCodeFeeAmounts> {
-  itemno?: string;
-  /** 1 BPLO, 2 GOV, 3 PEZA, 4 TIEZA. */
-  sector: number;
-  /** 96 MANUAL, 97 FSIC. */
-  fsicmode: number;
+export class FSISFeeCollectionClass {
+  Feeno: string = "";
+  Dateaccomplish: Date = new Date("1900-01-01");
+  Isaccomplished: boolean = false;
+  Remarks: string = "";
+  fsisfeecollectionList: FSISFeeCollectionClassDTO[] = [];
 }
 
-/** One collection day of a station. */
-export interface FireCodeFeeClassModel extends Partial<FireCodeFeeAmounts> {
-  feeno: string;
-  datecollected: string | Date;
-  remarks?: string;
-  /** Sector/mode breakdown for the day. */
-  feelist: FireCodeFeeItemClass[];
+export class FSISFeeCollectionClassDTO {
+  Accomplishno: string = "";
+  Fsicmode: number = 0;
+  Feecateg: number = 0;
+  Collectedamount: number = 0.00;
 }
 
-/** Station wrapper returned by the ledger endpoint. */
-export interface FireCodeFeeModel {
+export interface FSISFeeCollectionParamClass {
+  Provinceno: string;
+  Stationnos: string[];
+}
+
+export interface FSISFeeCollectionParams {
+  Searchkey: string;
+  Reportyear: number;
+  Reportmonth: number[];
+  Interval: number;
+  Dateaccomplish: string;
+  Provinces: FSISFeeCollectionParamClass[];
+}
+
+export interface FSISFeeCollectionProvinceStationSelectionClass {
+  Provinceno: string;
+  Stationnos: string[];
+}
+
+export interface ExportFSISFeeCollectionDTO {
+  Reportyear: number;
+  Provinces: FSISFeeCollectionProvinceStationSelectionClass[];
+}
+
+
+
+
+//Detail by Date
+export interface FSISFeeCollectionDetailByDateParams {
   stationno: string;
-  stationcode: string;
-  stationname: string;
-  provinceno: string;
-  provincename: string;
-  cityname?: string;
-  logourl: string;
-  collectionlist: FireCodeFeeClassModel[];
-}
-
-export interface FireCodeFeeParamClass {
-  provinceno: string;
-  stationnos: string[];
-}
-
-export interface FireCodeFeeParams {
-  searchkey: string;
   reportyear: number;
-  /** 2 Monthly, 3 Quarterly, 4 Semester, 5 Annual. */
-  interval: number;
-  targetdate: string;
-  reportmonth: number[];
-  provinces: FireCodeFeeParamClass[];
+  reportmonth: number;
 }
 
-export interface FireCodeFeeLedgerParams {
-  parameters?: FireCodeFeeParams;
+
+
+export interface FSISFeeCollectionDetailParams {
+  stationno: string;
+  reportyear: number;
+}
+
+
+
+// Ledger Models
+export interface FSISFeeCollectionLedgerParams {
+  parameters?: FSISFeeCollectionParams;
   pagenumber?: number;
   pagesize?: number;
 }
 
-/** Create / update payload — mirrors the Fire Safety Compliance DTO. */
-export interface FireCodeFeeDTO {
-  stationno: string;
-  encodedby: string;
-  collectionlist: FireCodeFeeClassModel[];
+export interface FSISFeeAccomDetailModel {
+  Accomplishno: string;
+  Feeno: string;
+  Fsicmode: number;
+  Feecateg: number;
+  Collectedamount: number;
 }
 
-/** Lookup of an existing collection day for a station. */
-export interface FireCodeFeeDetailByDateParams {
-  stationno: string;
-  /** Non-padded US format, e.g. 8/1/2026. */
-  datecollected: string;
+export interface FSISFeeCollectionDetailModel {
+  Feeno: string;
+  Stationno: string;
+  Dateaccomplish: string;
+  Accomfeelist: FSISFeeAccomDetailModel[];
 }
 
-export interface FireCodeFeeDeleteParams {
+export interface FSISStationFeeDetailModel {
+  Stationno: string;
+  Stationcode: string;
+  Stationname: string;
+  Provinceno: string;
+  Provincename: string;
+  Feedetaillist: FSISFeeCollectionDetailModel[];
+}
+
+export interface FSISFeeCollectionLedgerModel {
+  Total: number;
+  Items: FSISStationFeeDetailModel[];
+}
+
+//Delete
+export interface FSISFeeCollectionDeleteParams {
   stationno: string;
   reportyear: number;
   reportmonth?: number;
   deletedby: string;
   roleno: number;
-}
-
-/** UI row: one station for the whole selected period. */
-export interface FireCodeFeeLedgerRow {
-  key: string;
-  stationno: string;
-  stationcode: string;
-  stationname: string;
-  provinceno: string;
-  provincename: string;
-  cityname: string;
-  logoUrl: string;
-  year: number;
-  month: number;
-  /** Grand total collected across every sector and mode. */
-  grandTotal: number;
-  /** Sector key -> collected total. */
-  sectorTotals: Record<FireCodeSectorKey, number>;
-  lastupdated: string;
-  records: FireCodeFeeClassModel[];
 }

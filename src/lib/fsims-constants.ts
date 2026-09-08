@@ -13,6 +13,9 @@ export const MIMAROPA_REGION_CODE = "a2f126b7-cb86-403a-906b-c41d63fc2e36";
 
 export const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
+export const FIRE_CODE_MODE_MANUAL = 96;
+export const FIRE_CODE_MODE_FSIC = 97;
+
 /**
  * FSIMS system identity. `systemno` is the authoritative key returned by the
  * Login API's `member.systemaccess[]`; `systemcode` is kept as a fallback for
