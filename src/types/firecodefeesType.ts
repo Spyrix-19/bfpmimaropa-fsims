@@ -17,6 +17,7 @@ export class FSISFeeCollectionClassDTO {
   Fsicmode: number = 0;
   Feecateg: number = 0;
   Collectedamount: number = 0.00;
+  Sectorno: number = 0;
 }
 
 export interface FSISFeeCollectionParamClass {
@@ -75,6 +76,7 @@ export interface FSISFeeAccomDetailModel {
   Fsicmode: number;
   Feecateg: number;
   Collectedamount: number;
+  Sectorno: number;
 }
 
 export interface FSISFeeCollectionDetailModel {
