@@ -6,12 +6,12 @@ import {
   LogOut,
   FileBarChart2,
   Target,
-  UserCheck,
   UserPlus,
+  UserCheck,
   History,
   ChevronRight,
   ClipboardCheck,
-  Boxes,
+  Coins,
   Radio,
   ShieldCheck,
 } from "lucide-react";
@@ -104,7 +104,7 @@ const GROUPS: NavGroup[] = [
       {
         to: "/revision-requests",
         label: "Revision Request",
-        icon: <History className="h-4 w-4" />,
+        icon: <ShieldCheck className="h-4 w-4" />,
         module: "target-revisions",
       },
     ],
@@ -115,7 +115,7 @@ const GROUPS: NavGroup[] = [
       {
         to: "/collection/fire-code-fees",
         label: "Fire Code Fees",
-        icon: <Boxes className="h-4 w-4" />,
+        icon: <Coins className="h-4 w-4" />,
         module: "collection",
       },
     ],

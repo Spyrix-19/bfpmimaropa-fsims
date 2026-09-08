@@ -12,6 +12,8 @@ import {
   AlertTriangle,
   UserCog,
   Building2,
+  UserPlus,
+  UserCheck,
 } from "lucide-react";
 import {
   Dialog,
@@ -355,6 +357,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
 
   const actionLabel = variant === "available" ? "Activate" : "Deactivate";
   const ActionIcon = variant === "available" ? ShieldCheck : ShieldOff;
+  const HeaderIcon = variant === "available" ? UserPlus : UserCheck;
 
   const handleResetFilters = () => {
     setSearch("");
@@ -390,7 +393,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
+            <HeaderIcon className="h-5 w-5 text-primary" />
             {title}
           </h1>
           <p className="text-xs text-muted-foreground">{description}</p>

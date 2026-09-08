@@ -1090,33 +1090,22 @@ type GapRow = { name: string; BPLO: number; GOVT: number; PEZA: number; TIEZA: n
 
 function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
   const [groupBy, setGroupBy] = useState<"province" | "sector">("province");
-  const [chartType, setChartType] = useState<"line" | "pie">("line");
+  const [chartType, setChartType] = useState<"line" | "bar">("line");
 
-  const { data, series, pieData } = useMemo(() => {
+  const { data, series } = useMemo(() => {
     if (groupBy === "province") {
       const nextData = rows.map((r) => ({
         name: r.name,
         ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
       }));
-      const provinceTotals = rows.map((r, i) => ({
-        name: r.name,
-        value: SECTORS.reduce((sum, sector) => sum + (r[sector] ?? 0), 0),
-        color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
-      }));
       return {
         data: nextData,
         series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
-        pieData: provinceTotals,
       };
     }
     const nextData = SECTORS.map((s) => ({
       name: s as string,
       ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
-    }));
-    const sectorTotals = SECTORS.map((sector, i) => ({
-      name: sector,
-      value: rows.reduce((total, r) => total + (r[sector] ?? 0), 0),
-      color: SECTOR_COLORS[sector],
     }));
     return {
       data: nextData,
@@ -1124,7 +1113,6 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
         key: r.name,
         color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
       })),
-      pieData: sectorTotals,
     };
   }, [rows, groupBy]);
 
@@ -1135,10 +1123,10 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
         groupBy === "province"
           ? chartType === "line"
             ? "Remaining gap per province · line per sector"
-            : "Remaining gap per province · pie by province"
+            : "Remaining gap per province · bar by sector"
           : chartType === "line"
             ? "Remaining gap per sector · line per province"
-            : "Remaining gap per sector · pie by sector"
+            : "Remaining gap per sector · bar by province"
       }
       height="h-72"
       actions={
@@ -1157,7 +1145,7 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
             ))}
           </div>
           <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
-            {(["line", "pie"] as const).map((type) => (
+            {(["line", "bar"] as const).map((type) => (
               <Button
                 key={type}
                 variant={chartType === type ? "secondary" : "ghost"}
@@ -1178,27 +1166,24 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
         <div className="grid h-full place-items-center text-sm text-muted-foreground">
           No data for the selected year.
         </div>
-      ) : chartType === "pie" ? (
+      ) : chartType === "bar" ? (
         <ResponsiveContainer>
-          <PieChart margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <Pie
-              data={pieData}
-              dataKey="value"
-              nameKey="name"
-              outerRadius={90}
-              innerRadius={36}
-              paddingAngle={2}
-            >
-              {pieData.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={tooltipStyle}
-              formatter={(value) => [Number(value ?? 0), "Gap"]}
-            />
+          <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-          </PieChart>
+            {series.map((s) => (
+              <Bar
+                key={s.key}
+                dataKey={s.key}
+                name={s.key}
+                fill={s.color}
+                radius={[4, 4, 0, 0]}
+              />
+            ))}
+          </BarChart>
         </ResponsiveContainer>
       ) : (
         <ResponsiveContainer>
@@ -1229,33 +1214,22 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
 
 function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
   const [groupBy, setGroupBy] = useState<"province" | "sector">("province");
-  const [chartType, setChartType] = useState<"line" | "pie">("line");
+  const [chartType, setChartType] = useState<"line" | "bar">("line");
 
-  const { data, series, pieData } = useMemo(() => {
+  const { data, series } = useMemo(() => {
     if (groupBy === "province") {
       const nextData = rows.map((r) => ({
         name: r.name,
         ...Object.fromEntries(SECTORS.map((s) => [s, r[s]])),
       }));
-      const provinceTotals = rows.map((r, i) => ({
-        name: r.name,
-        value: SECTORS.reduce((sum, sector) => sum + (r[sector] ?? 0), 0),
-        color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
-      }));
       return {
         data: nextData,
         series: SECTORS.map((s) => ({ key: s as string, color: SECTOR_COLORS[s] })),
-        pieData: provinceTotals,
       };
     }
     const nextData = SECTORS.map((s) => ({
       name: s as string,
       ...Object.fromEntries(rows.map((r) => [r.name, r[s]])),
-    }));
-    const sectorTotals = SECTORS.map((sector, i) => ({
-      name: sector,
-      value: rows.reduce((total, r) => total + (r[sector] ?? 0), 0),
-      color: SECTOR_COLORS[sector],
     }));
     return {
       data: nextData,
@@ -1263,7 +1237,6 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
         key: r.name,
         color: PROVINCE_LINE_COLORS[i % PROVINCE_LINE_COLORS.length],
       })),
-      pieData: sectorTotals,
     };
   }, [rows, groupBy]);
 
@@ -1274,10 +1247,10 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
         groupBy === "province"
           ? chartType === "line"
             ? "Actual inspections per province · line per sector"
-            : "Actual inspections per province · pie by province"
+            : "Actual inspections per province · bar by sector"
           : chartType === "line"
             ? "Actual inspections per sector · line per province"
-            : "Actual inspections per sector · pie by sector"
+            : "Actual inspections per sector · bar by province"
       }
       height="h-72"
       actions={
@@ -1296,7 +1269,7 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
             ))}
           </div>
           <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
-            {(["line", "pie"] as const).map((type) => (
+            {(["line", "bar"] as const).map((type) => (
               <Button
                 key={type}
                 variant={chartType === type ? "secondary" : "ghost"}
@@ -1317,27 +1290,24 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
         <div className="grid h-full place-items-center text-sm text-muted-foreground">
           No data for the selected year.
         </div>
-      ) : chartType === "pie" ? (
+      ) : chartType === "bar" ? (
         <ResponsiveContainer>
-          <PieChart margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <Pie
-              data={pieData}
-              dataKey="value"
-              nameKey="name"
-              outerRadius={90}
-              innerRadius={36}
-              paddingAngle={2}
-            >
-              {pieData.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={tooltipStyle}
-              formatter={(value) => [Number(value ?? 0), "Inspections"]}
-            />
+          <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-          </PieChart>
+            {series.map((s) => (
+              <Bar
+                key={s.key}
+                dataKey={s.key}
+                name={s.key}
+                fill={s.color}
+                radius={[4, 4, 0, 0]}
+              />
+            ))}
+          </BarChart>
         </ResponsiveContainer>
       ) : (
         <ResponsiveContainer>
@@ -1473,6 +1443,7 @@ export function DashboardBody() {
   const targetProvinceLocked =
     isAuthenticated && [27, 28, 29, 30, 31].includes(Number(user?.stationtype ?? 0));
   const [targetVsActualYear, setTargetVsActualYear] = useState<number>(currentYear);
+  const [targetVsActualChartType, setTargetVsActualChartType] = useState<"line" | "bar">("line");
   const [targetVsActualScope, setTargetVsActualScope] = useState<ChartScope>(() => ({
     provinces: filters.provinces,
     stations: filters.stations,
@@ -1508,6 +1479,7 @@ export function DashboardBody() {
   });
 
   const [monthlyTrendYear, setMonthlyTrendYear] = useState<number>(currentYear);
+  const [monthlyTrendChartType, setMonthlyTrendChartType] = useState<"line" | "bar">("line");
   const [monthlyTrendScope, setMonthlyTrendScope] = useState<ChartScope>(() => ({
     provinces: filters.provinces,
     stations: filters.stations,
@@ -1518,6 +1490,7 @@ export function DashboardBody() {
     selectedStations: monthlyTrendScope.stations,
   });
   const [monthlySectorYear, setMonthlySectorYear] = useState<number>(currentYear);
+  const [monthlySectorChartType, setMonthlySectorChartType] = useState<"line" | "bar">("line");
   const [monthlySectorScope, setMonthlySectorScope] = useState<ChartScope>(() => ({
     provinces: filters.provinces,
     stations: filters.stations,
@@ -1533,6 +1506,7 @@ export function DashboardBody() {
     currentYear - 1,
     currentYear,
   ]);
+  const [yoYChartType, setYoYChartType] = useState<"line" | "bar">("line");
   const [yoYScope, setYoYScope] = useState<ChartScope>(() => ({
     provinces: filters.provinces,
     stations: filters.stations,
@@ -1764,6 +1738,19 @@ export function DashboardBody() {
           height="h-72"
           actions={
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+              <div className="flex items-center rounded-md border border-border/60 p-0.5">
+                {(["line", "bar"] as const).map((type) => (
+                  <Button
+                    key={type}
+                    variant={targetVsActualChartType === type ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2 text-[11px] capitalize"
+                    onClick={() => setTargetVsActualChartType(type)}
+                  >
+                    {type}
+                  </Button>
+                ))}
+              </div>
               <Select
                 value={String(targetVsActualYear)}
                 onValueChange={(v) => setTargetVsActualYear(Number(v))}
@@ -1799,7 +1786,7 @@ export function DashboardBody() {
             <div className="grid h-full place-items-center text-sm text-muted-foreground">
               No data for the selected year.
             </div>
-          ) : (
+          ) : targetVsActualChartType === "bar" ? (
             <ResponsiveContainer>
               <BarChart
                 data={targetVsActualRows}
@@ -1814,6 +1801,32 @@ export function DashboardBody() {
                 <Bar dataKey="actual" fill={C.primary} radius={[4, 4, 0, 0]} name="Actual" />
               </BarChart>
             </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer>
+              <LineChart data={targetVsActualRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="name" {...axisProps} />
+                <YAxis {...axisProps} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line
+                  type="monotone"
+                  dataKey="target"
+                  stroke={C.warning}
+                  strokeWidth={2}
+                  dot={{ r: 2 }}
+                  name="Target"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="actual"
+                  stroke={C.primary}
+                  strokeWidth={3}
+                  dot={{ r: 3 }}
+                  name="Actual"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           )}
         </ChartCard>
       </div>
@@ -1825,6 +1838,19 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            <div className="flex items-center rounded-md border border-border/60 p-0.5">
+              {(["line", "bar"] as const).map((type) => (
+                <Button
+                  key={type}
+                  variant={monthlyTrendChartType === type ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-[11px] capitalize"
+                  onClick={() => setMonthlyTrendChartType(type)}
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
             <Select
               value={String(monthlyTrendYear)}
               onValueChange={(v) => setMonthlyTrendYear(Number(v))}
@@ -1858,6 +1884,18 @@ export function DashboardBody() {
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
             No data for the selected year.
           </div>
+        ) : monthlyTrendChartType === "bar" ? (
+          <ResponsiveContainer>
+            <BarChart data={monthlyTrendRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="target" fill={C.warning} radius={[4, 4, 0, 0]} name="Target" />
+              <Bar dataKey="actual" fill={C.primary} radius={[4, 4, 0, 0]} name="Actual" />
+            </BarChart>
+          </ResponsiveContainer>
         ) : (
           <ResponsiveContainer>
             <LineChart data={monthlyTrendRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -1894,6 +1932,19 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            <div className="flex items-center rounded-md border border-border/60 p-0.5">
+              {(["line", "bar"] as const).map((type) => (
+                <Button
+                  key={type}
+                  variant={monthlySectorChartType === type ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-[11px] capitalize"
+                  onClick={() => setMonthlySectorChartType(type)}
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
             <Select
               value={String(monthlySectorYear)}
               onValueChange={(v) => setMonthlySectorYear(Number(v))}
@@ -1927,6 +1978,19 @@ export function DashboardBody() {
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
             No data for the selected year.
           </div>
+        ) : monthlySectorChartType === "bar" ? (
+          <ResponsiveContainer>
+            <BarChart data={monthlySectorRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              {SECTORS.map((s) => (
+                <Bar key={s} dataKey={s} fill={SECTOR_COLORS[s]} radius={[4, 4, 0, 0]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
         ) : (
           <ResponsiveContainer>
             <LineChart data={monthlySectorRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -1961,6 +2025,19 @@ export function DashboardBody() {
         height="h-[420px] xl:h-[500px]"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            <div className="flex items-center rounded-md border border-border/60 p-0.5">
+              {(["line", "bar"] as const).map((type) => (
+                <Button
+                  key={type}
+                  variant={yoYChartType === type ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-[11px] capitalize"
+                  onClick={() => setYoYChartType(type)}
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <YoYYearMultiSelect
                 selectedYears={yoYSelectedYears}
@@ -1987,6 +2064,28 @@ export function DashboardBody() {
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
             No data for the selected period.
           </div>
+        ) : yoYChartType === "bar" ? (
+          <ResponsiveContainer>
+            <BarChart data={yoYRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" {...axisProps} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              {yoYYears.map((yr, i) => {
+                const palette = [C.teal, C.warning, C.primary];
+                return (
+                  <Bar
+                    key={yr}
+                    dataKey={String(yr)}
+                    name={String(yr)}
+                    fill={palette[i % palette.length]}
+                    radius={[4, 4, 0, 0]}
+                  />
+                );
+              })}
+            </BarChart>
+          </ResponsiveContainer>
         ) : (
           <ResponsiveContainer>
             <LineChart data={yoYRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>

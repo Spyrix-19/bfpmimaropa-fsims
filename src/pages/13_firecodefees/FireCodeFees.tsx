@@ -2,7 +2,15 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Coins, Download, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import AddButton from "@/components/add-button";
+import { Coins, Download, Loader2, ChevronDown, ChevronUp, LayoutGrid, Plus } from "lucide-react";
 
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
@@ -243,6 +251,8 @@ export default function FireCodeFeesPage() {
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
+  const [matrixOpen, setMatrixOpen] = React.useState(false);
+  const [addOpen, setAddOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!user) navigate("/");
@@ -408,23 +418,36 @@ export default function FireCodeFeesPage() {
             Fire Code Fees
           </h1>
           <p className="text-xs text-muted-foreground">
-            Summary accomplishment report on Fire Code Fees collection, grouped by station and
-            reporting period.
+            Summary accomplishment report on Fire Code Fees collection.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => void handleExport()}
-          disabled={exporting || rows.length === 0}
-          className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-        >
-          {exporting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-          Export
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setMatrixOpen(true)}
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+          >
+            <LayoutGrid className="h-4 w-4" /> Fire Code Fees Matrix
+          </Button>
+
+          <AddButton onClick={() => setAddOpen(true)} className="w-full justify-center sm:w-auto">
+            <Plus className="h-4 w-4" /> Add Record
+          </AddButton>
+
+          <Button
+            variant="outline"
+            onClick={() => void handleExport()}
+            disabled={exporting || rows.length === 0}
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Export
+          </Button>
+        </div>
       </div>
 
       <ModuleFilterBar
@@ -471,6 +494,87 @@ export default function FireCodeFeesPage() {
           onPageSizeChange={setPageSize}
         />
       </div>
+
+      <Dialog open={matrixOpen} onOpenChange={setMatrixOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Fire Code Fees Matrix</DialogTitle>
+            <DialogDescription>
+              Sector totals for the current Fire Code Fees ledger period.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[70vh] overflow-auto rounded-lg border border-border/60">
+            {rows.length === 0 ? (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                No collection records for the selected period.
+              </div>
+            ) : (
+              <table className="min-w-full border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr>
+                    <th className="sticky left-0 top-0 bg-background px-3 py-2 text-left font-semibold">
+                      Station
+                    </th>
+                    {FEE_SECTORS.map((sector) => (
+                      <th key={sector.key} className="bg-background px-3 py-2 text-right font-semibold">
+                        {sector.title}
+                      </th>
+                    ))}
+                    <th className="bg-background px-3 py-2 text-right font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.key} className="border-t border-border/40">
+                      <td className="sticky left-0 bg-background px-3 py-2 text-left font-medium">
+                        {row.stationname}
+                      </td>
+                      {FEE_SECTORS.map((sector) => (
+                        <td key={`${row.key}-${sector.key}`} className="px-3 py-2 text-right">
+                          {peso(row.sectorTotals[sector.key] ?? 0)}
+                        </td>
+                      ))}
+                      <td className="px-3 py-2 text-right font-semibold">
+                        {peso(row.grandTotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Fire Code Fee Record</DialogTitle>
+            <DialogDescription>
+              Create a collection record from the ledger view. This screen currently prepares the
+              station and period context, and the actual record form can be added once the backend
+              create endpoint is confirmed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 rounded-lg border border-dashed border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground">
+            <p>
+              The current Fire Code Fees module is read-focused. Use the existing filters and export
+              view to prepare the period before adding records in the configured backend workflow.
+            </p>
+            <p className="font-medium text-foreground">
+              Selected period: {periodLabel || `${monthLabel(String(year))} ${year}`}
+            </p>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
