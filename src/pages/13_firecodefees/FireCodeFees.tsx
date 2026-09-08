@@ -15,6 +15,7 @@ import { Coins, Download, Loader2, ChevronDown, ChevronUp, LayoutGrid, Plus } fr
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
+import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { MONTHS } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { usePagination } from "@/hooks/usePagination";
@@ -195,6 +196,10 @@ export default function FireCodeFeesPage() {
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
   );
+  const canManage = React.useMemo(
+    () => canManageTargetAndCompliance(user, systemAccess),
+    [user, systemAccess],
+  );
 
   const YEARS = React.useMemo(buildYears, []);
 
@@ -271,9 +276,10 @@ export default function FireCodeFeesPage() {
   const [reloadKey, setReloadKey] = React.useState(0);
 
   const openAddForm = React.useCallback(() => {
-    setFormTarget({ year: Number(year), month: Number(selectedMonths[0] ?? 1) });
+    // New collections always start on today's date, never on the list filters.
+    setFormTarget({});
     setFormOpen(true);
-  }, [year, selectedMonths]);
+  }, []);
 
   const openEditForm = React.useCallback((row: FireCodeFeeLedgerRow) => {
     setFormTarget({
@@ -459,18 +465,6 @@ export default function FireCodeFeesPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => setMatrixOpen(true)}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-          >
-            <LayoutGrid className="h-4 w-4" /> Fire Code Fees Matrix
-          </Button>
-
-          <AddButton onClick={openAddForm} className="w-full justify-center sm:w-auto">
-            <Plus className="h-4 w-4" /> Add Record
-          </AddButton>
-
-          <Button
-            variant="outline"
             onClick={() => void handleExport()}
             disabled={exporting || rows.length === 0}
             className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
@@ -482,6 +476,20 @@ export default function FireCodeFeesPage() {
             )}
             Export
           </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setMatrixOpen(true)}
+            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+          >
+            <LayoutGrid className="h-4 w-4" /> Fire Code Fees Matrix
+          </Button>
+
+          {canManage && (
+            <AddButton onClick={openAddForm} className="w-full justify-center sm:w-auto">
+              <Plus className="h-4 w-4" /> Add Record
+            </AddButton>
+          )}
         </div>
       </div>
 
@@ -515,7 +523,7 @@ export default function FireCodeFeesPage() {
               row={r}
               groupBy={granularity}
               periodLabel={periodLabel}
-              onEdit={() => openEditForm(r)}
+              onEdit={canManage ? () => openEditForm(r) : undefined}
             />
           ))}
         </div>

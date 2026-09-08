@@ -611,14 +611,27 @@ export function FireCodeFeesFormBody({
   const fieldsLocked = !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
 
   /* Totals ---------------------------------------------------------------- */
-  const grandTotal = React.useMemo(() => {
-    let sum = 0;
+  const sectorTotals = React.useMemo(() => {
+    const totals = {} as Record<FireCodeSectorKey, Record<ModeCode, number>>;
     for (const s of FEE_SECTORS) {
-      if (!visibleSectors[s.key]) continue;
-      for (const m of MODES) for (const k of FEE_KEYS) sum += values[s.key][m.code][k] ?? 0;
+      const byMode = {} as Record<ModeCode, number>;
+      for (const m of MODES)
+        byMode[m.code] = visibleSectors[s.key]
+          ? FEE_KEYS.reduce((a, k) => a + (values[s.key][m.code][k] ?? 0), 0)
+          : 0;
+      totals[s.key] = byMode;
     }
-    return sum;
+    return totals;
   }, [values, visibleSectors]);
+
+  const grandTotal = React.useMemo(
+    () =>
+      FEE_SECTORS.reduce(
+        (a, s) => a + MODES.reduce((b, m) => b + sectorTotals[s.key][m.code], 0),
+        0,
+      ),
+    [sectorTotals],
+  );
 
   /* Submit ---------------------------------------------------------------- */
   const submit = async (e: React.FormEvent) => {
@@ -871,13 +884,70 @@ export function FireCodeFeesFormBody({
         </Card>
       ))}
 
-      {/* 5. Grand total */}
-      <Card className="border-border/60 bg-card p-5 shadow-soft">
-        <div className="flex justify-end">
-          <div className="rounded-lg bg-primary/10 px-4 py-2 text-right text-primary">
-            <div className="text-[10px] font-bold uppercase">Grand Total</div>
-            <div className="text-base font-bold tabular-nums">{peso(grandTotal)}</div>
-          </div>
+      {/* 5. Sector totals + grand total */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+        <SectionTitle
+          icon={<Coins className="h-4 w-4" />}
+          title="Collection Summary"
+          subtitle="Total amounts per establishment sector."
+        />
+        <div className="overflow-hidden rounded-xl border border-border/60">
+          <table className="w-full border-separate border-spacing-0 text-xs">
+            <thead>
+              <tr className="bg-muted/50">
+                <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Sector
+                </th>
+                {MODES.map((m) => (
+                  <th
+                    key={m.code}
+                    className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    {m.label}
+                  </th>
+                ))}
+                <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => {
+                const manual = sectorTotals[s.key][FIRE_CODE_MODE_MANUAL];
+                const fsic = sectorTotals[s.key][FIRE_CODE_MODE_FSIC];
+                return (
+                  <tr key={s.key} className="border-t border-border/40">
+                    <td className="px-3 py-2 font-semibold text-foreground/90">{s.title}</td>
+                    {MODES.map((m) => (
+                      <td key={m.code} className="px-3 py-2 text-right tabular-nums">
+                        {peso(sectorTotals[s.key][m.code])}
+                      </td>
+                    ))}
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                      {peso(manual + fsic)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="bg-muted/60">
+                <td className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+                  Grand Total
+                </td>
+                {MODES.map((m) => (
+                  <td key={m.code} className="px-3 py-2 text-right font-bold tabular-nums">
+                    {peso(
+                      FEE_SECTORS.reduce((a, s) => a + sectorTotals[s.key][m.code], 0),
+                    )}
+                  </td>
+                ))}
+                <td className="px-3 py-2 text-right font-bold tabular-nums text-primary">
+                  {peso(grandTotal)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </Card>
 
