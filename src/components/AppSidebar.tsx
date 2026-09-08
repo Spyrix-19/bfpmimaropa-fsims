@@ -110,6 +110,17 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Collection",
+    items: [
+      {
+        to: "/collection/fire-code-fees",
+        label: "Fire Code Fees",
+        icon: <Boxes className="h-4 w-4" />,
+        module: "collection",
+      },
+    ],
+  },
+  {
     label: "Logistics & Capability",
     items: [
       {

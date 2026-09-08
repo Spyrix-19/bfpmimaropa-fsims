@@ -28,6 +28,7 @@ export type AppModule =
   | "profile"
   | "inspections"
   | "monitoring"
+  | "collection"
   | "reports"
   | "settings"
   | "users"
@@ -41,6 +42,7 @@ const ALLOWED_MODULES: ReadonlySet<AppModule> = new Set<AppModule>([
   "profile",
   "inspections",
   "monitoring",
+  "collection",
   "reports",
   "settings",
   "logistics",
@@ -53,6 +55,7 @@ const ROUTE_MODULE: { prefix: string; module: AppModule }[] = [
   { prefix: "/profile", module: "profile" },
   { prefix: "/inspections", module: "inspections" },
   { prefix: "/monitoring", module: "monitoring" },
+  { prefix: "/collection", module: "collection" },
   { prefix: "/reports", module: "reports" },
   { prefix: "/logistics", module: "logistics" },
   { prefix: "/settings", module: "settings" },
