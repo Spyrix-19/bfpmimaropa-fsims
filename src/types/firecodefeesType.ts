@@ -84,14 +84,18 @@ export interface FSISFeeAccomDetailModel {
   fsicmode: number;
   feecateg: number;
   collectedamount: number;
-  sectorno: number;
+}
+
+export interface FSISFeeCollectionSectorDetailModel {
+  sectorno: string;
+ accomfeelist: FSISFeeAccomDetailModel[];
 }
 
 export interface FSISFeeCollectionDetailModel {
   feeno: string;
   stationno: string;
   dateaccomplish: string;
-  accomfeelist: FSISFeeAccomDetailModel[];
+  sectorlist: FSISFeeAccomDetailModel[];
 }
 
 export interface FSISStationFeeDetailModel {
@@ -103,10 +107,6 @@ export interface FSISStationFeeDetailModel {
   feedetaillist: FSISFeeCollectionDetailModel[];
 }
 
-export interface FSISFeeCollectionLedgerModel {
-  total: number;
-  items: FSISStationFeeDetailModel[];
-}
 
 /* Delete */
 export interface FSISFeeCollectionDeleteParams {
