@@ -1,6 +1,7 @@
 import * as React from "react";
 import { format } from "date-fns";
 import {
+  AlertTriangle,
   Ban,
   CalendarIcon,
   ChevronDown,
@@ -527,6 +528,15 @@ export function FireCodeFeesFormBody({
    * Detail/Date endpoint decides the mode: a record found → edit + plot its
    * amounts, nothing found → a fresh creation.
    */
+  /** Last period the existence check ran for — used to only prompt on a
+   *  month/year CHANGE, not on the initial load or a station switch. */
+  const lastCheckedPeriodRef = React.useRef<string | null>(null);
+  /** Existing record waiting for the user's confirmation before it is plotted. */
+  const [pendingExisting, setPendingExisting] =
+    React.useState<FSISFeeCollectionDetailModel | null>(null);
+  const [existingDialogOpen, setExistingDialogOpen] = React.useState(false);
+
+
   React.useEffect(() => {
     const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
     if (!activeStationNo || activeStationNo === EMPTY_GUID) {
@@ -534,6 +544,9 @@ export function FireCodeFeesFormBody({
       clearValues();
       return;
     }
+    const periodChanged =
+      lastCheckedPeriodRef.current !== null && lastCheckedPeriodRef.current !== selectedDateKey;
+    lastCheckedPeriodRef.current = selectedDateKey;
     let cancelled = false;
     (async () => {
       setCheckingExisting(true);
@@ -547,7 +560,14 @@ export function FireCodeFeesFormBody({
       const { ok, data } = unwrap<unknown>(resp);
       const record = ok ? pickFeeRecord(data) : null;
       setCheckingExisting(false);
-      if (record) plotExisting(record);
+      if (record) {
+        if (periodChanged) {
+          setPendingExisting(record);
+          setExistingDialogOpen(true);
+        } else {
+          plotExisting(record);
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -1091,6 +1111,26 @@ export function FireCodeFeesFormBody({
           toast.success("Revision request cancelled.");
           setCancelRequestId(null);
           setReloadNonce((n) => n + 1);
+        }}
+      />
+
+      <ConfirmDialog
+        open={existingDialogOpen}
+        onOpenChange={(v) => {
+          if (v) setExistingDialogOpen(true);
+        }}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
+        title="Fire Code Fees Record Already Exists"
+        description={`A Fire Code Fees record already exists for this station and period (${monthName} ${year}).\n\nOpening the existing record for editing.`}
+        confirmLabel="Edit Existing"
+        showCancel={false}
+        dismissible={false}
+        onConfirm={() => {
+          if (pendingExisting) plotExisting(pendingExisting);
+          setPendingExisting(null);
+          setExistingDialogOpen(false);
         }}
       />
 

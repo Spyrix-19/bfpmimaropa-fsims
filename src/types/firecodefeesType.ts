@@ -35,17 +35,16 @@ export interface FSISFeeCollectionDTO {
 /* ------------------------------------------------------------------ */
 
 export interface FSISFeeCollectionParamClass {
-  Provinceno: string;
-  Stationnos: string[];
+  provinceno: string;
+  stationnos: string[];
 }
 
 export interface FSISFeeCollectionParams {
-  Searchkey: string;
-  Reportyear: number;
-  Reportmonth: number[];
-  Interval: number;
-  Dateaccomplish: string;
-  Provinces: FSISFeeCollectionParamClass[];
+  searchkey: string;
+  reportyear: number;
+  reportmonth: number[];
+  interval: number;
+  provinces: FSISFeeCollectionParamClass[];
 }
 
 export interface FSISFeeCollectionProvinceStationSelectionClass {

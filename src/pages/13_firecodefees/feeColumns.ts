@@ -15,10 +15,10 @@ export {
   FIRE_CODE_MODE_MANUAL,
   FIRE_CODE_MODE_FSIS,
   FIRE_CODE_FEE_CATEG_BASE,
-  SECTOR_BPLO,
-  SECTOR_GOV,
-  SECTOR_PEZA,
-  SECTOR_TIEZA,
+  SECTOR_NO,
+  SECTORS,
+  sectorKeyFromCode,
+  sectorKeyFromNo,
   lastDayOfMonthISO,
 } from "@/lib/fsims-constants";
 export type { FeeCol, FeeGroup, FeeColumn, FireCodeSectorKey } from "@/lib/fsims-constants";
