@@ -120,14 +120,14 @@ export function LoginModal({
                     id="badgeno"
                     type="text"
                     inputMode="text"
-                    pattern="[A-Za-z0-9]*"
+                    pattern="[A-Za-z0-9-]*"
                     required
                     value={badgeno}
                     onChange={(e) => {
-                      const nextValue = e.target.value.replace(/[^a-zA-Z0-9]/g, "");
+                      const nextValue = e.target.value.replace(/[^a-zA-Z0-9-]/g, "");
                       setBadgeno(nextValue);
                     }}
-                    placeholder="e.g. 10001 or AB123"
+                    placeholder="e.g. O-L21210 or AB123"
                     autoFocus
                     autoComplete="off"
                     autoCorrect="off"
