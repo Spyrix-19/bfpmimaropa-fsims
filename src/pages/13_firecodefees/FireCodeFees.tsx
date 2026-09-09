@@ -717,6 +717,16 @@ export default function FireCodeFeesPage() {
         }}
         station={viewStation}
         year={viewYear}
+        onEdit={
+          canManage
+            ? (station, y) => {
+                setEditorStation(station);
+                setEditorYear(Number(y));
+                setEditorReadOnly(false);
+                setEditorOpen(true);
+              }
+            : undefined
+        }
       />
 
       <FireCodeFeesYearEditorModal

@@ -1,3 +1,4 @@
+import { DayLockIcon, dayKey } from "@/components/day-lock-icon";
 import * as React from "react";
 import {
   Dialog,
@@ -63,15 +64,27 @@ function Row({
     displayNumber(b?.peza) +
     displayNumber(b?.tieza),
   emphasize = false,
+  lockDate,
 }: {
   label: string;
   b: TargetBucket;
   total?: number;
   emphasize?: boolean;
+  /** When set, shows the lock / unlock indicator beside the date label. */
+  lockDate?: string;
 }) {
   return (
     <tr className={emphasize ? "bg-primary/10 font-semibold" : ""}>
-      <td className="border-b px-3 py-2">{label}</td>
+      <td className="border-b px-3 py-2">
+        {lockDate ? (
+          <span className="flex items-center gap-2 whitespace-nowrap">
+            <DayLockIcon date={lockDate} className="h-3 w-3" />
+            {label}
+          </span>
+        ) : (
+          label
+        )}
+      </td>
       {(["bplo", "gov", "peza", "tieza"] as const).map((k) => (
         <td
           key={k}
@@ -315,6 +328,7 @@ export default function TargetReferenceDetails({
                               key={d}
                               label={formatDayLabel(selectedYear, selectedMonth, d)}
                               b={dailyDerived.daily[d]}
+                              lockDate={dayKey(selectedYear, selectedMonth, d)}
                             />
                           ))}
                         {period === "MONTHLY" &&

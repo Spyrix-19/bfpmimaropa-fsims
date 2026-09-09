@@ -1,5 +1,15 @@
 import * as React from "react";
-import { CalendarIcon, ChevronDown, ChevronUp, Coins, Eye, Loader2, Lock, LockOpen } from "lucide-react";
+import {
+  CalendarIcon,
+  ChevronDown,
+  ChevronUp,
+  Coins,
+  Loader2,
+  Lock,
+  LockOpen,
+  Pencil,
+} from "lucide-react";
+import { canShowEditAction } from "@/lib/permissions";
 
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
@@ -303,14 +313,17 @@ export function FireCodeFeesYearViewBody({
   year: initialYear,
   onClose,
   onYearChange,
+  onEdit,
 }: {
   station: FeeEditorStation;
   year: number;
   onClose?: () => void;
   onYearChange?: (year: number) => void;
+  /** Opens the editor for the year currently shown in this view. */
+  onEdit?: (year: number) => void;
 }) {
-  const { user } = useAuth();
-  void user;
+  const { user, systemAccess } = useAuth();
+  const canEdit = canShowEditAction(user, systemAccess);
   const { categories } = useFeeCategories();
   const YEARS = React.useMemo(buildYears, []);
 
@@ -523,18 +536,28 @@ export function FireCodeFeesYearViewBody({
                         </span>
                       )}
                     </div>
-                    <div className="ml-auto flex items-center gap-3">
-                      <div className="hidden gap-3 text-[11px] tabular-nums text-muted-foreground md:flex">
+                    <div className="ml-auto flex items-center gap-4">
+                      <div className="hidden md:flex md:items-end">
                         {FEE_SECTORS.map((s) => (
-                          <span key={s.key}>
-                            {s.label}{" "}
-                            <span className="font-semibold text-foreground">
+                          <div key={s.key} className="w-28 shrink-0 px-2 text-right">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {s.label}
+                            </div>
+                            <div className="text-[11px] font-semibold tabular-nums text-foreground">
                               {peso(sectorTotal(m.values, s.key))}
-                            </span>
-                          </span>
+                            </div>
+                          </div>
                         ))}
+                        <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Total
+                          </div>
+                          <div className="text-sm font-bold tabular-nums text-primary">
+                            {peso(monthTotal(m.values))}
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-sm font-bold tabular-nums text-primary">
+                      <span className="text-sm font-bold tabular-nums text-primary md:hidden">
                         {peso(monthTotal(m.values))}
                       </span>
                       <ToggleIcon className="h-4 w-4 text-muted-foreground" />
@@ -564,11 +587,13 @@ export function FireCodeFeesYearViewBody({
       </Card>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="mr-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Eye className="h-3.5 w-3.5" /> View only
-        </span>
+        {onEdit && canEdit && (
+          <Button type="button" variant="outline" className="gap-2" onClick={() => onEdit(year)}>
+            <Pencil className="h-4 w-4" /> Edit
+          </Button>
+        )}
         {onClose && (
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" onClick={onClose}>
             Close
           </Button>
         )}
@@ -586,11 +611,14 @@ export default function FireCodeFeesYearViewModal({
   onOpenChange,
   station,
   year,
+  onEdit,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   station: FeeEditorStation | null;
   year: number;
+  /** Opens the Fire Code Fees editor for the station and year being viewed. */
+  onEdit?: (station: FeeEditorStation, year: number) => void;
 }) {
   const [viewYear, setViewYear] = React.useState(year);
   React.useEffect(() => {
@@ -617,6 +645,10 @@ export default function FireCodeFeesYearViewModal({
                 {station?.stationname || "Station"} — monthly collection per fee category and
                 establishment sector.
               </DialogDescription>
+              <p className="mt-1 text-[11px] text-muted-foreground/90">
+                <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                View only — values are displayed as recorded and cannot be modified here.
+              </p>
             </div>
           </div>
         </DialogHeader>
@@ -628,6 +660,14 @@ export default function FireCodeFeesYearViewModal({
               year={year}
               onYearChange={setViewYear}
               onClose={() => onOpenChange(false)}
+              onEdit={
+                onEdit
+                  ? (y) => {
+                      onOpenChange(false);
+                      onEdit(station, y);
+                    }
+                  : undefined
+              }
             />
           ) : null}
         </div>

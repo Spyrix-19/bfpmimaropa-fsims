@@ -364,7 +364,7 @@ export function SectorPanel({
 
 /** Matrix view: fee categories as rows, sectors (BPLO, GOV, PEZA, TIEZA) as
  *  column groups with MANUAL / FSIS inputs and a per-sector total. */
-function FeeCategoryMatrix({
+export function FeeCategoryMatrix({
   categories,
   values,
   onChange,

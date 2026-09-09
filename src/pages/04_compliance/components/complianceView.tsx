@@ -1,3 +1,4 @@
+import { DayLockIcon, dayKey } from "@/components/day-lock-icon";
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -842,6 +843,7 @@ function ActivityTable({
                     className={`sticky left-0 z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${zebra}`}
                   >
                     <div className="flex items-center gap-2 whitespace-nowrap">
+                      <DayLockIcon date={day.key} className="h-3 w-3" />
                       <span
                         className={
                           total > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""

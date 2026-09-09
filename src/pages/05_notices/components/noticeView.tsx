@@ -1,3 +1,4 @@
+import { DayLockIcon, dayKey } from "@/components/day-lock-icon";
 import * as React from "react";
 import {
   Building2,
@@ -597,7 +598,13 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                                     cellBg,
                                   )}
                                 >
-                                  <span className="whitespace-nowrap">{entry.label}</span>
+                                  <span className="flex items-center gap-2 whitespace-nowrap">
+                                    <DayLockIcon
+                                      date={dayKey(year, month, entry.day)}
+                                      className="h-3 w-3"
+                                    />
+                                    {entry.label}
+                                  </span>
                                 </td>
                               )}
                               <td
