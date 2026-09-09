@@ -124,7 +124,13 @@ export function LoginModal({
                     required
                     value={badgeno}
                     onChange={(e) => {
-                      const nextValue = e.target.value.replace(/[^a-zA-Z0-9-]/g, "");
+                      let nextValue = e.target.value.replace(/[^a-zA-Z0-9-]/g, "");
+                      const firstHyphen = nextValue.indexOf("-");
+                      if (firstHyphen !== -1) {
+                        nextValue =
+                          nextValue.slice(0, firstHyphen + 1) +
+                          nextValue.slice(firstHyphen + 1).replace(/-/g, "");
+                      }
                       setBadgeno(nextValue);
                     }}
                     placeholder="e.g. O-L21210 or AB123"
