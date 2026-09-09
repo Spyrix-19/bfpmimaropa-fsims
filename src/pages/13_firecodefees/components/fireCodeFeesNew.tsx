@@ -294,14 +294,13 @@ export function SectorPanel({
           {groups.map((g) => (
             <React.Fragment key={`${sectorTitle}-${g.label}`}>
               <tr className="bg-primary/5">
-                <td
-                  colSpan={4}
-                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary"
-                >
-                  {g.label}
-                  {g.code ? (
-                    <span className="ml-2 font-normal normal-case text-muted-foreground">
-                      {g.code}
+                <td colSpan={4} className="px-3 py-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                    {g.code || g.label}
+                  </span>
+                  {g.items.length > 1 && g.label ? (
+                    <span className="ml-2 text-[10px] font-normal normal-case text-muted-foreground">
+                      {g.label}
                     </span>
                   ) : null}
                 </td>
@@ -363,6 +362,16 @@ function FeeCategoryMatrix({
 }) {
   const groups = React.useMemo(() => groupCategories(categories), [categories]);
 
+  /** Overall total across every sector and mode — shown once, never per sector. */
+  const grand = React.useMemo(
+    () =>
+      FEE_SECTORS.reduce(
+        (a, s) => a + MODES.reduce((b, m) => b + sumAmounts(values[s.key][m.code]), 0),
+        0,
+      ),
+    [values],
+  );
+
   return (
     <div className="overflow-x-auto rounded-xl border border-border/60">
       <table className="min-w-full border-separate border-spacing-0 text-xs">
@@ -370,15 +379,21 @@ function FeeCategoryMatrix({
           <tr className="bg-muted/50">
             <th
               rowSpan={2}
-              className="sticky left-0 z-20 bg-muted/50 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+              className="sticky left-0 z-20 w-64 min-w-64 bg-muted/50 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
             >
               Fee Category
+            </th>
+            <th
+              rowSpan={2}
+              className="sticky left-64 z-20 w-[7rem] border-l border-border/60 bg-muted/50 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+            >
+              Total
             </th>
             {FEE_SECTORS.map((s) => (
               <th
                 key={s.key}
-                colSpan={3}
-                className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                colSpan={2}
+                className="border-l border-border/60 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
               >
                 {s.label}
               </th>
@@ -387,17 +402,17 @@ function FeeCategoryMatrix({
           <tr className="bg-muted/50">
             {FEE_SECTORS.map((s) => (
               <React.Fragment key={`${s.key}-sub`}>
-                {MODES.map((m) => (
+                {MODES.map((m, mi) => (
                   <th
                     key={`${s.key}-${m.code}`}
-                    className="w-[9.5rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                    className={cn(
+                      "w-[9.5rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground",
+                      mi === 0 && "border-l border-border/60",
+                    )}
                   >
                     {m.label}
                   </th>
                 ))}
-                <th className="w-[7rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Total
-                </th>
               </React.Fragment>
             ))}
           </tr>
@@ -406,57 +421,74 @@ function FeeCategoryMatrix({
           {groups.map((g) => (
             <React.Fragment key={g.label}>
               <tr className="bg-primary/5">
-                <td
-                  colSpan={1 + FEE_SECTORS.length * 3}
-                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary"
-                >
-                  {g.label}
-                  {g.code ? (
-                    <span className="ml-2 font-normal normal-case text-muted-foreground">
-                      {g.code}
+                <td colSpan={2 + FEE_SECTORS.length * 2} className="px-3 py-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                    {g.code || g.label}
+                  </span>
+                  {g.items.length > 1 && g.label ? (
+                    <span className="ml-2 text-[10px] font-normal normal-case text-muted-foreground">
+                      {g.label}
                     </span>
                   ) : null}
                 </td>
               </tr>
-              {g.items.map((c) => (
-                <tr key={c.key} className="border-t border-border/40">
-                  <td className="sticky left-0 z-10 bg-background px-3 py-1.5 align-middle text-foreground/90">
-                    {c.label}
-                  </td>
-                  {FEE_SECTORS.map((s) => {
-                    const manual = values[s.key][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0;
-                    const fsis = values[s.key][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
-                    return (
-                      <React.Fragment key={`${s.key}-${c.key}`}>
-                        <td className="px-2 py-1.5">
-                          <AmountInput
-                            value={manual}
-                            disabled={locked}
-                            onValueChange={(raw) =>
-                              onChange(s.key, FIRE_CODE_MODE_MANUAL, c.detno, raw)
-                            }
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <AmountInput
-                            value={fsis}
-                            disabled={locked}
-                            onValueChange={(raw) =>
-                              onChange(s.key, FIRE_CODE_MODE_FSIS, c.detno, raw)
-                            }
-                          />
-                        </td>
-                        <td className="px-3 py-1.5 text-right font-semibold tabular-nums">
-                          {peso(manual + fsis)}
-                        </td>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
-              ))}
+              {g.items.map((c) => {
+                const rowTotal = FEE_SECTORS.reduce(
+                  (a, s) =>
+                    a + MODES.reduce((b, m) => b + (values[s.key][m.code][c.detno] ?? 0), 0),
+                  0,
+                );
+                return (
+                  <tr key={c.key} className="border-t border-border/40">
+                    <td className="sticky left-0 z-10 w-64 min-w-64 bg-background px-3 py-1.5 align-middle text-foreground/90">
+                      {c.label}
+                    </td>
+                    <td className="sticky left-64 z-10 border-l border-border/60 bg-background px-3 py-1.5 text-right font-semibold tabular-nums">
+                      {peso(rowTotal)}
+                    </td>
+                    {FEE_SECTORS.map((s) => {
+                      const manual = values[s.key][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0;
+                      const fsis = values[s.key][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
+                      return (
+                        <React.Fragment key={`${s.key}-${c.key}`}>
+                          <td className="border-l border-border/60 px-2 py-1.5">
+                            <AmountInput
+                              value={manual}
+                              disabled={locked}
+                              onValueChange={(raw) =>
+                                onChange(s.key, FIRE_CODE_MODE_MANUAL, c.detno, raw)
+                              }
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <AmountInput
+                              value={fsis}
+                              disabled={locked}
+                              onValueChange={(raw) =>
+                                onChange(s.key, FIRE_CODE_MODE_FSIS, c.detno, raw)
+                              }
+                            />
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </React.Fragment>
           ))}
         </tbody>
+        <tfoot>
+          <tr className="border-t border-border/60 bg-muted/60">
+            <td className="sticky left-0 z-20 bg-muted/60 px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+              Total
+            </td>
+            <td className="sticky left-64 z-20 border-l border-border/60 bg-muted/60 px-3 py-2 text-right font-bold tabular-nums text-primary">
+              {peso(grand)}
+            </td>
+            <td colSpan={FEE_SECTORS.length * 2} className="border-l border-border/60" />
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
@@ -746,6 +778,14 @@ export function FireCodeFeesFormBody({
     [sectorTotals],
   );
 
+  /** Overall total per collection mode across all sectors. */
+  const modeTotals = React.useMemo(() => {
+    const t = {} as Record<ModeCode, number>;
+    for (const m of MODES)
+      t[m.code] = FEE_SECTORS.reduce((a, s) => a + sectorTotals[s.key][m.code], 0);
+    return t;
+  }, [sectorTotals]);
+
   /* Submit ---------------------------------------------------------------- */
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -981,85 +1021,66 @@ export function FireCodeFeesFormBody({
         />
       </Card>
 
-      {/* 4. Sector totals + grand total */}
+      {/* 4. Collection summary — simple per-sector totals */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
           icon={<Coins className="h-4 w-4" />}
           title="Collection Summary"
-          subtitle="Per-fee-category amounts across establishment sectors."
+          subtitle="Totals per establishment sector."
         />
         <div className="overflow-x-auto rounded-xl border border-border/60">
           <table className="min-w-full border-separate border-spacing-0 text-xs">
             <thead>
               <tr className="bg-muted/50">
-                <th className="sticky left-0 z-20 bg-muted/50 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  CATEGORY
+                <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Sector
                 </th>
-                {FEE_SECTORS.map((s) => (
-                  <th key={s.key} colSpan={3} className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    {s.label}
+                {MODES.map((m) => (
+                  <th
+                    key={m.code}
+                    className="w-44 border-l border-border/60 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    {m.label}
                   </th>
                 ))}
-                <th rowSpan={2} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Grand Total
+                <th className="w-44 border-l border-border/60 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Total
                 </th>
-              </tr>
-              <tr className="bg-muted/50">
-                <th className="sticky left-0 z-20 bg-muted/50" />
-                {FEE_SECTORS.map((s) => (
-                  <React.Fragment key={`${s.key}-sub`}> 
-                    {MODES.map((m) => (
-                      <th key={`${s.key}-${m.code}`} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        {m.label}
-                      </th>
-                    ))}
-                    <th key={`${s.key}-total`} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Total
-                    </th>
-                  </React.Fragment>
-                ))}
               </tr>
             </thead>
             <tbody>
-              {categories.map((c) => (
-                <tr key={c.key} className="border-t border-border/40">
-                  <td className="sticky left-0 z-10 bg-background px-3 py-2 align-middle text-foreground/90">{c.label}</td>
-                  {FEE_SECTORS.map((s) => {
-                    const manual = Number(values[s.key]?.[FIRE_CODE_MODE_MANUAL]?.[c.detno] ?? 0);
-                    const fsic = Number(values[s.key]?.[FIRE_CODE_MODE_FSIS]?.[c.detno] ?? 0);
-                    return (
-                      <React.Fragment key={`${s.key}-${c.key}`}>
-                        <td className="px-3 py-2 text-right tabular-nums">{peso(manual)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{peso(fsic)}</td>
-                        <td className="px-3 py-2 text-right font-semibold tabular-nums">{peso(manual + fsic)}</td>
-                      </React.Fragment>
-                    );
-                  })}
-                  <td className="px-3 py-2 text-right font-bold tabular-nums">{
-                    peso(
-                      FEE_SECTORS.reduce(
-                        (a, s) =>
-                          a +
-                          Number(values[s.key]?.[FIRE_CODE_MODE_MANUAL]?.[c.detno] ?? 0) +
-                          Number(values[s.key]?.[FIRE_CODE_MODE_FSIS]?.[c.detno] ?? 0),
-                        0,
-                      ),
-                    )
-                  }</td>
+              {FEE_SECTORS.map((s) => (
+                <tr key={s.key} className="border-t border-border/40">
+                  <td className="px-3 py-2 align-middle font-medium text-foreground/90">
+                    {s.title}
+                  </td>
+                  <td className="border-l border-border/60 px-3 py-2 text-right tabular-nums">
+                    {peso(sectorTotals[s.key][FIRE_CODE_MODE_MANUAL])}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {peso(sectorTotals[s.key][FIRE_CODE_MODE_FSIS])}
+                  </td>
+                  <td className="border-l border-border/60 px-3 py-2 text-right font-semibold tabular-nums">
+                    {peso(
+                      sectorTotals[s.key][FIRE_CODE_MODE_MANUAL] +
+                        sectorTotals[s.key][FIRE_CODE_MODE_FSIS],
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-muted/60">
-                <td className="sticky left-0 z-20 bg-muted/60 px-3 py-2 text-[10px] font-bold uppercase tracking-wider">Total</td>
-                {FEE_SECTORS.map((s) => (
-                  <React.Fragment key={`${s.key}-totals`}> 
-                    <td className="px-3 py-2 text-right font-bold tabular-nums">{peso(sectorTotals[s.key][FIRE_CODE_MODE_MANUAL])}</td>
-                    <td className="px-3 py-2 text-right font-bold tabular-nums">{peso(sectorTotals[s.key][FIRE_CODE_MODE_FSIS])}</td>
-                    <td className="px-3 py-2 text-right font-bold tabular-nums">{peso(sectorTotals[s.key][FIRE_CODE_MODE_MANUAL] + sectorTotals[s.key][FIRE_CODE_MODE_FSIS])}</td>
-                  </React.Fragment>
-                ))}
-                <td className="px-3 py-2 text-right font-bold tabular-nums text-primary">{peso(grandTotal)}</td>
+              <tr className="border-t border-border/60 bg-muted/60">
+                <td className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider">Total</td>
+                <td className="border-l border-border/60 px-3 py-2 text-right font-bold tabular-nums">
+                  {peso(modeTotals[FIRE_CODE_MODE_MANUAL])}
+                </td>
+                <td className="px-3 py-2 text-right font-bold tabular-nums">
+                  {peso(modeTotals[FIRE_CODE_MODE_FSIS])}
+                </td>
+                <td className="border-l border-border/60 px-3 py-2 text-right font-bold tabular-nums text-primary">
+                  {peso(grandTotal)}
+                </td>
               </tr>
             </tfoot>
           </table>
