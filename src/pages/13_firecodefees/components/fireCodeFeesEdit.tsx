@@ -24,7 +24,6 @@ import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   Select,
@@ -57,7 +56,6 @@ import type {
 import {
   FEE_SECTORS,
   FIRE_CODE_MODE_FSIS,
-  FIRE_CODE_MODE_MANUAL,
   SECTOR_BY_CODE,
   flattenFeeAccomItems,
   lastDayOfMonthISO,
@@ -66,27 +64,24 @@ import {
 } from "../feeColumns";
 import { useFeeCategories } from "./feeCategories";
 import {
+  FeeMatrixTable,
   MODES,
-  SectorPanel,
   emptyValues,
   isPastMonth,
-  sumAmounts,
+  monthKey,
+  monthTotal,
+  sectorTotal,
   toAmount,
+  type FeeEditorStation,
   type ModeCode,
   type SectorValues,
-} from "./fireCodeFeesNew";
+} from "./feeShared";
+
+export type { FeeEditorStation } from "./feeShared";
 
 /* -------------------------------------------------------------------------- */
-/*  Types & helpers                                                            */
+/*  Month model                                                                */
 /* -------------------------------------------------------------------------- */
-
-export interface FeeEditorStation {
-  stationno: string;
-  stationcode?: string;
-  stationname: string;
-  provinceno?: string;
-  provincename?: string;
-}
 
 interface MonthState {
   month: number;
@@ -100,29 +95,22 @@ const snapshot = (v: SectorValues) => JSON.stringify(v);
 
 const freshMonth = (month: number): MonthState => {
   const values = emptyValues();
-  return {
-    month,
-    feeno: null,
-    accomplishNos: {},
-    values,
-    baseline: snapshot(values),
-  };
+  return { month, feeno: null, accomplishNos: {}, values, baseline: snapshot(values) };
 };
 
 /** Converts a raw collection record into an editable month state. */
 function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthState {
   const values = emptyValues();
   const accomplishNos: Record<string, string> = {};
-  const items = flattenFeeAccomItems(rec);
-  for (const item of items) {
+  for (const item of flattenFeeAccomItems(rec)) {
     const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
-
     if (!sector) continue;
     const mode: ModeCode =
-      Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;
+      Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : MODES[0].code;
     const feecateg = Number(item.feecateg) || 0;
     values[sector][mode][feecateg] = Number(item.collectedamount ?? 0) || 0;
-    if (item.accomplishno) accomplishNos[`${sector}|${mode}|${feecateg}`] = String(item.accomplishno);
+    if (item.accomplishno)
+      accomplishNos[`${sector}|${mode}|${feecateg}`] = String(item.accomplishno);
   }
   return {
     month,
@@ -132,18 +120,6 @@ function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthStat
     baseline: snapshot(values),
   };
 }
-
-const monthTotal = (v: SectorValues) =>
-  FEE_SECTORS.reduce(
-    (a, s) => a + MODES.reduce((b, m) => b + sumAmounts(v[s.key][m.code]), 0),
-    0,
-  );
-
-const sectorTotal = (v: SectorValues, sector: FireCodeSectorKey) =>
-  MODES.reduce((b, m) => b + sumAmounts(v[sector][m.code]), 0);
-
-const monthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, "0")}-01`;
-
 
 /* -------------------------------------------------------------------------- */
 /*  Body                                                                       */
@@ -178,10 +154,6 @@ export function FireCodeFeesYearEditorBody({
   const [saving, setSaving] = React.useState(false);
   const [reloadNonce, setReloadNonce] = React.useState(0);
   const [expanded, setExpanded] = React.useState<Record<number, boolean>>({});
-  const [expandedSector, setExpandedSector] = React.useState<Record<string, boolean>>({});
-  const [visibleSectors, setVisibleSectors] = React.useState<Record<FireCodeSectorKey, boolean>>(
-    () => Object.fromEntries(FEE_SECTORS.map((s) => [s.key, true])) as Record<FireCodeSectorKey, boolean>,
-  );
 
   /* Load every month of the year for this station ------------------------- */
   React.useEffect(() => {
@@ -257,27 +229,28 @@ export function FireCodeFeesYearEditorBody({
     };
   }, [station.stationno, station.provinceno, year, reloadNonce]);
 
+  const matches = React.useCallback(
+    (r: FSISEditRequestModel, m: MonthState) => {
+      if (m.feeno && String(r.referencekey) === m.feeno) return true;
+      if (r.dateinspected) return String(r.dateinspected).slice(0, 10) === monthKey(year, m.month);
+      return Number(r.reportmonth) === m.month && Number(r.reportyear) === year;
+    },
+    [year],
+  );
+
   const pendingFor = React.useCallback(
     (m: MonthState) =>
-      revisionRequests.find((r) => {
-        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
-        if (m.feeno && String(r.referencekey) === m.feeno) return true;
-        if (r.dateinspected) return String(r.dateinspected).slice(0, 10) === monthKey(year, m.month);
-        return Number(r.reportmonth) === m.month && Number(r.reportyear) === year;
-      }) ?? null,
-    [revisionRequests, year],
+      revisionRequests.find((r) => r.statuscode?.toUpperCase() === "PENDING" && matches(r, m)) ??
+      null,
+    [matches, revisionRequests],
   );
 
   /** Approved revision request that unlocks a month. */
   const approvedFor = React.useCallback(
     (m: MonthState) =>
-      revisionRequests.find((r) => {
-        if (r.statuscode?.toUpperCase() !== "APPROVED") return false;
-        if (m.feeno && String(r.referencekey) === m.feeno) return true;
-        if (r.dateinspected) return String(r.dateinspected).slice(0, 10) === monthKey(year, m.month);
-        return Number(r.reportmonth) === m.month && Number(r.reportyear) === year;
-      }) ?? null,
-    [revisionRequests, year],
+      revisionRequests.find((r) => r.statuscode?.toUpperCase() === "APPROVED" && matches(r, m)) ??
+      null,
+    [matches, revisionRequests],
   );
 
   /** Per-month lock resolution — mirrors the compliance editor rules. */
@@ -320,9 +293,12 @@ export function FireCodeFeesYearEditorBody({
     () => months.filter((m) => snapshot(m.values) !== m.baseline),
     [months],
   );
-  const yearTotal = React.useMemo(() => months.reduce((a, m) => a + monthTotal(m.values), 0), [months]);
+  const yearTotal = React.useMemo(
+    () => months.reduce((a, m) => a + monthTotal(m.values), 0),
+    [months],
+  );
 
-  /* Save ------------------------------------------------------------------ */
+  /* Save — same payload and locked-month rules as the new-entry screen ----- */
   const save = async () => {
     if (readOnly) return;
     const encodedby = user?.memberno ? String(user.memberno) : "";
@@ -339,8 +315,8 @@ export function FireCodeFeesYearEditorBody({
     try {
       const fsisfeeList: FSISFeeCollectionClass[] = updates.map((m) => {
         const fsisfeecollectionList: FSISFeeCollectionClassDTO[] = [];
+        // All four sectors are always saved, exactly like the new-entry screen.
         for (const s of FEE_SECTORS) {
-          if (!visibleSectors[s.key]) continue;
           for (const mode of MODES) {
             const amounts = m.values[s.key][mode.code];
             for (const c of categories) {
@@ -364,7 +340,7 @@ export function FireCodeFeesYearEditorBody({
       });
       const resp = await firecodefeesAPI.create({
         stationno: station.stationno,
-        encodedby: encodedby,
+        encodedby,
         fsisfeeList,
       });
       const { ok, error } = unwrap(resp);
@@ -372,7 +348,9 @@ export function FireCodeFeesYearEditorBody({
         toast.error(error || "Unable to save the Fire Code Fees collection.");
         return;
       }
-      toast.success(`Fire Code Fees collection saved for ${updates.length} month${updates.length > 1 ? "s" : ""}.`);
+      toast.success(
+        `Fire Code Fees collection saved for ${updates.length} month${updates.length > 1 ? "s" : ""}.`,
+      );
       onSaved?.();
       setReloadNonce((n) => n + 1);
     } finally {
@@ -438,30 +416,7 @@ export function FireCodeFeesYearEditorBody({
         provinceName={station.provincename || ""}
       />
 
-      {/* 3. Sector visibility */}
-      {!readOnly && (
-        <Card className="space-y-3 border-border/60 bg-card p-5 shadow-soft">
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Coins className="h-4 w-4" /> Establishment Sectors
-          </h2>
-          <div className="flex flex-wrap gap-4">
-            {FEE_SECTORS.map((s) => (
-              <label
-                key={s.key}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold"
-              >
-                <Checkbox
-                  checked={visibleSectors[s.key]}
-                  onCheckedChange={(v) => setVisibleSectors((p) => ({ ...p, [s.key]: Boolean(v) }))}
-                />
-                <span>{s.label}</span>
-              </label>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* 4. Months */}
+      {/* 3. Months */}
       <Card className="border-border/60 bg-card shadow-soft">
         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -499,35 +454,68 @@ export function FireCodeFeesYearEditorBody({
                   >
                     <div className="flex min-w-[9rem] items-center gap-2">
                       {info.locked ? (
-                        <Lock className="h-3.5 w-3.5 text-warning" />
+                        <Lock
+                          className="h-3.5 w-3.5 text-warning"
+                          aria-label={`${name} is locked`}
+                        />
                       ) : (
-                        <LockOpen className="h-3.5 w-3.5 text-success" />
+                        <LockOpen
+                          className="h-3.5 w-3.5 text-success"
+                          aria-label={`${name} is open for editing`}
+                        />
                       )}
                       <span className="text-sm font-semibold">{name}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider">
                       {m.feeno ? (
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">Encoded</span>
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">
+                          Encoded
+                        </span>
                       ) : (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">No record</span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                          No record
+                        </span>
                       )}
                       {info.unlockedByApproval && (
-                        <span className="rounded bg-success/10 px-1.5 py-0.5 text-success">Revision approved</span>
+                        <span className="rounded bg-success/10 px-1.5 py-0.5 text-success">
+                          Revision approved
+                        </span>
                       )}
                       {info.pending && (
-                        <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">Revision pending</span>
+                        <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
+                          Revision pending
+                        </span>
                       )}
-                      {dirty && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">Unsaved</span>}
+                      {dirty && (
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">
+                          Unsaved
+                        </span>
+                      )}
                     </div>
-                    <div className="ml-auto flex items-center gap-3">
-                      <div className="hidden gap-3 text-[11px] tabular-nums text-muted-foreground md:flex">
+                    <div className="ml-auto flex items-center gap-4">
+                      <div className="hidden md:flex md:items-end">
                         {FEE_SECTORS.map((s) => (
-                          <span key={s.key}>
-                            {s.label} <span className="font-semibold text-foreground">{peso(sectorTotal(m.values, s.key))}</span>
-                          </span>
+                          <div key={s.key} className="w-28 shrink-0 px-2 text-right">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {s.label}
+                            </div>
+                            <div className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {peso(sectorTotal(m.values, s.key))}
+                            </div>
+                          </div>
                         ))}
+                        <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Total
+                          </div>
+                          <div className="text-sm font-bold tabular-nums text-primary">
+                            {peso(monthTotal(m.values))}
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-sm font-bold tabular-nums text-primary">{peso(monthTotal(m.values))}</span>
+                      <span className="text-sm font-bold tabular-nums text-primary md:hidden">
+                        {peso(monthTotal(m.values))}
+                      </span>
                       <ToggleIcon className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
@@ -579,47 +567,14 @@ export function FireCodeFeesYearEditorBody({
                         </div>
                       )}
 
-                      {FEE_SECTORS.filter((s) => readOnly || visibleSectors[s.key]).map((s) => {
-                        const sKey = `${m.month}|${s.key}`;
-                        const sOpen = expandedSector[sKey] ?? s.key === "bplo";
-                        const SIcon = sOpen ? ChevronUp : ChevronDown;
-                        return (
-                          <div key={s.key} className="space-y-2">
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              aria-expanded={sOpen}
-                              onClick={() => setExpandedSector((p) => ({ ...p, [sKey]: !sOpen }))}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  setExpandedSector((p) => ({ ...p, [sKey]: !sOpen }));
-                                }
-                              }}
-                              className="flex cursor-pointer select-none items-center justify-between rounded-lg px-1 py-1 hover:bg-muted/40"
-                            >
-                              <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                                {s.title}
-                              </h3>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold tabular-nums">
-                                  {peso(sectorTotal(m.values, s.key))}
-                                </span>
-                                <SIcon className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                            </div>
-                            {sOpen && (
-                              <SectorPanel
-                                sectorTitle={`${name}-${s.title}`}
-                                categories={categories}
-                                values={m.values[s.key]}
-                                locked={info.locked}
-                                onChange={(mode, key, raw) => setAmount(m.month, s.key, mode, key, raw)}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
+                      <FeeMatrixTable
+                        categories={categories}
+                        values={m.values}
+                        locked={info.locked}
+                        onChange={(sector, mode, feecateg, raw) =>
+                          setAmount(m.month, sector, mode, feecateg, raw)
+                        }
+                      />
                     </div>
                   )}
                 </div>
@@ -648,7 +603,11 @@ export function FireCodeFeesYearEditorBody({
             disabled={saving || loading || !anyEditable || dirtyMonths.length === 0}
             className="bg-gradient-primary text-primary-foreground shadow-elegant"
           >
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
             {saving ? "Saving…" : `Save Changes${dirtyMonths.length ? ` (${dirtyMonths.length})` : ""}`}
           </Button>
         )}
@@ -761,7 +720,7 @@ export default function FireCodeFeesYearEditorModal({
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl xl:w-[calc(100vw-4rem)] xl:max-w-[120rem]"
       >
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <div className="flex items-start gap-3">
@@ -773,8 +732,15 @@ export default function FireCodeFeesYearEditorModal({
                 {readOnly ? "View" : "Edit"} Fire Code Fees Collection · {viewYear}
               </DialogTitle>
               <DialogDescription>
-                {station?.stationname || "Station"} — monthly collection per establishment sector.
+                {station?.stationname || "Station"} — monthly collection per fee category and
+                establishment sector.
               </DialogDescription>
+              <p className="mt-1 text-[11px] text-muted-foreground/90">
+                <LockOpen className="mr-1 inline h-3 w-3 text-success" aria-hidden="true" />
+                Open months can be edited;
+                <Lock className="mx-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                closed months need an approved revision request.
+              </p>
             </div>
           </div>
         </DialogHeader>
