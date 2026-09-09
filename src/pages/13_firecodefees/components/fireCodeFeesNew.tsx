@@ -143,6 +143,14 @@ export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | nul
       return;
     }
     if (Array.isArray(obj.feedetaillist)) (obj.feedetaillist as unknown[]).forEach(walk);
+    if (Array.isArray(obj.sectorlist)) (obj.sectorlist as unknown[]).forEach((sector) => {
+      if (sector && typeof sector === "object") {
+        const sectorObj = sector as Record<string, unknown>;
+        if (Array.isArray(sectorObj.accomfeelist)) {
+          (sectorObj.accomfeelist as unknown[]).forEach(walk);
+        }
+      }
+    });
     if (Array.isArray(obj.accomfeelist)) (obj.accomfeelist as unknown[]).forEach(walk);
   };
   walk(data);
@@ -171,26 +179,7 @@ function SectionTitle({
 }) {
   const ToggleIcon = expanded ? ChevronUp : ChevronDown;
   return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-3",
-        onToggle && "cursor-pointer select-none",
-      )}
-      onClick={onToggle}
-      role={onToggle ? "button" : undefined}
-      aria-expanded={onToggle ? expanded : undefined}
-      tabIndex={onToggle ? 0 : undefined}
-      onKeyDown={
-        onToggle
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onToggle();
-              }
-            }
-          : undefined
-      }
-    >
+    <div className="flex items-center justify-between">
       <div className="min-w-0">
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           {icon}
@@ -507,7 +496,11 @@ export function FireCodeFeesFormBody({
   const plotExisting = React.useCallback((rec: FSISFeeCollectionDetailModel) => {
     const next = emptyValues();
     const accomplishNos: Record<string, string> = {};
-    for (const item of Array.isArray(rec.accomfeelist) ? rec.accomfeelist : []) {
+    const sectorGroups = Array.isArray(rec.sectorlist) ? rec.sectorlist : [];
+    const items = sectorGroups.flatMap((sector) =>
+      Array.isArray(sector?.accomfeelist) ? sector.accomfeelist : [],
+    );
+    for (const item of items) {
       const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
       if (!sector) continue;
       const mode: ModeCode =
@@ -934,62 +927,80 @@ export function FireCodeFeesFormBody({
         <SectionTitle
           icon={<Coins className="h-4 w-4" />}
           title="Collection Summary"
-          subtitle="Total amounts per establishment sector."
+          subtitle="Per-fee-category amounts across establishment sectors."
         />
         <div className="overflow-hidden rounded-xl border border-border/60">
           <table className="w-full border-separate border-spacing-0 text-xs">
             <thead>
               <tr className="bg-muted/50">
                 <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Sector
+                  CATEGORY
                 </th>
-                {MODES.map((m) => (
-                  <th
-                    key={m.code}
-                    className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-                  >
-                    {m.label}
+                {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => (
+                  <th key={s.key} colSpan={3} className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {s.label}
                   </th>
                 ))}
-                <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Total
+                <th rowSpan={2} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Grand Total
                 </th>
+              </tr>
+              <tr className="bg-muted/50">
+                <th />
+                {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => (
+                  <React.Fragment key={`${s.key}-sub`}> 
+                    {MODES.map((m) => (
+                      <th key={`${s.key}-${m.code}`} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        {m.label}
+                      </th>
+                    ))}
+                    <th key={`${s.key}-total`} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Total
+                    </th>
+                  </React.Fragment>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => {
-                const manual = sectorTotals[s.key][FIRE_CODE_MODE_MANUAL];
-                const fsic = sectorTotals[s.key][FIRE_CODE_MODE_FSIS];
-                return (
-                  <tr key={s.key} className="border-t border-border/40">
-                    <td className="px-3 py-2 font-semibold text-foreground/90">{s.title}</td>
-                    {MODES.map((m) => (
-                      <td key={m.code} className="px-3 py-2 text-right tabular-nums">
-                        {peso(sectorTotals[s.key][m.code])}
-                      </td>
-                    ))}
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums">
-                      {peso(manual + fsic)}
-                    </td>
-                  </tr>
-                );
-              })}
+              {categories.map((c) => (
+                <tr key={c.key} className="border-t border-border/40">
+                  <td className="px-3 py-2 align-middle text-foreground/90">{c.label}</td>
+                  {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => {
+                    const manual = Number(values[s.key]?.[FIRE_CODE_MODE_MANUAL]?.[c.detno] ?? 0);
+                    const fsic = Number(values[s.key]?.[FIRE_CODE_MODE_FSIS]?.[c.detno] ?? 0);
+                    return (
+                      <React.Fragment key={`${s.key}-${c.key}`}>
+                        <td className="px-3 py-2 text-right tabular-nums">{peso(manual)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{peso(fsic)}</td>
+                        <td className="px-3 py-2 text-right font-semibold tabular-nums">{peso(manual + fsic)}</td>
+                      </React.Fragment>
+                    );
+                  })}
+                  <td className="px-3 py-2 text-right font-bold tabular-nums">{
+                    peso(
+                      FEE_SECTORS.filter((s) => visibleSectors[s.key]).reduce(
+                        (a, s) =>
+                          a +
+                          Number(values[s.key]?.[FIRE_CODE_MODE_MANUAL]?.[c.detno] ?? 0) +
+                          Number(values[s.key]?.[FIRE_CODE_MODE_FSIS]?.[c.detno] ?? 0),
+                        0,
+                      ),
+                    )
+                  }</td>
+                </tr>
+              ))}
             </tbody>
             <tfoot>
               <tr className="bg-muted/60">
-                <td className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
-                  Grand Total
-                </td>
-                {MODES.map((m) => (
-                  <td key={m.code} className="px-3 py-2 text-right font-bold tabular-nums">
-                    {peso(
-                      FEE_SECTORS.reduce((a, s) => a + sectorTotals[s.key][m.code], 0),
-                    )}
-                  </td>
+                <td className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider">Total</td>
+                {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => (
+                  <React.Fragment key={`${s.key}-totals`}> 
+                    <td className="px-3 py-2 text-right font-bold tabular-nums">{peso(sectorTotals[s.key][FIRE_CODE_MODE_MANUAL])}</td>
+                    <td className="px-3 py-2 text-right font-bold tabular-nums">{peso(sectorTotals[s.key][FIRE_CODE_MODE_FSIS])}</td>
+                    <td className="px-3 py-2 text-right font-bold tabular-nums">{peso(sectorTotals[s.key][FIRE_CODE_MODE_MANUAL] + sectorTotals[s.key][FIRE_CODE_MODE_FSIS])}</td>
+                  </React.Fragment>
                 ))}
-                <td className="px-3 py-2 text-right font-bold tabular-nums text-primary">
-                  {peso(grandTotal)}
-                </td>
+                <td className="px-3 py-2 text-right font-bold tabular-nums text-primary">{peso(grandTotal)}</td>
               </tr>
             </tfoot>
           </table>

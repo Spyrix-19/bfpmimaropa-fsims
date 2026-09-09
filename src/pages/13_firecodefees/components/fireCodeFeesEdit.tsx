@@ -112,7 +112,11 @@ const freshMonth = (month: number): MonthState => {
 function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthState {
   const values = emptyValues();
   const accomplishNos: Record<string, string> = {};
-  for (const item of Array.isArray(rec.accomfeelist) ? rec.accomfeelist : []) {
+  const sectorGroups = Array.isArray(rec.sectorlist) ? rec.sectorlist : [];
+  const items = sectorGroups.flatMap((sector) =>
+    Array.isArray(sector?.accomfeelist) ? sector.accomfeelist : [],
+  );
+  for (const item of items) {
     const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
     if (!sector) continue;
     const mode: ModeCode =

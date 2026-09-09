@@ -42,6 +42,7 @@ import {
 
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import type {
+  FSISFeeAccomDetailModel,
   FSISFeeCollectionDetailModel,
   FSISFeeCollectionParamClass,
   FSISStationFeeDetailModel,
@@ -119,6 +120,23 @@ const monthLabel = (ym: string) => {
 };
 
 /** Sums every collection record of a station into one line per period bucket. */
+const flattenSectorItems = (
+  rec: FSISFeeCollectionDetailModel | undefined,
+): FSISFeeAccomDetailModel[] => {
+  const sectors = Array.isArray(rec?.sectorlist) ? rec.sectorlist : [];
+  const flattened = sectors.flatMap((sector) =>
+    Array.isArray(sector?.accomfeelist) ? sector.accomfeelist : [],
+  );
+
+  if (flattened.length > 0) return flattened;
+
+  const direct = Array.isArray((rec as { accomfeelist?: FSISFeeAccomDetailModel[] } | undefined)?.accomfeelist)
+    ? (rec as { accomfeelist?: FSISFeeAccomDetailModel[] }).accomfeelist ?? []
+    : [];
+
+  return direct;
+};
+
 function buildFeeLines(
   records: FSISFeeCollectionDetailModel[] | undefined,
   groupBy: Granularity,
@@ -155,7 +173,7 @@ function buildFeeLines(
       byKey.set(key, line);
     }
 
-    const items = Array.isArray(rec?.accomfeelist) ? rec.accomfeelist : [];
+    const items = flattenSectorItems(rec);
     for (const item of items) {
       const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
       if (!sector) continue;

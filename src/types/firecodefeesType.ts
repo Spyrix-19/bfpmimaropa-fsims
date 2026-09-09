@@ -87,15 +87,15 @@ export interface FSISFeeAccomDetailModel {
 }
 
 export interface FSISFeeCollectionSectorDetailModel {
-  sectorno: string;
- accomfeelist: FSISFeeAccomDetailModel[];
+  sectorno: number;
+  accomfeelist: FSISFeeAccomDetailModel[];
 }
 
 export interface FSISFeeCollectionDetailModel {
   feeno: string;
   stationno: string;
   dateaccomplish: string;
-  sectorlist: FSISFeeAccomDetailModel[];
+  sectorlist: FSISFeeCollectionSectorDetailModel[];
 }
 
 export interface FSISStationFeeDetailModel {
