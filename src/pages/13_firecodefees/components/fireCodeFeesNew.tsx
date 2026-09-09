@@ -406,7 +406,7 @@ function FeeCategoryMatrix({
             </th>
             <th
               rowSpan={2}
-              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-r border-border/60 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider"
+              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider"
             >
               Total
             </th>
@@ -414,7 +414,7 @@ function FeeCategoryMatrix({
               <th
                 key={s.key}
                 colSpan={2}
-                className="head-soft border-l border-border/60 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
+                className="head-soft border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
               >
                 {s.label}
               </th>
@@ -428,7 +428,7 @@ function FeeCategoryMatrix({
                     key={`${s.key}-${m.code}`}
                     className={cn(
                       "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
-                      mi === 0 && "border-l border-border/60",
+                      mi === 0 && "border-l border-grid",
                     )}
                   >
                     {m.label}
@@ -444,7 +444,7 @@ function FeeCategoryMatrix({
               <tr className="bg-primary/5">
                 <td
                   colSpan={2}
-                  className="sticky left-0 z-20 border-r border-border/60 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
+                  className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
                 >
                   <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
                     {g.code || g.label}
@@ -455,7 +455,13 @@ function FeeCategoryMatrix({
                     </span>
                   ) : null}
                 </td>
-                <td colSpan={FEE_SECTORS.length * 2} className="px-3 py-1.5" />
+                {FEE_SECTORS.map((s) => (
+                  <td
+                    key={`${s.key}-g`}
+                    colSpan={2}
+                    className="border-l border-grid px-3 py-1.5"
+                  />
+                ))}
               </tr>
               {g.items.map((c) => {
                 const rowTotal = FEE_SECTORS.reduce(
@@ -464,11 +470,11 @@ function FeeCategoryMatrix({
                   0,
                 );
                 return (
-                  <tr key={c.key} className="border-t border-border/40">
-                    <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-border/40 bg-card px-3 py-1.5 align-middle text-foreground/90">
+                  <tr key={c.key} className="border-t border-grid">
+                    <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
                       {c.label}
                     </td>
-                    <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-r border-t border-border/60 bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
+                    <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-t border-grid bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
                       {peso(rowTotal)}
                     </td>
                     {FEE_SECTORS.map((s) => {
@@ -476,7 +482,7 @@ function FeeCategoryMatrix({
                       const fsis = values[s.key][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
                       return (
                         <React.Fragment key={`${s.key}-${c.key}`}>
-                          <td className="w-36 min-w-36 border-l border-border/60 px-2 py-1.5">
+                          <td className="w-36 min-w-36 border-l border-grid border-t border-grid px-2 py-1.5">
                             <AmountInput
                               value={manual}
                               disabled={locked}
@@ -485,7 +491,7 @@ function FeeCategoryMatrix({
                               }
                             />
                           </td>
-                          <td className="w-36 min-w-36 px-2 py-1.5">
+                          <td className="w-36 min-w-36 border-t border-grid px-2 py-1.5">
                             <AmountInput
                               value={fsis}
                               disabled={locked}
@@ -504,11 +510,11 @@ function FeeCategoryMatrix({
           ))}
         </tbody>
         <tfoot>
-          <tr className="border-t border-border/60 bg-muted/60">
+          <tr className="border-t border-grid bg-muted/60">
             <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
               Total
             </td>
-            <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-r border-border/60 bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
+            <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-grid bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
               {peso(grand)}
             </td>
             {columnTotals.map((s) => (
@@ -518,7 +524,7 @@ function FeeCategoryMatrix({
                     key={`${s.key}-${m.code}-total`}
                     className={cn(
                       "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
-                      mi === 0 && "border-l border-border/60",
+                      mi === 0 && "border-l border-grid",
                     )}
                   >
                     {peso(m.total)}
@@ -1321,7 +1327,7 @@ export default function FireCodeFeesFormModal({
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[1400px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[96rem] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <div className="flex items-start gap-3">
