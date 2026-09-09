@@ -124,7 +124,10 @@ export default function StationSearchSelect({
   }, [open, debounced, page, provinceno]);
 
   const select = (r: SearchStationModel) => {
-    setLabel(r.stationname);
+    const display = r.stationcode
+      ? `${r.stationcode} ${r.stationname}${r.provincename ? " · " + r.provincename : ""}`
+      : `${r.stationname}${r.provincename ? " · " + r.provincename : ""}`;
+    setLabel(display);
     onChange(r.stationno, r.stationname, r.provincename, r);
     setOpen(false);
   };
@@ -253,9 +256,16 @@ export default function StationSearchSelect({
                       />
 
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{r.stationname}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {r.stationcode}
+                        <div className="truncate font-medium">{r.stationname || r.stationcode || "—"}</div>
+                        <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span className="truncate font-medium text-muted-foreground/90">
+                            {r.stationcode || "—"}
+                          </span>
+                          {r.provincename ? (
+                            <span className="shrink-0 truncate text-right">
+                              {r.provincename}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>

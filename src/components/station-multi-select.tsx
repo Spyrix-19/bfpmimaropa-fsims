@@ -19,10 +19,12 @@ import { resolvePageCount } from "@/lib/page-count";
 
 export interface SelectedStation {
   stationno: string;
+  stationcode?: string;
   stationname: string;
   provinceno: string;
   provincename: string;
 }
+
 
 export type StationMultiSelectProps = {
   placeholder?: string;
@@ -133,6 +135,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
         ...value,
         {
           stationno: r.stationno,
+          stationcode: r.stationcode,
           stationname: r.stationname,
           provinceno: r.provinceno,
           provincename: r.provincename,
@@ -148,7 +151,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
     value.length === 0
       ? "ALL"
       : value.length === 1
-        ? value[0].stationname
+        ? `${value[0].stationcode ? value[0].stationcode + " " : ""}${value[0].stationname}${value[0].provincename ? " · " + value[0].provincename : ""}`
         : `${value.length} selected`;
 
   const showPrev = page > 1;
@@ -242,10 +245,16 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
                         className="w-8 h-8 rounded-md overflow-hidden bg-muted/30"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{r.stationname}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {r.stationcode}
-                          {r.provincename ? " · " + r.provincename : ""}
+                        <div className="truncate font-medium">{r.stationname || r.stationcode || "—"}</div>
+                        <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span className="truncate font-medium text-muted-foreground/90">
+                            {r.stationcode || "—"}
+                          </span>
+                          {r.provincename ? (
+                            <span className="shrink-0 truncate text-right">
+                              {r.provincename}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>
