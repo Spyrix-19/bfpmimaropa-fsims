@@ -4,8 +4,6 @@ import {
   AlertTriangle,
   Ban,
   CalendarIcon,
-  ChevronDown,
-  ChevronUp,
   Coins,
   FilePen,
   Loader2,
@@ -27,7 +25,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -166,18 +163,13 @@ function SectionTitle({
   title,
   subtitle,
   icon,
-  expanded,
-  onToggle,
   right,
 }: {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
-  expanded?: boolean;
-  onToggle?: () => void;
   right?: React.ReactNode;
 }) {
-  const ToggleIcon = expanded ? ChevronUp : ChevronDown;
   return (
     <div className="flex items-center justify-between">
       <div className="min-w-0">
@@ -187,10 +179,7 @@ function SectionTitle({
         </h2>
         {subtitle ? <p className="text-[11px] text-muted-foreground">{subtitle}</p> : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {right}
-        {onToggle ? <ToggleIcon className="h-4 w-4 text-muted-foreground" /> : null}
-      </div>
+      {right ? <div className="flex shrink-0 items-center gap-2">{right}</div> : null}
     </div>
   );
 }
@@ -359,6 +348,120 @@ export function SectorPanel({
   );
 }
 
+/** Matrix view: fee categories as rows, sectors (BPLO, GOV, PEZA, TIEZA) as
+ *  column groups with MANUAL / FSIS inputs and a per-sector total. */
+function FeeCategoryMatrix({
+  categories,
+  values,
+  onChange,
+  locked,
+}: {
+  categories: FeeCategory[];
+  values: SectorValues;
+  onChange: (sector: FireCodeSectorKey, mode: ModeCode, feecateg: number, raw: string) => void;
+  locked?: boolean;
+}) {
+  const groups = React.useMemo(() => groupCategories(categories), [categories]);
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border/60">
+      <table className="min-w-full border-separate border-spacing-0 text-xs">
+        <thead>
+          <tr className="bg-muted/50">
+            <th
+              rowSpan={2}
+              className="sticky left-0 z-20 bg-muted/50 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+            >
+              Fee Category
+            </th>
+            {FEE_SECTORS.map((s) => (
+              <th
+                key={s.key}
+                colSpan={3}
+                className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+              >
+                {s.label}
+              </th>
+            ))}
+          </tr>
+          <tr className="bg-muted/50">
+            {FEE_SECTORS.map((s) => (
+              <React.Fragment key={`${s.key}-sub`}>
+                {MODES.map((m) => (
+                  <th
+                    key={`${s.key}-${m.code}`}
+                    className="w-[9.5rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    {m.label}
+                  </th>
+                ))}
+                <th className="w-[7rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Total
+                </th>
+              </React.Fragment>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => (
+            <React.Fragment key={g.label}>
+              <tr className="bg-primary/5">
+                <td
+                  colSpan={1 + FEE_SECTORS.length * 3}
+                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary"
+                >
+                  {g.label}
+                  {g.code ? (
+                    <span className="ml-2 font-normal normal-case text-muted-foreground">
+                      {g.code}
+                    </span>
+                  ) : null}
+                </td>
+              </tr>
+              {g.items.map((c) => (
+                <tr key={c.key} className="border-t border-border/40">
+                  <td className="sticky left-0 z-10 bg-background px-3 py-1.5 align-middle text-foreground/90">
+                    {c.label}
+                  </td>
+                  {FEE_SECTORS.map((s) => {
+                    const manual = values[s.key][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0;
+                    const fsis = values[s.key][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
+                    return (
+                      <React.Fragment key={`${s.key}-${c.key}`}>
+                        <td className="px-2 py-1.5">
+                          <AmountInput
+                            value={manual}
+                            disabled={locked}
+                            onValueChange={(raw) =>
+                              onChange(s.key, FIRE_CODE_MODE_MANUAL, c.detno, raw)
+                            }
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <AmountInput
+                            value={fsis}
+                            disabled={locked}
+                            onValueChange={(raw) =>
+                              onChange(s.key, FIRE_CODE_MODE_FSIS, c.detno, raw)
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-semibold tabular-nums">
+                          {peso(manual + fsis)}
+                        </td>
+                      </React.Fragment>
+                    );
+                  })}
+                </tr>
+              ))}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Form body                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -452,16 +555,8 @@ export function FireCodeFeesFormBody({
     provinceno: province.no,
   });
 
-  /* Values + sector visibility ------------------------------------------- */
+  /* Values ---------------------------------------------------------------- */
   const [values, setValues] = React.useState<SectorValues>(emptyValues);
-  const [visibleSectors, setVisibleSectors] = React.useState<Record<FireCodeSectorKey, boolean>>(
-    () =>
-      Object.fromEntries(FEE_SECTORS.map((s) => [s.key, true])) as Record<
-        FireCodeSectorKey,
-        boolean
-      >,
-  );
-  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({ bplo: true });
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
 
@@ -635,12 +730,11 @@ export function FireCodeFeesFormBody({
     const totals = {} as Record<FireCodeSectorKey, Record<ModeCode, number>>;
     for (const s of FEE_SECTORS) {
       const byMode = {} as Record<ModeCode, number>;
-      for (const m of MODES)
-        byMode[m.code] = visibleSectors[s.key] ? sumAmounts(values[s.key][m.code]) : 0;
+      for (const m of MODES) byMode[m.code] = sumAmounts(values[s.key][m.code]);
       totals[s.key] = byMode;
     }
     return totals;
-  }, [values, visibleSectors]);
+  }, [values]);
 
 
   const grandTotal = React.useMemo(
@@ -682,7 +776,6 @@ export function FireCodeFeesFormBody({
     try {
       const fsisfeecollectionList: FSISFeeCollectionClassDTO[] = [];
       for (const s of FEE_SECTORS) {
-        if (!visibleSectors[s.key]) continue;
         for (const m of MODES) {
           const amounts = values[s.key][m.code];
           for (const c of categories) {
@@ -873,70 +966,36 @@ export function FireCodeFeesFormBody({
         )}
       </StationInfoCard>
 
-      {/* 3. Sector visibility */}
-      <Card className="space-y-3 border-border/60 bg-card p-5 shadow-soft">
+      {/* 3. Fee category encoding matrix */}
+      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
           icon={<Coins className="h-4 w-4" />}
-          title="Establishment Sectors"
-          subtitle="Tick a sector to encode its collection for this date."
+          title="Fire Code Fees Collection"
+          subtitle="Encode MANUAL and FSIS amounts per fee category across establishment sectors."
         />
-        <div className="flex flex-wrap gap-4">
-          {FEE_SECTORS.map((s) => (
-            <label
-              key={s.key}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold"
-            >
-              <Checkbox
-                checked={visibleSectors[s.key]}
-                onCheckedChange={(v) =>
-                  setVisibleSectors((prev) => ({ ...prev, [s.key]: Boolean(v) }))
-                }
-              />
-              <span>{s.label}</span>
-              <span className="font-normal text-muted-foreground">
-                {s.title.replace(`${s.label} `, "")}
-              </span>
-            </label>
-          ))}
-        </div>
+        <FeeCategoryMatrix
+          categories={categories}
+          values={values}
+          locked={fieldsLocked}
+          onChange={(sector, mode, feecateg, raw) => setAmount(sector, mode, feecateg, raw)}
+        />
       </Card>
 
-      {/* 4. Sector encoding panels */}
-      {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => (
-        <Card key={s.key} className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-          <SectionTitle
-            title={s.title}
-            subtitle="MANUAL and FSIC amounts per fee category"
-            expanded={!!expanded[s.key]}
-            onToggle={() => setExpanded((p) => ({ ...p, [s.key]: !p[s.key] }))}
-          />
-          {expanded[s.key] && (
-            <SectorPanel
-              sectorTitle={s.title}
-              categories={categories}
-              values={values[s.key]}
-              locked={fieldsLocked}
-              onChange={(mode, key, raw) => setAmount(s.key, mode, key, raw)}
-            />
-          )}
-        </Card>
-      ))}
-
-      {/* 5. Sector totals + grand total */}
+      {/* 4. Sector totals + grand total */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
           icon={<Coins className="h-4 w-4" />}
           title="Collection Summary"
           subtitle="Per-fee-category amounts across establishment sectors."
         />
-        <div className="overflow-hidden rounded-xl border border-border/60">
-          <table className="w-full border-separate border-spacing-0 text-xs">
+        <div className="overflow-x-auto rounded-xl border border-border/60">
+          <table className="min-w-full border-separate border-spacing-0 text-xs">
             <thead>
               <tr className="bg-muted/50">
-                <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="sticky left-0 z-20 bg-muted/50 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   CATEGORY
                 </th>
-                {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => (
+                {FEE_SECTORS.map((s) => (
                   <th key={s.key} colSpan={3} className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     {s.label}
                   </th>
@@ -946,8 +1005,8 @@ export function FireCodeFeesFormBody({
                 </th>
               </tr>
               <tr className="bg-muted/50">
-                <th />
-                {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => (
+                <th className="sticky left-0 z-20 bg-muted/50" />
+                {FEE_SECTORS.map((s) => (
                   <React.Fragment key={`${s.key}-sub`}> 
                     {MODES.map((m) => (
                       <th key={`${s.key}-${m.code}`} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -964,8 +1023,8 @@ export function FireCodeFeesFormBody({
             <tbody>
               {categories.map((c) => (
                 <tr key={c.key} className="border-t border-border/40">
-                  <td className="px-3 py-2 align-middle text-foreground/90">{c.label}</td>
-                  {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => {
+                  <td className="sticky left-0 z-10 bg-background px-3 py-2 align-middle text-foreground/90">{c.label}</td>
+                  {FEE_SECTORS.map((s) => {
                     const manual = Number(values[s.key]?.[FIRE_CODE_MODE_MANUAL]?.[c.detno] ?? 0);
                     const fsic = Number(values[s.key]?.[FIRE_CODE_MODE_FSIS]?.[c.detno] ?? 0);
                     return (
@@ -978,7 +1037,7 @@ export function FireCodeFeesFormBody({
                   })}
                   <td className="px-3 py-2 text-right font-bold tabular-nums">{
                     peso(
-                      FEE_SECTORS.filter((s) => visibleSectors[s.key]).reduce(
+                      FEE_SECTORS.reduce(
                         (a, s) =>
                           a +
                           Number(values[s.key]?.[FIRE_CODE_MODE_MANUAL]?.[c.detno] ?? 0) +
@@ -992,8 +1051,8 @@ export function FireCodeFeesFormBody({
             </tbody>
             <tfoot>
               <tr className="bg-muted/60">
-                <td className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider">Total</td>
-                {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => (
+                <td className="sticky left-0 z-20 bg-muted/60 px-3 py-2 text-[10px] font-bold uppercase tracking-wider">Total</td>
+                {FEE_SECTORS.map((s) => (
                   <React.Fragment key={`${s.key}-totals`}> 
                     <td className="px-3 py-2 text-right font-bold tabular-nums">{peso(sectorTotals[s.key][FIRE_CODE_MODE_MANUAL])}</td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums">{peso(sectorTotals[s.key][FIRE_CODE_MODE_FSIS])}</td>
@@ -1202,7 +1261,7 @@ export default function FireCodeFeesFormModal({
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[1400px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <div className="flex items-start gap-3">
