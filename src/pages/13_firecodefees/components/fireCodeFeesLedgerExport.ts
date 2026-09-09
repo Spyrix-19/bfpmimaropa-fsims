@@ -24,10 +24,10 @@ export async function exportFireCodeFeesLedgerWorkbook(opts: {
   signatory?: LedgerExcelSignatory;
 }) {
   const rows: LedgerExcelStation[] = opts.rows.map((r) => ({
-    stationname: r.Stationname,
-    unitcode: r.Stationcode,
+    stationname: r.stationname,
+    unitcode: r.stationcode,
     cityname: "",
-    provincename: r.Provincename,
+    provincename: r.provincename,
     bplo: r.sectorTotals.bplo,
     gov: r.sectorTotals.gov,
     peza: r.sectorTotals.peza,

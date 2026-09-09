@@ -1,7 +1,6 @@
 import * as React from "react";
 import { format } from "date-fns";
 import {
-  AlertTriangle,
   Ban,
   CalendarIcon,
   ChevronDown,
@@ -18,6 +17,7 @@ import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
 import { buildYears, cn } from "@/lib/utils";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
+import { canManageTargetAndCompliance, canShowEditAction } from "@/lib/permissions";
 import { EMPTY_GUID, MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { serializePhilippineDateTime } from "@/lib/date-format";
 import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
@@ -61,9 +61,11 @@ import type {
 } from "@/types/firecodefeesType";
 import {
   FEE_SECTORS,
-  FIRE_CODE_MODE_FSIC,
+  FIRE_CODE_MODES,
+  FIRE_CODE_MODE_FSIS,
   FIRE_CODE_MODE_MANUAL,
   SECTOR_BY_CODE,
+  lastDayOfMonthISO,
   peso,
   type FeeAmounts,
   type FireCodeSectorKey,
@@ -74,13 +76,10 @@ import { groupCategories, useFeeCategories, type FeeCategory } from "./feeCatego
 /*  Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-export const MODES = [
-  { code: FIRE_CODE_MODE_MANUAL, label: "MANUAL" },
-  { code: FIRE_CODE_MODE_FSIC, label: "FSIC" },
-] as const;
+export const MODES = FIRE_CODE_MODES;
 
-export type ModeCode = (typeof MODES)[number]["code"];
-/** Collected amounts keyed by fee category (`Feecateg`). */
+export type ModeCode = typeof FIRE_CODE_MODE_MANUAL | typeof FIRE_CODE_MODE_FSIS;
+/** Collected amounts keyed by fee category (`feecateg`). */
 export type Amounts = FeeAmounts;
 export type SectorValues = Record<FireCodeSectorKey, Record<ModeCode, Amounts>>;
 
@@ -90,9 +89,9 @@ export const emptyValues = (): SectorValues =>
   Object.fromEntries(
     FEE_SECTORS.map((s) => [
       s.key,
-      { [FIRE_CODE_MODE_MANUAL]: emptyAmounts(), [FIRE_CODE_MODE_FSIC]: emptyAmounts() },
+      { [FIRE_CODE_MODE_MANUAL]: emptyAmounts(), [FIRE_CODE_MODE_FSIS]: emptyAmounts() },
     ]),
-  ) as SectorValues;
+  ) as unknown as SectorValues;
 
 /** Sum of every collected amount of one sector + mode. */
 export const sumAmounts = (amounts: Amounts) =>
@@ -110,10 +109,11 @@ export function isPastMonth(year: number, month: number): boolean {
   return new Date(year, month - 1, 1).getTime() < startOfCurrentMonth();
 }
 
-/** `Dateaccomplish` of a reporting month — always the first day of the month. */
-export function toDateaccomplish(year: number, month: number): Date {
-  return new Date(year, month - 1, 1, 0, 0, 0);
-}
+/**
+ * `dateaccomplish` of a reporting month — the LAST day of that month, sent as
+ * a local date-time string so the saved day is never shifted by a timezone.
+ */
+export const toDateaccomplish = lastDayOfMonthISO;
 
 /** Keeps digits and a single decimal point, max two decimals. */
 function sanitizeAmount(raw: string): string {
@@ -137,15 +137,15 @@ export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | nul
     if (!value || typeof value !== "object") return;
     if (Array.isArray(value)) return value.forEach(walk);
     const obj = value as Record<string, unknown>;
-    if (obj.Feeno) {
+    if (obj.feeno) {
       rows.push(obj as unknown as FSISFeeCollectionDetailModel);
       return;
     }
-    if (Array.isArray(obj.Feedetaillist)) (obj.Feedetaillist as unknown[]).forEach(walk);
-    if (Array.isArray(obj.Accomfeelist)) (obj.Accomfeelist as unknown[]).forEach(walk);
+    if (Array.isArray(obj.feedetaillist)) (obj.feedetaillist as unknown[]).forEach(walk);
+    if (Array.isArray(obj.accomfeelist)) (obj.accomfeelist as unknown[]).forEach(walk);
   };
   walk(data);
-  return rows.find((r) => r.Feeno && String(r.Feeno) !== EMPTY_GUID) ?? null;
+  return rows.find((r) => r.feeno && String(r.feeno) !== EMPTY_GUID) ?? null;
 }
 
 
@@ -397,6 +397,11 @@ export function FireCodeFeesFormBody({
     [user, systemAccess?.roleno],
   );
   const isSuper = Number(systemAccess?.roleno ?? 0) === 1;
+  /** Add / Edit is limited to Personnel at station types 28–31 (or Super Admin). */
+  const canManage = React.useMemo(
+    () => canManageTargetAndCompliance(user, systemAccess) && canShowEditAction(user, systemAccess),
+    [user, systemAccess],
+  );
   const { categories } = useFeeCategories();
 
   /* Reporting period (monthly basis — the record is keyed on the 1st) ------ */
@@ -486,12 +491,6 @@ export function FireCodeFeesFormBody({
     {},
   );
   const [checkingExisting, setCheckingExisting] = React.useState(false);
-  const [pendingExisting, setPendingExisting] = React.useState<FSISFeeCollectionDetailModel | null>(
-    null,
-  );
-  const [duplicateOpen, setDuplicateOpen] = React.useState(false);
-  const [existingLocked, setExistingLocked] = React.useState(false);
-  const promptedKeyRef = React.useRef<string | null>(null);
   const [reloadNonce, setReloadNonce] = React.useState(0);
 
   const clearValues = React.useCallback(() => {
@@ -502,29 +501,32 @@ export function FireCodeFeesFormBody({
   const resetExisting = React.useCallback(() => {
     setExistingFeeno(null);
     setExistingAccomplishNos({});
-    setPendingExisting(null);
-    setExistingLocked(false);
   }, []);
 
   const plotExisting = React.useCallback((rec: FSISFeeCollectionDetailModel) => {
     const next = emptyValues();
     const accomplishNos: Record<string, string> = {};
-    for (const item of Array.isArray(rec.Accomfeelist) ? rec.Accomfeelist : []) {
-      const sector = SECTOR_BY_CODE.get(Number(item.Sectorno));
+    for (const item of Array.isArray(rec.accomfeelist) ? rec.accomfeelist : []) {
+      const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
       if (!sector) continue;
       const mode: ModeCode =
-        Number(item.Fsicmode) === FIRE_CODE_MODE_FSIC ? FIRE_CODE_MODE_FSIC : FIRE_CODE_MODE_MANUAL;
-      const feecateg = Number(item.Feecateg) || 0;
-      next[sector][mode][feecateg] = Number(item.Collectedamount ?? 0) || 0;
-      if (item.Accomplishno)
-        accomplishNos[`${sector}|${mode}|${feecateg}`] = String(item.Accomplishno);
+        Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;
+      const feecateg = Number(item.feecateg) || 0;
+      next[sector][mode][feecateg] = Number(item.collectedamount ?? 0) || 0;
+      if (item.accomplishno)
+        accomplishNos[`${sector}|${mode}|${feecateg}`] = String(item.accomplishno);
     }
     setValues(next);
     setExistingAccomplishNos(accomplishNos);
-    setExistingFeeno(String(rec.Feeno));
+    setExistingFeeno(String(rec.feeno));
     setErrors({});
   }, []);
 
+  /**
+   * Whenever the station, month or year changes (initial load included) the
+   * Detail/Date endpoint decides the mode: a record found → edit + plot its
+   * amounts, nothing found → a fresh creation.
+   */
   React.useEffect(() => {
     const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
     if (!activeStationNo || activeStationNo === EMPTY_GUID) {
@@ -536,33 +538,16 @@ export function FireCodeFeesFormBody({
     (async () => {
       setCheckingExisting(true);
       clearValues();
+      resetExisting();
       const resp = await firecodefeesAPI.getDetailBydate(
-        { stationno: activeStationNo, reportyear: year, reportmonth: month },
+        { Stationno: activeStationNo, Reportyear: year, Reportmonth: month },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
       if (cancelled) return;
       const { ok, data } = unwrap<unknown>(resp);
       const record = ok ? pickFeeRecord(data) : null;
       setCheckingExisting(false);
-
-      if (!record) {
-        promptedKeyRef.current = null;
-        setDuplicateOpen(false);
-        resetExisting();
-        return;
-      }
-
-      setPendingExisting(record);
-      const locked = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, month);
-      setExistingLocked(locked);
-
-      const key = `${activeStationNo}|${selectedDateKey}`;
-      if (promptedKeyRef.current !== key) {
-        promptedKeyRef.current = key;
-        setDuplicateOpen(true);
-      } else if (locked) {
-        plotExisting(record);
-      }
+      if (record) plotExisting(record);
     })();
     return () => {
       cancelled = true;
@@ -627,8 +612,10 @@ export function FireCodeFeesFormBody({
     [revisionRequests, selectedDateKey, existingFeeno],
   );
   const hasPendingRevision = !unlockedByApproval && !!activeRequest;
-  const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
-  const fieldsLocked = !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
+  const needsRevisionRequest =
+    canManage && isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
+  const fieldsLocked =
+    !canManage || (!unlockedByApproval && (isPastSelectedDate || hasPendingRevision));
 
   /* Totals ---------------------------------------------------------------- */
   const sectorTotals = React.useMemo(() => {
@@ -687,25 +674,25 @@ export function FireCodeFeesFormBody({
           const amounts = values[s.key][m.code];
           for (const c of categories) {
             fsisfeecollectionList.push({
-              Accomplishno: existingAccomplishNos[`${s.key}|${m.code}|${c.detno}`] || EMPTY_GUID,
-              Fsicmode: m.code,
-              Feecateg: c.detno,
-              Collectedamount: amounts[c.detno] ?? 0,
-              Sectorno: s.code,
+              accomplishno: existingAccomplishNos[`${s.key}|${m.code}|${c.detno}`] || EMPTY_GUID,
+              fsicmode: m.code,
+              feecateg: c.detno,
+              collectedamount: amounts[c.detno] ?? 0,
+              sectorno: s.code,
             });
           }
         }
       }
 
       const resp = await firecodefeesAPI.create({
-        Stationno: submitStationNo,
-        Encodedby: encodedby,
+        stationno: submitStationNo,
+        encodedby: encodedby,
         fsisfeeList: [
           {
-            Feeno: existingFeeno || EMPTY_GUID,
-            Dateaccomplish: toDateaccomplish(year, month),
-            Isaccomplished: true,
-            Remarks: "",
+            feeno: existingFeeno || EMPTY_GUID,
+            dateaccomplish: lastDayOfMonthISO(year, month),
+            isaccomplished: true,
+            remarks: "",
             fsisfeecollectionList,
           },
         ],
@@ -729,7 +716,14 @@ export function FireCodeFeesFormBody({
 
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
-      {fieldsLocked && (
+      {!canManage && (
+        <div className="flex items-start gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>View only — your role and station are not allowed to encode Fire Code Fees.</span>
+        </div>
+      )}
+
+      {canManage && fieldsLocked && (
         <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
           <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
           <span>
@@ -945,7 +939,7 @@ export function FireCodeFeesFormBody({
             <tbody>
               {FEE_SECTORS.filter((s) => visibleSectors[s.key]).map((s) => {
                 const manual = sectorTotals[s.key][FIRE_CODE_MODE_MANUAL];
-                const fsic = sectorTotals[s.key][FIRE_CODE_MODE_FSIC];
+                const fsic = sectorTotals[s.key][FIRE_CODE_MODE_FSIS];
                 return (
                   <tr key={s.key} className="border-t border-border/40">
                     <td className="px-3 py-2 font-semibold text-foreground/90">{s.title}</td>
@@ -1029,9 +1023,10 @@ export function FireCodeFeesFormBody({
           <>
             {onCancel && (
               <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
+                {canManage ? "Cancel" : "Close"}
               </Button>
             )}
+            {canManage && (
             <Button
               type="submit"
               disabled={saving || checkingExisting}
@@ -1044,43 +1039,10 @@ export function FireCodeFeesFormBody({
               )}
               {saving ? "Saving…" : existingFeeno ? "Update" : "Save Collection"}
             </Button>
+            )}
           </>
         )}
       </div>
-
-      <ConfirmDialog
-        open={duplicateOpen}
-        onOpenChange={(v) => {
-          if (!v) {
-            setDuplicateOpen(false);
-            if (existingLocked && pendingExisting) plotExisting(pendingExisting);
-            else {
-              setExistingFeeno(null);
-              setExistingAccomplishNos({});
-            }
-            return;
-          }
-          setDuplicateOpen(v);
-        }}
-        ContentIcon={AlertTriangle}
-        contentIconBgClass="tone-warning-soft"
-        contentIconColorClass="text-warning"
-        title="Fire Code Fees Collection Already Exists"
-        description={`A collection record already exists for ${
-          station.name || "this station"
-        } for ${monthName} ${year}.\n\n${
-          existingLocked
-            ? "This record is already locked — it will be opened as read-only and any change will require a revision request."
-            : "Do you want to open and edit the existing record?"
-        }`}
-        confirmLabel={existingLocked ? "Open Record" : "Edit Existing"}
-        showCancel={false}
-        dismissible={false}
-        onConfirm={() => {
-          if (pendingExisting) plotExisting(pendingExisting);
-          setDuplicateOpen(false);
-        }}
-      />
 
       {addRevisionOpen && (
         <RevisionRequestDialog

@@ -1,24 +1,38 @@
-export class FSISFeeCollectionDTO {
-  Stationno: string = "";
-  Encodedby: string = "";
-  fsisfeeList: FSISFeeCollectionClass[] = [];
+/**
+ * FSISFeeCollection contracts — field names match the API payload EXACTLY
+ * (all lowercase, no aliasing and no mapping layer).
+ */
+
+/* ------------------------------------------------------------------ */
+/* Create                                                             */
+/* ------------------------------------------------------------------ */
+
+export interface FSISFeeCollectionClassDTO {
+  accomplishno: string;
+  fsicmode: number;
+  feecateg: number;
+  collectedamount: number;
+  sectorno: number;
 }
 
-export class FSISFeeCollectionClass {
-  Feeno: string = "";
-  Dateaccomplish: Date = new Date("1900-01-01");
-  Isaccomplished: boolean = false;
-  Remarks: string = "";
-  fsisfeecollectionList: FSISFeeCollectionClassDTO[] = [];
+export interface FSISFeeCollectionClass {
+  feeno: string;
+  /** Local date-time string, e.g. "2026-08-31T00:00:00". */
+  dateaccomplish: string;
+  isaccomplished: boolean;
+  remarks: string;
+  fsisfeecollectionList: FSISFeeCollectionClassDTO[];
 }
 
-export class FSISFeeCollectionClassDTO {
-  Accomplishno: string = "";
-  Fsicmode: number = 0;
-  Feecateg: number = 0;
-  Collectedamount: number = 0.00;
-  Sectorno: number = 0;
+export interface FSISFeeCollectionDTO {
+  stationno: string;
+  encodedby: string;
+  fsisfeeList: FSISFeeCollectionClass[];
 }
+
+/* ------------------------------------------------------------------ */
+/* Ledger request                                                     */
+/* ------------------------------------------------------------------ */
 
 export interface FSISFeeCollectionParamClass {
   Provinceno: string;
@@ -44,26 +58,21 @@ export interface ExportFSISFeeCollectionDTO {
   Provinces: FSISFeeCollectionProvinceStationSelectionClass[];
 }
 
+/* ------------------------------------------------------------------ */
+/* Detail / ledger response                                           */
+/* ------------------------------------------------------------------ */
 
-
-
-//Detail by Date
 export interface FSISFeeCollectionDetailByDateParams {
-  stationno: string;
-  reportyear: number;
-  reportmonth: number;
+  Stationno: string;
+  Reportyear: number;
+  Reportmonth: number;
 }
-
-
 
 export interface FSISFeeCollectionDetailParams {
-  stationno: string;
-  reportyear: number;
+  Stationno: string;
+  Reportyear: number;
 }
 
-
-
-// Ledger Models
 export interface FSISFeeCollectionLedgerParams {
   parameters?: FSISFeeCollectionParams;
   pagenumber?: number;
@@ -71,36 +80,36 @@ export interface FSISFeeCollectionLedgerParams {
 }
 
 export interface FSISFeeAccomDetailModel {
-  Accomplishno: string;
-  Feeno: string;
-  Fsicmode: number;
-  Feecateg: number;
-  Collectedamount: number;
-  Sectorno: number;
+  accomplishno: string;
+  feeno: string;
+  fsicmode: number;
+  feecateg: number;
+  collectedamount: number;
+  sectorno: number;
 }
 
 export interface FSISFeeCollectionDetailModel {
-  Feeno: string;
-  Stationno: string;
-  Dateaccomplish: string;
-  Accomfeelist: FSISFeeAccomDetailModel[];
+  feeno: string;
+  stationno: string;
+  dateaccomplish: string;
+  accomfeelist: FSISFeeAccomDetailModel[];
 }
 
 export interface FSISStationFeeDetailModel {
-  Stationno: string;
-  Stationcode: string;
-  Stationname: string;
-  Provinceno: string;
-  Provincename: string;
-  Feedetaillist: FSISFeeCollectionDetailModel[];
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provinceno: string;
+  provincename: string;
+  feedetaillist: FSISFeeCollectionDetailModel[];
 }
 
 export interface FSISFeeCollectionLedgerModel {
-  Total: number;
-  Items: FSISStationFeeDetailModel[];
+  total: number;
+  items: FSISStationFeeDetailModel[];
 }
 
-//Delete
+/* Delete */
 export interface FSISFeeCollectionDeleteParams {
   stationno: string;
   reportyear: number;

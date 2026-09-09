@@ -51,7 +51,7 @@ import {
   FEE_COLUMNS,
   FEE_GROUPS,
   FEE_SECTORS,
-  FIRE_CODE_MODE_FSIC,
+  FIRE_CODE_MODE_FSIS,
   SECTOR_BY_CODE,
   peso,
   type FeeAmounts,
@@ -126,7 +126,7 @@ function buildFeeLines(
   const byKey = new Map<string, FeeLine>();
 
   for (const rec of Array.isArray(records) ? records : []) {
-    const iso = String(rec?.Dateaccomplish ?? "").slice(0, 10);
+    const iso = String(rec?.dateaccomplish ?? "").slice(0, 10);
     if (!iso || iso.startsWith("1900")) continue;
 
     const year = iso.slice(0, 4);
@@ -155,16 +155,16 @@ function buildFeeLines(
       byKey.set(key, line);
     }
 
-    const items = Array.isArray(rec?.Accomfeelist) ? rec.Accomfeelist : [];
+    const items = Array.isArray(rec?.accomfeelist) ? rec.accomfeelist : [];
     for (const item of items) {
-      const sector = SECTOR_BY_CODE.get(Number(item.Sectorno));
+      const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
       if (!sector) continue;
       const bucket =
-        num(item.Fsicmode) === FIRE_CODE_MODE_FSIC
+        num(item.fsicmode) === FIRE_CODE_MODE_FSIS
           ? line.sectors[sector].fsic
           : line.sectors[sector].manual;
-      const categ = Number(item.Feecateg) || 0;
-      bucket[categ] = (bucket[categ] ?? 0) + num(item.Collectedamount);
+      const categ = Number(item.feecateg) || 0;
+      bucket[categ] = (bucket[categ] ?? 0) + num(item.collectedamount);
     }
   }
 
@@ -303,11 +303,11 @@ export default function FireCodeFeesPage() {
   }, []);
 
   const toEditorStation = (row: FireCodeFeeLedgerRow): FeeEditorStation => ({
-    Stationno: row.Stationno,
-    Stationcode: row.Stationcode,
-    Stationname: row.Stationname,
-    Provinceno: row.Provinceno,
-    Provincename: row.Provincename,
+    stationno: row.stationno,
+    stationcode: row.stationcode,
+    stationname: row.stationname,
+    provinceno: row.provinceno,
+    provincename: row.provincename,
   });
 
   const openEditor = React.useCallback((row: FireCodeFeeLedgerRow, readOnly: boolean) => {
@@ -332,7 +332,7 @@ export default function FireCodeFeesPage() {
     setDeleting(true);
     try {
       const resp = await firecodefeesAPI.delete({
-        stationno: deleteTarget.Stationno,
+        stationno: deleteTarget.stationno,
         reportyear: Number(deleteTarget.year),
         reportmonth: Number(deleteTarget.month),
         deletedby: user?.memberno ?? "",
@@ -364,9 +364,9 @@ export default function FireCodeFeesPage() {
 
   const mapStation = React.useCallback(
     (station: FSISStationFeeDetailModel, monthSet: Set<number>): FireCodeFeeLedgerRow => {
-      const list = Array.isArray(station.Feedetaillist) ? station.Feedetaillist : [];
+      const list = Array.isArray(station.feedetaillist) ? station.feedetaillist : [];
       const records = list.filter((rec) => {
-        const iso = String(rec?.Dateaccomplish ?? "").slice(0, 10);
+        const iso = String(rec?.dateaccomplish ?? "").slice(0, 10);
         if (!iso || iso.startsWith("1900")) return false;
         const m = Number(iso.slice(5, 7)) || 0;
         return !!m && monthSet.has(m);
@@ -382,23 +382,23 @@ export default function FireCodeFeesPage() {
 
       let latest = "";
       for (const rec of records) {
-        const iso = String(rec?.Dateaccomplish ?? "").slice(0, 10);
+        const iso = String(rec?.dateaccomplish ?? "").slice(0, 10);
         if (iso > latest) latest = iso;
       }
 
       return {
-        key: `${station.Stationno}|${year}|${monthsKey}`,
-        Stationno: String(station.Stationno ?? ""),
-        Stationcode: String(station.Stationcode ?? ""),
-        Stationname: String(station.Stationname ?? ""),
-        Provinceno: String(station.Provinceno ?? ""),
-        Provincename: String(station.Provincename ?? ""),
+        key: `${station.stationno}|${year}|${monthsKey}`,
+        stationno: String(station.stationno ?? ""),
+        stationcode: String(station.stationcode ?? ""),
+        stationname: String(station.stationname ?? ""),
+        provinceno: String(station.provinceno ?? ""),
+        provincename: String(station.provincename ?? ""),
         year: Number(year),
         month: Number(month),
         grandTotal: Object.values(sectorTotals).reduce((a, b) => a + b, 0),
         sectorTotals,
         lastupdated: latest,
-        Feedetaillist: records,
+        feedetaillist: records,
       };
     },
     [granularity, month, monthsKey, year],
@@ -619,7 +619,7 @@ export default function FireCodeFeesPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {matrixRow ? `${matrixRow.Stationname} — Fire Code Fees Matrix` : "Fire Code Fees Matrix"}
+              {matrixRow ? `${matrixRow.stationname} — Fire Code Fees Matrix` : "Fire Code Fees Matrix"}
             </DialogTitle>
             <DialogDescription>
               {matrixRow
@@ -657,7 +657,7 @@ export default function FireCodeFeesPage() {
                   {rows.map((row) => (
                     <tr key={row.key} className="border-t border-border/40">
                       <td className="sticky left-0 bg-background px-3 py-2 text-left font-medium">
-                        {row.Stationname}
+                        {row.stationname}
                       </td>
                       {FEE_SECTORS.map((sector) => (
                         <td key={`${row.key}-${sector.key}`} className="px-3 py-2 text-right">
@@ -705,7 +705,7 @@ export default function FireCodeFeesPage() {
         subject={
           deleteTarget ? (
             <>
-              {deleteTarget.Stationname} — {periodLabel}
+              {deleteTarget.stationname} — {periodLabel}
             </>
           ) : null
         }
@@ -917,7 +917,7 @@ function StationMatrixTable({
   row: FireCodeFeeLedgerRow;
   groupBy: Granularity;
 }) {
-  const lines = React.useMemo(() => buildFeeLines(row.Feedetaillist, groupBy), [row.Feedetaillist, groupBy]);
+  const lines = React.useMemo(() => buildFeeLines(row.feedetaillist, groupBy), [row.feedetaillist, groupBy]);
 
   if (lines.length === 0) {
     return (
@@ -998,7 +998,7 @@ function FireCodeFeesLedgerCard({
   onDelete: () => void;
   onMatrix: () => void;
 }) {
-  const lines = React.useMemo(() => buildFeeLines(row.Feedetaillist, groupBy), [row.Feedetaillist, groupBy]);
+  const lines = React.useMemo(() => buildFeeLines(row.feedetaillist, groupBy), [row.feedetaillist, groupBy]);
   const periodHeading = groupBy === "month" ? "Month" : groupBy === "annual" ? "Year" : "Period";
 
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
@@ -1010,25 +1010,25 @@ function FireCodeFeesLedgerCard({
     <Card className="flex flex-col overflow-hidden border-border/50 shadow-soft transition-shadow hover:shadow-elegant dark:border-border/40">
       <div className="flex items-start gap-3 border-b border-border/40 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-4 dark:border-border/50">
         <AvatarWithFallback
-          entity={{ name: row.Stationname }}
-          name={row.Stationname}
+          entity={{ name: row.stationname }}
+          name={row.stationname}
           className="h-14 w-14 shrink-0 rounded-full ring-2 ring-primary/20"
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-              {row.Stationcode}
+              {row.stationcode}
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
               {periodLabel ?? `${monthName} ${row.year}`}
             </span>
           </div>
           <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
-            {row.Stationname}
+            {row.stationname}
           </div>
           <div className="text-[11px] text-muted-foreground dark:text-slate-400">
             
-            {row.Provincename}
+            {row.provincename}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1066,7 +1066,7 @@ function FireCodeFeesLedgerCard({
         <button
           type="button"
           onClick={onView}
-          aria-label={`View Fire Code Fees collection for ${row.Stationname}`}
+          aria-label={`View Fire Code Fees collection for ${row.stationname}`}
           title="View"
           className="rounded-md border border-border bg-card p-2 text-primary transition-colors hover:bg-primary hover:text-white"
         >
@@ -1077,7 +1077,7 @@ function FireCodeFeesLedgerCard({
         <button
           type="button"
           onClick={onMatrix}
-          aria-label={`Fire Code Fees matrix for ${row.Stationname}`}
+          aria-label={`Fire Code Fees matrix for ${row.stationname}`}
           title="Fire Code Fees Matrix"
           className="rounded-md border border-border bg-card p-2 text-primary transition-colors hover:bg-primary hover:text-white"
         >
