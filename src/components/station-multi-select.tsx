@@ -19,10 +19,12 @@ import { resolvePageCount } from "@/lib/page-count";
 
 export interface SelectedStation {
   stationno: string;
+  stationcode?: string;
   stationname: string;
   provinceno: string;
   provincename: string;
 }
+
 
 export type StationMultiSelectProps = {
   placeholder?: string;
@@ -133,6 +135,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
         ...value,
         {
           stationno: r.stationno,
+          stationcode: r.stationcode,
           stationname: r.stationname,
           provinceno: r.provinceno,
           provincename: r.provincename,
@@ -148,7 +151,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
     value.length === 0
       ? "ALL"
       : value.length === 1
-        ? value[0].stationname
+        ? `${value[0].stationcode ? value[0].stationcode + " " : ""}${value[0].stationname}${value[0].provincename ? " · " + value[0].provincename : ""}`
         : `${value.length} selected`;
 
   const showPrev = page > 1;
@@ -242,11 +245,8 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
                         className="w-8 h-8 rounded-md overflow-hidden bg-muted/30"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{r.stationname}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {r.stationcode}
-                          {r.provincename ? " · " + r.provincename : ""}
-                        </div>
+                        <div className="truncate font-medium">{r.stationcode ? r.stationcode + " " + r.stationname : r.stationname}</div>
+                        <div className="truncate text-xs text-muted-foreground">{r.provincename}</div>
                       </div>
                     </div>
                     {sel ? <Check className="h-4 w-4 text-primary" /> : null}
