@@ -256,8 +256,17 @@ export default function StationSearchSelect({
                       />
 
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{r.stationcode ? r.stationcode + " " + r.stationname : r.stationname}</div>
-                        <div className="truncate text-xs text-muted-foreground">{r.provincename}</div>
+                        <div className="truncate font-medium">{r.stationname || r.stationcode || "—"}</div>
+                        <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span className="truncate font-medium text-muted-foreground/90">
+                            {r.stationcode || "—"}
+                          </span>
+                          {r.provincename ? (
+                            <span className="shrink-0 truncate text-right">
+                              {r.provincename}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                     {selected ? <Check className="h-4 w-4 text-primary" /> : null}
