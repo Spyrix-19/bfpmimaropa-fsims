@@ -104,6 +104,7 @@ export interface FSISStationFeeDetailModel {
   stationname: string;
   provinceno: string;
   provincename: string;
+  logourl: string;
   feedetaillist: FSISFeeCollectionDetailModel[];
 }
 
