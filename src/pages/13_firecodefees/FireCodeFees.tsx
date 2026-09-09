@@ -54,6 +54,7 @@ import {
   FEE_SECTORS,
   FIRE_CODE_MODE_FSIS,
   SECTOR_BY_CODE,
+  flattenFeeAccomItems,
   peso,
   type FeeAmounts,
   type FireCodeFeeLedgerRow,
@@ -122,20 +123,8 @@ const monthLabel = (ym: string) => {
 /** Sums every collection record of a station into one line per period bucket. */
 const flattenSectorItems = (
   rec: FSISFeeCollectionDetailModel | undefined,
-): FSISFeeAccomDetailModel[] => {
-  const sectors = Array.isArray(rec?.sectorlist) ? rec.sectorlist : [];
-  const flattened = sectors.flatMap((sector) =>
-    Array.isArray(sector?.accomfeelist) ? sector.accomfeelist : [],
-  );
+): FSISFeeAccomDetailModel[] => flattenFeeAccomItems(rec);
 
-  if (flattened.length > 0) return flattened;
-
-  const direct = Array.isArray((rec as { accomfeelist?: FSISFeeAccomDetailModel[] } | undefined)?.accomfeelist)
-    ? (rec as { accomfeelist?: FSISFeeAccomDetailModel[] }).accomfeelist ?? []
-    : [];
-
-  return direct;
-};
 
 function buildFeeLines(
   records: FSISFeeCollectionDetailModel[] | undefined,

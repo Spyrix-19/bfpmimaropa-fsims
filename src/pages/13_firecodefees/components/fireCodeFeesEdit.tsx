@@ -59,6 +59,7 @@ import {
   FIRE_CODE_MODE_FSIS,
   FIRE_CODE_MODE_MANUAL,
   SECTOR_BY_CODE,
+  flattenFeeAccomItems,
   lastDayOfMonthISO,
   peso,
   type FireCodeSectorKey,
@@ -112,12 +113,10 @@ const freshMonth = (month: number): MonthState => {
 function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthState {
   const values = emptyValues();
   const accomplishNos: Record<string, string> = {};
-  const sectorGroups = Array.isArray(rec.sectorlist) ? rec.sectorlist : [];
-  const items = sectorGroups.flatMap((sector) =>
-    Array.isArray(sector?.accomfeelist) ? sector.accomfeelist : [],
-  );
+  const items = flattenFeeAccomItems(rec);
   for (const item of items) {
     const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
+
     if (!sector) continue;
     const mode: ModeCode =
       Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;

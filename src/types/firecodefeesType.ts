@@ -82,11 +82,14 @@ export interface FSISFeeCollectionLedgerParams {
 export interface FSISFeeAccomDetailModel {
   accomplishno: string;
   feeno: string;
-  sectorno: number;
+  /** Only present on legacy flat payloads — the current API carries it on the
+   *  parent `sectorlist` entry instead. */
+  sectorno?: number;
   fsicmode: number;
   feecateg: number;
   collectedamount: number;
 }
+
 
 export interface FSISFeeCollectionSectorDetailModel {
   sectorno: number;

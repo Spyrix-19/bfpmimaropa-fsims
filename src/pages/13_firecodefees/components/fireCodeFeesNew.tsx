@@ -63,6 +63,7 @@ import {
   FIRE_CODE_MODE_FSIS,
   FIRE_CODE_MODE_MANUAL,
   SECTOR_BY_CODE,
+  flattenFeeAccomItems,
   lastDayOfMonthISO,
   peso,
   type FeeAmounts,
@@ -135,24 +136,26 @@ export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | nul
     if (!value || typeof value !== "object") return;
     if (Array.isArray(value)) return value.forEach(walk);
     const obj = value as Record<string, unknown>;
-    if (obj.feeno) {
+    // A collection record carries a feeno AND the accomplishment payload.
+    // Individual accomfeelist rows also carry a feeno, so they must not be
+    // mistaken for the record itself.
+    const isRecord =
+      !!obj.feeno &&
+      (Array.isArray(obj.sectorlist) ||
+        Array.isArray(obj.accomfeelist) ||
+        obj.dateaccomplish !== undefined);
+    if (isRecord) {
       rows.push(obj as unknown as FSISFeeCollectionDetailModel);
       return;
     }
     if (Array.isArray(obj.feedetaillist)) (obj.feedetaillist as unknown[]).forEach(walk);
-    if (Array.isArray(obj.sectorlist)) (obj.sectorlist as unknown[]).forEach((sector) => {
-      if (sector && typeof sector === "object") {
-        const sectorObj = sector as Record<string, unknown>;
-        if (Array.isArray(sectorObj.accomfeelist)) {
-          (sectorObj.accomfeelist as unknown[]).forEach(walk);
-        }
-      }
-    });
-    if (Array.isArray(obj.accomfeelist)) (obj.accomfeelist as unknown[]).forEach(walk);
+    if (Array.isArray(obj.data)) (obj.data as unknown[]).forEach(walk);
+    else if (obj.data && typeof obj.data === "object") walk(obj.data);
   };
   walk(data);
   return rows.find((r) => r.feeno && String(r.feeno) !== EMPTY_GUID) ?? null;
 }
+
 
 
 /* -------------------------------------------------------------------------- */
@@ -229,7 +232,7 @@ function AmountInput({
       value={text}
       disabled={disabled}
       readOnly={disabled}
-      className={cn("h-9 text-right tabular-nums", disabled && "cursor-not-allowed opacity-60")}
+      className={cn("h-9 text-center tabular-nums", disabled && "cursor-not-allowed opacity-60")}
       onFocus={(e) => {
         if (disabled) return;
         if (e.target.value === "0") setText("");
@@ -273,19 +276,19 @@ export function SectorPanel({
     <div className="overflow-hidden rounded-xl border border-border/60">
       <table className="w-full border-separate border-spacing-0 text-xs">
         <thead>
-          <tr className="bg-muted/50">
-            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="head-soft px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider">
               Fee Category
             </th>
             {MODES.map((m) => (
               <th
                 key={m.code}
-                className="w-[9.5rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                className="head-soft w-[9.5rem] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
               >
                 {m.label}
               </th>
             ))}
-            <th className="w-[7rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <th className="head-soft w-[7rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider">
               Total
             </th>
           </tr>
@@ -362,30 +365,48 @@ function FeeCategoryMatrix({
 }) {
   const groups = React.useMemo(() => groupCategories(categories), [categories]);
 
-  /** Overall total across every sector and mode — shown once, never per sector. */
-  const grand = React.useMemo(
+  /** Column total of one sector + mode, e.g. BPLO · MANUAL. */
+  const columnTotals = React.useMemo(
     () =>
-      FEE_SECTORS.reduce(
-        (a, s) => a + MODES.reduce((b, m) => b + sumAmounts(values[s.key][m.code]), 0),
-        0,
-      ),
+      FEE_SECTORS.map((s) => ({
+        key: s.key,
+        byMode: MODES.map((m) => ({ code: m.code, total: sumAmounts(values[s.key][m.code]) })),
+      })),
     [values],
   );
 
+  /** Overall total across every sector and mode — shown once, never per sector. */
+  const grand = React.useMemo(
+    () =>
+      columnTotals.reduce((a, s) => a + s.byMode.reduce((b, m) => b + m.total, 0), 0),
+    [columnTotals],
+  );
+
+
   return (
     <div className="overflow-x-auto rounded-xl border border-border/60">
-      <table className="min-w-full border-separate border-spacing-0 text-xs">
+      <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
+        <colgroup>
+          <col className="w-64" />
+          <col className="w-28" />
+          {FEE_SECTORS.map((s) => (
+            <React.Fragment key={`${s.key}-cols`}>
+              <col className="w-36" />
+              <col className="w-36" />
+            </React.Fragment>
+          ))}
+        </colgroup>
         <thead>
-          <tr className="bg-muted/50">
+          <tr>
             <th
               rowSpan={2}
-              className="sticky left-0 z-20 w-64 min-w-64 bg-muted/50 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+              className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider"
             >
               Fee Category
             </th>
             <th
               rowSpan={2}
-              className="sticky left-64 z-20 w-[7rem] border-l border-border/60 bg-muted/50 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-r border-border/60 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider"
             >
               Total
             </th>
@@ -393,20 +414,20 @@ function FeeCategoryMatrix({
               <th
                 key={s.key}
                 colSpan={2}
-                className="border-l border-border/60 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                className="head-soft border-l border-border/60 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
               >
                 {s.label}
               </th>
             ))}
           </tr>
-          <tr className="bg-muted/50">
+          <tr>
             {FEE_SECTORS.map((s) => (
               <React.Fragment key={`${s.key}-sub`}>
                 {MODES.map((m, mi) => (
                   <th
                     key={`${s.key}-${m.code}`}
                     className={cn(
-                      "w-[9.5rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground",
+                      "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
                       mi === 0 && "border-l border-border/60",
                     )}
                   >
@@ -421,16 +442,20 @@ function FeeCategoryMatrix({
           {groups.map((g) => (
             <React.Fragment key={g.label}>
               <tr className="bg-primary/5">
-                <td colSpan={2 + FEE_SECTORS.length * 2} className="px-3 py-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                <td
+                  colSpan={2}
+                  className="sticky left-0 z-20 border-r border-border/60 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
+                >
+                  <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
                     {g.code || g.label}
                   </span>
                   {g.items.length > 1 && g.label ? (
-                    <span className="ml-2 text-[10px] font-normal normal-case text-muted-foreground">
+                    <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
                       {g.label}
                     </span>
                   ) : null}
                 </td>
+                <td colSpan={FEE_SECTORS.length * 2} className="px-3 py-1.5" />
               </tr>
               {g.items.map((c) => {
                 const rowTotal = FEE_SECTORS.reduce(
@@ -440,10 +465,10 @@ function FeeCategoryMatrix({
                 );
                 return (
                   <tr key={c.key} className="border-t border-border/40">
-                    <td className="sticky left-0 z-10 w-64 min-w-64 bg-background px-3 py-1.5 align-middle text-foreground/90">
+                    <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-border/40 bg-card px-3 py-1.5 align-middle text-foreground/90">
                       {c.label}
                     </td>
-                    <td className="sticky left-64 z-10 border-l border-border/60 bg-background px-3 py-1.5 text-right font-semibold tabular-nums">
+                    <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-r border-t border-border/60 bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
                       {peso(rowTotal)}
                     </td>
                     {FEE_SECTORS.map((s) => {
@@ -451,7 +476,7 @@ function FeeCategoryMatrix({
                       const fsis = values[s.key][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
                       return (
                         <React.Fragment key={`${s.key}-${c.key}`}>
-                          <td className="border-l border-border/60 px-2 py-1.5">
+                          <td className="w-36 min-w-36 border-l border-border/60 px-2 py-1.5">
                             <AmountInput
                               value={manual}
                               disabled={locked}
@@ -460,7 +485,7 @@ function FeeCategoryMatrix({
                               }
                             />
                           </td>
-                          <td className="px-2 py-1.5">
+                          <td className="w-36 min-w-36 px-2 py-1.5">
                             <AmountInput
                               value={fsis}
                               disabled={locked}
@@ -480,19 +505,35 @@ function FeeCategoryMatrix({
         </tbody>
         <tfoot>
           <tr className="border-t border-border/60 bg-muted/60">
-            <td className="sticky left-0 z-20 bg-muted/60 px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+            <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
               Total
             </td>
-            <td className="sticky left-64 z-20 border-l border-border/60 bg-muted/60 px-3 py-2 text-right font-bold tabular-nums text-primary">
+            <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-r border-border/60 bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
               {peso(grand)}
             </td>
-            <td colSpan={FEE_SECTORS.length * 2} className="border-l border-border/60" />
+            {columnTotals.map((s) => (
+              <React.Fragment key={`${s.key}-total`}>
+                {s.byMode.map((m, mi) => (
+                  <td
+                    key={`${s.key}-${m.code}-total`}
+                    className={cn(
+                      "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
+                      mi === 0 && "border-l border-border/60",
+                    )}
+                  >
+                    {peso(m.total)}
+                  </td>
+                ))}
+              </React.Fragment>
+            ))}
+
           </tr>
         </tfoot>
       </table>
     </div>
   );
 }
+
 
 /* -------------------------------------------------------------------------- */
 /*  Form body                                                                  */
@@ -623,13 +664,11 @@ export function FireCodeFeesFormBody({
   const plotExisting = React.useCallback((rec: FSISFeeCollectionDetailModel) => {
     const next = emptyValues();
     const accomplishNos: Record<string, string> = {};
-    const sectorGroups = Array.isArray(rec.sectorlist) ? rec.sectorlist : [];
-    const items = sectorGroups.flatMap((sector) =>
-      Array.isArray(sector?.accomfeelist) ? sector.accomfeelist : [],
-    );
+    const items = flattenFeeAccomItems(rec);
     for (const item of items) {
       const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
       if (!sector) continue;
+
       const mode: ModeCode =
         Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;
       const feecateg = Number(item.feecateg) || 0;
