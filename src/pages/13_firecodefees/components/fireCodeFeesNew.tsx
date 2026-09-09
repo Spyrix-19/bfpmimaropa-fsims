@@ -64,8 +64,10 @@ import {
   FIRE_CODE_MODE_MANUAL,
   SECTOR_BY_CODE,
   flattenFeeAccomItems,
+  groupAmountText,
   lastDayOfMonthISO,
   peso,
+
   type FeeAmounts,
   type FireCodeSectorKey,
 } from "../feeColumns";
@@ -209,7 +211,7 @@ function Field({
   );
 }
 
-/** Peso amount input (digits + up to two decimals). */
+/** Peso amount input — grouped thousands, always two decimals when idle. */
 function AmountInput({
   value,
   onValueChange,
@@ -219,10 +221,12 @@ function AmountInput({
   onValueChange: (raw: string) => void;
   disabled?: boolean;
 }) {
-  const [text, setText] = React.useState(() => (value ? String(value) : "0"));
+  const [text, setText] = React.useState(() => peso(value));
+  const [focused, setFocused] = React.useState(false);
+
   React.useEffect(() => {
-    setText(value ? String(value) : "0");
-  }, [value]);
+    if (!focused) setText(peso(value));
+  }, [value, focused]);
 
   return (
     <Input
@@ -232,26 +236,34 @@ function AmountInput({
       value={text}
       disabled={disabled}
       readOnly={disabled}
-      className={cn("h-9 text-center tabular-nums", disabled && "cursor-not-allowed opacity-60")}
+      className={cn("h-9 text-right tabular-nums", disabled && "cursor-not-allowed opacity-60")}
       onFocus={(e) => {
         if (disabled) return;
-        if (e.target.value === "0") setText("");
-        else e.target.select();
+        setFocused(true);
+        const plain = sanitizeAmount(e.target.value);
+        if (toAmount(plain) === 0) setText("");
+        else {
+          setText(groupAmountText(plain));
+          requestAnimationFrame(() => e.target.select());
+        }
       }}
       onBlur={() => {
         if (disabled) return;
-        setText(String(toAmount(text)));
-        onValueChange(String(toAmount(text)));
+        setFocused(false);
+        const amount = toAmount(text);
+        setText(peso(amount));
+        onValueChange(String(amount));
       }}
       onChange={(e) => {
         if (disabled) return;
         const next = sanitizeAmount(e.target.value);
-        setText(next);
+        setText(groupAmountText(next));
         onValueChange(next);
       }}
     />
   );
 }
+
 
 /** One sector panel: every fee category with a MANUAL and an FSIC amount. */
 export function SectorPanel({
@@ -1327,7 +1339,7 @@ export default function FireCodeFeesFormModal({
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[96rem] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl xl:w-[calc(100vw-4rem)] xl:max-w-[120rem]"
       >
         <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
           <div className="flex items-start gap-3">

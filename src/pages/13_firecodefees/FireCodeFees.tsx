@@ -68,6 +68,8 @@ import FireCodeFeesFormModal from "./components/fireCodeFeesNew";
 import FireCodeFeesYearEditorModal, {
   type FeeEditorStation,
 } from "./components/fireCodeFeesEdit";
+import FireCodeFeesYearViewModal from "./components/fireCodeFeesView";
+
 
 /** Station + period context handed to the entry form when editing a ledger card. */
 interface FeeFormTarget {
@@ -292,11 +294,18 @@ export default function FireCodeFeesPage() {
   const [formTarget, setFormTarget] = React.useState<FeeFormTarget>({});
   const [reloadKey, setReloadKey] = React.useState(0);
 
-  // Year editor (View / Edit) for one station.
+  // Year editor (Edit) for one station.
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [editorReadOnly, setEditorReadOnly] = React.useState(true);
   const [editorStation, setEditorStation] = React.useState<FeeEditorStation | null>(null);
   const [editorYear, setEditorYear] = React.useState<number>(Number(filterState.year));
+
+  // Dedicated read-only year view for one station.
+  const [viewOpen, setViewOpen] = React.useState(false);
+  const [viewStation, setViewStation] = React.useState<FeeEditorStation | null>(null);
+  const [viewYear, setViewYear] = React.useState<number>(Number(filterState.year));
+
+
 
   // Secure delete
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -324,7 +333,14 @@ export default function FireCodeFeesPage() {
     setEditorOpen(true);
   }, []);
 
+  const openViewer = React.useCallback((row: FireCodeFeeLedgerRow) => {
+    setViewStation(toEditorStation(row));
+    setViewYear(Number(row.year));
+    setViewOpen(true);
+  }, []);
+
   const openStationMatrix = React.useCallback((row: FireCodeFeeLedgerRow) => {
+
     setMatrixRow(row);
     setMatrixOpen(true);
   }, []);
@@ -597,7 +613,7 @@ export default function FireCodeFeesPage() {
               groupBy={granularity}
               periodLabel={periodLabel}
               canManage={canManage}
-              onView={() => openEditor(r, true)}
+              onView={() => openViewer(r)}
               onEdit={() => openEditor(r, false)}
               onDelete={() => askDelete(r)}
               onMatrix={() => openStationMatrix(r)}
@@ -693,7 +709,18 @@ export default function FireCodeFeesPage() {
         onSaved={() => setReloadKey((k) => k + 1)}
       />
 
+      <FireCodeFeesYearViewModal
+        open={viewOpen}
+        onOpenChange={(o) => {
+          setViewOpen(o);
+          if (!o) setViewStation(null);
+        }}
+        station={viewStation}
+        year={viewYear}
+      />
+
       <FireCodeFeesYearEditorModal
+
         open={editorOpen}
         onOpenChange={(o) => {
           setEditorOpen(o);

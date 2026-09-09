@@ -84,9 +84,21 @@ export function flattenFeeAccomItems(
 }
 
 
-/** Peso display used by every amount cell. */
+/** Peso display used by every amount cell: 150,000,000,000.00 */
 export const peso = (value: number) =>
-  (Number(value) || 0).toLocaleString(undefined, {
+  (Number(value) || 0).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+/** Groups an amount string with thousand separators, keeping typed decimals. */
+export const groupAmountText = (raw: string) => {
+  const s = String(raw ?? "");
+  if (s === "") return "";
+  const [whole, dec] = s.split(".");
+  const grouped = (Number(whole || 0) || 0).toLocaleString("en-US", {
+    maximumFractionDigits: 0,
+  });
+  return dec === undefined ? grouped : `${grouped}.${dec}`;
+};
+
