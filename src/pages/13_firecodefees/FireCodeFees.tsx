@@ -15,7 +15,6 @@ import {
   Download,
   Loader2,
   ChevronDown,
-  ChevronUp,
   LayoutGrid,
   Plus,
   Eye,
@@ -53,6 +52,7 @@ import {
   FEE_GROUPS,
   FEE_SECTORS,
   FIRE_CODE_MODE_FSIS,
+  FIRE_CODE_MODE_MANUAL,
   SECTOR_BY_CODE,
   flattenFeeAccomItems,
   peso,
@@ -61,6 +61,12 @@ import {
   type FireCodeSectorKey,
 } from "./feeColumns";
 import { exportFireCodeFeesLedgerWorkbook } from "./components/fireCodeFeesLedgerExport";
+import { useFeeCategories } from "./components/feeCategories";
+import {
+  FeeMatrixTable,
+  emptyValues,
+  type SectorValues,
+} from "./components/feeShared";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
@@ -128,11 +134,42 @@ const flattenSectorItems = (
 ): FSISFeeAccomDetailModel[] => flattenFeeAccomItems(rec);
 
 
+/**
+ * Builds one ledger line per period the current filter covers — mirroring the
+ * Notices / Compliance ledgers. Every selected month (all 12 when "All"),
+ * quarter, semester, or the year itself is seeded first so periods without
+ * encoded collections still render as zero rows, then each record is plotted
+ * onto the period matching its accomplished date.
+ */
 function buildFeeLines(
   records: FSISFeeCollectionDetailModel[] | undefined,
   groupBy: Granularity,
+  months: number[] = [],
+  reportYear?: number,
 ): FeeLine[] {
   const byKey = new Map<string, FeeLine>();
+  const monthSet = new Set(months);
+  const yr = reportYear ? String(reportYear) : "";
+
+  if (yr) {
+    if (groupBy === "month") {
+      for (const m of months) {
+        const ym = `${yr}-${String(m).padStart(2, "0")}`;
+        byKey.set(ym, emptyLine(ym, monthLabel(`${ym}-01`)));
+      }
+    } else if (groupBy === "quarter") {
+      const quarters = [...new Set(months.map((m) => Math.ceil(m / 3)))].sort((a, b) => a - b);
+      for (const q of quarters) byKey.set(`${yr}-q${q}`, emptyLine(`${yr}-q${q}`, `Q${q} ${yr}`));
+    } else if (groupBy === "semester") {
+      const semesters = [...new Set(months.map((m) => (m <= 6 ? 1 : 2)))].sort((a, b) => a - b);
+      for (const s of semesters) {
+        const key = `${yr}-s${s}`;
+        byKey.set(key, emptyLine(key, `${s === 1 ? "1st" : "2nd"} Semester ${yr}`));
+      }
+    } else {
+      byKey.set(yr, emptyLine(yr, `Annual ${yr}`));
+    }
+  }
 
   for (const rec of Array.isArray(records) ? records : []) {
     const iso = String(rec?.dateaccomplish ?? "").slice(0, 10);
@@ -140,6 +177,9 @@ function buildFeeLines(
 
     const year = iso.slice(0, 4);
     const month = Number(iso.slice(5, 7)) || 1;
+    // Never mix other years or unselected months into the current view.
+    if (yr && year !== yr) continue;
+    if (monthSet.size > 0 && !monthSet.has(month)) continue;
 
     const key =
       groupBy === "month"
@@ -178,6 +218,19 @@ function buildFeeLines(
   }
 
   return [...byKey.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, l]) => l);
+}
+
+/** Converts one period bucket into the shared matrix value shape. */
+function toSectorValues(line: FeeLine): SectorValues {
+  const values = emptyValues();
+  for (const s of FEE_SECTORS) {
+    const bucket = line.sectors[s.key];
+    for (const categ of FEE_CATEGS) {
+      values[s.key][FIRE_CODE_MODE_MANUAL][categ] = bucket.manual[categ] ?? 0;
+      values[s.key][FIRE_CODE_MODE_FSIS][categ] = bucket.fsic[categ] ?? 0;
+    }
+  }
+  return values;
 }
 
 function sumAmounts(a: FeeAmounts) {
@@ -395,7 +448,7 @@ export default function FireCodeFeesPage() {
         return !!m && monthSet.has(m);
       });
 
-      const lines = buildFeeLines(records, granularity);
+      const lines = buildFeeLines(records, granularity, [...monthSet], Number(year));
       const sectorTotals = Object.fromEntries(
         FEE_SECTORS.map((s) => {
           const t = totalsForSector(lines, s.key);
@@ -611,6 +664,8 @@ export default function FireCodeFeesPage() {
               key={r.key}
               row={r}
               groupBy={granularity}
+              months={selectedMonths}
+              reportYear={Number(year)}
               periodLabel={periodLabel}
               canManage={canManage}
               onView={() => openViewer(r)}
@@ -653,7 +708,12 @@ export default function FireCodeFeesPage() {
 
           <div className="max-h-[70vh] overflow-auto rounded-lg border border-border/60">
             {matrixRow ? (
-              <StationMatrixTable row={matrixRow} groupBy={granularity} />
+              <StationMatrixTable
+                row={matrixRow}
+                groupBy={granularity}
+                months={selectedMonths}
+                reportYear={Number(year)}
+              />
             ) : rows.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
                 No collection records for the selected period.
@@ -670,7 +730,7 @@ export default function FireCodeFeesPage() {
                         key={sector.key}
                         className="bg-background px-3 py-2 text-right font-semibold"
                       >
-                        {sector.title}
+                        {sector.label}
                       </th>
                     ))}
                     <th className="bg-background px-3 py-2 text-right font-semibold">Total</th>
@@ -766,202 +826,25 @@ export default function FireCodeFeesPage() {
  * Presentation
  * ------------------------------------------------------------------ */
 
-const headCell =
-  "border-b border-border/40 head-soft backdrop-blur-sm px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap text-center";
-const bodyCell =
-  "border-b border-border/25 px-2.5 py-1.5 text-xs tabular-nums text-right text-foreground/90";
-const footCell =
-  "border-t border-border/50 total-row backdrop-blur-sm px-2.5 py-2 text-xs font-bold tabular-nums text-right";
-const rowHeadCell =
-  "sticky left-0 z-10 border-b border-border/25 border-r border-r-border/50 bg-inherit px-2.5 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]";
-const strongRight = "border-r-2 border-r-border/80";
 
-function Amount({ v }: { v: number }) {
-  const value = num(v);
-  return value ? (
-    <span className="font-medium">{peso(value)}</span>
-  ) : (
-    <span className="text-muted-foreground">0.00</span>
-  );
-}
-
-function ModeBadge({ label }: { label: string }) {
-  return (
-    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-primary">
-      {label}
-    </span>
-  );
-}
-
-function SectionToggleHeader({
-  title,
-  expanded,
-  onToggle,
-}: {
-  title: string;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const ToggleIcon = expanded ? ChevronUp : ChevronDown;
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-expanded={expanded}
-      onClick={onToggle}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onToggle();
-        }
-      }}
-      className="flex cursor-pointer select-none items-center justify-between gap-3 rounded-lg px-1 py-1 transition-colors hover:bg-muted/40"
-    >
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary">{title}</h3>
-      <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-    </div>
-  );
-}
-
-/** One sector table: MANUAL / FSIC rows per period bucket, with a totals footer. */
-function SectorTable({
-  lines,
-  sector,
-  periodHeading,
-}: {
-  lines: FeeLine[];
-  sector: FireCodeSectorKey;
-  periodHeading: string;
-}) {
-  const totals = React.useMemo(() => totalsForSector(lines, sector), [lines, sector]);
-
-  if (lines.length === 0) {
-    return (
-      <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
-        No collection entries for this period.
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
-      <table className="w-full min-w-[2400px] border-separate border-spacing-0 text-xs">
-        <thead>
-          <tr>
-            <th
-              rowSpan={2}
-              className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
-            >
-              {periodHeading}
-            </th>
-            <th rowSpan={2} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
-              Mode of Issuance
-            </th>
-            {FEE_GROUPS.map((g) => (
-              <th
-                key={g.label}
-                colSpan={g.cols.length}
-                className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-              >
-                <span className="block leading-tight">{g.label}</span>
-                {g.code ? (
-                  <span className="block text-[9px] font-normal normal-case text-muted-foreground">
-                    {g.code}
-                  </span>
-                ) : null}
-              </th>
-            ))}
-            <th rowSpan={2} className={`${headCell} sticky top-0 z-30`}>
-              Total
-            </th>
-          </tr>
-          <tr>
-            {FEE_GROUPS.flatMap((g) =>
-              g.cols.map((c) => (
-                <th
-                  key={c.key}
-                  className={`${headCell} sticky top-[38px] z-30 min-w-[8rem] normal-case ${strongRight}`}
-                >
-                  {c.label}
-                </th>
-              )),
-            )}
-          </tr>
-        </thead>
-
-        <tbody>
-          {lines.map((l) => {
-            const manual = l.sectors[sector].manual;
-            const fsic = l.sectors[sector].fsic;
-            return (
-              <React.Fragment key={l.key}>
-                <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
-                  <th scope="row" rowSpan={2} className={rowHeadCell}>
-                    {l.label}
-                  </th>
-                  <td className={`${bodyCell} text-center ${strongRight}`}>
-                    <ModeBadge label="MANUAL" />
-                  </td>
-                  {FEE_CATEGS.map((k) => (
-                    <td key={k} className={`${bodyCell} ${strongRight}`}>
-                      <Amount v={manual[k] ?? 0} />
-                    </td>
-                  ))}
-                  <td className={`${bodyCell} font-semibold`}>
-                    <Amount v={sumAmounts(manual)} />
-                  </td>
-                </tr>
-                <tr className="group row-alt transition-colors hover:bg-primary/5">
-                  <td className={`${bodyCell} text-center ${strongRight}`}>
-                    <ModeBadge label="FSIC" />
-                  </td>
-                  {FEE_CATEGS.map((k) => (
-                    <td key={k} className={`${bodyCell} ${strongRight}`}>
-                      <Amount v={fsic[k] ?? 0} />
-                    </td>
-                  ))}
-                  <td className={`${bodyCell} font-semibold`}>
-                    <Amount v={sumAmounts(fsic)} />
-                  </td>
-                </tr>
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-
-        <tfoot>
-          <tr>
-            <th
-              scope="row"
-              className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
-            >
-              Total
-            </th>
-            <td className={`${footCell} sticky bottom-0 z-30 text-center ${strongRight}`}>Total</td>
-            {FEE_CATEGS.map((k) => (
-              <td key={k} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
-                <Amount v={totals.combined[k]} />
-              </td>
-            ))}
-            <td className={`${footCell} sticky bottom-0 z-30`}>
-              <Amount v={sumAmounts(totals.combined)} />
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-}
 
 /** Per-station matrix: one row per period bucket, sector totals across. */
 function StationMatrixTable({
   row,
   groupBy,
+  months,
+  reportYear,
 }: {
   row: FireCodeFeeLedgerRow;
   groupBy: Granularity;
+  months?: number[];
+  reportYear?: number;
 }) {
-  const lines = React.useMemo(() => buildFeeLines(row.feedetaillist, groupBy), [row.feedetaillist, groupBy]);
+  const monthsKey = (months ?? []).join(",");
+  const lines = React.useMemo(
+    () => buildFeeLines(row.feedetaillist, groupBy, monthsKey ? monthsKey.split(",").map(Number) : [], reportYear),
+    [row.feedetaillist, groupBy, monthsKey, reportYear],
+  );
 
   if (lines.length === 0) {
     return (
@@ -980,7 +863,7 @@ function StationMatrixTable({
           </th>
           {FEE_SECTORS.map((sector) => (
             <th key={sector.key} className="bg-background px-3 py-2 text-right font-semibold">
-              {sector.title}
+              {sector.label}
             </th>
           ))}
           <th className="bg-background px-3 py-2 text-right font-semibold">Total</th>
@@ -1026,6 +909,8 @@ function StationMatrixTable({
 function FireCodeFeesLedgerCard({
   row,
   groupBy,
+  months,
+  reportYear,
   periodLabel,
   canManage,
   onView,
@@ -1035,6 +920,8 @@ function FireCodeFeesLedgerCard({
 }: {
   row: FireCodeFeeLedgerRow;
   groupBy: Granularity;
+  months?: number[];
+  reportYear?: number;
   periodLabel: string | null;
   canManage: boolean;
   onView: () => void;
@@ -1042,11 +929,47 @@ function FireCodeFeesLedgerCard({
   onDelete: () => void;
   onMatrix: () => void;
 }) {
-  const lines = React.useMemo(() => buildFeeLines(row.feedetaillist, groupBy), [row.feedetaillist, groupBy]);
-  const periodHeading = groupBy === "month" ? "Month" : groupBy === "annual" ? "Year" : "Period";
+  const monthsKey = (months ?? []).join(",");
+  const lines = React.useMemo(
+    () =>
+      buildFeeLines(
+        row.feedetaillist,
+        groupBy,
+        monthsKey ? monthsKey.split(",").map(Number) : [],
+        reportYear,
+      ),
+    [row.feedetaillist, groupBy, monthsKey, reportYear],
+  );
+  const collectionHeading =
+    groupBy === "month"
+      ? "MONTHLY COLLECTION"
+      : groupBy === "quarter"
+        ? "QUARTERLY COLLECTION"
+        : groupBy === "semester"
+          ? "SEMESTER COLLECTION"
+          : "ANNUAL COLLECTION";
+  const { categories } = useFeeCategories();
 
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   const toggle = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  /** Per-line sector totals (combined manual + FSIC) for the summary row. */
+  const lineSummaries = React.useMemo(
+    () =>
+      lines.map((line) => {
+        const perSector = FEE_SECTORS.map((s) => ({
+          key: s.key,
+          title: s.label,
+          value: sumAmounts(totalsForSector([line], s.key).combined),
+        }));
+        return {
+          line,
+          perSector,
+          total: perSector.reduce((a, b) => a + b.value, 0),
+        };
+      }),
+    [lines],
+  );
 
   const monthName = MONTHS.find((m) => m.value === row.month)?.name ?? String(row.month);
 
@@ -1086,19 +1009,86 @@ function FireCodeFeesLedgerCard({
         </div>
       </div>
 
-      <div className="space-y-4 p-3">
-        {FEE_SECTORS.map((s) => (
-          <section key={s.key} className="space-y-1.5">
-            <SectionToggleHeader
-              title={`${s.title} — Fire Code Fees Collection`}
-              expanded={!!expanded[s.key]}
-              onToggle={() => toggle(s.key)}
-            />
-            {expanded[s.key] && (
-              <SectorTable lines={lines} sector={s.key} periodHeading={periodHeading} />
-            )}
-          </section>
-        ))}
+      <div className="p-3">
+        <div className="overflow-hidden rounded-xl border border-border/50">
+          <div className="flex items-center justify-between gap-3 border-b border-border/50 bg-muted/30 px-4 py-2.5">
+            <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <Coins className="h-3.5 w-3.5 text-primary" />
+              {collectionHeading} · {reportYear ?? row.year}
+            </span>
+            <span className="text-xs font-bold text-primary">{peso(row.grandTotal)}</span>
+          </div>
+
+          {lineSummaries.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">
+              No collection entries for this period.
+            </div>
+          ) : (
+            lineSummaries.map(({ line, perSector, total }) => {
+              const isOpen = !!expanded[line.key];
+              const hasRecord = total > 0;
+              return (
+                <div key={line.key} className="border-b border-border/40 last:border-b-0">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isOpen}
+                    onClick={() => toggle(line.key)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggle(line.key);
+                      }
+                    }}
+                    className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
+                  >
+                    <div className="flex min-w-[10rem] flex-1 items-center gap-2.5">
+                      <span className="text-sm font-semibold">{line.label}</span>
+                      {!hasRecord && (
+                        <span className="rounded-md bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                          No Record
+                        </span>
+                      )}
+                    </div>
+                    <div className="ml-auto flex items-center gap-4">
+                      <div className="hidden md:flex md:items-end">
+                        {perSector.map((s) => (
+                          <div key={s.key} className="w-28 shrink-0 px-2 text-right">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {s.title}
+                            </div>
+                            <div className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {peso(s.value)}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Total
+                          </div>
+                          <div className="text-sm font-bold tabular-nums text-primary">
+                            {peso(total)}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-sm font-bold tabular-nums text-primary md:hidden">
+                        {peso(total)}
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </div>
+                  </div>
+                  {isOpen && (
+                    <div className="border-t border-border/40 bg-muted/10 p-3">
+                      <FeeMatrixTable categories={categories} values={toSectorValues(line)} />
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
 
         <div className="text-[10px] text-muted-foreground dark:text-slate-400">
           Last updated: {row.lastupdated ? new Date(row.lastupdated).toLocaleDateString() : "—"}

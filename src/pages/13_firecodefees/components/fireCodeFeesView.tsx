@@ -50,16 +50,17 @@ import {
   peso,
   type FireCodeSectorKey,
 } from "../feeColumns";
-import { groupCategories, useFeeCategories, type FeeCategory } from "./feeCategories";
+import { useFeeCategories } from "./feeCategories";
 import {
+  FeeMatrixTable,
   MODES,
   emptyValues,
   isPastMonth,
   sumAmounts,
+  type FeeEditorStation,
   type ModeCode,
   type SectorValues,
-} from "./fireCodeFeesNew";
-import type { FeeEditorStation } from "./fireCodeFeesEdit";
+} from "./feeShared";
 
 /* -------------------------------------------------------------------------- */
 /*  Month model                                                                */
@@ -125,184 +126,6 @@ const sectorTotal = (v: SectorValues, sector: FireCodeSectorKey) =>
   MODES.reduce((b, m) => b + sumAmounts(v[sector][m.code]), 0);
 
 const monthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, "0")}-01`;
-
-/* -------------------------------------------------------------------------- */
-/*  Read-only wide matrix (same layout as the new-entry screen)                 */
-/* -------------------------------------------------------------------------- */
-
-function ReadOnlyAmount({ value }: { value: number }) {
-  const v = Number(value) || 0;
-  return (
-    <span
-      className={cn(
-        "block rounded-md border border-border/40 bg-muted/30 px-2 py-1.5 text-right text-xs tabular-nums",
-        !v && "text-muted-foreground",
-      )}
-    >
-      {peso(v)}
-    </span>
-  );
-}
-
-function ReadOnlyFeeMatrix({
-  categories,
-  values,
-}: {
-  categories: FeeCategory[];
-  values: SectorValues;
-}) {
-  const groups = React.useMemo(() => groupCategories(categories), [categories]);
-
-  const columnTotals = React.useMemo(
-    () =>
-      FEE_SECTORS.map((s) => ({
-        key: s.key,
-        byMode: MODES.map((m) => ({ code: m.code, total: sumAmounts(values[s.key][m.code]) })),
-      })),
-    [values],
-  );
-
-  const grand = React.useMemo(
-    () => columnTotals.reduce((a, s) => a + s.byMode.reduce((b, m) => b + m.total, 0), 0),
-    [columnTotals],
-  );
-
-  return (
-    <div className="overflow-x-auto rounded-xl border border-border/60">
-      <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
-        <colgroup>
-          <col className="w-64" />
-          <col className="w-28" />
-          {FEE_SECTORS.map((s) => (
-            <React.Fragment key={`${s.key}-cols`}>
-              <col className="w-36" />
-              <col className="w-36" />
-            </React.Fragment>
-          ))}
-        </colgroup>
-        <thead>
-          <tr>
-            <th
-              rowSpan={2}
-              className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider"
-            >
-              Fee Category
-            </th>
-            <th
-              rowSpan={2}
-              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider"
-            >
-              Total
-            </th>
-            {FEE_SECTORS.map((s) => (
-              <th
-                key={s.key}
-                colSpan={2}
-                className="head-soft border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
-              >
-                {s.label}
-              </th>
-            ))}
-          </tr>
-          <tr>
-            {FEE_SECTORS.map((s) => (
-              <React.Fragment key={`${s.key}-sub`}>
-                {MODES.map((m, mi) => (
-                  <th
-                    key={`${s.key}-${m.code}`}
-                    className={cn(
-                      "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
-                      mi === 0 && "border-l border-grid",
-                    )}
-                  >
-                    {m.label}
-                  </th>
-                ))}
-              </React.Fragment>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => (
-            <React.Fragment key={g.label}>
-              <tr className="bg-primary/5">
-                <td
-                  colSpan={2}
-                  className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
-                >
-                  <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {g.code || g.label}
-                  </span>
-                  {g.items.length > 1 && g.label ? (
-                    <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
-                      {g.label}
-                    </span>
-                  ) : null}
-                </td>
-                {FEE_SECTORS.map((s) => (
-                  <td key={`${s.key}-g`} colSpan={2} className="border-l border-grid px-3 py-1.5" />
-                ))}
-              </tr>
-              {g.items.map((c) => {
-                const rowTotal = FEE_SECTORS.reduce(
-                  (a, s) => a + MODES.reduce((b, m) => b + (values[s.key][m.code][c.detno] ?? 0), 0),
-                  0,
-                );
-                return (
-                  <tr key={c.key} className="border-t border-grid">
-                    <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
-                      {c.label}
-                    </td>
-                    <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-t border-grid bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
-                      {peso(rowTotal)}
-                    </td>
-                    {FEE_SECTORS.map((s) => (
-                      <React.Fragment key={`${s.key}-${c.key}`}>
-                        <td className="w-36 min-w-36 border-l border-t border-grid px-2 py-1.5">
-                          <ReadOnlyAmount
-                            value={values[s.key][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0}
-                          />
-                        </td>
-                        <td className="w-36 min-w-36 border-t border-grid px-2 py-1.5">
-                          <ReadOnlyAmount value={values[s.key][FIRE_CODE_MODE_FSIS][c.detno] ?? 0} />
-                        </td>
-                      </React.Fragment>
-                    ))}
-                  </tr>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="border-t border-grid bg-muted/60">
-            <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
-              Total
-            </td>
-            <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-grid bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
-              {peso(grand)}
-            </td>
-            {columnTotals.map((s) => (
-              <React.Fragment key={`${s.key}-total`}>
-                {s.byMode.map((m, mi) => (
-                  <td
-                    key={`${s.key}-${m.code}-total`}
-                    className={cn(
-                      "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
-                      mi === 0 && "border-l border-grid",
-                    )}
-                  >
-                    {peso(m.total)}
-                  </td>
-                ))}
-              </React.Fragment>
-            ))}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Body                                                                       */
@@ -576,7 +399,7 @@ export function FireCodeFeesYearViewBody({
                           </span>
                         </div>
                       )}
-                      <ReadOnlyFeeMatrix categories={categories} values={m.values} />
+                      <FeeMatrixTable categories={categories} values={m.values} />
                     </div>
                   )}
                 </div>

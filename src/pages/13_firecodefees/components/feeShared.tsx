@@ -235,7 +235,7 @@ export function FeeMatrixTable({
             </th>
             <th
               rowSpan={2}
-              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider"
+              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
             >
               Total
             </th>

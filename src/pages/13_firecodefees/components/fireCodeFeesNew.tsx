@@ -300,7 +300,7 @@ export function SectorPanel({
                 {m.label}
               </th>
             ))}
-            <th className="head-soft w-[7rem] px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider">
+            <th className="head-soft w-[7rem] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
               Total
             </th>
           </tr>
@@ -418,7 +418,7 @@ export function FeeCategoryMatrix({
             </th>
             <th
               rowSpan={2}
-              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider"
+              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
             >
               Total
             </th>
@@ -1100,7 +1100,7 @@ export function FireCodeFeesFormBody({
                     {m.label}
                   </th>
                 ))}
-                <th className="w-44 border-l border-border/60 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="w-44 border-l border-border/60 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Total
                 </th>
               </tr>
