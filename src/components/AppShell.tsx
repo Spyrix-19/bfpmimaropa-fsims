@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
+import Footer from "@/components/Footer";
 import { AnnouncementsPopover } from "@/components/AnnouncementsPopover";
 import bfpLogo from "@/assets/bfp-mimaropa.svg";
 
@@ -183,14 +184,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
     </header>
   );
 
-  const footer = (
-    <footer className="px-4 py-6 text-center text-xs text-muted-foreground sm:px-6">
-      <div>
-        © {new Date().getFullYear()} FSIMS · Fire Safety Inspection Monitoring · MIMAROPA Region
-      </div>
-      <div className="mt-1">Powered by Spyrix - ICT MIMAROPA Regional Office</div>
-    </footer>
-  );
+ 
 
   const main = (
     <main className="flex-1 p-4 sm:p-6">
@@ -204,7 +198,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
         <div className="flex min-h-screen w-full flex-col">
           {header}
           {main}
-          {footer}
+          <Footer />
         </div>
         <Suspense fallback={null}>
           <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
@@ -233,7 +227,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
         <SidebarInset className="flex min-w-0 flex-1 flex-col">
           {header}
           {main}
-          {footer}
+          <Footer />
         </SidebarInset>
       </div>
       <Suspense fallback={null}>

@@ -11,6 +11,7 @@ import {
   Server,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import Footer from "@/components/Footer";
 import { brand } from "@/lib/brand";
 import logo from "@/assets/bfp-mimaropa.png";
 
@@ -55,7 +56,7 @@ export default function Maintenance() {
               {brand.region}
             </p>
             <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-foreground">
-              {brand.organization} Information System
+              {brand.organization} {brand.appName}
             </p>
           </div>
         </header>
@@ -70,7 +71,7 @@ export default function Maintenance() {
               System Under Maintenance
             </h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              The {brand.organization} Information System is currently undergoing scheduled system
+              The {brand.organization} {brand.appName} is currently undergoing scheduled system
               maintenance to improve system performance, reliability, security, and overall service
               quality.
             </p>
@@ -92,7 +93,7 @@ export default function Maintenance() {
                 </span>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                {brand.organization} Information System — access temporarily restricted.
+                {brand.organization} {brand.appName} — access temporarily restricted.
               </p>
             </div>
 
@@ -143,7 +144,7 @@ export default function Maintenance() {
             </div>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               System maintenance is being performed to support the continued security, stability,
-              and reliability of the {brand.organization} Information System. Access has been
+              and reliability of the {brand.organization} {brand.appName}. Access has been
               temporarily restricted as a precaution while maintenance activities are being
               completed.
             </p>
@@ -176,11 +177,9 @@ export default function Maintenance() {
           </p>
         </Card>
 
-        <footer className="mt-10 border-t border-border/60 pt-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            {brand.organization} Information System — {brand.appName}
-          </p>
-        </footer>
+        <div className="mt-10 border-t border-border/60 pt-6 text-center">
+          <Footer />
+        </div>
       </div>
     </main>
   );
