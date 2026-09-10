@@ -78,6 +78,7 @@ import { StationMultiSelect } from "@/components/station-multi-select";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import StationPerformanceSections from "@/pages/02_dashboard/components/StationPerformanceSections";
+import FireCodeFeesSection from "@/pages/02_dashboard/components/FireCodeFeesSection";
 import PaginationControls from "@/components/pagination";
 import FilterField from "@/components/filter-field";
 import {
@@ -829,7 +830,8 @@ function YoYYearMultiSelect({
       onChange(selectedYears.filter((y) => y !== year));
       return;
     }
-    onChange([...selectedYears, year].sort((a, b) => a - b));
+    const next = [...new Set([...selectedYears, year])].sort((a, b) => a - b);
+    onChange(next.length > 5 ? next.slice(next.length - 5) : next);
   };
 
   return (
@@ -868,7 +870,7 @@ function YoYYearMultiSelect({
             })}
           </div>
           <div className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
-            Select at least 2 years. Default is current year and previous 2 years.
+            Select 2 to 5 years. Default is current year and previous 2 years.
           </div>
         </div>
       </PopoverContent>
@@ -2111,7 +2113,10 @@ export function DashboardBody() {
         )}
       </ChartCard>
 
-      {/* Row 6: Station performance leaderboards */}
+      {/* Row 6: Fire Code Fees collection */}
+      <FireCodeFeesSection />
+
+      {/* Row 7: Station performance leaderboards */}
       <StationPerformanceSections selectedYear={currentYear} />
 
       {/* Row 7: Recent Dashboard Activity (100%) — signed-in users only */}

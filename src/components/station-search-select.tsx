@@ -219,12 +219,12 @@ export default function StationSearchSelect({
             <div className="py-6 text-center text-sm text-muted-foreground">No units found</div>
           ) : (
             <>
-              {showAllOption && page === 1 ? (
+              {showAllOption ? (
                 <button
                   type="button"
                   onClick={selectAll}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                    "sticky top-0 z-10 flex w-full items-center justify-between gap-2 border-b bg-popover px-3 py-2 text-left text-sm hover:bg-muted",
                     allSelected && "bg-muted",
                   )}
                 >

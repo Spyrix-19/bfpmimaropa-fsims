@@ -205,22 +205,20 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
             </div>
           ) : (
             <>
-              {page === 1 ? (
-                <button
-                  type="button"
-                  onClick={selectAll}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
-                    allSelected && "bg-muted",
-                  )}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">ALL</div>
-                  </div>
-                  {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
-                </button>
-              ) : null}
-              {rows.length === 0 && !loading && page === 1 ? (
+              <button
+                type="button"
+                onClick={selectAll}
+                className={cn(
+                  "sticky top-0 z-10 flex w-full items-center justify-between gap-2 border-b bg-popover px-3 py-2 text-left text-sm hover:bg-muted",
+                  allSelected && "bg-muted",
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">ALL</div>
+                </div>
+                {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+              </button>
+              {rows.length === 0 && !loading ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">No units found</div>
               ) : null}
               {rows.map((r) => {
