@@ -81,9 +81,19 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
           ? (() => {
               const entries = (data as Array<Record<string, any>>).map((item) => {
                 const provinceno =
-                  item.provinceno ?? item.provinceNo ?? item.province_no ?? item.provinceid ?? item.provinceId ?? null;
+                  item.provinceno ??
+                  item.provinceNo ??
+                  item.province_no ??
+                  item.provinceid ??
+                  item.provinceId ??
+                  null;
                 const provincename =
-                  item.provincename ?? item.provinceName ?? item.province_name ?? item.provname ?? item.province ?? null;
+                  item.provincename ??
+                  item.provinceName ??
+                  item.province_name ??
+                  item.provname ??
+                  item.province ??
+                  null;
                 return { provinceno, provincename };
               });
 
@@ -118,11 +128,22 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
             },
             { suppressGlobalLoading: true },
           );
-          const { ok: lok, data: ldata, total: ltotal, totalPages: ltotalPages } = unwrap<SearchLocationModel[] | null>(locResp);
+          const {
+            ok: lok,
+            data: ldata,
+            total: ltotal,
+            totalPages: ltotalPages,
+          } = unwrap<SearchLocationModel[] | null>(locResp);
           const loaded = lok && Array.isArray(ldata) ? ldata : [];
           setRows(loaded);
           setPageCount(
-            resolvePageCount({ total: ltotal ?? 0, totalPages: ltotalPages ?? 0, pageSize: PAGE_SIZE, page, rowCount: loaded.length }),
+            resolvePageCount({
+              total: ltotal ?? 0,
+              totalPages: ltotalPages ?? 0,
+              pageSize: PAGE_SIZE,
+              page,
+              rowCount: loaded.length,
+            }),
           );
           setLoading(false);
           return;

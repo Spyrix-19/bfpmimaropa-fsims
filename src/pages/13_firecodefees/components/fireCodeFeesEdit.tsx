@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/dialog";
 import StationInfoCard from "@/components/station-info-card";
 import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
+import EditButton from "@/components/edit-button";
+import DeleteButton from "@/components/delete-button";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 
@@ -424,6 +426,60 @@ export function FireCodeFeesYearEditorBody({
                     }}
                     className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
                   >
+                    {/* Revision action — shown before the month, mirroring the
+                        Compliance / Notice / Target Reference editors. */}
+                    {!readOnly && (info.pending || info.needsRequest) ? (
+                      <div
+                        className="flex min-w-[5.5rem] items-center gap-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        role="presentation"
+                      >
+                        {info.pending ? (
+                          <>
+                            <EditButton
+                              variant="square"
+                              tooltip="Cancel Revision Request"
+                              ariaLabel="Cancel Revision Request"
+                              icon={<Ban className="h-4 w-4" />}
+                              onClick={() => {
+                                if (info.request) setCancelRequestId(info.request.requestno);
+                                else toast.info("No active revision request to cancel.");
+                              }}
+                            />
+                            <DeleteButton
+                              variant="square"
+                              tooltip="Delete Revision Request"
+                              ariaLabel="Delete Revision Request"
+                              icon={<Trash2 className="h-4 w-4" />}
+                              onClick={() => {
+                                if (info.request) setDeleteRequestId(info.request.requestno);
+                                else toast.info("No revision request to delete.");
+                              }}
+                            />
+                          </>
+                        ) : (
+                          <EditButton
+                            variant="square"
+                            tooltip={
+                              !station.stationno
+                                ? "Select a station to request a revision"
+                                : "Request Revision"
+                            }
+                            ariaLabel={
+                              !station.stationno
+                                ? "Select a station to request a revision"
+                                : "Request Revision"
+                            }
+                            disabled={!station.stationno}
+                            icon={<FilePen className="h-4 w-4" />}
+                            onClick={() => setRevisionMonth(m)}
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="min-w-[5.5rem]" aria-hidden="true" />
+                    )}
                     <div className="flex min-w-[9rem] items-center gap-2">
                       {info.locked ? (
                         <Lock
@@ -502,40 +558,6 @@ export function FireCodeFeesYearEditorBody({
                               ? "A revision request for this month is pending approval. Fields stay locked until it is approved."
                               : "This month has already passed and is locked. Submit a revision request to enable editing."}
                           </span>
-                          <span className="flex gap-2">
-                            {info.needsRequest && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => setRevisionMonth(m)}
-                                className="gap-1.5 bg-gradient-primary text-primary-foreground"
-                              >
-                                <FilePen className="h-3.5 w-3.5" /> Request Revision
-                              </Button>
-                            )}
-                            {info.pending && info.request && (
-                              <>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1.5"
-                                  onClick={() => setCancelRequestId(info.request!.requestno)}
-                                >
-                                  <Ban className="h-3.5 w-3.5" /> Cancel Request
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="destructive"
-                                  className="gap-1.5"
-                                  onClick={() => setDeleteRequestId(info.request!.requestno)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" /> Delete Request
-                                </Button>
-                              </>
-                            )}
-                          </span>
                         </div>
                       )}
 
@@ -580,7 +602,9 @@ export function FireCodeFeesYearEditorBody({
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            {saving ? "Saving…" : `Save Changes${dirtyMonths.length ? ` (${dirtyMonths.length})` : ""}`}
+            {saving
+              ? "Saving…"
+              : `Save Changes${dirtyMonths.length ? ` (${dirtyMonths.length})` : ""}`}
           </Button>
         )}
       </div>

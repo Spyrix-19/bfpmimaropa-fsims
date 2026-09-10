@@ -13,8 +13,6 @@
  * envelope. These helpers make it easy to pull the inner payload + paging info.
  */
 
-
-
 export interface Envelope<T> {
   statusCode: number;
   isSuccess: boolean;

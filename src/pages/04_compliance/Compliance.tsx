@@ -2023,9 +2023,7 @@ function SectionToggleHeader({
       }}
       className="flex cursor-pointer select-none items-center justify-between gap-3 rounded-lg px-1 py-1 transition-colors hover:bg-muted/40"
     >
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary">
-        {title}
-      </h3>
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary">{title}</h3>
       <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
     </div>
   );

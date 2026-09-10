@@ -7,7 +7,7 @@ import {
   FSISFeeCollectionLedgerParams,
   FSISStationFeeDetailModel,
   FSISFeeCollectionDetailByDateParams,
-  ExportFSISFeeCollectionDTO
+  ExportFSISFeeCollectionDTO,
 } from "@/types/firecodefeesType";
 
 export const firecodefeesAPI = {
@@ -26,7 +26,10 @@ export const firecodefeesAPI = {
     });
   },
 
-  async getDetail(params?: FSISFeeCollectionDetailParams, options?: import("@/lib/api").ApiOptions) {
+  async getDetail(
+    params?: FSISFeeCollectionDetailParams,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     return await apiGet<FSISFeeCollectionDetailModel>("/api/v1/FSISFeeCollection/Detail", {
       params,
       ...GET_RETRY,
@@ -34,7 +37,10 @@ export const firecodefeesAPI = {
     });
   },
 
-  async getLedger(request: FSISFeeCollectionLedgerParams, options?: import("@/lib/api").ApiOptions) {
+  async getLedger(
+    request: FSISFeeCollectionLedgerParams,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     return await apiPost<FSISStationFeeDetailModel[]>(
       "/api/v1/FSISFeeCollection/Ledger",
       request.parameters,

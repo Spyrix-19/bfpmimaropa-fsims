@@ -646,15 +646,20 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
 
   /* ── Lock rules for the selected date ───────────────────────────────────── */
   const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
-  const { activeRequest, unlockedByApproval, hasPendingRevision, needsRevisionRequest, fieldsLocked } =
-    deriveRevisionLock({
-      requests: revisionRequests,
-      referencekey: existingNoticeNo,
-      dateKey: selectedDateKey,
-      isPast: isPastSelectedDate,
-      editablestatus: existingMeta.editablestatus,
-      isrevisionrequest: existingMeta.isrevisionrequest,
-    });
+  const {
+    activeRequest,
+    unlockedByApproval,
+    hasPendingRevision,
+    needsRevisionRequest,
+    fieldsLocked,
+  } = deriveRevisionLock({
+    requests: revisionRequests,
+    referencekey: existingNoticeNo,
+    dateKey: selectedDateKey,
+    isPast: isPastSelectedDate,
+    editablestatus: existingMeta.editablestatus,
+    isrevisionrequest: existingMeta.isrevisionrequest,
+  });
 
   if (!record) return null;
 

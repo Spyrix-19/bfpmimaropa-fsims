@@ -71,7 +71,6 @@ import {
   groupAmountText,
   lastDayOfMonthISO,
   peso,
-
   type FeeAmounts,
   type FireCodeSectorKey,
 } from "../feeColumns";
@@ -161,8 +160,6 @@ export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | nul
   walk(data);
   return rows.find((r) => r.feeno && String(r.feeno) !== EMPTY_GUID) ?? null;
 }
-
-
 
 /* -------------------------------------------------------------------------- */
 /*  Small presentational pieces                                                */
@@ -267,7 +264,6 @@ function AmountInput({
     />
   );
 }
-
 
 /** One sector panel: every fee category with a MANUAL and an FSIC amount. */
 export function SectorPanel({
@@ -393,11 +389,9 @@ export function FeeCategoryMatrix({
 
   /** Overall total across every sector and mode — shown once, never per sector. */
   const grand = React.useMemo(
-    () =>
-      columnTotals.reduce((a, s) => a + s.byMode.reduce((b, m) => b + m.total, 0), 0),
+    () => columnTotals.reduce((a, s) => a + s.byMode.reduce((b, m) => b + m.total, 0), 0),
     [columnTotals],
   );
-
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border/60">
@@ -472,11 +466,7 @@ export function FeeCategoryMatrix({
                   ) : null}
                 </td>
                 {FEE_SECTORS.map((s) => (
-                  <td
-                    key={`${s.key}-g`}
-                    colSpan={2}
-                    className="border-l border-grid px-3 py-1.5"
-                  />
+                  <td key={`${s.key}-g`} colSpan={2} className="border-l border-grid px-3 py-1.5" />
                 ))}
               </tr>
               {g.items.map((c) => {
@@ -548,14 +538,12 @@ export function FeeCategoryMatrix({
                 ))}
               </React.Fragment>
             ))}
-
           </tr>
         </tfoot>
       </table>
     </div>
   );
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*  Form body                                                                  */
@@ -713,10 +701,10 @@ export function FireCodeFeesFormBody({
    *  month/year CHANGE, not on the initial load or a station switch. */
   const lastCheckedPeriodRef = React.useRef<string | null>(null);
   /** Existing record waiting for the user's confirmation before it is plotted. */
-  const [pendingExisting, setPendingExisting] =
-    React.useState<FSISFeeCollectionDetailModel | null>(null);
+  const [pendingExisting, setPendingExisting] = React.useState<FSISFeeCollectionDetailModel | null>(
+    null,
+  );
   const [existingDialogOpen, setExistingDialogOpen] = React.useState(false);
-
 
   React.useEffect(() => {
     const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
@@ -756,7 +744,6 @@ export function FireCodeFeesFormBody({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [station.no, scope.stationLocked, scope.stationno, selectedDateKey, reloadNonce]);
 
-
   /* Revision requests ----------------------------------------------------- */
   const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
@@ -771,14 +758,19 @@ export function FireCodeFeesFormBody({
   });
 
   const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, month);
-  const { activeRequest, unlockedByApproval, hasPendingRevision, needsRevisionRequest, fieldsLocked } =
-    deriveRevisionLock({
-      requests: revisionRequests,
-      referencekey: existingFeeno,
-      dateKey: selectedDateKey,
-      isPast: isPastSelectedDate,
-      readOnly: !canManage,
-    });
+  const {
+    activeRequest,
+    unlockedByApproval,
+    hasPendingRevision,
+    needsRevisionRequest,
+    fieldsLocked,
+  } = deriveRevisionLock({
+    requests: revisionRequests,
+    referencekey: existingFeeno,
+    dateKey: selectedDateKey,
+    isPast: isPastSelectedDate,
+    readOnly: !canManage,
+  });
 
   /* Totals ---------------------------------------------------------------- */
   const sectorTotals = React.useMemo(() => {
@@ -790,7 +782,6 @@ export function FireCodeFeesFormBody({
     }
     return totals;
   }, [values]);
-
 
   const grandTotal = React.useMemo(
     () =>
@@ -1161,18 +1152,18 @@ export function FireCodeFeesFormBody({
               </Button>
             )}
             {canManage && (
-            <Button
-              type="submit"
-              disabled={saving || checkingExisting}
-              className="bg-gradient-primary text-primary-foreground shadow-elegant"
-            >
-              {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              {saving ? "Saving…" : existingFeeno ? "Update" : "Save Collection"}
-            </Button>
+              <Button
+                type="submit"
+                disabled={saving || checkingExisting}
+                className="bg-gradient-primary text-primary-foreground shadow-elegant"
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                {saving ? "Saving…" : existingFeeno ? "Update" : "Save Collection"}
+              </Button>
             )}
           </>
         )}

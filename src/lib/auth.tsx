@@ -20,8 +20,6 @@ import { personnelAPI } from "@/services/personnelAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { FSIMS_SYSTEMNO, FSIMS_SYSTEMCODE, SUPER, ADMIN, PERSONNEL } from "@/lib/fsims-constants";
 
-
-
 /** Modules a user may be authorized against. Drives sidebar + route guards. */
 export type AppModule =
   | "dashboard"

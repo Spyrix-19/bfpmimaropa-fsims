@@ -10,15 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import AddButton from "@/components/add-button";
-import {
-  Coins,
-  Download,
-  Loader2,
-  ChevronDown,
-  LayoutGrid,
-  Plus,
-  Eye,
-} from "lucide-react";
+import { Coins, Download, Loader2, ChevronDown, LayoutGrid, Plus, Eye } from "lucide-react";
 
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
@@ -62,20 +54,13 @@ import {
 } from "./feeColumns";
 import { exportFireCodeFeesLedgerWorkbook } from "./components/fireCodeFeesLedgerExport";
 import { useFeeCategories } from "./components/feeCategories";
-import {
-  FeeMatrixTable,
-  emptyValues,
-  type SectorValues,
-} from "./components/feeShared";
+import { FeeMatrixTable, emptyValues, type SectorValues } from "./components/feeShared";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
 import FireCodeFeesFormModal from "./components/fireCodeFeesNew";
-import FireCodeFeesYearEditorModal, {
-  type FeeEditorStation,
-} from "./components/fireCodeFeesEdit";
+import FireCodeFeesYearEditorModal, { type FeeEditorStation } from "./components/fireCodeFeesEdit";
 import FireCodeFeesYearViewModal from "./components/fireCodeFeesView";
-
 
 /** Station + period context handed to the entry form when editing a ledger card. */
 interface FeeFormTarget {
@@ -132,7 +117,6 @@ const monthLabel = (ym: string) => {
 const flattenSectorItems = (
   rec: FSISFeeCollectionDetailModel | undefined,
 ): FSISFeeAccomDetailModel[] => flattenFeeAccomItems(rec);
-
 
 /**
  * Builds one ledger line per period the current filter covers — mirroring the
@@ -358,8 +342,6 @@ export default function FireCodeFeesPage() {
   const [viewStation, setViewStation] = React.useState<FeeEditorStation | null>(null);
   const [viewYear, setViewYear] = React.useState<number>(Number(filterState.year));
 
-
-
   // Secure delete
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<FireCodeFeeLedgerRow | null>(null);
@@ -393,7 +375,6 @@ export default function FireCodeFeesPage() {
   }, []);
 
   const openStationMatrix = React.useCallback((row: FireCodeFeeLedgerRow) => {
-
     setMatrixRow(row);
     setMatrixOpen(true);
   }, []);
@@ -407,10 +388,15 @@ export default function FireCodeFeesPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
+      // The ledger card covers EVERY selected month. When a single month is
+      // filtered we pass it; otherwise we pass 0 — the API's Reportmonth
+      // default — so the whole year's records for the station are removed,
+      // exactly what the card (and the confirmation dialog) describes.
+      const reportmonth = selectedMonths.length === 1 ? Number(selectedMonths[0]) : 0;
       const resp = await firecodefeesAPI.delete({
         stationno: deleteTarget.stationno,
         reportyear: Number(deleteTarget.year),
-        reportmonth: Number(deleteTarget.month),
+        reportmonth,
         deletedby: user?.memberno ?? "",
         roleno: Number(systemAccess?.roleno ?? 0) || 0,
       });
@@ -507,7 +493,13 @@ export default function FireCodeFeesPage() {
         { suppressGlobalLoading: true, suppressErrorToast: true, signal: controller.signal },
       );
 
-      const { ok, data, total: apiTotal, error, canceled } = unwrap<FSISStationFeeDetailModel[]>(resp);
+      const {
+        ok,
+        data,
+        total: apiTotal,
+        error,
+        canceled,
+      } = unwrap<FSISStationFeeDetailModel[]>(resp);
       if (cancelled || canceled) return;
       if (!ok) {
         toast.error(error || "Unable to load the Fire Code Fees collection ledger.");
@@ -697,7 +689,9 @@ export default function FireCodeFeesPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {matrixRow ? `${matrixRow.stationname} — Fire Code Fees Matrix` : "Fire Code Fees Matrix"}
+              {matrixRow
+                ? `${matrixRow.stationname} — Fire Code Fees Matrix`
+                : "Fire Code Fees Matrix"}
             </DialogTitle>
             <DialogDescription>
               {matrixRow
@@ -790,7 +784,6 @@ export default function FireCodeFeesPage() {
       />
 
       <FireCodeFeesYearEditorModal
-
         open={editorOpen}
         onOpenChange={(o) => {
           setEditorOpen(o);
@@ -826,8 +819,6 @@ export default function FireCodeFeesPage() {
  * Presentation
  * ------------------------------------------------------------------ */
 
-
-
 /** Per-station matrix: one row per period bucket, sector totals across. */
 function StationMatrixTable({
   row,
@@ -842,7 +833,13 @@ function StationMatrixTable({
 }) {
   const monthsKey = (months ?? []).join(",");
   const lines = React.useMemo(
-    () => buildFeeLines(row.feedetaillist, groupBy, monthsKey ? monthsKey.split(",").map(Number) : [], reportYear),
+    () =>
+      buildFeeLines(
+        row.feedetaillist,
+        groupBy,
+        monthsKey ? monthsKey.split(",").map(Number) : [],
+        reportYear,
+      ),
     [row.feedetaillist, groupBy, monthsKey, reportYear],
   );
 
@@ -994,7 +991,6 @@ function FireCodeFeesLedgerCard({
             {row.stationname}
           </div>
           <div className="text-[11px] text-muted-foreground dark:text-slate-400">
-            
             {row.provincename}
           </div>
         </div>

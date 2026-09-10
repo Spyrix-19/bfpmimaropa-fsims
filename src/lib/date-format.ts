@@ -28,7 +28,9 @@ function getManilaDateParts(date: Date): Record<string, string> {
     day: "2-digit",
   });
   const parts = formatter.formatToParts(date);
-  const map = Object.fromEntries(parts.filter((p) => p.type !== "literal").map((p) => [p.type, p.value]));
+  const map = Object.fromEntries(
+    parts.filter((p) => p.type !== "literal").map((p) => [p.type, p.value]),
+  );
   return {
     year: map.year ?? String(date.getFullYear()),
     month: map.month ?? String(date.getMonth() + 1).padStart(2, "0"),

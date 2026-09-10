@@ -117,7 +117,10 @@ function isPerfectMonth(month: MonthlyPerformance): boolean {
     toNumber(month.tiezaPercentage),
   ];
 
-  return sectors.some((value) => value === 100) && sectors.every((value) => value === -1 || value === 100);
+  return (
+    sectors.some((value) => value === 100) &&
+    sectors.every((value) => value === -1 || value === 100)
+  );
 }
 
 /** Format a percentage without excessive decimals (98.75%, 91.3%, 100%).

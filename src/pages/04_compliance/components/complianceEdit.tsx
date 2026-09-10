@@ -465,7 +465,6 @@ type DayWithRevision = EditableDay & {
   };
 };
 
-
 function ComplianceEditBody({
   stationno,
   year: initialYear,
@@ -1473,7 +1472,8 @@ function ActivityTable({
                       const accomplished = value;
                       const variance = Math.max(target - accomplished, 0);
                       const positive = Math.max(accomplished - target, 0);
-                      const pctValue = target > 0 ? (accomplished / target) * 100 : accomplished > 0 ? 100 : 0;
+                      const pctValue =
+                        target > 0 ? (accomplished / target) * 100 : accomplished > 0 ? 100 : 0;
                       const pctClass = pctValue >= 100 ? "text-success" : "";
 
                       cells.push(
@@ -1493,7 +1493,9 @@ function ActivityTable({
                           className="min-w-[72px] w-[72px] border-b border-r px-1.5 py-1.5 text-center align-middle"
                         >
                           {day.isLocked ? (
-                            <span className="text-muted-foreground">{accomplished.toLocaleString()}</span>
+                            <span className="text-muted-foreground">
+                              {accomplished.toLocaleString()}
+                            </span>
                           ) : (
                             <NumericInput
                               value={accomplished}
@@ -1588,17 +1590,30 @@ function ActivityTable({
               const cells: React.ReactNode[] = [];
               if (col.target) {
                 const targetField = col.target;
-                const totalTarget = days.reduce((sum, d) => sum + num(d.inspection[targetField]), 0);
-                const totalAccomplished = days.reduce((sum, d) => sum + num(d.inspection[col.api]), 0);
+                const totalTarget = days.reduce(
+                  (sum, d) => sum + num(d.inspection[targetField]),
+                  0,
+                );
+                const totalAccomplished = days.reduce(
+                  (sum, d) => sum + num(d.inspection[col.api]),
+                  0,
+                );
                 const totalVariance = days.reduce(
-                  (sum, d) => sum + Math.max(num(d.inspection[targetField]) - num(d.inspection[col.api]), 0),
+                  (sum, d) =>
+                    sum + Math.max(num(d.inspection[targetField]) - num(d.inspection[col.api]), 0),
                   0,
                 );
                 const totalPositive = days.reduce(
-                  (sum, d) => sum + Math.max(num(d.inspection[col.api]) - num(d.inspection[targetField]), 0),
+                  (sum, d) =>
+                    sum + Math.max(num(d.inspection[col.api]) - num(d.inspection[targetField]), 0),
                   0,
                 );
-                const totalPctValue = totalTarget > 0 ? (totalAccomplished / totalTarget) * 100 : totalAccomplished > 0 ? 100 : 0;
+                const totalPctValue =
+                  totalTarget > 0
+                    ? (totalAccomplished / totalTarget) * 100
+                    : totalAccomplished > 0
+                      ? 100
+                      : 0;
                 const totalPctClass = totalPctValue >= 100 ? "text-success" : "";
 
                 cells.push(
@@ -1784,9 +1799,10 @@ export function ComplianceEditModal({
   stationName?: string;
   onSaved?: () => void;
 }) {
-  const [viewPeriod, setViewPeriod] = React.useState<{ year: number; month: number }>(
-    { year, month },
-  );
+  const [viewPeriod, setViewPeriod] = React.useState<{ year: number; month: number }>({
+    year,
+    month,
+  });
 
   React.useEffect(() => setViewPeriod({ year, month }), [year, month]);
 

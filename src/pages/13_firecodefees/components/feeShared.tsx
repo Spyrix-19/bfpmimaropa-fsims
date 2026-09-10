@@ -290,7 +290,8 @@ export function FeeMatrixTable({
               </tr>
               {g.items.map((c) => {
                 const rowTotal = FEE_SECTORS.reduce(
-                  (a, s) => a + MODES.reduce((b, m) => b + (values[s.key][m.code][c.detno] ?? 0), 0),
+                  (a, s) =>
+                    a + MODES.reduce((b, m) => b + (values[s.key][m.code][c.detno] ?? 0), 0),
                   0,
                 );
                 return (

@@ -83,7 +83,6 @@ export function flattenFeeAccomItems(
   return out;
 }
 
-
 /** Peso display used by every amount cell: 150,000,000,000.00 */
 export const peso = (value: number) =>
   (Number(value) || 0).toLocaleString("en-US", {
@@ -101,4 +100,3 @@ export const groupAmountText = (raw: string) => {
   });
   return dec === undefined ? grouped : `${grouped}.${dec}`;
 };
-

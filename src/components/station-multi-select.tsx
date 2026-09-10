@@ -25,7 +25,6 @@ export interface SelectedStation {
   provincename: string;
 }
 
-
 export type StationMultiSelectProps = {
   placeholder?: string;
   disabled?: boolean;
@@ -245,15 +244,15 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
                         className="w-8 h-8 rounded-md overflow-hidden bg-muted/30"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{r.stationname || r.stationcode || "—"}</div>
+                        <div className="truncate font-medium">
+                          {r.stationname || r.stationcode || "—"}
+                        </div>
                         <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
                           <span className="truncate font-medium text-muted-foreground/90">
                             {r.stationcode || "—"}
                           </span>
                           {r.provincename ? (
-                            <span className="shrink-0 truncate text-right">
-                              {r.provincename}
-                            </span>
+                            <span className="shrink-0 truncate text-right">{r.provincename}</span>
                           ) : null}
                         </div>
                       </div>

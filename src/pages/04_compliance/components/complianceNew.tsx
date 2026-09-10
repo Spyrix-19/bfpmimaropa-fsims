@@ -141,7 +141,9 @@ function startOfToday(): number {
 
 /** Builds the ISO date-time the Create endpoint expects for an inspection day. */
 function toInspectedDate(date: Date): string {
-  return serializePhilippineDateTime(new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0));
+  return serializePhilippineDateTime(
+    new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
+  );
 }
 
 /** Normalises any raw input into a non-negative whole number. */
@@ -357,7 +359,8 @@ function InspectionsNewBody({
 
   const [province, setProvince] = React.useState<{ no: string; name: string; code: string }>(() => {
     if (scope.provinceLocked) return { no: scope.provinceno, name: scope.provincename, code: "" };
-    if (isSuper && user?.provinceno) return { no: user.provinceno, name: user.provincename ?? "", code: "" };
+    if (isSuper && user?.provinceno)
+      return { no: user.provinceno, name: user.provincename ?? "", code: "" };
     return { no: "", name: "", code: "" };
   });
 
@@ -367,7 +370,8 @@ function InspectionsNewBody({
     model: SearchStationModel | null;
   }>(() => {
     if (scope.stationLocked) return { no: scope.stationno, name: scope.stationname, model: null };
-    if (isSuper && user?.stationno) return { no: user.stationno, name: user.stationname ?? "", model: null };
+    if (isSuper && user?.stationno)
+      return { no: user.stationno, name: user.stationname ?? "", model: null };
     return { no: "", name: "", model: null };
   });
 
@@ -409,7 +413,15 @@ function InspectionsNewBody({
       setStation({ no: user.stationno, name: user.stationname ?? "", model: null });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuper, user?.provinceno, user?.provincename, user?.stationno, user?.stationname, scope.provinceLocked, scope.stationLocked]);
+  }, [
+    isSuper,
+    user?.provinceno,
+    user?.provincename,
+    user?.stationno,
+    user?.stationname,
+    scope.provinceLocked,
+    scope.stationLocked,
+  ]);
 
   // Resolves station code / city / province / logo for the Station Information card.
   const stationDetails = useStationDetails({
@@ -684,15 +696,20 @@ function InspectionsNewBody({
 
   /* ── Lock rules for the selected (single) date ───────────────────────────── */
   const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
-  const { activeRequest, unlockedByApproval, hasPendingRevision, needsRevisionRequest, fieldsLocked } =
-    deriveRevisionLock({
-      requests: revisionRequests,
-      referencekey: existingFsisno,
-      dateKey: selectedDateKey,
-      isPast: isPastSelectedDate,
-      editablestatus: existingMeta.editablestatus,
-      isrevisionrequest: existingMeta.isrevisionrequest,
-    });
+  const {
+    activeRequest,
+    unlockedByApproval,
+    hasPendingRevision,
+    needsRevisionRequest,
+    fieldsLocked,
+  } = deriveRevisionLock({
+    requests: revisionRequests,
+    referencekey: existingFsisno,
+    dateKey: selectedDateKey,
+    isPast: isPastSelectedDate,
+    editablestatus: existingMeta.editablestatus,
+    isrevisionrequest: existingMeta.isrevisionrequest,
+  });
 
   /* ------------------------- Daily target vs inspected summary ---------------------- */
   const dailySummaryRows = React.useMemo(() => {

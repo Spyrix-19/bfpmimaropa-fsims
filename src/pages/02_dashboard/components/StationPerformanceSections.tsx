@@ -256,7 +256,9 @@ export default function StationPerformanceSections({ selectedYear }: { selectedY
 
   const perfectTitle = (() => {
     if (!periodLabel) return "100% Performing Stations";
-    const match = periodLabel.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s*[–-]?\s*(.*?)(?:\s+\d{4})?$/i);
+    const match = periodLabel.match(
+      /^(January|February|March|April|May|June|July|August|September|October|November|December)\s*[–-]?\s*(.*?)(?:\s+\d{4})?$/i,
+    );
     if (!match) return `100% Performing Stations (${periodLabel})`;
 
     const start = match[1];

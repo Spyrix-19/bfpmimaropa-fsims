@@ -90,7 +90,6 @@ export interface FSISFeeAccomDetailModel {
   collectedamount: number;
 }
 
-
 export interface FSISFeeCollectionSectorDetailModel {
   sectorno: number;
   accomfeelist: FSISFeeAccomDetailModel[];
@@ -112,7 +111,6 @@ export interface FSISStationFeeDetailModel {
   logourl: string;
   feedetaillist: FSISFeeCollectionDetailModel[];
 }
-
 
 /* Delete */
 export interface FSISFeeCollectionDeleteParams {

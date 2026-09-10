@@ -1175,13 +1175,7 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             {series.map((s) => (
-              <Bar
-                key={s.key}
-                dataKey={s.key}
-                name={s.key}
-                fill={s.color}
-                radius={[4, 4, 0, 0]}
-              />
+              <Bar key={s.key} dataKey={s.key} name={s.key} fill={s.color} radius={[4, 4, 0, 0]} />
             ))}
           </BarChart>
         </ResponsiveContainer>
@@ -1299,13 +1293,7 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             {series.map((s) => (
-              <Bar
-                key={s.key}
-                dataKey={s.key}
-                name={s.key}
-                fill={s.color}
-                radius={[4, 4, 0, 0]}
-              />
+              <Bar key={s.key} dataKey={s.key} name={s.key} fill={s.color} radius={[4, 4, 0, 0]} />
             ))}
           </BarChart>
         </ResponsiveContainer>
@@ -1471,7 +1459,13 @@ export function DashboardBody() {
         ? prev
         : { provinces: filters.provinces, stations: filters.stations },
     );
-  }, [targetProvinceLocked, scope.provinceno, scope.provincename, filters.provinces, filters.stations]);
+  }, [
+    targetProvinceLocked,
+    scope.provinceno,
+    scope.provincename,
+    filters.provinces,
+    filters.stations,
+  ]);
   const { rows: targetVsActualRows, loading: targetVsActualLoading } = useTargetVsActual({
     selectedYear: targetVsActualYear,
     selectedProvinces: targetVsActualScope.provinces,
@@ -1803,7 +1797,10 @@ export function DashboardBody() {
             </ResponsiveContainer>
           ) : (
             <ResponsiveContainer>
-              <LineChart data={targetVsActualRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <LineChart
+                data={targetVsActualRows}
+                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="name" {...axisProps} />
                 <YAxis {...axisProps} />

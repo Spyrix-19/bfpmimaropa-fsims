@@ -26,14 +26,10 @@ export const dashboardAPI = {
   },
 
   async getNTCVStations(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
-    return await apiPost<DashboardNTCVStationModel>(
-      "/api/v1/Dashboard/FSIMS/NTCV/Stations",
-      body,
-      {
-        ...MUTATION_RETRY_LIGHT,
-        ...options,
-      },
-    );
+    return await apiPost<DashboardNTCVStationModel>("/api/v1/Dashboard/FSIMS/NTCV/Stations", body, {
+      ...MUTATION_RETRY_LIGHT,
+      ...options,
+    });
   },
 
   async getGapSummary(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
