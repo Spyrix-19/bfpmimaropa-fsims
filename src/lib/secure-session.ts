@@ -144,6 +144,19 @@ export async function decryptPayload<T>(
     );
     return { value: JSON.parse(new TextDecoder().decode(plain)) as T, legacy: false };
   } catch {
+    try {
+      // Provide lightweight diagnostics to help debugging intermittent
+      // decryption failures on some browsers/platforms. Avoid logging raw
+      // ciphertext or keys.
+      // eslint-disable-next-line no-console
+      console.warn("secure-session: decryptPayload failed", {
+        cryptoAvailable: cryptoAvailable(),
+        rawPrefix: raw.slice(0, ENVELOPE_PREFIX.length),
+        rawLength: raw.length,
+      });
+    } catch {
+      /* noop */
+    }
     return null;
   }
 }

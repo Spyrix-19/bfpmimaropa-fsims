@@ -293,8 +293,9 @@ function toAuthUser(m: AuthMemberModel, accessToken: string, fsims: FsimsAccess)
 }
 
 function isExpired(expiration: string): boolean {
+  if (!expiration || typeof expiration !== "string") return false;
   const t = Date.parse(expiration);
-  if (Number.isNaN(t)) return true;
+  if (Number.isNaN(t)) return false;
   return t <= Date.now();
 }
 
@@ -388,16 +389,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession]);
 
   const restoreSession = useCallback(async () => {
-    const stored = await readStoredSession();
+    // Some browsers may delay IndexedDB availability or crypto keys may not
+    // be ready immediately after a hard reload. Retry a couple of times with
+    // small backoff before giving up to avoid logging the user out spuriously.
+    let stored = await readStoredSession();
+    if (!stored) {
+      // Retry up to 3 times, small delay between attempts.
+      for (let i = 0; i < 3 && !stored; i += 1) {
+        // short backoff
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 250 * (i + 1)));
+        // eslint-disable-next-line no-await-in-loop
+        stored = await readStoredSession();
+      }
+    }
+
     if (!stored) {
       applySession(null);
       return;
     }
+
     if (isExpired(stored.session.expiration)) {
       clearStoredSession();
       applySession(null);
       return;
     }
+
     applySession({ user: stored.session.user, expiration: stored.session.expiration });
     if (stored.legacy) {
       // Seamless upgrade: re-save an older plain-text session as ciphertext.
@@ -458,7 +475,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       expiryTimerRef.current = null;
     }
     if (!session) return;
-    const ms = Date.parse(session.expiration) - Date.now();
+    const expiryTime = Date.parse(session.expiration);
+    if (Number.isNaN(expiryTime)) {
+      // If the expiration is malformed or missing, do not auto-logout here.
+      return;
+    }
+    const ms = expiryTime - Date.now();
     if (ms <= 0) {
       logout();
       return;
