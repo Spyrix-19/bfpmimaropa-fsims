@@ -1,6 +1,8 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from "axios";
 import { toast } from "@/lib/toast";
 import { loadingBus } from "@/lib/loading-bus";
+import { getAccessToken } from "@/lib/auth-token";
+import { ApiMessages, fallbackMessageForStatus, sanitizeEnvelopeMessage } from "@/lib/api-messages";
 
 /* =========================
    BASE CONFIG
@@ -94,7 +96,7 @@ const api: AxiosInstance = axios.create({
 ========================= */
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("authToken");
+  const token = getAccessToken();
 
   if (token) {
     config.headers = config.headers ?? {};
@@ -258,8 +260,6 @@ const normalizeResponse = <T>(res: { status: number; data?: T }): ApiResponse<T>
 // SQL fragments, or other sensitive details. Only the API envelope's
 // `errorMessages` field is considered safe to display — and only after
 // sanitization. The backend's `InnerMessage` is intentionally IGNORED.
-import { ApiMessages, fallbackMessageForStatus, sanitizeEnvelopeMessage } from "@/lib/api-messages";
-
 const GENERIC_ERROR_MESSAGE = ApiMessages.UNKNOWN;
 
 const normalizeError = <T>(error: AxiosError, options?: ApiOptions): ApiResponse<T> => {

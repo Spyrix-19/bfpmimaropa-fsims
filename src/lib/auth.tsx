@@ -19,6 +19,8 @@ import { authAPI } from "@/services/authAPI";
 import { personnelAPI } from "@/services/personnelAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { FSIMS_SYSTEMNO, FSIMS_SYSTEMCODE, SUPER, ADMIN, PERSONNEL } from "@/lib/fsims-constants";
+import { encryptPayload, decryptPayload, destroySessionKey } from "@/lib/secure-session";
+import { setAccessToken, setCachedRoleCode, getCachedRoleCode } from "@/lib/auth-token";
 
 /** Modules a user may be authorized against. Drives sidebar + route guards. */
 export type AppModule =
@@ -76,11 +78,6 @@ interface Session {
   expiration: string;
 }
 
-interface StoredSession {
-  user: AuthUser;
-  expiration: string;
-}
-
 interface AuthCtx {
   user: AuthUser | null;
   accessToken: string | null;
@@ -96,7 +93,7 @@ interface AuthCtx {
     remember: boolean,
   ) => Promise<{ ok: boolean; error?: string; requiresPasswordChange?: boolean }>;
   logout: () => void;
-  restoreSession: () => void;
+  restoreSession: () => Promise<void>;
   isPersonnel: () => boolean;
   isSuperAdmin: () => boolean;
   isAdministrator: () => boolean;
@@ -169,7 +166,6 @@ export function resolveLocationScope(
   const stationName = user?.stationname ?? "";
 
   const isAdmin = resolvedRoleNo === 1 || resolvedRoleNo === 2;
-  const isPersonnel = resolvedRoleNo === 3;
 
   if (isAdmin) {
     if (stationType === 25 || stationType === 26) {
@@ -211,31 +207,12 @@ export function resolveLocationScope(
       };
     }
 
-    return {
-      roleno: resolvedRoleNo,
-      stationtype: stationType,
-      provinceno: provinceNo,
-      provinceLocked: !!provinceNo,
-      provincename: provinceName,
-      stationno: stationNo,
-      stationname: stationName,
-      stationLocked: !!stationNo,
-    };
+    // Admins whose station type isn't a known HQ/province/station value fall
+    // through to the shared scope below.
   }
 
-  if (isPersonnel) {
-    return {
-      roleno: resolvedRoleNo,
-      stationtype: stationType,
-      provinceno: provinceNo,
-      provinceLocked: !!provinceNo,
-      provincename: provinceName,
-      stationno: stationNo,
-      stationname: stationName,
-      stationLocked: !!stationNo,
-    };
-  }
-
+  // Personnel and unmatched roles share the same scope: lock to whatever
+  // province/station the account carries.
   return {
     roleno: resolvedRoleNo,
     stationtype: stationType,
@@ -307,32 +284,53 @@ function clearStoredSession() {
   } catch {
     /* noop */
   }
+  void destroySessionKey();
 }
 
-function readStoredSession(): StoredSession | null {
+/** True when the persisted session lives in localStorage ("remember me"). */
+function prefersLocalStorage(): boolean {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY);
+    return localStorage.getItem(STORAGE_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
+/** Persist the session as ciphertext in the chosen store. */
+async function writeStoredSession(stored: Session, remember: boolean) {
+  try {
+    const payload = await encryptPayload(stored);
+    const store = remember ? localStorage : sessionStorage;
+    store.setItem(STORAGE_KEY, payload);
+    (remember ? sessionStorage : localStorage).removeItem(STORAGE_KEY);
+    localStorage.removeItem("authToken");
+  } catch {
+    /* noop */
+  }
+}
+
+async function readStoredSession(): Promise<{ session: Session; legacy: boolean } | null> {
+  try {
+    const fromLocal = localStorage.getItem(STORAGE_KEY);
+    const raw = fromLocal ?? sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredSession> | null;
+    const decoded = await decryptPayload<Partial<Session>>(raw);
+    const parsed = decoded?.value;
     if (!parsed || !parsed.user || !parsed.expiration) return null;
     if (!parsed.user.accessToken || !parsed.user.systemaccess) return null;
-    return parsed as StoredSession;
+    return { session: parsed as Session, legacy: !!decoded?.legacy };
   } catch {
     return null;
   }
 }
 
 /**
- * Storage-only super admin check. Safe to call outside the AuthProvider tree
- * (e.g. from the top-level error boundary, which renders when React unmounts).
+ * Role check that works outside the AuthProvider tree (e.g. from the top-level
+ * error boundary, which renders when React unmounts). Reads the in-memory role
+ * cache — never raw browser storage.
  */
 export function isStoredSuperAdmin(): boolean {
-  try {
-    const stored = readStoredSession();
-    return (stored?.user?.systemaccess?.rolecode || "").toUpperCase() === SUPER;
-  } catch {
-    return false;
-  }
+  return (getCachedRoleCode() || "") === SUPER;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -347,12 +345,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applySession = useCallback((s: Session | null) => {
     setSession(s);
-    try {
-      if (s?.user.accessToken) localStorage.setItem("authToken", s.user.accessToken);
-      else localStorage.removeItem("authToken");
-    } catch {
-      /* noop */
-    }
+    setAccessToken(s?.user.accessToken ?? null);
+    setCachedRoleCode(s?.user.systemaccess?.rolecode ?? null);
   }, []);
 
   const logout = useCallback(() => {
@@ -361,18 +355,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearStoredSession();
   }, [applySession]);
 
-  const restoreSession = useCallback(() => {
-    const stored = readStoredSession();
+  const restoreSession = useCallback(async () => {
+    const stored = await readStoredSession();
     if (!stored) {
       applySession(null);
       return;
     }
-    if (isExpired(stored.expiration)) {
+    if (isExpired(stored.session.expiration)) {
       clearStoredSession();
       applySession(null);
       return;
     }
-    applySession({ user: stored.user, expiration: stored.expiration });
+    applySession({ user: stored.session.user, expiration: stored.session.expiration });
+    if (stored.legacy) {
+      // Seamless upgrade: re-save an older plain-text session as ciphertext.
+      await writeStoredSession(stored.session, prefersLocalStorage());
+    }
   }, [applySession]);
 
   const updateUser = useCallback((patch: Partial<AuthUser>) => {
@@ -380,13 +378,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!prev) return prev;
       const nextUser = { ...prev.user, ...patch };
       const next: Session = { ...prev, user: nextUser };
-      try {
-        const store = localStorage.getItem(STORAGE_KEY) ? localStorage : sessionStorage;
-        store.setItem(STORAGE_KEY, JSON.stringify({ user: nextUser, expiration: prev.expiration }));
-        if (nextUser.accessToken) localStorage.setItem("authToken", nextUser.accessToken);
-      } catch {
-        /* noop */
-      }
+      setAccessToken(nextUser.accessToken ?? null);
+      setCachedRoleCode(nextUser.systemaccess?.rolecode ?? null);
+      void writeStoredSession(
+        { user: nextUser, expiration: prev.expiration },
+        prefersLocalStorage(),
+      );
       return next;
     });
   }, []);
@@ -414,8 +411,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [updateUser]);
 
   useEffect(() => {
-    restoreSession();
-    setInitialized(true);
+    let cancelled = false;
+    void restoreSession().finally(() => {
+      if (!cancelled) setInitialized(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [restoreSession]);
 
   useEffect(() => {
@@ -461,6 +463,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       };
 
+      const maybeRetry = async (shouldRetry: boolean, attempt: number): Promise<boolean> => {
+        if (shouldRetry && attempt < 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 800));
+          return true;
+        }
+        return false;
+      };
+
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
           const resp = await authAPI.login(
@@ -476,9 +486,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 : "";
 
           if (!resp?.isSuccess) {
-            const shouldRetry = transientFailure(resp.statusCode ?? 0, backendMessage);
-            if (shouldRetry && attempt < 1) {
-              await new Promise((resolve) => window.setTimeout(resolve, 800));
+            if (await maybeRetry(transientFailure(resp.statusCode ?? 0, backendMessage), attempt)) {
               continue;
             }
             return { ok: false, error: backendMessage || AUTH_MSG.INVALID_CREDENTIALS };
@@ -489,9 +497,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           if (!data.isSuccess || !data.member || !data.accessToken) {
-            const shouldRetry = transientFailure(resp.statusCode ?? 0, backendMessage);
-            if (shouldRetry && attempt < 1) {
-              await new Promise((resolve) => window.setTimeout(resolve, 800));
+            if (await maybeRetry(transientFailure(resp.statusCode ?? 0, backendMessage), attempt)) {
               continue;
             }
             return { ok: false, error: backendMessage || AUTH_MSG.INVALID_CREDENTIALS };
@@ -514,14 +520,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           const fsims = toFsimsAccess(fsimsEntry);
           const user = toAuthUser(member, data.accessToken ?? "", fsims);
-          const stored: StoredSession = { user, expiration: data.expiration ?? "" };
-          try {
-            const store = remember ? localStorage : sessionStorage;
-            store.setItem(STORAGE_KEY, JSON.stringify(stored));
-            (remember ? sessionStorage : localStorage).removeItem(STORAGE_KEY);
-          } catch {
-            /* noop */
-          }
+          const stored: Session = { user, expiration: data.expiration ?? "" };
+          await writeStoredSession(stored, remember);
           applySession({ user, expiration: data.expiration ?? "" });
           return { ok: true };
         } catch (e: unknown) {
@@ -606,7 +606,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [session, pendingMember, initialized, login, logout, restoreSession, updateUser, refreshUser]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {initialized ? children : <div aria-hidden className="min-h-screen bg-background" />}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
