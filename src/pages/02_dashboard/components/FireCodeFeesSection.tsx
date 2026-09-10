@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import FilterField from "@/components/filter-field";
-import { cn } from "@/lib/utils";
+import { buildYears, cn } from "@/lib/utils";
 import {
   LocationMultiSelect,
   type SelectedLocation,
@@ -158,7 +158,10 @@ function YearMultiSelect({
                 >
                   <Checkbox
                     checked={checked}
-                    onCheckedChange={() => toggleYear(year)}
+                    onCheckedChange={(checkedState: boolean | "indeterminate") => {
+                      if (checkedState === "indeterminate") return;
+                      toggleYear(year);
+                    }}
                     aria-label={`Toggle ${year}`}
                   />
                   <span className="text-sm">{year}</span>
