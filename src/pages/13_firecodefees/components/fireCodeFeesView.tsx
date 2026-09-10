@@ -38,8 +38,10 @@ import {
 import StationInfoCard from "@/components/station-info-card";
 
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
-import { revisionrequestAPI } from "@/services/revisionrequestAPI";
-import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import {
+  deriveRevisionLock,
+  useRevisionLedger,
+} from "@/pages/06_target-reference/revision/useRevisionRequests";
 import type { FSISFeeCollectionDetailModel } from "@/types/firecodefeesType";
 import {
   FEE_SECTORS,
@@ -191,55 +193,27 @@ export function FireCodeFeesYearViewBody({
   }, [station.stationno, year]);
 
   /* Revision requests — badges only (read-only screen) ------------------ */
-  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
-  React.useEffect(() => {
-    if (!station.stationno) return;
-    let cancelled = false;
-    (async () => {
-      const resp = await revisionrequestAPI.getLedger(
-        {
-          stationno: station.stationno,
-          reportyear: year,
-          reportmonth: 0,
-          provinceno: station.provinceno || EMPTY_GUID,
-          requesttype: "FIRE CODE FEES",
-          pagenumber: 1,
-          pagesize: 100,
-        },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
-      );
-      if (cancelled) return;
-      const { ok, data } = unwrap<FSISEditRequestModel[]>(resp);
-      setRevisionRequests(ok && Array.isArray(data) ? data : []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [station.stationno, station.provinceno, year]);
-
-  const matches = React.useCallback(
-    (r: FSISEditRequestModel, m: MonthView) => {
-      if (m.feeno && String(r.referencekey) === m.feeno) return true;
-      if (r.dateinspected) return String(r.dateinspected).slice(0, 10) === monthKey(year, m.month);
-      return Number(r.reportmonth) === m.month && Number(r.reportyear) === year;
-    },
-    [year],
-  );
+  const revisionRequests = useRevisionLedger({
+    module: "fire-code-fees",
+    stationno: station.stationno,
+    reportyear: year,
+    provinceno: station.provinceno,
+  });
 
   /** Same lock resolution as the editor — surfaced as read-only badges. */
   const lockInfo = React.useCallback(
     (m: MonthView) => {
-      const unlockedByApproval = revisionRequests.some(
-        (r) => r.statuscode?.toUpperCase() === "APPROVED" && matches(r, m),
-      );
-      const pending =
-        !unlockedByApproval &&
-        revisionRequests.some((r) => r.statuscode?.toUpperCase() === "PENDING" && matches(r, m));
       const past = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, m.month);
-      const locked = !unlockedByApproval && (past || pending);
-      return { locked, pending, past, unlockedByApproval };
+      const { unlockedByApproval, hasPendingRevision, fieldsLocked } = deriveRevisionLock({
+        requests: revisionRequests,
+        referencekey: m.feeno || null,
+        dateKey: monthKey(year, m.month),
+        report: { year, month: m.month },
+        isPast: past,
+      });
+      return { locked: fieldsLocked, pending: hasPendingRevision, past, unlockedByApproval };
     },
-    [matches, revisionRequests, year],
+    [revisionRequests, year],
   );
 
   const yearTotal = React.useMemo(

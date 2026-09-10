@@ -82,6 +82,8 @@ import type {
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import { resolveTargetScope, buildDays, formatDayLabel } from "../helpers";
 import RevisionRequestDialog from "../revision/RevisionRequestDialog";
+import { revisionRequestType } from "../revision/types";
+import { useRevisionLedger } from "../revision/useRevisionRequests";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
@@ -343,8 +345,6 @@ export default function TargetReferenceForm({
   const [existingIsRevisionRequest, setExistingIsRevisionRequest] = React.useState<
     Record<string, boolean>
   >({});
-  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
-  const [revisionRequestsLoading, setRevisionRequestsLoading] = React.useState(false);
   const [reloadNonce, setReloadNonce] = React.useState(0);
 
   React.useEffect(() => {
@@ -378,49 +378,14 @@ export default function TargetReferenceForm({
     user?.provincename,
   ]);
 
-  React.useEffect(() => {
-    if (!open || !stationNo || stationNo === EMPTY_GUID) {
-      setRevisionRequests([]);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      setRevisionRequestsLoading(true);
-      const resp = await revisionrequestAPI.getLedger(
-        {
-          stationno: stationNo,
-          reportyear: Number(isEditProp ? year : Number(selectedDate.slice(0, 4)) || year),
-          reportmonth: 0,
-          provinceno: provinceno || EMPTY_GUID,
-          requesttype: "TARGET",
-          pagenumber: 1,
-          pagesize: 100,
-        },
-        { suppressGlobalLoading: true },
-      );
-      if (cancelled) return;
-      const { ok, data, error } = unwrap<FSISEditRequestModel[]>(resp);
-      if (ok && Array.isArray(data)) {
-        setRevisionRequests(data);
-      } else {
-        // Backend returns isSuccess=false with "No data found." when the
-        // station has no revision requests for the year — treat as empty
-        // instead of surfacing a scary toast.
-        const isEmptyResult = /no\s*data|not\s*found|no\s*record/i.test(error || "");
-        if (!isEmptyResult) {
-          toast.error(error || "Unable to load revision requests.");
-        }
-        setRevisionRequests([]);
-      }
-      setRevisionRequestsLoading(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, stationNo, year, selectedDate.slice(0, 4), provinceno, reloadNonce, isEditProp]);
+  const revisionRequests = useRevisionLedger({
+    module: "target-reference",
+    stationno: stationNo,
+    reportyear: Number(isEditProp ? year : Number(selectedDate.slice(0, 4)) || year),
+    provinceno,
+    enabled: !!open,
+    reloadNonce,
+  });
 
   // Reset baseline state when opening
   React.useEffect(() => {
@@ -1638,7 +1603,7 @@ export default function TargetReferenceForm({
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
             stationno: stationNo || EMPTY_GUID,
-            requesttype: "TARGET",
+            requesttype: revisionRequestType("target-reference"),
             remarks: [reason, remarks].filter(Boolean).join(" — "),
             statusno: 155,
             taggedby: user?.memberno ?? "",

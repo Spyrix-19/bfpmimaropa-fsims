@@ -66,7 +66,11 @@ import type {
   FSISIssuanceClassDTO,
   TargetAccomplishmentModel,
 } from "@/types/complianceType";
-import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
+import {
+  deriveRevisionLock,
+  useRevisionLedger,
+} from "@/pages/06_target-reference/revision/useRevisionRequests";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import { formatLongDate, serializePhilippineDateTime } from "@/lib/date-format";
@@ -463,11 +467,10 @@ function InspectionsNewBody({
    */
   const [dateSummary, setDateSummary] = React.useState<TargetAccomplishmentModel | null>(null);
 
-  /* ── Revision workflow (requesttype = ISSUANCE) ──────────────────────────── */
+  /* ── Revision workflow (module "monitoring" → requesttype COMPLIANCE) ────── */
   const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
-  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
   const [reloadNonce, setReloadNonce] = React.useState(0);
 
   const selectedDateKey = format(reportingDate, "yyyy-MM-dd");
@@ -670,63 +673,26 @@ function InspectionsNewBody({
     reloadNonce,
   ]);
 
-  /* Revision requests ledger for the selected station/year (ISSUANCE). */
-  React.useEffect(() => {
-    const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
-    if (!activeStationNo || activeStationNo === EMPTY_GUID) {
-      setRevisionRequests([]);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      const resp = await revisionrequestAPI.getLedger(
-        {
-          stationno: activeStationNo,
-          reportyear: Number(year),
-          reportmonth: 0,
-          provinceno: province.no || EMPTY_GUID,
-          requesttype: "COMPLIANCE",
-          pagenumber: 1,
-          pagesize: 100,
-        },
-        { suppressGlobalLoading: true },
-      );
-      if (cancelled) return;
-      const { ok, data, error } = unwrap<FSISEditRequestModel[]>(resp);
-      if (ok && Array.isArray(data)) {
-        setRevisionRequests(data);
-      } else {
-        const isEmptyResult = /no\s*data|not\s*found|no\s*record/i.test(error || "");
-        if (!isEmptyResult && error) toast.error(error);
-        setRevisionRequests([]);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [station.no, scope.stationLocked, scope.stationno, province.no, year, reloadNonce]);
+  /* Revision requests ledger for the selected station/year. */
+  const revisionRequests = useRevisionLedger({
+    module: "monitoring",
+    stationno: scope.stationLocked ? scope.stationno || station.no : station.no,
+    reportyear: Number(year),
+    provinceno: province.no,
+    reloadNonce,
+  });
 
   /* ── Lock rules for the selected (single) date ───────────────────────────── */
-  /* Driven by the Detail/Date fields `isrevisionrequest` + `editablestatus`
-     (153 = approved / temporarily unlocked), same as complianceEdit.tsx. */
   const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
-  const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
-  const activeRequest = React.useMemo(() => {
-    return (
-      revisionRequests.find((r) => {
-        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
-        if (existingFsisno && String(r.referencekey) === String(existingFsisno)) return true;
-        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === selectedDateKey : false;
-      }) ?? null
-    );
-  }, [revisionRequests, selectedDateKey, existingFsisno]);
-  // A pending request locks the date even if it is not in the past.
-  const hasPendingRevision =
-    !unlockedByApproval && (existingMeta.isrevisionrequest || !!activeRequest);
-  const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
-  const fieldsLocked = !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
+  const { activeRequest, unlockedByApproval, hasPendingRevision, needsRevisionRequest, fieldsLocked } =
+    deriveRevisionLock({
+      requests: revisionRequests,
+      referencekey: existingFsisno,
+      dateKey: selectedDateKey,
+      isPast: isPastSelectedDate,
+      editablestatus: existingMeta.editablestatus,
+      isrevisionrequest: existingMeta.isrevisionrequest,
+    });
 
   /* ------------------------- Daily target vs inspected summary ---------------------- */
   const dailySummaryRows = React.useMemo(() => {
@@ -1437,7 +1403,7 @@ function InspectionsNewBody({
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
             stationno: station.no || EMPTY_GUID,
-            requesttype: "COMPLIANCE",
+            requesttype: revisionRequestType("monitoring"),
             remarks: [reason, cancelRemarks].filter(Boolean).join(" — "),
             statusno: 155,
             taggedby: user?.memberno ?? "",

@@ -8,7 +8,8 @@ export interface FSISEditRequestDTO {
   requestremarks: string;
   statusno: number;
   requestedby: string;
-  dateinspected?: string; //for issuance (monitoringedit.tsx) only
+  /** Only sent by the date-based modules (compliance, notice). */
+  dateinspected?: string;
 }
 
 export interface FSISEditRequestStatusDTO {

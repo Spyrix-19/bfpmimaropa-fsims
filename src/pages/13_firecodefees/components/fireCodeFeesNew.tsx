@@ -52,7 +52,11 @@ import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRema
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import type { SearchStationModel } from "@/types/stationTypes";
-import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
+import {
+  deriveRevisionLock,
+  useRevisionLedger,
+} from "@/pages/06_target-reference/revision/useRevisionRequests";
 import type {
   FSISFeeCollectionClassDTO,
   FSISFeeCollectionDetailModel,
@@ -754,65 +758,27 @@ export function FireCodeFeesFormBody({
 
 
   /* Revision requests ----------------------------------------------------- */
-  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
   const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
-    if (!activeStationNo || activeStationNo === EMPTY_GUID) {
-      setRevisionRequests([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const resp = await revisionrequestAPI.getLedger(
-        {
-          stationno: activeStationNo,
-          reportyear: Number(year),
-          reportmonth: 0,
-          provinceno: province.no || EMPTY_GUID,
-          requesttype: "FIRE CODE FEES",
-          pagenumber: 1,
-          pagesize: 100,
-        },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
-      );
-      if (cancelled) return;
-      const { ok, data } = unwrap<FSISEditRequestModel[]>(resp);
-      setRevisionRequests(ok && Array.isArray(data) ? data : []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [station.no, scope.stationLocked, scope.stationno, province.no, year, reloadNonce]);
+  const revisionRequests = useRevisionLedger({
+    module: "fire-code-fees",
+    stationno: scope.stationLocked ? scope.stationno || station.no : station.no,
+    reportyear: Number(year),
+    provinceno: province.no,
+    reloadNonce,
+  });
 
   const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, month);
-  const approvedRequest = React.useMemo(
-    () =>
-      revisionRequests.find((r) => {
-        if (r.statuscode?.toUpperCase() !== "APPROVED") return false;
-        if (existingFeeno && String(r.referencekey) === String(existingFeeno)) return true;
-        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === selectedDateKey : false;
-      }) ?? null,
-    [revisionRequests, selectedDateKey, existingFeeno],
-  );
-  const unlockedByApproval = !!approvedRequest;
-  const activeRequest = React.useMemo(
-    () =>
-      revisionRequests.find((r) => {
-        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
-        if (existingFeeno && String(r.referencekey) === String(existingFeeno)) return true;
-        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === selectedDateKey : false;
-      }) ?? null,
-    [revisionRequests, selectedDateKey, existingFeeno],
-  );
-  const hasPendingRevision = !unlockedByApproval && !!activeRequest;
-  const needsRevisionRequest =
-    canManage && isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
-  const fieldsLocked =
-    !canManage || (!unlockedByApproval && (isPastSelectedDate || hasPendingRevision));
+  const { activeRequest, unlockedByApproval, hasPendingRevision, needsRevisionRequest, fieldsLocked } =
+    deriveRevisionLock({
+      requests: revisionRequests,
+      referencekey: existingFeeno,
+      dateKey: selectedDateKey,
+      isPast: isPastSelectedDate,
+      readOnly: !canManage,
+    });
 
   /* Totals ---------------------------------------------------------------- */
   const sectorTotals = React.useMemo(() => {
@@ -1246,7 +1212,7 @@ export function FireCodeFeesFormBody({
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
             stationno: station.no || EMPTY_GUID,
-            requesttype: "FIRE CODE FEES",
+            requesttype: revisionRequestType("fire-code-fees"),
             remarks: [reason, cancelRemarks].filter(Boolean).join(" — "),
             statusno: 155,
             taggedby: user?.memberno ?? "",

@@ -390,15 +390,10 @@ export default function TargetRevisionRequests({
                     </td>
 
                     <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
-                      {String(r.requesttype ?? "").toUpperCase() === "FIRE CODE FEES"
-                        ? monthYearLabel(r.reportyear, r.reportmonth)
-                        : ["ISSUANCE", "NOTICE"].includes(
-                              String(r.requesttype ?? "").toUpperCase(),
-                            )
-                          ? formatDate(r.dateinspected, "—")
-                          : r.dateinspected
-                            ? formatDate(r.dateinspected, "—")
-                            : monthYearLabel(r.reportyear, r.reportmonth)}
+                      {String(r.requesttype ?? "").toUpperCase() !== "FIRE CODE FEES" &&
+                      r.dateinspected
+                        ? formatDate(r.dateinspected, "—")
+                        : monthYearLabel(r.reportyear, r.reportmonth)}
                     </td>
 
                     <td className="px-3 py-2">

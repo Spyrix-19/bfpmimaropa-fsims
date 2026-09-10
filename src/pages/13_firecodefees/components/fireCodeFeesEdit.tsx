@@ -46,7 +46,11 @@ import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRema
 
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
-import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
+import {
+  deriveRevisionLock,
+  useRevisionLedger,
+} from "@/pages/06_target-reference/revision/useRevisionRequests";
 import type {
   FSISFeeCollectionClass,
   FSISFeeCollectionClassDTO,
@@ -203,68 +207,36 @@ export function FireCodeFeesYearEditorBody({
   }, [station.stationno, station.provinceno, year, reloadNonce]);
 
   /* Revision requests ----------------------------------------------------- */
-  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
-  React.useEffect(() => {
-    if (!station.stationno) return;
-    let cancelled = false;
-    (async () => {
-      const resp = await revisionrequestAPI.getLedger(
-        {
-          stationno: station.stationno,
-          reportyear: year,
-          reportmonth: 0,
-          provinceno: station.provinceno || EMPTY_GUID,
-          requesttype: "FIRE CODE FEES",
-          pagenumber: 1,
-          pagesize: 100,
-        },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
-      );
-      if (cancelled) return;
-      const { ok, data } = unwrap<FSISEditRequestModel[]>(resp);
-      setRevisionRequests(ok && Array.isArray(data) ? data : []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [station.stationno, station.provinceno, year, reloadNonce]);
-
-  const matches = React.useCallback(
-    (r: FSISEditRequestModel, m: MonthState) => {
-      if (m.feeno && String(r.referencekey) === m.feeno) return true;
-      if (r.dateinspected) return String(r.dateinspected).slice(0, 10) === monthKey(year, m.month);
-      return Number(r.reportmonth) === m.month && Number(r.reportyear) === year;
-    },
-    [year],
-  );
-
-  const pendingFor = React.useCallback(
-    (m: MonthState) =>
-      revisionRequests.find((r) => r.statuscode?.toUpperCase() === "PENDING" && matches(r, m)) ??
-      null,
-    [matches, revisionRequests],
-  );
-
-  /** Approved revision request that unlocks a month. */
-  const approvedFor = React.useCallback(
-    (m: MonthState) =>
-      revisionRequests.find((r) => r.statuscode?.toUpperCase() === "APPROVED" && matches(r, m)) ??
-      null,
-    [matches, revisionRequests],
-  );
+  const revisionRequests = useRevisionLedger({
+    module: "fire-code-fees",
+    stationno: station.stationno,
+    reportyear: year,
+    provinceno: station.provinceno,
+    reloadNonce,
+  });
 
   /** Per-month lock resolution — mirrors the compliance editor rules. */
   const lockInfo = React.useCallback(
     (m: MonthState) => {
-      const unlockedByApproval = !!approvedFor(m);
-      const request = pendingFor(m);
-      const pending = !unlockedByApproval && !!request;
       const past = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, m.month);
-      const locked = readOnly || (!unlockedByApproval && (past || pending));
-      const needsRequest = !readOnly && past && !unlockedByApproval && !pending;
-      return { locked, pending, past, unlockedByApproval, request, needsRequest };
+      const lock = deriveRevisionLock({
+        requests: revisionRequests,
+        referencekey: m.feeno || null,
+        dateKey: monthKey(year, m.month),
+        report: { year, month: m.month },
+        isPast: past,
+        readOnly,
+      });
+      return {
+        locked: lock.fieldsLocked,
+        pending: lock.hasPendingRevision,
+        past,
+        unlockedByApproval: lock.unlockedByApproval,
+        request: lock.activeRequest,
+        needsRequest: lock.needsRevisionRequest,
+      };
     },
-    [approvedFor, pendingFor, readOnly, year],
+    [revisionRequests, readOnly, year],
   );
 
   const setAmount = React.useCallback(
@@ -647,7 +619,7 @@ export function FireCodeFeesYearEditorBody({
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
             stationno: station.stationno || EMPTY_GUID,
-            requesttype: "FIRE CODE FEES",
+            requesttype: revisionRequestType("fire-code-fees"),
             remarks: [reason, remarks].filter(Boolean).join(" — "),
             statusno: 155,
             taggedby: user?.memberno ?? "",

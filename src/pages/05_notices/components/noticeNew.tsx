@@ -54,7 +54,11 @@ import { formatLongDate, serializePhilippineDateTime } from "@/lib/date-format";
 import { useAuth } from "@/lib/auth";
 import { noticeAPI } from "@/services/noticeAPI";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
-import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
+import {
+  deriveRevisionLock,
+  useRevisionLedger,
+} from "@/pages/06_target-reference/revision/useRevisionRequests";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import type {
@@ -499,11 +503,10 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   const [issuedFromApi, setIssuedFromApi] = React.useState<NoticeCounts | null>(null);
   const promptedDateKeyRef = React.useRef<string | null>(null);
 
-  /* ── Revision workflow (requesttype = NOTICE) ───────────────────────────── */
+  /* ── Revision workflow (module "notice" → requesttype NOTICE) ───────────── */
   const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
-  const [revisionRequests, setRevisionRequests] = React.useState<FSISEditRequestModel[]>([]);
   const [reloadNonce, setReloadNonce] = React.useState(0);
 
   const selectedDateKey = format(reportingDate, "yyyy-MM-dd");
@@ -631,52 +634,27 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, stationno, selectedDateKey, reloadNonce]);
 
-  /* Revision requests ledger for the selected station/year (NOTICE). */
-  React.useEffect(() => {
-    if (!open || !stationno || stationno === EMPTY_GUID) {
-      setRevisionRequests([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const resp = await revisionrequestAPI.getLedger(
-        {
-          stationno,
-          reportyear: reportingDate.getFullYear(),
-          reportmonth: 0,
-          provinceno: record?.provinceno || EMPTY_GUID,
-          requesttype: "NOTICE",
-          pagenumber: 1,
-          pagesize: 100,
-        },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
-      );
-      if (cancelled) return;
-      const { ok, data } = unwrap<FSISEditRequestModel[]>(resp);
-      setRevisionRequests(ok && Array.isArray(data) ? data : []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, stationno, record?.provinceno, reportingDate.getFullYear(), reloadNonce]);
+  /* Revision requests ledger for the selected station/year. */
+  const revisionRequests = useRevisionLedger({
+    module: "notice",
+    stationno,
+    reportyear: reportingDate.getFullYear(),
+    provinceno: record?.provinceno,
+    enabled: open,
+    reloadNonce,
+  });
 
   /* ── Lock rules for the selected date ───────────────────────────────────── */
   const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
-  const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
-  const activeRequest = React.useMemo(() => {
-    return (
-      revisionRequests.find((r) => {
-        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
-        if (existingNoticeNo && String(r.referencekey) === String(existingNoticeNo)) return true;
-        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === selectedDateKey : false;
-      }) ?? null
-    );
-  }, [revisionRequests, selectedDateKey, existingNoticeNo]);
-  const hasPendingRevision =
-    !unlockedByApproval && (existingMeta.isrevisionrequest || !!activeRequest);
-  const needsRevisionRequest = isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
-  const fieldsLocked = !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
+  const { activeRequest, unlockedByApproval, hasPendingRevision, needsRevisionRequest, fieldsLocked } =
+    deriveRevisionLock({
+      requests: revisionRequests,
+      referencekey: existingNoticeNo,
+      dateKey: selectedDateKey,
+      isPast: isPastSelectedDate,
+      editablestatus: existingMeta.editablestatus,
+      isrevisionrequest: existingMeta.isrevisionrequest,
+    });
 
   if (!record) return null;
 
@@ -1015,7 +993,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
             const resp = await revisionrequestAPI.status({
               requestno: cancelRequestId,
               stationno: record.stationno || EMPTY_GUID,
-              requesttype: "NOTICE",
+              requesttype: revisionRequestType("notice"),
               remarks: [reason, cancelRemarks].filter(Boolean).join(" — "),
               statusno: 155,
               taggedby: user?.memberno ?? "",

@@ -59,7 +59,13 @@ import type { NoticeRecord } from "@/pages/05_notices/Notice";
 import type { NoticeCategory, NoticeDetailModel, NoticeDetailClassModel } from "@/types/noticeType";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
-import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
+import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
+import {
+  deriveRevisionLock,
+  matchRequest,
+  revisionStatusOf,
+  useRevisionLedger,
+} from "@/pages/06_target-reference/revision/useRevisionRequests";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
@@ -466,15 +472,6 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   const [cancelRequestId, setCancelRequestId] = React.useState<string | null>(null);
   const [deleteRequestId, setDeleteRequestId] = React.useState<string | null>(null);
   const [revisionRefreshTick, setRevisionRefreshTick] = React.useState(0);
-  const [revisionRequests, setRevisionRequests] = React.useState<
-    {
-      requestno: string;
-      statuscode?: string;
-      statusname?: string;
-      referencekey?: string;
-      dateinspected?: string;
-    }[]
-  >([]);
 
   /** Build an empty per-day source map for the given month (EMPTY_GUID ids). */
   const createEmptyDaySourceMap = React.useCallback((y: number, m: number) => {
@@ -608,80 +605,38 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     };
   }, [open, stationno, year, month, buildDays, captureBaseline]);
 
-  React.useEffect(() => {
-    if (!open || !stationno || !year || !month) {
-      setRevisionRequests([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const resp = await revisionrequestAPI.getLedger(
-        {
-          stationno,
-          reportyear: Number(year),
-          reportmonth: Number(month),
-          provinceno: provinceno || EMPTY_GUID,
-          requesttype: "NOTICE",
-          pagenumber: 1,
-          pagesize: 100,
-        },
-        { suppressGlobalLoading: true },
-      );
-      if (cancelled) return;
-      const { ok, data } = unwrap<
-        {
-          requestno: string;
-          statuscode?: string;
-          statusname?: string;
-          referencekey?: string;
-          dateinspected?: string;
-        }[]
-      >(resp);
-      setRevisionRequests(ok && Array.isArray(data) ? data : []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, stationno, provinceno, year, month, revisionRefreshTick]);
+  const revisionRequests = useRevisionLedger({
+    module: "notice",
+    stationno,
+    reportyear: Number(year),
+    reportmonth: Number(month),
+    provinceno,
+    enabled: !!open && !!year && !!month,
+    reloadNonce: revisionRefreshTick,
+  });
 
-  /** Latest revision request matched to a given day. */
-  const requestForDay = React.useCallback(
-    (dayKey: string) =>
-      revisionRequests.find((r) =>
-        r.dateinspected ? String(r.dateinspected).slice(0, 10) === dayKey : false,
-      ) ?? null,
-    [revisionRequests],
-  );
-
-  /** Per-day revision state — mirrors the compliance editor. */
+  /** Per-day revision state — the shared rules, keyed by the day's date. */
   const dayRevision = React.useCallback(
     (d: DayRow) => {
-      const req = requestForDay(d.date);
-      const raw = req?.statuscode?.toUpperCase() ?? "";
-      const known: RevisionStatus[] = [
-        "PENDING",
-        "APPROVED",
-        "DENIED",
-        "CANCELLED",
-        "COMPLETED",
-        "EXPIRED",
-      ];
-      const status: RevisionStatus | null = (known as string[]).includes(raw)
-        ? (raw as RevisionStatus)
-        : null;
-      const unlockedByApproval = Number(d.editablestatus) === 153;
-      const pending = !unlockedByApproval && (d.isrevisionrequest || status === "PENDING");
-      const locked = unlockedByApproval ? false : d.isLocked || pending;
+      const match = { dateKey: d.date };
+      const req = matchRequest(revisionRequests, match);
+      const lock = deriveRevisionLock({
+        requests: revisionRequests,
+        ...match,
+        isPast: d.isLocked,
+        editablestatus: d.editablestatus,
+        isrevisionrequest: d.isrevisionrequest,
+      });
       return {
         req,
-        status: (unlockedByApproval ? "APPROVED" : status) as RevisionStatus | null,
-        unlockedByApproval,
-        pending,
-        locked,
-        needsRequest: locked && !pending,
+        status: lock.unlockedByApproval ? "APPROVED" : revisionStatusOf(req),
+        unlockedByApproval: lock.unlockedByApproval,
+        pending: lock.hasPendingRevision,
+        locked: lock.fieldsLocked,
+        needsRequest: lock.needsRevisionRequest,
       };
     },
-    [requestForDay],
+    [revisionRequests],
   );
 
   const changePeriod = (nextMonth: number, nextYear: number) => {
@@ -1215,7 +1170,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             const resp = await revisionrequestAPI.status({
               requestno: cancelRequestId,
               stationno: stationno || EMPTY_GUID,
-              requesttype: "NOTICE",
+              requesttype: revisionRequestType("notice"),
               remarks: [reason, remarks].filter(Boolean).join(" — "),
               statusno: 155,
               taggedby: user?.memberno ?? "",

@@ -56,7 +56,17 @@ import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { MONITORING_THEME } from "./complianceTheme";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
-import type { RevisionStatus } from "@/pages/06_target-reference/revision/types";
+import {
+  revisionRequestType,
+  type RevisionStatus,
+} from "@/pages/06_target-reference/revision/types";
+import type { FSISEditRequestModel } from "@/types/revisionrequestType";
+import {
+  deriveRevisionLock,
+  matchRequest,
+  revisionStatusOf,
+  useRevisionLedger,
+} from "@/pages/06_target-reference/revision/useRevisionRequests";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
@@ -446,7 +456,7 @@ const reinspectionRowTotal = (day: EditableDay) =>
 
 type DayWithRevision = EditableDay & {
   rev: {
-    req: RevisionRequestRow | null;
+    req: FSISEditRequestModel | null;
     status: RevisionStatus | null;
     unlockedByApproval: boolean;
     pending: boolean;
@@ -455,13 +465,6 @@ type DayWithRevision = EditableDay & {
   };
 };
 
-interface RevisionRequestRow {
-  requestno: string;
-  statuscode?: string;
-  statusname?: string;
-  referencekey?: string;
-  dateinspected?: string;
-}
 
 function ComplianceEditBody({
   stationno,
@@ -544,78 +547,45 @@ function ComplianceEditBody({
   const isDirty = !loading && baseline !== "" && currentSnapshot !== baseline;
 
   /* ------- Revision requests for the month (from the live API) ------------ */
-  const [revisionRequests, setRevisionRequests] = React.useState<RevisionRequestRow[]>([]);
-  React.useEffect(() => {
-    if (!stationno || !year || !month) {
-      setRevisionRequests([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const resp = await revisionrequestAPI.getLedger(
-        {
-          stationno,
-          reportyear: Number(year),
-          reportmonth: Number(month),
-          provinceno: provinceno || EMPTY_GUID,
-          requesttype: "COMPLIANCE",
-          pagenumber: 1,
-          pagesize: 100,
-        },
-        { suppressGlobalLoading: true },
-      );
-      if (cancelled) return;
-      const { ok, data } = unwrap<RevisionRequestRow[]>(resp);
-      setRevisionRequests(ok && Array.isArray(data) ? data : []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [stationno, year, month, provinceno, revisionRequestRefreshTick]);
-
-  /** Latest request for a given day (matched by referencekey = fsisno, or by date). */
-  const requestForDay = React.useCallback(
-    (dayKey: string, fsisno: string) =>
-      revisionRequests.find((r) => {
-        if (fsisno && fsisno !== EMPTY_GUID && String(r.referencekey) === String(fsisno))
-          return true;
-        return r.dateinspected ? String(r.dateinspected).slice(0, 10) === dayKey : false;
-      }) ?? null,
-    [revisionRequests],
-  );
+  const revisionRequests = useRevisionLedger({
+    module: "monitoring",
+    stationno,
+    reportyear: Number(year),
+    reportmonth: Number(month),
+    provinceno,
+    enabled: !!year && !!month,
+    reloadNonce: revisionRequestRefreshTick,
+  });
 
   /**
-   * Per-day revision state, driven by the API fields `isrevisionrequest`
-   * and `editablestatus` (153 = approved / temporarily unlocked).
+   * Per-day revision state — the shared rules, matched by referencekey
+   * (fsisno) or by the day's date.
    */
   const dayRevision = React.useCallback(
     (d: EditableDay) => {
-      const req = requestForDay(d.key, d.inspection.fsisno);
-      const raw = req?.statuscode?.toUpperCase() ?? "";
-      const known: RevisionStatus[] = [
-        "PENDING",
-        "APPROVED",
-        "DENIED",
-        "CANCELLED",
-        "COMPLETED",
-        "EXPIRED",
-      ];
-      const status: RevisionStatus | null = (known as string[]).includes(raw)
-        ? (raw as RevisionStatus)
-        : null;
-      const unlockedByApproval = Number(d.editablestatus) === 153;
-      const pending = !unlockedByApproval && (d.isrevisionrequest || status === "PENDING");
-      const locked = unlockedByApproval ? false : d.isLocked || pending;
+      const fsisno = d.inspection.fsisno;
+      const match = {
+        referencekey: fsisno && fsisno !== EMPTY_GUID ? fsisno : null,
+        dateKey: d.key,
+      };
+      const req = matchRequest(revisionRequests, match);
+      const lock = deriveRevisionLock({
+        requests: revisionRequests,
+        ...match,
+        isPast: d.isLocked,
+        editablestatus: d.editablestatus,
+        isrevisionrequest: d.isrevisionrequest,
+      });
       return {
         req,
-        status: (unlockedByApproval ? "APPROVED" : status) as RevisionStatus | null,
-        unlockedByApproval,
-        pending,
-        locked,
-        needsRequest: locked && !pending,
+        status: lock.unlockedByApproval ? "APPROVED" : revisionStatusOf(req),
+        unlockedByApproval: lock.unlockedByApproval,
+        pending: lock.hasPendingRevision,
+        locked: lock.fieldsLocked,
+        needsRequest: lock.needsRevisionRequest,
       };
     },
-    [requestForDay],
+    [revisionRequests],
   );
 
   /* ----------------------------- Data loading ---------------------------- */
@@ -1181,7 +1151,7 @@ function ComplianceEditBody({
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
             stationno: stationno || EMPTY_GUID,
-            requesttype: "COMPLIANCE",
+            requesttype: revisionRequestType("monitoring"),
             remarks: [reason, remarks].filter(Boolean).join(" — "),
             statusno: 155,
             taggedby: user?.memberno ?? "",
