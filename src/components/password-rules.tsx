@@ -10,6 +10,7 @@ export function getPasswordChecks(password: string): PasswordCheck[] {
   return [
     { label: "At least 8 characters", passed: password.length >= 8 },
     { label: "One uppercase letter", passed: /[A-Z]/.test(password) },
+    { label: "One lowercase letter", passed: /[a-z]/.test(password) },
     { label: "One number", passed: /[0-9]/.test(password) },
     { label: "One special character", passed: PASSWORD_SPECIAL_RE.test(password) },
   ];
