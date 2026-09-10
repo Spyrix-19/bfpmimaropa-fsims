@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import FilterField from "@/components/filter-field";
+
 import { buildYears, cn } from "@/lib/utils";
 import {
   LocationMultiSelect,
@@ -336,23 +336,27 @@ export default function FireCodeFeesSection() {
 
   return (
     <Card className="border-border/60 bg-card p-4 shadow-soft">
-      <div className="mb-1 flex items-center gap-2">
-        <Coins className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">Fire Code Fees Collection</h3>
-      </div>
-      <p className="mb-3 text-xs text-muted-foreground">Year to Year Data Comparison</p>
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <Coins className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Fire Code Fees Collection</h3>
+            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning ring-1 ring-warning/40">
+              Under development
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">Year to Year Data Comparison</p>
+        </div>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <FilterField label="Years">
+        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
           <YearMultiSelect value={years} onChange={setYears} />
-        </FilterField>
 
-        <FilterField label="Provinces">
           {scope.provinceLocked ? (
             <ReadOnlyField
               value={scope.provincename}
               placeholder="All provinces"
               title="Restricted to your assigned province"
+              className="w-full shrink-0 sm:w-[240px]"
             />
           ) : (
             <LocationMultiSelect
@@ -363,17 +367,16 @@ export default function FireCodeFeesSection() {
               onChange={handleProvincesChange}
               placeholder="All provinces"
               hideCode
-              className="w-full"
+              className="w-full shrink-0 sm:w-[240px]"
             />
           )}
-        </FilterField>
 
-        <FilterField label="Stations">
           {scope.stationLocked ? (
             <ReadOnlyField
               value={scope.stationname}
               placeholder="All stations"
               title="Restricted to your assigned station"
+              className="w-full shrink-0 sm:w-[240px]"
             />
           ) : (
             <StationMultiSelect
@@ -384,10 +387,12 @@ export default function FireCodeFeesSection() {
               onChange={handleStationsChange}
               placeholder="All stations"
               alwaysEnabled
+              className="w-full shrink-0 sm:w-[240px]"
             />
           )}
-        </FilterField>
+        </div>
       </div>
+
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 rounded-xl border border-border/60 p-10 text-sm text-muted-foreground">

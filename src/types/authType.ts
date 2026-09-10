@@ -108,3 +108,44 @@ export interface UpdateMemberPasswordDTO {
   userpass: string;
   updatedby: string;
 }
+
+/** Request body for POST /api/v1/Auth/Otp/Send (send a one-time code). */
+export interface SendOtpRequestDTO {
+  badgeno: string;
+  /** GUID identifying the FSIMS system (e.g. the FSIMS systemno). */
+  systemno: string;
+  systemcode: string;
+  ipaddress: string;
+  otpType: string;
+  channel: string;
+}
+
+/** Request body for POST /api/v1/Auth/Otp/Verify (verify a one-time code). */
+export interface VerifyOtpRequestDTO {
+  badgeno: string;
+  /** GUID identifying the FSIMS system (e.g. the FSIMS systemno). */
+  systemno: string;
+  systemcode: string;
+  otp: string;
+}
+
+/** Inner payload of a successful SendOtp call. */
+export interface SendOtpResult {
+  emailaddress: string;
+  /** Present only in non-production responses. */
+  otp?: string;
+  expirationMinutes?: number;
+}
+
+/** Inner payload of a successful VerifyOtp call — the resolved member. */
+export interface VerifyOtpResult {
+  memberno: string;
+  badgeno: string;
+  rankcode: string;
+  fullname: string;
+  profileurl: string;
+  stationcode: string;
+  stationname: string;
+  provincename: string;
+  logourl: string;
+}

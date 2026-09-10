@@ -1,5 +1,14 @@
-import { apiPost, type ApiOptions } from "@/lib/api";
-import type { LoginDTO, AuthApiResponse, UpdateMemberPasswordDTO } from "@/types/authType";
+import { apiPost, type ApiOptions, NO_RETRY } from "@/lib/api";
+import type { Envelope } from "@/lib/api-envelope";
+import type {
+  LoginDTO,
+  AuthApiResponse,
+  UpdateMemberPasswordDTO,
+  SendOtpRequestDTO,
+  VerifyOtpRequestDTO,
+  SendOtpResult,
+  VerifyOtpResult,
+} from "@/types/authType";
 
 const AUTH_ENV = {
   clientId: (import.meta.env?.VITE_BFP_MIMAROPA_CLIENT_ID as string | undefined) ?? "",
@@ -37,6 +46,23 @@ export const authAPI = {
     return await apiPost("/api/v1/Auth/Password/Update", params, {
       timeout: 10000,
       retries: 0,
+      suppressErrorToast: true,
+      ...options,
+    });
+  },
+
+  async sendOtp(params: SendOtpRequestDTO, options?: ApiOptions) {
+    return await apiPost<Envelope<SendOtpResult | null>>("/api/v1/Auth/SendOtp", params, {
+      timeout: 30000,
+      retries: 0,
+      suppressErrorToast: true,
+      ...options,
+    });
+  },
+
+  async verifyOtp(params: VerifyOtpRequestDTO, options?: ApiOptions) {
+    return await apiPost<Envelope<VerifyOtpResult | null>>("/api/v1/Auth/VerifyOtp", params, {
+      ...NO_RETRY,
       suppressErrorToast: true,
       ...options,
     });
