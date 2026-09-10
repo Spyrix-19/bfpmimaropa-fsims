@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/dialog";
 import { Eye, EyeOff, KeyRound } from "lucide-react";
 import { toast } from "@/lib/toast";
+import {
+  PasswordChecklist,
+  firstPasswordError,
+  isPasswordValid,
+} from "@/components/password-rules";
 
 type Props = {
   open: boolean;
@@ -33,11 +38,8 @@ export default function ChangePasswordDialog({ open, onOpenChange, onRequestConf
   };
 
   const handleContinue = () => {
-    if (newPwd.length < 8) return toast.error("Password must be at least 8 characters");
-    if (!/[A-Z]/.test(newPwd)) return toast.error("Password must include an uppercase letter");
-    if (!/[0-9]/.test(newPwd)) return toast.error("Password must include a number");
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPwd))
-      return toast.error("Password must include a special character");
+    const err = firstPasswordError(newPwd);
+    if (err) return toast.error(err);
     if (newPwd !== confirmPwd) return toast.error("Passwords do not match");
     onOpenChange(false);
     onRequestConfirm(newPwd);
@@ -106,6 +108,7 @@ export default function ChangePasswordDialog({ open, onOpenChange, onRequestConf
                 </button>
               </div>
             </div>
+            <PasswordChecklist password={newPwd} confirmPassword={confirmPwd} />
           </div>
         </div>
 
@@ -113,7 +116,12 @@ export default function ChangePasswordDialog({ open, onOpenChange, onRequestConf
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleContinue}>Continue</Button>
+          <Button
+            onClick={handleContinue}
+            disabled={!isPasswordValid(newPwd) || newPwd !== confirmPwd}
+          >
+            Continue
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

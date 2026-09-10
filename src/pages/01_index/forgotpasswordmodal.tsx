@@ -10,6 +10,7 @@ import {
   IdCard,
   Loader2,
   Lock,
+  Mail,
   RefreshCw,
   ShieldCheck,
   UserRound,
@@ -19,6 +20,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
+import {
+  PasswordChecklist,
+  firstPasswordError,
+  isPasswordValid,
+} from "@/components/password-rules";
 import { toast } from "@/lib/toast";
 import bfpLogo from "@/assets/bfp-mimaropa.svg";
 import { authAPI } from "@/services/authAPI";
@@ -48,15 +54,26 @@ function sanitizeBadge(raw: string): string {
   return next;
 }
 
-const validatePassword = (p: string) => {
-  if (!p || p.length < 8) return "Password must be at least 8 characters.";
-  if (!/[A-Z]/.test(p)) return "Password must include an uppercase letter.";
-  if (!/[0-9]/.test(p)) return "Password must include a number.";
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(p)) return "Password must include a special character.";
-  return null;
-};
+const validatePassword = (p: string) => firstPasswordError(p);
 
-/** `jomarbenito14@gmail.com` -> `jo***@gmail.com` */
+/** Pull an email address out of a loosely-typed API payload. */
+function resolveEmail(payload: unknown): string {
+  const seen = new Set<unknown>();
+  const walk = (node: unknown, depth: number): string => {
+    if (!node || depth > 4) return "";
+    if (typeof node === "string") return node.includes("@") ? node : "";
+    if (typeof node !== "object" || seen.has(node)) return "";
+    seen.add(node);
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      const found = walk(value, depth + 1);
+      if (found) return found;
+    }
+    return "";
+  };
+  return walk(payload, 0).trim();
+}
+
+/** `jomarbenito14@gmail.com` -> `jo***********@gmail.com` */
 function maskEmail(email: string | undefined | null): string {
   const value = (email ?? "").trim();
   const at = value.indexOf("@");
@@ -64,7 +81,8 @@ function maskEmail(email: string | undefined | null): string {
   const local = value.slice(0, at);
   const domain = value.slice(at);
   const head = local.slice(0, Math.min(2, local.length));
-  return `${head}***${domain}`;
+  const stars = "*".repeat(Math.max(local.length - head.length, 3));
+  return `${head}${stars}${domain}`;
 }
 
 function formatCountdown(total: number): string {
@@ -142,7 +160,8 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
         toast.error(error);
         return;
       }
-      setEmail(data?.emailaddress ?? "");
+      const nextEmail = data?.emailaddress || resolveEmail(data) || resolveEmail(res?.data);
+      if (nextEmail) setEmail(nextEmail);
       setOtp("");
       setSecondsLeft(RESEND_SECONDS);
       setStep("otp");
@@ -287,13 +306,17 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
 
             {step === "otp" && (
               <div className="flex flex-col items-center gap-4 py-1">
-                <p className="text-center text-sm text-muted-foreground">
-                  Enter the 8-digit code sent to
-                  <br />
-                  <span className="font-semibold text-foreground">
-                    {maskEmail(email) || "your registered email"}
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-center text-sm text-muted-foreground">
+                    Enter the 8-digit code sent to
+                  </p>
+                  <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-sm font-semibold text-foreground">
+                    <Mail className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="truncate">
+                      {maskEmail(email) || "your registered email"}
+                    </span>
                   </span>
-                </p>
+                </div>
 
                 <InputOTP
                   maxLength={OTP_LENGTH}
@@ -301,10 +324,15 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                   onChange={handleOtpChange}
                   disabled={verifying}
                   autoFocus
+                  containerClassName="w-full justify-center"
                 >
-                  <InputOTPGroup className="gap-1.5 sm:gap-2">
+                  <InputOTPGroup className="w-full gap-1 sm:gap-1.5">
                     {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                      <InputOTPSlot key={i} index={i} />
+                      <InputOTPSlot
+                        key={i}
+                        index={i}
+                        className="h-11 min-w-0 flex-1 rounded-lg border-border/70 bg-muted/30 text-center text-base font-bold shadow-none transition-colors data-[active=true]:bg-background sm:h-12 sm:text-lg"
+                      />
                     ))}
                   </InputOTPGroup>
                 </InputOTP>
@@ -349,14 +377,14 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                     <div className="flex items-center gap-3">
                       <AvatarWithFallback
                         entity={member ?? undefined}
+                        src={member?.profileurl || null}
                         name={member?.fullname ?? ""}
                         className="h-14 w-14 shrink-0 border border-border/60"
                       />
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-medium text-muted-foreground">
-                          {member?.rankcode}
+                        <p className="truncate text-sm font-semibold">
+                          {[member?.rankcode, member?.fullname].filter(Boolean).join(" ")}
                         </p>
-                        <p className="truncate text-sm font-semibold">{member?.fullname}</p>
                         <p className="truncate text-xs text-muted-foreground">{member?.badgeno}</p>
                       </div>
                     </div>
@@ -370,18 +398,13 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                       </h4>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-border/60 bg-background p-1">
-                        <img
-                          src={member?.logourl || bfpLogo}
-                          alt={`${member?.stationname ?? "Station"} logo`}
-                          className="h-full w-full object-contain"
-                          width={48}
-                          height={48}
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = bfpLogo;
-                          }}
-                        />
-                      </div>
+                      <AvatarWithFallback
+                        entity={{ name: member?.stationname || "Station" }}
+                        src={member?.logourl || bfpLogo}
+                        name={member?.stationname || "Station"}
+                        alt={`${member?.stationname ?? "Station"} logo`}
+                        className="h-12 w-12 shrink-0 border border-border/60 bg-background"
+                      />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{member?.stationname}</p>
                         <p className="truncate text-xs text-muted-foreground">
@@ -411,10 +434,11 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                         {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      At least 8 characters, one uppercase letter, one number, one special
-                      character.
-                    </p>
+                    <PasswordChecklist
+                      className="mt-2"
+                      password={newPassword}
+                      confirmPassword={confirmPassword}
+                    />
                   </label>
 
                   <label className="block text-sm">
@@ -442,7 +466,12 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                   <Button variant="secondary" onClick={() => onOpenChange(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={() => setOpenConfirm(true)} disabled={pending}>
+                  <Button
+                    onClick={() => setOpenConfirm(true)}
+                    disabled={
+                      pending || !isPasswordValid(newPassword) || newPassword !== confirmPassword
+                    }
+                  >
                     {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {pending ? "Saving…" : "Update password"}
                   </Button>

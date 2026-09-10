@@ -18,6 +18,7 @@ import type {
 import { authAPI } from "@/services/authAPI";
 import { personnelAPI } from "@/services/personnelAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { getClientIp } from "@/lib/client-ip";
 import { FSIMS_SYSTEMNO, FSIMS_SYSTEMCODE, SUPER, ADMIN, PERSONNEL } from "@/lib/fsims-constants";
 import { encryptPayload, decryptPayload, destroySessionKey } from "@/lib/secure-session";
 import { setAccessToken, setCachedRoleCode, getCachedRoleCode } from "@/lib/auth-token";
@@ -504,8 +505,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
+          const clientIp = await getClientIp();
           const resp = await authAPI.login(
-            { badgeno: badgeno.trim(), userpass: password },
+            { badgeno: badgeno.trim(), userpass: password, ipaddress: clientIp },
             { suppressGlobalLoading: true, suppressErrorToast: true },
           );
           const data = (resp?.data ?? null) as Partial<AuthApiResponse> | null;

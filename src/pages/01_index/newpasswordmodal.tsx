@@ -7,6 +7,11 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 import type { AuthMemberModel } from "@/types/authType";
 import { authAPI } from "@/services/authAPI";
+import {
+  PasswordChecklist,
+  firstPasswordError,
+  isPasswordValid,
+} from "@/components/password-rules";
 
 type Props = {
   open: boolean;
@@ -15,13 +20,7 @@ type Props = {
   onUpdated?: () => void;
 };
 
-const validatePassword = (p: string) => {
-  if (!p || p.length < 8) return "Password must be at least 8 characters.";
-  if (!/[A-Z]/.test(p)) return "Password must include an uppercase letter.";
-  if (!/[0-9]/.test(p)) return "Password must include a number.";
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(p)) return "Password must include a special character.";
-  return null;
-};
+const validatePassword = (p: string) => firstPasswordError(p);
 
 export default function SetNewPasswordModal({ open, onOpenChange, member, onUpdated }: Props) {
   const [newPassword, setNewPassword] = useState("");
@@ -110,9 +109,11 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                At least 8 characters, one uppercase letter, one number, one special character.
-              </p>
+              <PasswordChecklist
+                className="mt-2"
+                password={newPassword}
+                confirmPassword={confirmPassword}
+              />
             </label>
 
             <label className="block text-sm">
@@ -140,7 +141,12 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={() => setOpenConfirm(true)} disabled={pending}>
+            <Button
+              onClick={() => setOpenConfirm(true)}
+              disabled={
+                pending || !isPasswordValid(newPassword) || newPassword !== confirmPassword
+              }
+            >
               {pending ? "Saving…" : "Update password"}
             </Button>
           </div>

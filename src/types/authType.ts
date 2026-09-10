@@ -11,6 +11,7 @@ export interface LoginDTO {
   client_id?: string;
   client_secret?: string;
   grant_type?: string;
+  ipaddress?: string;
   login_type?: string;
 }
 
