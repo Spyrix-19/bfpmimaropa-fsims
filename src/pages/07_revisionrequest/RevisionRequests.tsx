@@ -28,7 +28,10 @@ import DeleteButton from "@/components/delete-button";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
-import { type RevisionModule } from "@/pages/06_target-reference/revision/types";
+import {
+  revisionRequestType,
+  type RevisionModule,
+} from "@/pages/06_target-reference/revision/types";
 
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
@@ -49,11 +52,7 @@ const STATUS_REJECTED = 154;
 const STATUS_CANCELLED = 155;
 
 /** Map source module → API RequestType. */
-function requestTypeFor(module: RevisionModule): string {
-  if (module === "monitoring") return "COMPLIANCE";
-  if (module === "notice") return "NOTICE";
-  return "TARGET";
-}
+const requestTypeFor = revisionRequestType;
 
 function monthYearLabel(year: number, month: number): string {
   const name = MONTHS.find((m) => m.value === Number(month))?.name ?? "";
@@ -161,7 +160,9 @@ export default function TargetRevisionRequests({
       ? "Inspected Date"
       : effectiveModule === "notice"
         ? "Date Accomplished"
-        : "Target Date";
+        : effectiveModule === "fire-code-fees"
+          ? "Collection Period"
+          : "Target Date";
 
   const doStatus = async (r: FSISEditRequestModel, statusno: number, remarks: string) => {
     setBusy(true);
@@ -216,6 +217,7 @@ export default function TargetRevisionRequests({
               { value: "target-reference", label: "Target Reference" },
               { value: "monitoring", label: "Monitoring (Compliance)" },
               { value: "notice", label: "Accomplished Notice" },
+              { value: "fire-code-fees", label: "Fire Code Fees" },
             ] as { value: RevisionModule; label: string }[]
           ).map((t) => {
             const active = activeTab === t.value;
@@ -388,11 +390,15 @@ export default function TargetRevisionRequests({
                     </td>
 
                     <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
-                      {["ISSUANCE", "NOTICE"].includes(String(r.requesttype ?? "").toUpperCase())
-                        ? formatDate(r.dateinspected, "—")
-                        : r.dateinspected
+                      {String(r.requesttype ?? "").toUpperCase() === "FIRE CODE FEES"
+                        ? monthYearLabel(r.reportyear, r.reportmonth)
+                        : ["ISSUANCE", "NOTICE"].includes(
+                              String(r.requesttype ?? "").toUpperCase(),
+                            )
                           ? formatDate(r.dateinspected, "—")
-                          : monthYearLabel(r.reportyear, r.reportmonth)}
+                          : r.dateinspected
+                            ? formatDate(r.dateinspected, "—")
+                            : monthYearLabel(r.reportyear, r.reportmonth)}
                     </td>
 
                     <td className="px-3 py-2">

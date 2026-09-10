@@ -202,7 +202,7 @@ export function FireCodeFeesYearViewBody({
           reportyear: year,
           reportmonth: 0,
           provinceno: station.provinceno || EMPTY_GUID,
-          requesttype: "COMPLIANCE",
+          requesttype: "FIRE CODE FEES",
           pagenumber: 1,
           pagesize: 100,
         },

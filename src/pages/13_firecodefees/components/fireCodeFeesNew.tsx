@@ -773,7 +773,7 @@ export function FireCodeFeesFormBody({
           reportyear: Number(year),
           reportmonth: 0,
           provinceno: province.no || EMPTY_GUID,
-          requesttype: "COMPLIANCE",
+          requesttype: "FIRE CODE FEES",
           pagenumber: 1,
           pagesize: 100,
         },
@@ -1216,7 +1216,7 @@ export function FireCodeFeesFormBody({
         <RevisionRequestDialog
           open={addRevisionOpen}
           onOpenChange={setAddRevisionOpen}
-          module="monitoring"
+          module="fire-code-fees"
           station={{
             stationno: station.no,
             stationcode: stationDetails.stationCode ?? "",
@@ -1246,7 +1246,7 @@ export function FireCodeFeesFormBody({
           const resp = await revisionrequestAPI.status({
             requestno: cancelRequestId,
             stationno: station.no || EMPTY_GUID,
-            requesttype: "COMPLIANCE",
+            requesttype: "FIRE CODE FEES",
             remarks: [reason, cancelRemarks].filter(Boolean).join(" — "),
             statusno: 155,
             taggedby: user?.memberno ?? "",

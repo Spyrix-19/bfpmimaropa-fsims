@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import { MONTHS } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
-import type { RevisionModule } from "./types";
+import { revisionRequestType, type RevisionModule } from "./types";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { EMPTY_GUID } from "@/lib/fsims-constants";
@@ -103,8 +103,7 @@ export default function RevisionRequestDialog({
       stationno: station.stationno,
       reportyear: year,
       reportmonth: month,
-      requesttype:
-        module === "monitoring" ? "COMPLIANCE" : module === "notice" ? "NOTICE" : "TARGET",
+      requesttype: revisionRequestType(module),
       requestremarks: reason,
       statusno: 0,
       requestedby: user?.memberno ?? EMPTY_GUID,

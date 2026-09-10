@@ -14,4 +14,16 @@ export const REVISION_STATUS_LABEL: Record<RevisionStatus, string> = {
   EXPIRED: "Expired",
 };
 
-export type RevisionModule = "target-reference" | "monitoring" | "notice";
+export type RevisionModule = "target-reference" | "monitoring" | "notice" | "fire-code-fees";
+
+/** API RequestType value for each source module. */
+export const REVISION_REQUEST_TYPE: Record<RevisionModule, string> = {
+  "target-reference": "TARGET",
+  monitoring: "COMPLIANCE",
+  notice: "NOTICE",
+  "fire-code-fees": "FIRE CODE FEES",
+};
+
+export function revisionRequestType(module?: RevisionModule): string {
+  return REVISION_REQUEST_TYPE[module ?? "target-reference"] ?? "TARGET";
+}
