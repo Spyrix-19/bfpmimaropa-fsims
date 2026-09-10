@@ -58,7 +58,7 @@ export function PasswordChecklist({
     <div
       className={cn(
         "rounded-xl border border-border/70 bg-muted/30 p-3 transition-colors",
-        allPassed && "border-emerald-500/40 bg-emerald-500/5",
+        allPassed && "border-success/40 bg-success/5",
         className,
       )}
     >
@@ -69,7 +69,7 @@ export function PasswordChecklist({
         <span
           className={cn(
             "text-[11px] font-semibold tabular-nums",
-            allPassed ? "text-emerald-600" : "text-muted-foreground",
+            allPassed ? "text-success" : "text-muted-foreground",
           )}
         >
           {passedCount}/{items.length}
@@ -80,7 +80,7 @@ export function PasswordChecklist({
         <div
           className={cn(
             "h-full rounded-full transition-all duration-300",
-            allPassed ? "bg-emerald-500" : "bg-primary",
+            allPassed ? "bg-success" : "bg-primary",
           )}
           style={{ width: `${pct}%` }}
         />
@@ -93,14 +93,14 @@ export function PasswordChecklist({
             className={cn(
               "flex items-center gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors",
               item.passed
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                ? "border-success/30 bg-success/10 text-success dark:text-success"
                 : "border-transparent bg-background/60 text-muted-foreground",
             )}
           >
             <span
               className={cn(
                 "grid h-4 w-4 shrink-0 place-items-center rounded-full transition-colors",
-                item.passed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground/70",
+                item.passed ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground/70",
               )}
             >
               {item.passed ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}

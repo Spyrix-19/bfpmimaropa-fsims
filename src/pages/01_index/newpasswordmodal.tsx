@@ -121,7 +121,7 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
                     confirmPassword.length === 0
                       ? undefined
                       : confirmPassword === newPassword
-                        ? "border-emerald-500/60 focus-visible:ring-emerald-500/30"
+                        ? "border-success/60 focus-visible:ring-success/30"
                         : "border-destructive/70 focus-visible:ring-destructive/30"
                   }
                 />

@@ -341,7 +341,7 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
 
                 <Button
                   className="w-full"
-                  variant="success"
+                  variant="default"
                   onClick={() => void verifyCode()}
                   disabled={verifying || otp.length !== OTP_LENGTH}
                 >
@@ -463,7 +463,7 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                           confirmPassword.length === 0
                             ? undefined
                             : confirmPassword === newPassword
-                              ? "border-emerald-500/60 focus-visible:ring-emerald-500/30"
+                              ? "border-success/60 focus-visible:ring-success/30"
                               : "border-destructive/70 focus-visible:ring-destructive/30"
                         }
                       />
@@ -523,7 +523,7 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
         onOpenChange={setDoneOpen}
         ContentIcon={ShieldCheck}
         contentIconBgClass="tone-success-soft"
-        contentIconColorClass="text-emerald-600"
+        contentIconColorClass="text-success"
         title="Password updated"
         description="Your password has been updated. Please sign in with your new password."
         confirmLabel="Back to sign in"
