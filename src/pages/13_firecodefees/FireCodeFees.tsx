@@ -18,16 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AddButton from "@/components/add-button";
-import {
-  Coins,
-  Download,
-  Loader2,
-  ChevronDown,
-  LayoutGrid,
-  Plus,
-  Eye,
-  Construction,
-} from "lucide-react";
+import { Coins, Download, Loader2, ChevronDown, LayoutGrid, Plus, Eye, Construction } from "lucide-react";
 
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
@@ -606,8 +597,8 @@ export default function FireCodeFeesPage() {
         <Construction className="h-4 w-4 text-amber-600" />
         <AlertTitle>Feature Under Development</AlertTitle>
         <AlertDescription>
-          This Fire Code Fees module is currently being refined. Data shown here may be incomplete
-          or subject to verification.
+          This Fire Code Fees module is currently being refined. Data shown here may be incomplete or
+          subject to verification.
         </AlertDescription>
       </Alert>
 
@@ -658,7 +649,10 @@ export default function FireCodeFeesPage() {
       {/* Filter Bar — Year · Province · Station (matches Year-over-Year Inspection Comparison) */}
       <div className="rounded-xl border border-border/60 bg-card p-3 shadow-soft">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-          <Select value={filterState.year} onValueChange={(v) => setFilterState({ year: v })}>
+          <Select
+            value={filterState.year}
+            onValueChange={(v) => setFilterState({ year: v })}
+          >
             <SelectTrigger className="w-full shrink-0 sm:w-[240px]">
               <SelectValue placeholder="Year" />
             </SelectTrigger>
