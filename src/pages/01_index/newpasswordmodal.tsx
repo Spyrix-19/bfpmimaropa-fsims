@@ -7,11 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 import type { AuthMemberModel } from "@/types/authType";
 import { authAPI } from "@/services/authAPI";
-import {
-  PasswordChecklist,
-  firstPasswordError,
-  isPasswordValid,
-} from "@/components/password-rules";
+import { PasswordChecklist, isPasswordValid } from "@/components/password-rules";
 
 type Props = {
   open: boolean;
@@ -19,8 +15,6 @@ type Props = {
   member?: AuthMemberModel | null;
   onUpdated?: () => void;
 };
-
-const validatePassword = (p: string) => firstPasswordError(p);
 
 export default function SetNewPasswordModal({ open, onOpenChange, member, onUpdated }: Props) {
   const [newPassword, setNewPassword] = useState("");
@@ -42,9 +36,7 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
   }, [open]);
 
   const handleUpdate = async () => {
-    const err = validatePassword(newPassword);
-    if (err) return toast.error(err);
-    if (newPassword !== confirmPassword) return toast.error("Passwords do not match.");
+    if (!isPasswordValid(newPassword) || newPassword !== confirmPassword) return;
     if (!member) return toast.error("Missing member context.");
 
     setPending(true);
@@ -124,6 +116,14 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  aria-invalid={confirmPassword.length > 0 && confirmPassword !== newPassword}
+                  className={
+                    confirmPassword.length === 0
+                      ? undefined
+                      : confirmPassword === newPassword
+                        ? "border-emerald-500/60 focus-visible:ring-emerald-500/30"
+                        : "border-destructive/70 focus-visible:ring-destructive/30"
+                  }
                 />
                 <button
                   type="button"
@@ -134,6 +134,11 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {confirmPassword.length > 0 && confirmPassword !== newPassword && (
+                <span className="mt-1.5 block text-[11px] font-medium text-destructive">
+                  Passwords do not match.
+                </span>
+              )}
             </label>
           </div>
 
@@ -143,9 +148,7 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
             </Button>
             <Button
               onClick={() => setOpenConfirm(true)}
-              disabled={
-                pending || !isPasswordValid(newPassword) || newPassword !== confirmPassword
-              }
+              disabled={pending || !isPasswordValid(newPassword) || newPassword !== confirmPassword}
             >
               {pending ? "Saving…" : "Update password"}
             </Button>
@@ -161,7 +164,7 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
             description="Are you sure you want to set this new password? This will update your account immediately."
             confirmLabel="Confirm"
             cancelLabel="Cancel"
-            confirmVariant="success"
+            confirmVariant="default"
             onConfirm={() => void handleUpdate()}
           />
         </div>

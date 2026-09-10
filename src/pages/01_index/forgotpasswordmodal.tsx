@@ -20,11 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import {
-  PasswordChecklist,
-  firstPasswordError,
-  isPasswordValid,
-} from "@/components/password-rules";
+import { PasswordChecklist, isPasswordValid } from "@/components/password-rules";
 import { toast } from "@/lib/toast";
 import bfpLogo from "@/assets/bfp-mimaropa.svg";
 import { authAPI } from "@/services/authAPI";
@@ -53,8 +49,6 @@ function sanitizeBadge(raw: string): string {
   }
   return next;
 }
-
-const validatePassword = (p: string) => firstPasswordError(p);
 
 /** Pull an email address out of a loosely-typed API payload. */
 function resolveEmail(payload: unknown): string {
@@ -205,9 +199,7 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
   };
 
   const handleUpdate = async () => {
-    const err = validatePassword(newPassword);
-    if (err) return toast.error(err);
-    if (newPassword !== confirmPassword) return toast.error("Passwords do not match.");
+    if (!isPasswordValid(newPassword) || newPassword !== confirmPassword) return;
     if (!member?.memberno) return toast.error("Your account could not be resolved. Please retry.");
     setPending(true);
     try {
@@ -305,37 +297,47 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
             )}
 
             {step === "otp" && (
-              <div className="flex flex-col items-center gap-4 py-1">
-                <div className="flex flex-col items-center gap-2">
-                  <p className="text-center text-sm text-muted-foreground">
-                    Enter the 8-digit code sent to
+              <div className="flex w-full max-w-full min-w-0 flex-col gap-4 overflow-hidden py-1">
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-center">
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/10">
+                    <Mail className="h-5 w-5 text-primary" />
+                  </span>
+                  <p className="text-xs text-muted-foreground">
+                    We sent an 8-digit verification code to
                   </p>
-                  <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-sm font-semibold text-foreground">
-                    <Mail className="h-4 w-4 shrink-0 text-primary" />
-                    <span className="truncate">
-                      {maskEmail(email) || "your registered email"}
-                    </span>
+                  <span className="max-w-full truncate text-sm font-semibold text-foreground">
+                    {maskEmail(email) || "your registered email"}
                   </span>
                 </div>
 
-                <InputOTP
-                  maxLength={OTP_LENGTH}
-                  value={otp}
-                  onChange={handleOtpChange}
-                  disabled={verifying}
-                  autoFocus
-                  containerClassName="w-full justify-center"
-                >
-                  <InputOTPGroup className="w-full gap-1 sm:gap-1.5">
-                    {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                      <InputOTPSlot
-                        key={i}
-                        index={i}
-                        className="h-11 min-w-0 flex-1 rounded-lg border-border/70 bg-muted/30 text-center text-base font-bold shadow-none transition-colors data-[active=true]:bg-background sm:h-12 sm:text-lg"
-                      />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
+                <div className="w-full min-w-0">
+                  <label className="mb-2 block text-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Verification code
+                  </label>
+                  <InputOTP
+                    maxLength={OTP_LENGTH}
+                    value={otp}
+                    onChange={handleOtpChange}
+                    disabled={verifying}
+                    autoFocus
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    containerClassName="w-full max-w-full min-w-0 justify-center"
+                  >
+                    <InputOTPGroup className="grid w-full max-w-full min-w-0 grid-cols-8 gap-1.5 sm:gap-2">
+                      {Array.from({ length: OTP_LENGTH }, (_, i) => (
+                        <InputOTPSlot
+                          key={i}
+                          index={i}
+                          className="aspect-square h-auto w-full min-w-0 rounded-full border border-input bg-background text-center text-base font-semibold tabular-nums tracking-tight text-foreground shadow-sm transition-colors data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20 data-[filled=true]:border-input data-[filled=true]:bg-muted/30 sm:text-lg"
+                        />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <p className="mt-3 text-center text-[11px] text-muted-foreground">
+                    Enter the 8-digit code. Paste is supported.
+                  </p>
+                </div>
 
                 <Button
                   className="w-full"
@@ -347,20 +349,27 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                   {verifying ? "Verifying…" : "Verify & Continue"}
                 </Button>
 
-                <Button
-                  variant="outline"
-                  className="w-full text-muted-foreground"
-                  onClick={() => void sendCode()}
-                  disabled={secondsLeft > 0 || sending}
-                >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${sending ? "animate-spin" : ""}`} />
-                  {secondsLeft > 0 ? `Resend in ${formatCountdown(secondsLeft)}` : "Resend code"}
-                </Button>
-
-                <Button variant="ghost" className="w-full" onClick={() => setStep("badge")}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
+                <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground"
+                    onClick={() => setStep("badge")}
+                  >
+                    <ArrowLeft className="mr-1.5 h-4 w-4" />
+                    Back
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary"
+                    onClick={() => void sendCode()}
+                    disabled={secondsLeft > 0 || sending}
+                  >
+                    <RefreshCw className={`mr-1.5 h-4 w-4 ${sending ? "animate-spin" : ""}`} />
+                    {secondsLeft > 0 ? `Resend in ${formatCountdown(secondsLeft)}` : "Resend code"}
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -449,6 +458,14 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         autoComplete="new-password"
+                        aria-invalid={confirmPassword.length > 0 && confirmPassword !== newPassword}
+                        className={
+                          confirmPassword.length === 0
+                            ? undefined
+                            : confirmPassword === newPassword
+                              ? "border-emerald-500/60 focus-visible:ring-emerald-500/30"
+                              : "border-destructive/70 focus-visible:ring-destructive/30"
+                        }
                       />
                       <button
                         type="button"
@@ -459,6 +476,11 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
                         {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                    {confirmPassword.length > 0 && confirmPassword !== newPassword && (
+                      <span className="mt-1.5 block text-[11px] font-medium text-destructive">
+                        Passwords do not match.
+                      </span>
+                    )}
                   </label>
                 </div>
 
@@ -492,7 +514,7 @@ export default function ForgotPasswordModal({ open, onOpenChange, onSend }: Prop
         description="Are you sure you want to set this new password?"
         confirmLabel="Confirm"
         cancelLabel="Cancel"
-        confirmVariant="success"
+        confirmVariant="default"
         onConfirm={() => void handleUpdate()}
       />
 

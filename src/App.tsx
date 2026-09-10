@@ -6,6 +6,9 @@ import { FiltersProvider } from "@/lib/filters";
 import { AppShell } from "@/components/AppShell";
 import { Toaster } from "@/components/ui/sonner";
 import { PwaStatus } from "@/components/PwaStatus";
+import { IS_MAINTENANCE_MODE } from "@/lib/maintenance";
+
+const Maintenance = lazy(() => import("@/pages/Maintenance"));
 
 const Dashboard = lazy(() => import("@/pages/02_dashboard/Dashboard"));
 const Monitoring = lazy(() => import("./pages/04_compliance/Compliance.tsx"));
@@ -75,6 +78,15 @@ function PageLoader() {
 export { moduleForPath };
 
 export default function App() {
+  // Global maintenance gate — takes precedence over routing and authentication.
+  if (IS_MAINTENANCE_MODE) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Maintenance />
+      </Suspense>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

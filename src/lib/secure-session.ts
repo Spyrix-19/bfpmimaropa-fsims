@@ -121,7 +121,9 @@ export async function encryptPayload(payload: unknown): Promise<string> {
  * Decrypt a stored value. Plain-text values written by older builds are still
  * parsed so existing sessions survive the upgrade.
  */
-export async function decryptPayload<T>(raw: string): Promise<{ value: T; legacy: boolean } | null> {
+export async function decryptPayload<T>(
+  raw: string,
+): Promise<{ value: T; legacy: boolean } | null> {
   if (!raw) return null;
   if (!raw.startsWith(ENVELOPE_PREFIX)) {
     try {

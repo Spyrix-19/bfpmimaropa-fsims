@@ -7,20 +7,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { buildYears, cn } from "@/lib/utils";
-import {
-  LocationMultiSelect,
-  type SelectedLocation,
-} from "@/components/location-multi-select";
-import {
-  StationMultiSelect,
-  type SelectedStation,
-} from "@/components/station-multi-select";
+import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
+import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 
 import { unwrap } from "@/lib/api-envelope";
-import { buildDashboardProvinces, provincesPayloadKey } from "@/pages/02_dashboard/buildProvincesPayload";
+import {
+  buildDashboardProvinces,
+  provincesPayloadKey,
+} from "@/pages/02_dashboard/buildProvincesPayload";
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import type {
   FSISFeeCollectionDetailModel,
@@ -34,7 +31,10 @@ import {
   flattenFeeAccomItems,
   peso,
 } from "@/pages/13_firecodefees/feeColumns";
-import { groupCategories, useFeeCategories } from "@/pages/13_firecodefees/components/feeCategories";
+import {
+  groupCategories,
+  useFeeCategories,
+} from "@/pages/13_firecodefees/components/feeCategories";
 import {
   MODES,
   emptyValues,
@@ -393,7 +393,6 @@ export default function FireCodeFeesSection() {
         </div>
       </div>
 
-
       {loading ? (
         <div className="flex items-center justify-center gap-2 rounded-xl border border-border/60 p-10 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading collection records…
@@ -473,10 +472,7 @@ export default function FireCodeFeesSection() {
                       if (!v) return yearAcc;
                       return (
                         yearAcc +
-                        FEE_SECTORS.reduce(
-                          (a, s) => a + categoryTotal(v, s.key, c.detno),
-                          0,
-                        )
+                        FEE_SECTORS.reduce((a, s) => a + categoryTotal(v, s.key, c.detno), 0)
                       );
                     }, 0);
                     return (

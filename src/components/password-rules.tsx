@@ -25,6 +25,10 @@ export function firstPasswordError(password: string): string | null {
   return failed ? `Password must have: ${failed.label.toLowerCase()}.` : null;
 }
 
+/**
+ * Live rule matrix. Each rule turns green the moment the typed password
+ * satisfies it — no submit required.
+ */
 export function PasswordChecklist({
   password,
   confirmPassword,
@@ -46,27 +50,65 @@ export function PasswordChecklist({
           },
         ];
 
+  const passedCount = items.filter((i) => i.passed).length;
+  const pct = Math.round((passedCount / items.length) * 100);
+  const allPassed = passedCount === items.length;
+
   return (
-    <ul className={cn("grid gap-1.5 sm:grid-cols-2", className)}>
-      {items.map((item) => (
-        <li
-          key={item.label}
+    <div
+      className={cn(
+        "rounded-xl border border-border/70 bg-muted/30 p-3 transition-colors",
+        allPassed && "border-emerald-500/40 bg-emerald-500/5",
+        className,
+      )}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          Password requirements
+        </span>
+        <span
           className={cn(
-            "flex items-center gap-1.5 text-[11px] font-medium transition-colors",
-            item.passed ? "text-emerald-600" : "text-muted-foreground",
+            "text-[11px] font-semibold tabular-nums",
+            allPassed ? "text-emerald-600" : "text-muted-foreground",
           )}
         >
-          <span
+          {passedCount}/{items.length}
+        </span>
+      </div>
+
+      <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-border/70">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-300",
+            allPassed ? "bg-emerald-500" : "bg-primary",
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      <ul className="grid gap-1.5 sm:grid-cols-2">
+        {items.map((item) => (
+          <li
+            key={item.label}
             className={cn(
-              "grid h-4 w-4 shrink-0 place-items-center rounded-full",
-              item.passed ? "bg-emerald-500/15" : "bg-muted",
+              "flex items-center gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors",
+              item.passed
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "border-transparent bg-background/60 text-muted-foreground",
             )}
           >
-            {item.passed ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-          </span>
-          {item.label}
-        </li>
-      ))}
-    </ul>
+            <span
+              className={cn(
+                "grid h-4 w-4 shrink-0 place-items-center rounded-full transition-colors",
+                item.passed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground/70",
+              )}
+            >
+              {item.passed ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+            </span>
+            <span className="truncate">{item.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
