@@ -30,17 +30,17 @@ import {
   SECTOR_BY_CODE,
   flattenFeeAccomItems,
   peso,
-} from "@/pages/13_firecodefees/feeColumns";
+} from "./fees/feeColumns";
 import {
   groupCategories,
   useFeeCategories,
-} from "@/pages/13_firecodefees/components/feeCategories";
+} from "./fees/feeCategories";
 import {
   MODES,
   emptyValues,
   sumAmounts,
   type SectorValues,
-} from "@/pages/13_firecodefees/components/feeShared";
+} from "./fees/feeShared";
 
 /* -------------------------------------------------------------------------- */
 /*  Period model — the comparison is always annual (all months)                */

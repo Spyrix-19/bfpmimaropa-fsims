@@ -122,11 +122,15 @@ const LEGACY_STORAGE_KEYS = [
   "gad_session",
 ];
 
-function clearSessionStorageKeys() {
+function clearSessionStorageKeys(except?: { store: Storage; key: string }) {
   for (const key of LEGACY_STORAGE_KEYS) {
     try {
-      localStorage.removeItem(key);
-      sessionStorage.removeItem(key);
+      if (!(except && except.store === localStorage && except.key === key)) {
+        localStorage.removeItem(key);
+      }
+      if (!(except && except.store === sessionStorage && except.key === key)) {
+        sessionStorage.removeItem(key);
+      }
     } catch {
       /* noop */
     }
@@ -320,11 +324,13 @@ function prefersLocalStorage(): boolean {
 /** Persist the session as ciphertext in the chosen store. */
 async function writeStoredSession(stored: Session, remember: boolean) {
   try {
-    clearSessionStorageKeys();
+    // Encrypt FIRST, then write, then prune other keys. Clearing before the
+    // async encryption completes leaves a window where a page reload finds no
+    // stored session and logs the user out.
     const payload = await encryptPayload(stored);
     const store = remember ? localStorage : sessionStorage;
     store.setItem(STORAGE_KEY, payload);
-    (remember ? sessionStorage : localStorage).removeItem(STORAGE_KEY);
+    clearSessionStorageKeys({ store, key: STORAGE_KEY });
   } catch {
     /* noop */
   }
@@ -374,9 +380,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionRef.current = session;
   }, [session]);
 
-  useEffect(() => {
-    clearSessionStorageKeys();
-  }, []);
 
   const applySession = useCallback((s: Session | null) => {
     setSession(s);

@@ -14,7 +14,8 @@ import { Eye, EyeOff, KeyRound } from "lucide-react";
 import { toast } from "@/lib/toast";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { PasswordChecklist, firstPasswordError, isPasswordValid } from "@/components/password-rules";
-import type { MemberModel } from "@/types/personnelType";
+import type { MemberDetailModel as MemberModel } from "@/types/personnelType";
+import { useAuth } from "@/lib/auth";
 
 type Props = {
   open: boolean;
@@ -24,6 +25,13 @@ type Props = {
 };
 
 export default function ChangePasswordDialog({ open, onOpenChange, onRequestConfirm, record }: Props) {
+  const { user } = useAuth();
+  const person = {
+    profileurl: record?.profileurl || user?.profileurl || "",
+    fullname: record?.fullname || user?.fullname || "",
+    rankcode: record?.rankcode || user?.rankcode || "",
+    badgeno: record?.badgeno || user?.badgeno || "",
+  };
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [showNewPwd, setShowNewPwd] = useState(false);
@@ -73,16 +81,16 @@ export default function ChangePasswordDialog({ open, onOpenChange, onRequestConf
           <div className="rounded-lg border border-border/70 bg-card p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <AvatarWithFallback
-                entity={record}
-                src={record?.profileurl || undefined}
-                name={record?.fullname}
+                entity={record ?? user}
+                src={person.profileurl || undefined}
+                name={person.fullname}
                 className="h-12 w-12 shrink-0 border border-border/60"
               />
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-foreground">
-                  {[(record?.rankcode ?? ""), record?.fullname].filter(Boolean).join(" ")}
+                  {[person.rankcode, person.fullname].filter(Boolean).join(" ")}
                 </div>
-                <div className="text-xs text-muted-foreground">{record?.badgeno || ""}</div>
+                <div className="text-xs text-muted-foreground">{person.badgeno}</div>
               </div>
             </div>
           </div>
