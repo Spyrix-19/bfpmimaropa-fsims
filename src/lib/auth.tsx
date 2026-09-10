@@ -110,7 +110,16 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 const STORAGE_KEY = "fsims_session";
-const LEGACY_STORAGE_KEYS = ["hris_session", "cdms_session", "erms_session", "fsims_session"];
+const LEGACY_STORAGE_KEYS = [
+  "auth_session",
+  "hris_session",
+  "cdms_session",
+  "erms_session",
+  "gadems_session",
+  "fsims_session",
+  "gis_session",
+  "gad_session",
+];
 
 function clearSessionStorageKeys() {
   for (const key of LEGACY_STORAGE_KEYS) {
@@ -360,6 +369,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  useEffect(() => {
+    clearSessionStorageKeys();
+  }, []);
 
   const applySession = useCallback((s: Session | null) => {
     setSession(s);
