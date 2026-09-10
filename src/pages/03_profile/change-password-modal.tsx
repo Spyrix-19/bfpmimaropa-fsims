@@ -12,19 +12,18 @@ import {
 } from "@/components/ui/dialog";
 import { Eye, EyeOff, KeyRound } from "lucide-react";
 import { toast } from "@/lib/toast";
-import {
-  PasswordChecklist,
-  firstPasswordError,
-  isPasswordValid,
-} from "@/components/password-rules";
+import AvatarWithFallback from "@/components/avatar-with-fallback";
+import { PasswordChecklist, firstPasswordError, isPasswordValid } from "@/components/password-rules";
+import type { MemberModel } from "@/types/personnelType";
 
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onRequestConfirm: (password: string) => void;
+  record?: MemberModel | null;
 };
 
-export default function ChangePasswordDialog({ open, onOpenChange, onRequestConfirm }: Props) {
+export default function ChangePasswordDialog({ open, onOpenChange, onRequestConfirm, record }: Props) {
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [showNewPwd, setShowNewPwd] = useState(false);
@@ -40,7 +39,8 @@ export default function ChangePasswordDialog({ open, onOpenChange, onRequestConf
   const handleContinue = () => {
     const err = firstPasswordError(newPwd);
     if (err) return toast.error(err);
-    if (newPwd !== confirmPwd) return toast.error("Passwords do not match");
+    if (newPwd !== confirmPwd) return toast.error("Passwords do not match.");
+
     onOpenChange(false);
     onRequestConfirm(newPwd);
     reset();
@@ -69,7 +69,24 @@ export default function ChangePasswordDialog({ open, onOpenChange, onRequestConf
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto px-5 py-4">
+        <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-5 py-4">
+          <div className="rounded-lg border border-border/70 bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <AvatarWithFallback
+                entity={record}
+                src={record?.profileurl || undefined}
+                name={record?.fullname}
+                className="h-12 w-12 shrink-0 border border-border/60"
+              />
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-foreground">
+                  {[(record?.rankcode ?? ""), record?.fullname].filter(Boolean).join(" ")}
+                </div>
+                <div className="text-xs text-muted-foreground">{record?.badgeno || ""}</div>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <div>
               <Label className="mb-2 block text-base font-medium">New password</Label>
@@ -133,7 +150,10 @@ export default function ChangePasswordDialog({ open, onOpenChange, onRequestConf
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleContinue} disabled={!isPasswordValid(newPwd) || newPwd !== confirmPwd}>
+          <Button
+            onClick={handleContinue}
+            disabled={!isPasswordValid(newPwd) || newPwd !== confirmPwd}
+          >
             Continue
           </Button>
         </DialogFooter>

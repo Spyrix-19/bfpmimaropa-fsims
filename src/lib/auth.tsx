@@ -342,7 +342,9 @@ async function readStoredSession(): Promise<{ session: Session; legacy: boolean 
       if (!raw) continue;
       const decoded = await decryptPayload<Partial<Session>>(raw);
       const parsed = decoded?.value;
-      if (!parsed || !parsed.user || !parsed.expiration) continue;
+      if (!parsed || !parsed.user) continue;
+      // Allow missing or empty expiration; treat as session without expiry.
+      if (!parsed.expiration) parsed.expiration = "";
       if (!parsed.user.accessToken || !parsed.user.systemaccess) continue;
       return { session: parsed as Session, legacy: !!decoded?.legacy };
     }
