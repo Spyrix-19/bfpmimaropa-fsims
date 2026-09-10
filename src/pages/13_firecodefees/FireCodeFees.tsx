@@ -585,19 +585,6 @@ export default function FireCodeFeesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Under Development Notice — page-level banner, outside any card */}
-      <Alert
-        variant="default"
-        className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-100 [&>svg]:text-amber-600"
-      >
-        <Construction className="h-4 w-4 text-amber-600" />
-        <AlertTitle>Feature Under Development</AlertTitle>
-        <AlertDescription>
-          This Fire Code Fees module is currently being refined. Data shown here may be incomplete or
-          subject to verification.
-        </AlertDescription>
-      </Alert>
-
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-lg font-bold">

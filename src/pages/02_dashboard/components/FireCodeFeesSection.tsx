@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown, Coins, Loader2 } from "lucide-react";
+import { ChevronDown, Coins, Loader2, Wrench } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -341,9 +341,6 @@ export default function FireCodeFeesSection() {
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <Coins className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold">Fire Code Fees Collection</h3>
-            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning ring-1 ring-warning/40">
-              Under development
-            </span>
           </div>
           <p className="text-xs text-muted-foreground">Year to Year Data Comparison</p>
         </div>
@@ -390,6 +387,19 @@ export default function FireCodeFeesSection() {
               className="w-full shrink-0 sm:w-[240px]"
             />
           )}
+        </div>
+      </div>
+
+      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-3 text-amber-900 shadow-sm">
+        <div className="flex items-start gap-2">
+          <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+          <div>
+            <p className="text-sm font-semibold">Feature Under Development</p>
+            <p className="text-xs leading-relaxed text-amber-900/80">
+              This Fire Code Fees module is currently being refined. Data shown here may be
+              incomplete or subject to verification.
+            </p>
+          </div>
         </div>
       </div>
 
