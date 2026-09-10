@@ -110,6 +110,18 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 const STORAGE_KEY = "fsims_session";
+const LEGACY_STORAGE_KEYS = ["hris_session", "cdms_session", "erms_session", "fsims_session"];
+
+function clearSessionStorageKeys() {
+  for (const key of LEGACY_STORAGE_KEYS) {
+    try {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    } catch {
+      /* noop */
+    }
+  }
+}
 
 export const AUTH_MSG = {
   INVALID_CREDENTIALS:
@@ -278,9 +290,7 @@ function isExpired(expiration: string): boolean {
 
 function clearStoredSession() {
   try {
-    localStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("authToken");
+    clearSessionStorageKeys();
   } catch {
     /* noop */
   }
@@ -290,7 +300,7 @@ function clearStoredSession() {
 /** True when the persisted session lives in localStorage ("remember me"). */
 function prefersLocalStorage(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) !== null;
+    return LEGACY_STORAGE_KEYS.some((key) => localStorage.getItem(key) !== null);
   } catch {
     return true;
   }
@@ -299,11 +309,11 @@ function prefersLocalStorage(): boolean {
 /** Persist the session as ciphertext in the chosen store. */
 async function writeStoredSession(stored: Session, remember: boolean) {
   try {
+    clearSessionStorageKeys();
     const payload = await encryptPayload(stored);
     const store = remember ? localStorage : sessionStorage;
     store.setItem(STORAGE_KEY, payload);
     (remember ? sessionStorage : localStorage).removeItem(STORAGE_KEY);
-    localStorage.removeItem("authToken");
   } catch {
     /* noop */
   }
@@ -311,14 +321,22 @@ async function writeStoredSession(stored: Session, remember: boolean) {
 
 async function readStoredSession(): Promise<{ session: Session; legacy: boolean } | null> {
   try {
-    const fromLocal = localStorage.getItem(STORAGE_KEY);
-    const raw = fromLocal ?? sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const decoded = await decryptPayload<Partial<Session>>(raw);
-    const parsed = decoded?.value;
-    if (!parsed || !parsed.user || !parsed.expiration) return null;
-    if (!parsed.user.accessToken || !parsed.user.systemaccess) return null;
-    return { session: parsed as Session, legacy: !!decoded?.legacy };
+    const candidates = [
+      ...LEGACY_STORAGE_KEYS.map((key) => ({ source: "local", key })),
+      ...LEGACY_STORAGE_KEYS.map((key) => ({ source: "session", key })),
+    ];
+
+    for (const { source, key } of candidates) {
+      const raw = source === "local" ? localStorage.getItem(key) : sessionStorage.getItem(key);
+      if (!raw) continue;
+      const decoded = await decryptPayload<Partial<Session>>(raw);
+      const parsed = decoded?.value;
+      if (!parsed || !parsed.user || !parsed.expiration) continue;
+      if (!parsed.user.accessToken || !parsed.user.systemaccess) continue;
+      return { session: parsed as Session, legacy: !!decoded?.legacy };
+    }
+
+    return null;
   } catch {
     return null;
   }
