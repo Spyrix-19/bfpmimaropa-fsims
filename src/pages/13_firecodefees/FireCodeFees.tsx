@@ -9,27 +9,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AddButton from "@/components/add-button";
-import { Coins, Download, Loader2, ChevronDown, LayoutGrid, Plus, Eye } from "lucide-react";
+import { Coins, Download, Loader2, ChevronDown, LayoutGrid, Plus, Eye, Construction } from "lucide-react";
 
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { canManageTargetAndCompliance, canShowEditAction } from "@/lib/permissions";
-import { MONTHS } from "@/lib/fsims-constants";
+import { MONTHS, MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { usePagination } from "@/hooks/usePagination";
 import PaginationControls from "@/components/pagination";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import {
-  ScopedLocationMultiFilterPair,
-  useScopedLocationMulti,
-} from "@/components/shared/ScopedLocationMultiFilterPair";
-import {
-  ModuleFilterBar,
-  useModuleFilterState,
-  resolveModuleMonths,
-} from "@/components/shared/ModuleFilterBar";
+
+import ResetFiltersButton from "@/components/reset-filters-button";
+import { LocationMultiSelect } from "@/components/location-multi-select";
+import { StationMultiSelect } from "@/components/station-multi-select";
+import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
+import { useScopedLocationMulti } from "@/components/shared/ScopedLocationMultiFilterPair";
+import { useModuleFilterState, resolveModuleMonths } from "@/components/shared/ModuleFilterBar";
 
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import type {
@@ -263,7 +269,7 @@ export default function FireCodeFeesPage() {
     state: filterState,
     set: setFilterState,
     resetState: resetFilterState,
-  } = useModuleFilterState({ interval: "MONTHLY", months: [] });
+  } = useModuleFilterState({ interval: "ANNUAL" });
 
   const year = filterState.year;
   const selectedMonths = React.useMemo(() => resolveModuleMonths(filterState), [filterState]);
@@ -583,6 +589,19 @@ export default function FireCodeFeesPage() {
 
   return (
     <div className="space-y-6">
+      {/* Under Development Notice — page-level banner, outside any card */}
+      <Alert
+        variant="default"
+        className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-100 [&>svg]:text-amber-600"
+      >
+        <Construction className="h-4 w-4 text-amber-600" />
+        <AlertTitle>Feature Under Development</AlertTitle>
+        <AlertDescription>
+          This Fire Code Fees module is currently being refined. Data shown here may be incomplete or
+          subject to verification.
+        </AlertDescription>
+      </Alert>
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-lg font-bold">
@@ -627,19 +646,68 @@ export default function FireCodeFeesPage() {
         </div>
       </div>
 
-      <ModuleFilterBar
-        years={YEARS}
-        state={filterState}
-        onChange={setFilterState}
-        onReset={handleResetFilters}
-        intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-      >
-        <ScopedLocationMultiFilterPair
-          scope={scope}
-          selection={locationSel}
-          reportyear={Number(year)}
-        />
-      </ModuleFilterBar>
+      {/* Filter Bar — Year · Province · Station (matches Year-over-Year Inspection Comparison) */}
+      <div className="rounded-xl border border-border/60 bg-card p-3 shadow-soft">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <Select
+            value={filterState.year}
+            onValueChange={(v) => setFilterState({ year: v })}
+          >
+            <SelectTrigger className="w-full shrink-0 sm:w-[240px]">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((y) => (
+                <SelectItem key={y} value={String(y)}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {scope.provinceLocked ? (
+            <ReadOnlyField
+              value={scope.provincename}
+              placeholder="All provinces"
+              title="Restricted to your assigned province"
+              className="w-full shrink-0 sm:w-[240px]"
+            />
+          ) : (
+            <LocationMultiSelect
+              mode="location"
+              value={locationSel.provinces}
+              locationtype="PROVINCE"
+              parentcode={MIMAROPA_REGION_CODE}
+              onChange={locationSel.setProvinces}
+              placeholder="All provinces"
+              hideCode
+              className="w-full shrink-0 sm:w-[240px]"
+            />
+          )}
+
+          {scope.stationLocked ? (
+            <ReadOnlyField
+              value={scope.stationname}
+              placeholder="All stations"
+              title="Restricted to your assigned station"
+              className="w-full shrink-0 sm:w-[240px]"
+            />
+          ) : (
+            <StationMultiSelect
+              mode="station"
+              value={locationSel.stations}
+              provinces={locationSel.provinces.map((p) => ({ provinceno: p.locationno }))}
+              reportyear={Number(year)}
+              onChange={locationSel.setStations}
+              placeholder="All stations"
+              alwaysEnabled
+              className="w-full shrink-0 sm:w-[240px]"
+            />
+          )}
+
+          <ResetFiltersButton onReset={handleResetFilters} className="shrink-0" />
+        </div>
+      </div>
 
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
