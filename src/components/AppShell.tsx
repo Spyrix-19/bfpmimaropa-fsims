@@ -1,7 +1,7 @@
 import { Moon, Sun, Settings as SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
@@ -53,6 +53,7 @@ function useCurrentDate() {
 
 export function AppShell({ children }: { children: ReactNode; title?: string }) {
   const { user } = useAuth();
+  const headerRef = useRef<HTMLElement>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { dark, toggle } = useDarkMode();
@@ -73,6 +74,22 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
     hour12: false,
   });
 
+  // Publishes the live header height so page-level sticky bars can sit right
+  // beneath it on every breakpoint.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () =>
+      document.documentElement.style.setProperty(
+        "--app-header-h",
+        `${Math.round(el.getBoundingClientRect().height)}px`,
+      );
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [user]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "/") {
@@ -85,7 +102,10 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
   }, [user]);
 
   const header = (
-    <header className="sticky top-0 z-[100] isolate border-b border-border/60 bg-background px-4 py-2 sm:px-6 sm:py-3">
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-[100] isolate border-b border-border/60 bg-background px-4 py-2 sm:px-6 sm:py-3"
+    >
       <div className="flex w-full min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2">
         <div className="flex min-w-0 flex-1 basis-[14rem] items-start gap-2">
           {user && <SidebarTrigger className="shrink-0" />}
@@ -183,8 +203,6 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
       </div>
     </header>
   );
-
- 
 
   const main = (
     <main className="flex-1 p-4 sm:p-6">

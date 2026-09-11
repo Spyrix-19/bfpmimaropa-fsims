@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { useAuth } from "@/lib/auth";
+import { StickyPageTop } from "@/components/shared/StickyPageTop";
 
 const FilterBar = lazy(() =>
   import("@/pages/02_dashboard/FilterBar").then((module) => ({ default: module.FilterBar })),
@@ -38,22 +39,24 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="mb-1 flex items-center gap-2">
-          <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Live monitoring
-          </span>
+      <StickyPageTop>
+        <div>
+          <div className="mb-1 flex items-center gap-2">
+            <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Live monitoring
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+          <p className="text-sm text-muted-foreground">
+            Real-time fire safety inspection accomplishments across MIMAROPA Region.
+          </p>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
-        <p className="text-sm text-muted-foreground">
-          Real-time fire safety inspection accomplishments across MIMAROPA Region.
-        </p>
-      </div>
 
-      <Suspense fallback={<FilterBarFallback />}>
-        <FilterBar />
-      </Suspense>
+        <Suspense fallback={<FilterBarFallback />}>
+          <FilterBar />
+        </Suspense>
+      </StickyPageTop>
       <Suspense fallback={<DashboardBodyFallback />}>
         <DashboardBody />
       </Suspense>

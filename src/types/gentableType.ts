@@ -11,4 +11,8 @@ export interface SearchGentableModel {
   description: string;
   tablename: string;
   sortorder: number;
+  /** Parent code reference, present on hierarchical tables such as fire code fees. */
+  parentno?: number | null;
+  /** Parent description, present on hierarchical tables such as fire code fees. */
+  parentname?: string | null;
 }

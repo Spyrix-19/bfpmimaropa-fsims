@@ -1,3 +1,4 @@
+import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import * as React from "react";
 import { usePagination } from "@/hooks/usePagination";
 import { Card } from "@/components/ui/card";
@@ -390,70 +391,72 @@ export default function UsersLedger({ variant, title, description }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <HeaderIcon className="h-5 w-5 text-primary" />
-            {title}
-          </h1>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <Card className="border-border/60 p-4">
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <FilterField label="Search">
-            <SearchKey
-              value={search}
-              onChange={setSearch}
-              placeholder="Search name, badge, rank…"
-              widthClass="w-full"
-            />
-          </FilterField>
-          <FilterField label="Province">
-            <LocationSearchSelect
-              value={provinceno}
-              valueName={provincename}
-              locationtype="PROVINCE"
-              parentcode={MIMAROPA_REGION_CODE}
-              showAllOption
-              hideCode
-              readOnly={!provinceEditable}
-              onChange={(no, name) => {
-                setProvinceno(no);
-                setProvincename(name);
-                // Reset station when province changes
-                setStationno(EMPTY_GUID);
-                setStationname("");
-              }}
-              placeholder="Select province"
-            />
-          </FilterField>
-          <FilterField label="Station">
-            <StationSearchSelect
-              value={stationno}
-              valueName={stationname}
-              provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
-              showAllOption
-              readOnly={!stationEditable}
-              disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}
-              onChange={(no, name) => {
-                setStationno(no);
-                setStationname(name);
-              }}
-              placeholder={
-                stationEditable && (!provinceno || provinceno === EMPTY_GUID)
-                  ? "Select province first"
-                  : "Select station"
-              }
-            />
-          </FilterField>
-          <div className="flex items-end justify-end md:justify-start lg:justify-end">
-            <ResetFiltersButton onReset={handleResetFilters} />
+      <StickyPageTop>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <HeaderIcon className="h-5 w-5 text-primary" />
+              {title}
+            </h1>
+            <p className="text-xs text-muted-foreground">{description}</p>
           </div>
         </div>
-      </Card>
+
+        {/* Filters */}
+        <Card className="border-border/60 p-4">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <FilterField label="Search">
+              <SearchKey
+                value={search}
+                onChange={setSearch}
+                placeholder="Search name, badge, rank…"
+                widthClass="w-full"
+              />
+            </FilterField>
+            <FilterField label="Province">
+              <LocationSearchSelect
+                value={provinceno}
+                valueName={provincename}
+                locationtype="PROVINCE"
+                parentcode={MIMAROPA_REGION_CODE}
+                showAllOption
+                hideCode
+                readOnly={!provinceEditable}
+                onChange={(no, name) => {
+                  setProvinceno(no);
+                  setProvincename(name);
+                  // Reset station when province changes
+                  setStationno(EMPTY_GUID);
+                  setStationname("");
+                }}
+                placeholder="Select province"
+              />
+            </FilterField>
+            <FilterField label="Station">
+              <StationSearchSelect
+                value={stationno}
+                valueName={stationname}
+                provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
+                showAllOption
+                readOnly={!stationEditable}
+                disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}
+                onChange={(no, name) => {
+                  setStationno(no);
+                  setStationname(name);
+                }}
+                placeholder={
+                  stationEditable && (!provinceno || provinceno === EMPTY_GUID)
+                    ? "Select province first"
+                    : "Select station"
+                }
+              />
+            </FilterField>
+            <div className="flex items-end justify-end md:justify-start lg:justify-end">
+              <ResetFiltersButton onReset={handleResetFilters} />
+            </div>
+          </div>
+        </Card>
+      </StickyPageTop>
 
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">

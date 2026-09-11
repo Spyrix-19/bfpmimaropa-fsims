@@ -43,6 +43,7 @@ import {
   resolvePrimaryMonth,
 } from "@/components/shared/ModuleFilterBar";
 import { resolveModuleMonths, resolveSelectedDay } from "@/components/shared/ModuleFilterBar";
+import { StickyPageTop } from "@/components/shared/StickyPageTop";
 
 import { useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE, MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
@@ -421,63 +422,65 @@ export default function TargetReferenceIndexPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            Target Reference
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Review Fire Safety Inspection target plans for each station, organized by year with
-            automatic totals and summary metrics.
-          </p>
-        </div>
-        <div
-          className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
-        >
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={exporting || pageGroups.length === 0}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+      <StickyPageTop>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Target Reference
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Review Fire Safety Inspection target plans for each station, organized by year with
+              automatic totals and summary metrics.
+            </p>
+          </div>
+          <div
+            className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
           >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting || pageGroups.length === 0}
+              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Export
+            </Button>
+            <Button
+              variant="outline"
+              onClick={openMatrixGlobal}
+              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+            >
+              <LayoutGrid className="h-4 w-4" /> Target Matrix
+            </Button>
+            {canManage && (
+              <AddButton onClick={handleAdd} className="w-full justify-center sm:w-auto">
+                Add Target
+              </AddButton>
             )}
-            Export
-          </Button>
-          <Button
-            variant="outline"
-            onClick={openMatrixGlobal}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-          >
-            <LayoutGrid className="h-4 w-4" /> Target Matrix
-          </Button>
-          {canManage && (
-            <AddButton onClick={handleAdd} className="w-full justify-center sm:w-auto">
-              Add Target
-            </AddButton>
-          )}
+          </div>
         </div>
-      </div>
 
-      <CurrentMonthNote canManage={canManage} />
+        <CurrentMonthNote canManage={canManage} />
 
-      {/* Filters */}
-      <ModuleFilterBar
-        years={YEARS}
-        state={filterState}
-        onChange={setFilterState}
-        onReset={handleResetFilters}
-      >
-        <ScopedLocationMultiFilterPair
-          scope={scope}
-          selection={locationSel}
-          reportyear={Number(year)}
-        />
-      </ModuleFilterBar>
+        {/* Filters */}
+        <ModuleFilterBar
+          years={YEARS}
+          state={filterState}
+          onChange={setFilterState}
+          onReset={handleResetFilters}
+        >
+          <ScopedLocationMultiFilterPair
+            scope={scope}
+            selection={locationSel}
+            reportyear={Number(year)}
+          />
+        </ModuleFilterBar>
+      </StickyPageTop>
 
       {/* Card grid */}
       {loading ? (

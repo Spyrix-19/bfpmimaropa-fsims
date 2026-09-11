@@ -36,6 +36,7 @@ import {
   baseDate,
   isAllDays,
 } from "@/components/shared/ModuleFilterBar";
+import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import {
   exportNoticeWorkbook,
   type NoticePeriod,
@@ -819,66 +820,68 @@ export default function AccomplishedNotice() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <ClipboardCheck className="h-5 w-5 text-primary" />
-            Complied Notices
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Complied Notices grouped by station, month, and year.
-          </p>
-        </div>
-        <div
-          className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
-        >
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={exporting || paged.length === 0}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+      <StickyPageTop>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 text-primary" />
+              Complied Notices
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Complied Notices grouped by station, month, and year.
+            </p>
+          </div>
+          <div
+            className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
           >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Export
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setMatrixTarget(paged[0] ?? null);
-              setMatrixOpen(true);
-            }}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-          >
-            <LayoutGrid className="h-4 w-4" /> Complied Notices Matrix
-          </Button>
-          {canManage && (
-            <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
-              <Plus className="h-4 w-4" /> Add Complied Notice
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting || paged.length === 0}
+              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Export
             </Button>
-          )}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMatrixTarget(paged[0] ?? null);
+                setMatrixOpen(true);
+              }}
+              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+            >
+              <LayoutGrid className="h-4 w-4" /> Complied Notices Matrix
+            </Button>
+            {canManage && (
+              <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
+                <Plus className="h-4 w-4" /> Add Complied Notice
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <CurrentMonthNote canManage={canManage} />
+        <CurrentMonthNote canManage={canManage} />
 
-      <ModuleFilterBar
-        years={YEARS}
-        state={filterState}
-        onChange={setFilterState}
-        onReset={handleResetFilters}
-        intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-        allowAllDays
-      >
-        <ScopedLocationMultiFilterPair
-          scope={scope}
-          selection={locationSel}
-          reportyear={Number(year)}
-        />
-      </ModuleFilterBar>
+        <ModuleFilterBar
+          years={YEARS}
+          state={filterState}
+          onChange={setFilterState}
+          onReset={handleResetFilters}
+          intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+          allowAllDays
+        >
+          <ScopedLocationMultiFilterPair
+            scope={scope}
+            selection={locationSel}
+            reportyear={Number(year)}
+          />
+        </ModuleFilterBar>
+      </StickyPageTop>
 
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
@@ -1042,7 +1045,7 @@ function NoticeLedgerCard({
   );
 
   return (
-    <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
+    <Card className="relative isolate z-0 flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
       {/* Header — station details */}
       <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-4">
         <AvatarWithFallback

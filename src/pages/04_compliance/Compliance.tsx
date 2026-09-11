@@ -37,6 +37,7 @@ import {
   isAllDays,
   resolveModuleMonths,
 } from "@/components/shared/ModuleFilterBar";
+import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import {
   exportComplianceActivityWorkbook,
   type ActivityStation,
@@ -869,92 +870,94 @@ export default function FireSafetyCompliancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-primary" />
-            Fire Safety Compliance
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Fire safety compliance accomplishments grouped by station, month, and year.
-          </p>
-        </div>
-        <div
-          className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={!!exporting || rows.length === 0}
-                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-              >
-                {exporting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                Export
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
-              <DropdownMenuItem
-                onSelect={(event) => {
-                  event.preventDefault();
-                  void handleExport("inspection");
-                }}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export Inspection &amp; Issuance
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={(event) => {
-                  event.preventDefault();
-                  void handleExport("reinspection");
-                }}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export Reinspection
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button
-            variant="outline"
-            onClick={openMatrixGlobal}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+      <StickyPageTop>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-primary" />
+              Fire Safety Compliance
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Fire safety compliance accomplishments grouped by station, month, and year.
+            </p>
+          </div>
+          <div
+            className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
           >
-            <LayoutGrid className="h-4 w-4" /> Compliance Matrix
-          </Button>
-          {canManage && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={!!exporting || rows.length === 0}
+                  className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+                >
+                  {exporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Export
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    void handleExport("inspection");
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Inspection &amp; Issuance
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    void handleExport("reinspection");
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Reinspection
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button
-              onClick={() => setAddOpen(true)}
-              className="w-full justify-center gap-2 sm:w-auto"
+              variant="outline"
+              onClick={openMatrixGlobal}
+              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
             >
-              <Plus className="h-4 w-4" /> Add Record
+              <LayoutGrid className="h-4 w-4" /> Compliance Matrix
             </Button>
-          )}
+            {canManage && (
+              <Button
+                onClick={() => setAddOpen(true)}
+                className="w-full justify-center gap-2 sm:w-auto"
+              >
+                <Plus className="h-4 w-4" /> Add Record
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <CurrentMonthNote canManage={canManage} />
+        <CurrentMonthNote canManage={canManage} />
 
-      {/* Filters */}
-      <ModuleFilterBar
-        years={YEARS}
-        state={filterState}
-        onChange={setFilterState}
-        onReset={handleResetFilters}
-        intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-        allowAllDays
-      >
-        <ScopedLocationMultiFilterPair
-          scope={scope}
-          selection={locationSel}
-          reportyear={Number(year)}
-        />
-      </ModuleFilterBar>
+        {/* Filters */}
+        <ModuleFilterBar
+          years={YEARS}
+          state={filterState}
+          onChange={setFilterState}
+          onReset={handleResetFilters}
+          intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+          allowAllDays
+        >
+          <ScopedLocationMultiFilterPair
+            scope={scope}
+            selection={locationSel}
+            reportyear={Number(year)}
+          />
+        </ModuleFilterBar>
+      </StickyPageTop>
 
       {/* Target vs. Accomplishment — specific day + single station + Personnel only */}
       {showTargetPanel && (

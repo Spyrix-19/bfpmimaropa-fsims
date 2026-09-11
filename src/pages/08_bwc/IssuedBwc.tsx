@@ -1,3 +1,4 @@
+import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import * as React from "react";
 import { AlertTriangle, Download, Loader2, Eye, Plus, Radio } from "lucide-react";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
@@ -485,93 +486,95 @@ export default function IssuedBwcPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-lg font-bold">
-            {ICON}
-            {TITLE}
-          </h1>
-          <p className="text-xs text-muted-foreground">{DESCRIPTION}</p>
-        </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={exporting}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}{" "}
-            {exporting ? "Exporting…" : "Export"}
-          </Button>
-          {canManage && (
-            <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
-              <Plus className="h-4 w-4" /> {ADD_LABEL}
+      <StickyPageTop>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="flex items-center gap-2 text-lg font-bold">
+              {ICON}
+              {TITLE}
+            </h1>
+            <p className="text-xs text-muted-foreground">{DESCRIPTION}</p>
+          </div>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting}
+              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}{" "}
+              {exporting ? "Exporting…" : "Export"}
             </Button>
-          )}
-        </div>
-      </div>
-
-      <Card className="border-border/60 p-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
-          <FilterField label="Search Key">
-            <SearchKey
-              value={searchkey}
-              onChange={(v) => {
-                setSearchkey(v);
-                setPage(1);
-              }}
-              placeholder="Search station, city, or province"
-              widthClass="w-full"
-            />
-          </FilterField>
-          <FilterField label="Province">
-            {scope.provinceLocked ? (
-              <LockedFilter
-                value={scope.provincename}
-                placeholder="All provinces"
-                title="Restricted to your assigned province"
-              />
-            ) : (
-              <LocationMultiSelect
-                mode="location"
-                value={selectedProvinces}
-                locationtype="PROVINCE"
-                parentcode={MIMAROPA_REGION_CODE}
-                onChange={handleProvincesChange}
-                placeholder="All provinces"
-                hideCode
-                className="w-full"
-              />
+            {canManage && (
+              <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
+                <Plus className="h-4 w-4" /> {ADD_LABEL}
+              </Button>
             )}
-          </FilterField>
-          <FilterField label="Station">
-            {scope.stationLocked ? (
-              <LockedFilter
-                value={scope.stationname}
-                placeholder="All stations"
-                title="Restricted to your assigned station"
-              />
-            ) : (
-              <StationMultiSelect
-                mode="station"
-                value={selectedStations}
-                provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
-                onChange={handleStationsChange}
-                placeholder="All stations"
-                alwaysEnabled
-                className="w-full"
-              />
-            )}
-          </FilterField>
-          <div className="flex justify-end">
-            <ResetFiltersButton onReset={handleReset} />
           </div>
         </div>
-      </Card>
+
+        <Card className="border-border/60 p-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+            <FilterField label="Search Key">
+              <SearchKey
+                value={searchkey}
+                onChange={(v) => {
+                  setSearchkey(v);
+                  setPage(1);
+                }}
+                placeholder="Search station, city, or province"
+                widthClass="w-full"
+              />
+            </FilterField>
+            <FilterField label="Province">
+              {scope.provinceLocked ? (
+                <LockedFilter
+                  value={scope.provincename}
+                  placeholder="All provinces"
+                  title="Restricted to your assigned province"
+                />
+              ) : (
+                <LocationMultiSelect
+                  mode="location"
+                  value={selectedProvinces}
+                  locationtype="PROVINCE"
+                  parentcode={MIMAROPA_REGION_CODE}
+                  onChange={handleProvincesChange}
+                  placeholder="All provinces"
+                  hideCode
+                  className="w-full"
+                />
+              )}
+            </FilterField>
+            <FilterField label="Station">
+              {scope.stationLocked ? (
+                <LockedFilter
+                  value={scope.stationname}
+                  placeholder="All stations"
+                  title="Restricted to your assigned station"
+                />
+              ) : (
+                <StationMultiSelect
+                  mode="station"
+                  value={selectedStations}
+                  provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
+                  onChange={handleStationsChange}
+                  placeholder="All stations"
+                  alwaysEnabled
+                  className="w-full"
+                />
+              )}
+            </FilterField>
+            <div className="flex justify-end">
+              <ResetFiltersButton onReset={handleReset} />
+            </div>
+          </div>
+        </Card>
+      </StickyPageTop>
 
       {loading ? (
         <Card className="border-border/60 p-10 text-center text-sm text-muted-foreground">

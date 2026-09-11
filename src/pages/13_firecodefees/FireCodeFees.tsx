@@ -12,7 +12,16 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AddButton from "@/components/add-button";
-import { Coins, Download, Loader2, ChevronDown, LayoutGrid, Plus, Eye, Construction } from "lucide-react";
+import {
+  Coins,
+  Download,
+  Loader2,
+  ChevronDown,
+  LayoutGrid,
+  Plus,
+  Eye,
+  Construction,
+} from "lucide-react";
 
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
@@ -29,6 +38,7 @@ import {
   useModuleFilterState,
   resolveModuleMonths,
 } from "@/components/shared/ModuleFilterBar";
+import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import {
   ScopedLocationMultiFilterPair,
   useScopedLocationMulti,
@@ -353,7 +363,11 @@ export default function FireCodeFeesPage() {
       .filter((o) => feeTypes.includes(o.code))
       .map((o) => o.name.toUpperCase())
       .filter(Boolean);
-    const norm = (text: string) => String(text ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    const norm = (text: string) =>
+      String(text ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
     const matches = (text: string) => {
       const t = norm(text);
       if (!t) return false;
@@ -601,8 +615,7 @@ export default function FireCodeFeesPage() {
               Stationnos: p.stationnos,
             })),
           },
-          pagenumber: 0,
-          pagesize: 0,
+          // No pagination — export always covers every matching station.
         },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
@@ -643,87 +656,90 @@ export default function FireCodeFeesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-lg font-bold">
-            <Coins className="h-5 w-5 text-primary" />
-            Fire Code Fees
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Summary accomplishment report on Fire Code Fees collection.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => void handleExport()}
-            disabled={exporting || rows.length === 0}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
+      <StickyPageTop>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="flex items-center gap-2 text-lg font-bold">
+              <Coins className="h-5 w-5 text-primary" />
+              Fire Code Fees
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Summary accomplishment report on Fire Code Fees collection.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => void handleExport()}
+              disabled={exporting || rows.length === 0}
+              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Export
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMatrixRow(null);
+                setMatrixOpen(true);
+              }}
+              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+            >
+              <LayoutGrid className="h-4 w-4" /> Fire Code Fees Matrix
+            </Button>
+
+            {canManage && (
+              <AddButton onClick={openAddForm} className="w-full justify-center sm:w-auto">
+                <Plus className="h-4 w-4" /> Add Record
+              </AddButton>
             )}
-            Export
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => {
-              setMatrixRow(null);
-              setMatrixOpen(true);
-            }}
-            className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-          >
-            <LayoutGrid className="h-4 w-4" /> Fire Code Fees Matrix
-          </Button>
-
-          {canManage && (
-            <AddButton onClick={openAddForm} className="w-full justify-center sm:w-auto">
-              <Plus className="h-4 w-4" /> Add Record
-            </AddButton>
-          )}
-        </div>
-      </div>
-
-      <ModuleFilterBar
-        years={YEARS}
-        state={filterState}
-        onChange={setFilterState}
-        onReset={handleResetFilters}
-        intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-      >
-        <ScopedLocationMultiFilterPair
-          scope={scope}
-          selection={locationSel}
-          reportyear={Number(year)}
-        />
-      </ModuleFilterBar>
-
-      {isRestrictedStationType && (
-        <div className="flex justify-end gap-3">
-          <FeeTypeMultiSelect
-            options={feeTypeOptions}
-            loading={feeTypesLoading}
-            value={feeTypes}
-            onChange={setFeeTypes}
-          />
-          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              {showAllFeeDetailsForAllCards ? "Show" : "Hide"}
-            </span>
-            <Switch
-              checked={showAllFeeDetailsForAllCards}
-              onCheckedChange={(checked) => setShowAllFeeDetailsForAllCards(Boolean(checked))}
-              aria-label="Show or hide all fee details for the ledger"
-            />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              {showAllFeeDetailsForAllCards ? "On" : "Off"}
-            </span>
           </div>
         </div>
-      )}
+
+        <ModuleFilterBar
+          years={YEARS}
+          state={filterState}
+          onChange={setFilterState}
+          onReset={handleResetFilters}
+          intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+        >
+          <ScopedLocationMultiFilterPair
+            scope={scope}
+            selection={locationSel}
+            reportyear={Number(year)}
+          />
+        </ModuleFilterBar>
+
+        {isRestrictedStationType && (
+          <div className="flex justify-end gap-3">
+            <FeeTypeMultiSelect
+              options={feeTypeOptions}
+              loading={feeTypesLoading}
+              value={feeTypes}
+              onChange={setFeeTypes}
+            />
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {showAllFeeDetailsForAllCards ? "Show" : "Hide"}
+              </span>
+              <Switch
+                checked={showAllFeeDetailsForAllCards}
+                onCheckedChange={(checked) => setShowAllFeeDetailsForAllCards(Boolean(checked))}
+                aria-label="Show or hide all fee details for the ledger"
+              />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {showAllFeeDetailsForAllCards ? "On" : "Off"}
+              </span>
+            </div>
+          </div>
+        )}
+      </StickyPageTop>
+
 
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
@@ -798,6 +814,7 @@ export default function FireCodeFeesPage() {
                 groupBy={granularity}
                 months={selectedMonths}
                 reportYear={Number(year)}
+                categories={displayCategories}
               />
             ) : rows.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
@@ -916,11 +933,13 @@ function StationMatrixTable({
   groupBy,
   months,
   reportYear,
+  categories,
 }: {
   row: FireCodeFeeLedgerRow;
   groupBy: Granularity;
   months?: number[];
   reportYear?: number;
+  categories?: ReturnType<typeof useFeeCategories>["categories"];
 }) {
   const monthsKey = (months ?? []).join(",");
   const lines = React.useMemo(
@@ -934,63 +953,46 @@ function StationMatrixTable({
     [row.feedetaillist, groupBy, monthsKey, reportYear],
   );
 
-  if (lines.length === 0) {
+  const blankMatrix = React.useMemo(() => emptyValues(), []);
+  const matrixCategories = React.useMemo(
+    () => (categories && categories.length > 0 ? categories : []),
+    [categories],
+  );
+
+  if (lines.length === 0 || matrixCategories.length === 0) {
     return (
-      <div className="p-6 text-center text-sm text-muted-foreground">
-        No collection records for this station in the selected period.
+      <div className="p-4">
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Fire Code Fees Matrix
+            </div>
+            <div className="text-sm font-semibold text-foreground">{row.stationname}</div>
+          </div>
+          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+            Blank UI
+          </span>
+        </div>
+        <FeeMatrixTable categories={matrixCategories} values={blankMatrix} />
       </div>
     );
   }
 
   return (
-    <table className="min-w-full border-separate border-spacing-0 text-sm">
-      <thead>
-        <tr>
-          <th className="sticky left-0 top-0 bg-background px-3 py-2 text-left font-semibold">
-            Period
-          </th>
-          {FEE_SECTORS.map((sector) => (
-            <th key={sector.key} className="bg-background px-3 py-2 text-right font-semibold">
-              {sector.label}
-            </th>
-          ))}
-          <th className="bg-background px-3 py-2 text-right font-semibold">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {lines.map((line) => {
-          const perSector = FEE_SECTORS.map((s) => ({
-            key: s.key,
-            value: sumAmounts(totalsForSector([line], s.key).combined),
-          }));
-          const lineTotal = perSector.reduce((a, b) => a + b.value, 0);
-          return (
-            <tr key={line.key} className="border-t border-border/40">
-              <td className="sticky left-0 bg-background px-3 py-2 text-left font-medium">
-                {line.label}
-              </td>
-              {perSector.map((s) => (
-                <td key={s.key} className="px-3 py-2 text-right">
-                  {peso(s.value)}
-                </td>
-              ))}
-              <td className="px-3 py-2 text-right font-semibold">{peso(lineTotal)}</td>
-            </tr>
-          );
-        })}
-        <tr className="border-t border-border/60">
-          <td className="sticky left-0 bg-background px-3 py-2 text-left text-xs font-bold uppercase">
-            Total
-          </td>
-          {FEE_SECTORS.map((sector) => (
-            <td key={sector.key} className="px-3 py-2 text-right font-semibold">
-              {peso(row.sectorTotals[sector.key] ?? 0)}
-            </td>
-          ))}
-          <td className="px-3 py-2 text-right font-bold">{peso(row.grandTotal)}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div className="p-4">
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Fire Code Fees Matrix
+          </div>
+          <div className="text-sm font-semibold text-foreground">{row.stationname}</div>
+        </div>
+        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+          Preview
+        </span>
+      </div>
+      <FeeMatrixTable categories={matrixCategories} values={blankMatrix} />
+    </div>
   );
 }
 
@@ -1022,7 +1024,7 @@ function FireCodeFeesLedgerCard({
   filteredCategories?: ReturnType<typeof useFeeCategories>["categories"];
   showFeeFilter?: boolean;
   feeTypes?: string[];
-  feeTypeOptions?: Array<{ code: string; name: string; label: string }>;
+  feeTypeOptions?: Array<{ detno: number; code: string; name: string; label: string }>;
   feeTypesLoading?: boolean;
   globalShowAllFeeDetails?: boolean;
   onFeeTypesChange?: (next: string[]) => void;
@@ -1101,7 +1103,7 @@ function FireCodeFeesLedgerCard({
   const monthName = MONTHS.find((m) => m.value === row.month)?.name ?? String(row.month);
 
   return (
-    <Card className="flex flex-col overflow-hidden border-border/50 shadow-soft transition-shadow hover:shadow-elegant dark:border-border/40">
+    <Card className="relative isolate z-0 flex flex-col overflow-hidden border-border/50 shadow-soft transition-shadow hover:shadow-elegant dark:border-border/40">
       <div className="flex items-start gap-3 border-b border-border/40 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-4 dark:border-border/50">
         <AvatarWithFallback
           entity={{ name: row.stationname }}
@@ -1231,7 +1233,7 @@ function FireCodeFeesLedgerCard({
                   </div>
                   {isOpen && (
                     <div className="border-t border-border/40 bg-muted/10 p-3">
-                      <FeeMatrixTable categories={matrixCategories} values={toSectorValues(line)} />
+                      <FeeMatrixTable categories={matrixCategories} values={emptyValues()} />
                     </div>
                   )}
                 </div>

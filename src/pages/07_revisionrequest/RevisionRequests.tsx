@@ -1,3 +1,4 @@
+import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import * as React from "react";
 import { ShieldCheck, Check, X as XIcon, Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
@@ -197,115 +198,117 @@ export default function TargetRevisionRequests({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-            {title ?? "Target Revision Requests"}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {description ??
-              "Review, approve, or deny revision requests submitted against locked Target Reference months."}
-          </p>
-        </div>
-      </div>
-
-      {!moduleFilter && (
-        <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-1">
-          {(
-            [
-              { value: "target-reference", label: "Target Reference" },
-              { value: "monitoring", label: "Monitoring (Compliance)" },
-              { value: "notice", label: "Accomplished Notice" },
-              { value: "fire-code-fees", label: "Fire Code Fees" },
-            ] as { value: RevisionModule; label: string }[]
-          ).map((t) => {
-            const active = activeTab === t.value;
-            return (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => setActiveTab(t.value)}
-                className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                  active
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-background/80 hover:text-foreground hover:shadow-sm"
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="rounded-lg border border-border/60 bg-card/40 p-3">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          <FilterField label="Year">
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All years</SelectItem>
-                {YEARS.map((y) => (
-                  <SelectItem key={y} value={String(y)}>
-                    {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FilterField>
-          <FilterField label="Month">
-            <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All months</SelectItem>
-                {MONTHS_CONST.map((m) => (
-                  <SelectItem key={m.value} value={String(m.value)}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FilterField>
-          <FilterField label="Provinces">
-            <LocationMultiSelect
-              mode="location"
-              value={provinces}
-              locationtype="PROVINCE"
-              parentcode={MIMAROPA_REGION_CODE}
-              onChange={(sel) => {
-                setProvinces(sel);
-                if (sel.length > 0) {
-                  const allowed = new Set(sel.map((p) => p.locationno));
-                  setStations((prev) => prev.filter((s) => allowed.has(s.provinceno)));
-                }
-              }}
-              placeholder="All provinces"
-              hideCode
-              className="h-9"
-            />
-          </FilterField>
-          <FilterField label="Stations">
-            <StationMultiSelect
-              mode="station"
-              value={stations}
-              provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
-              reportyear={year !== "all" ? Number(year) : 0}
-              onChange={setStations}
-              placeholder="All stations"
-              alwaysEnabled
-              className="h-9"
-            />
-          </FilterField>
-          <div className="flex items-end justify-end">
-            <ResetFiltersButton onReset={handleResetFilters} />
+      <StickyPageTop>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              {title ?? "Target Revision Requests"}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {description ??
+                "Review, approve, or deny revision requests submitted against locked Target Reference months."}
+            </p>
           </div>
         </div>
-      </div>
+
+        {!moduleFilter && (
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-1">
+            {(
+              [
+                { value: "target-reference", label: "Target Reference" },
+                { value: "monitoring", label: "Monitoring (Compliance)" },
+                { value: "notice", label: "Accomplished Notice" },
+                { value: "fire-code-fees", label: "Fire Code Fees" },
+              ] as { value: RevisionModule; label: string }[]
+            ).map((t) => {
+              const active = activeTab === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setActiveTab(t.value)}
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                    active
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-background/80 hover:text-foreground hover:shadow-sm"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="rounded-lg border border-border/60 bg-card/40 p-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <FilterField label="Year">
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All years</SelectItem>
+                  {YEARS.map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterField>
+            <FilterField label="Month">
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All months</SelectItem>
+                  {MONTHS_CONST.map((m) => (
+                    <SelectItem key={m.value} value={String(m.value)}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterField>
+            <FilterField label="Provinces">
+              <LocationMultiSelect
+                mode="location"
+                value={provinces}
+                locationtype="PROVINCE"
+                parentcode={MIMAROPA_REGION_CODE}
+                onChange={(sel) => {
+                  setProvinces(sel);
+                  if (sel.length > 0) {
+                    const allowed = new Set(sel.map((p) => p.locationno));
+                    setStations((prev) => prev.filter((s) => allowed.has(s.provinceno)));
+                  }
+                }}
+                placeholder="All provinces"
+                hideCode
+                className="h-9"
+              />
+            </FilterField>
+            <FilterField label="Stations">
+              <StationMultiSelect
+                mode="station"
+                value={stations}
+                provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+                reportyear={year !== "all" ? Number(year) : 0}
+                onChange={setStations}
+                placeholder="All stations"
+                alwaysEnabled
+                className="h-9"
+              />
+            </FilterField>
+            <div className="flex items-end justify-end">
+              <ResetFiltersButton onReset={handleResetFilters} />
+            </div>
+          </div>
+        </div>
+      </StickyPageTop>
 
       {/* Table */}
       <div className="overflow-auto rounded-lg border border-border/60">

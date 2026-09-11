@@ -50,8 +50,8 @@ export const firecodefeesAPI = {
       request.parameters,
       {
         params: {
-          Pagenumber: request.pagenumber ?? 1,
-          Pagesize: request.pagesize ?? 10,
+          ...(request.pagenumber != null ? { Pagenumber: request.pagenumber } : {}),
+          ...(request.pagesize != null ? { Pagesize: request.pagesize } : {}),
         },
         ...options,
       },
