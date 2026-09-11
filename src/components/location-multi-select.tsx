@@ -252,6 +252,20 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
           </div>
         </div>
 
+        <button
+          type="button"
+          onClick={selectAll}
+          className={cn(
+            "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted",
+            allSelected && "bg-muted",
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-medium">ALL</div>
+          </div>
+          {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+        </button>
+
         <div className="max-h-64 overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
@@ -259,22 +273,7 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
             </div>
           ) : (
             <>
-              {page === 1 ? (
-                <button
-                  type="button"
-                  onClick={selectAll}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
-                    allSelected && "bg-muted",
-                  )}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">ALL</div>
-                  </div>
-                  {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
-                </button>
-              ) : null}
-              {rows.length === 0 && !loading && page === 1 ? (
+              {rows.length === 0 && !loading ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">No results</div>
               ) : null}
               {rows.map((r) => {

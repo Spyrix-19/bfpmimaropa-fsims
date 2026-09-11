@@ -512,7 +512,16 @@ export default function FireCodeFeesPage() {
         const stations = Array.isArray(data) ? data : [];
         const mapped = stations.map((st) => mapStation(st, monthSet));
         setRows(mapped);
-        setTotal(Number(apiTotal || mapped.length || 0));
+        // The ledger endpoint returns recordsTotal = 0, so derive a usable
+        // total from the current page: a full page implies at least one more.
+        const reported = Number(apiTotal || 0);
+        setTotal(
+          reported > 0
+            ? reported
+            : mapped.length === pageSize
+              ? page * pageSize + 1
+              : (page - 1) * pageSize + mapped.length,
+        );
       }
       setLoading(false);
     })();

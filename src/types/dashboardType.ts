@@ -183,20 +183,20 @@ export interface DashboardYearlyFireCodeFeeCollectionModel {
 }
 
 export interface DashboardYearlyFireCodeFeeSectorClass {
-  Sectorno: number;
-  Sectorcode: string;
+  sectorno: number;
+  sectorcode: string;
   yearList: DashboardYearlyFireCodeFeeYearClass[];
 }
 
 export interface DashboardYearlyFireCodeFeeYearClass {
-  Reportyear: number;
-  FeeList: DashboardYearlyFireCodeFeeItem[];
+  reportyear: number;
+  feeList: DashboardYearlyFireCodeFeeItem[];
 }
 
 export interface DashboardYearlyFireCodeFeeItem {
-  Feeno: string;
-  Feecateg: number;
-  Feecategcode: number;
-  Feecategname: string;
-  Collectionamount: number;
+  feeno: string;
+  feecateg: number;
+  feecategcode: number;
+  feecategname: string;
+  collectionamount: number;
 }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown, Coins, Loader2, Wrench } from "lucide-react";
+import { ChevronDown, Coins, Loader2 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,19 +18,9 @@ import {
   buildDashboardProvinces,
   provincesPayloadKey,
 } from "@/pages/02_dashboard/buildProvincesPayload";
-import { firecodefeesAPI } from "@/services/firecodefeesAPI";
-import type {
-  FSISFeeCollectionDetailModel,
-  FSISFeeCollectionParamClass,
-} from "@/types/firecodefeesType";
-import {
-  FEE_SECTORS,
-  FIRE_CODE_MODE_FSIS,
-  FIRE_CODE_MODE_MANUAL,
-  SECTOR_BY_CODE,
-  flattenFeeAccomItems,
-  peso,
-} from "./fees/feeColumns";
+import { dashboardAPI } from "@/services/dashboardAPI";
+import type { DashboardYearlyFireCodeFeeCollectionModel } from "@/types/dashboardType";
+import { FEE_SECTORS, FIRE_CODE_MODE_FSIS, SECTOR_BY_CODE, peso } from "./fees/feeColumns";
 import {
   groupCategories,
   useFeeCategories,
@@ -43,28 +33,8 @@ import {
 } from "./fees/feeShared";
 
 /* -------------------------------------------------------------------------- */
-/*  Period model — the comparison is always annual (all months)                */
-/* -------------------------------------------------------------------------- */
-
-const ANNUAL_INTERVAL_CODE = 6;
-
-const allMonths = () => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-
-/* -------------------------------------------------------------------------- */
 /*  Aggregation helpers                                                        */
 /* -------------------------------------------------------------------------- */
-
-const addRecord = (target: SectorValues, rec: FSISFeeCollectionDetailModel) => {
-  for (const item of flattenFeeAccomItems(rec)) {
-    const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
-    if (!sector) continue;
-    const mode =
-      Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;
-    const feecateg = Number(item.feecateg) || 0;
-    target[sector][mode][feecateg] =
-      (target[sector][mode][feecateg] ?? 0) + (Number(item.collectedamount ?? 0) || 0);
-  }
-};
 
 /** Combined Manual + FSIS amount of one fee category for a sector. */
 const categoryTotal = (v: SectorValues, sector: string, feecateg: number) =>
@@ -73,28 +43,32 @@ const categoryTotal = (v: SectorValues, sector: string, feecateg: number) =>
 const sectorGrand = (v: SectorValues, sector: string) =>
   MODES.reduce((a, m) => a + sumAmounts(v[sector as keyof SectorValues][m.code]), 0);
 
-/** Every record of the ledger response, regardless of nesting depth. */
-function pickRecords(data: unknown): FSISFeeCollectionDetailModel[] {
-  const out: FSISFeeCollectionDetailModel[] = [];
-  const walk = (value: unknown) => {
-    if (!value || typeof value !== "object") return;
-    if (Array.isArray(value)) return value.forEach(walk);
-    const obj = value as Record<string, unknown>;
-    const isRecord =
-      !!obj.feeno &&
-      (Array.isArray(obj.sectorlist) ||
-        Array.isArray(obj.accomfeelist) ||
-        obj.dateaccomplish !== undefined);
-    if (isRecord) {
-      out.push(obj as unknown as FSISFeeCollectionDetailModel);
-      return;
+/**
+ * Maps the FireCodeFee Summary response into the per-year value buckets the
+ * table renders. The summary is already aggregated per sector/year/category,
+ * so every amount lands in the FSIS bucket of its sector.
+ */
+function mapSummaryToYears(
+  payload: DashboardYearlyFireCodeFeeCollectionModel | null,
+  years: number[],
+): { year: number; values: SectorValues }[] {
+  const byYear = new Map<number, SectorValues>(years.map((y) => [y, emptyValues()]));
+  for (const sectorEntry of payload?.collectionList ?? []) {
+    const sectorKey = SECTOR_BY_CODE.get(Number(sectorEntry?.sectorno));
+    if (!sectorKey) continue;
+    for (const yearEntry of sectorEntry.yearList ?? []) {
+      const values = byYear.get(Number(yearEntry?.reportyear));
+      if (!values) continue;
+      for (const fee of yearEntry.feeList ?? []) {
+        const feecateg = Number(fee?.feecateg) || 0;
+        if (!feecateg) continue;
+        values[sectorKey][FIRE_CODE_MODE_FSIS][feecateg] =
+          (values[sectorKey][FIRE_CODE_MODE_FSIS][feecateg] ?? 0) +
+          (Number(fee?.collectionamount ?? 0) || 0);
+      }
     }
-    if (Array.isArray(obj.feedetaillist)) (obj.feedetaillist as unknown[]).forEach(walk);
-    if (Array.isArray(obj.data)) (obj.data as unknown[]).forEach(walk);
-    else if (obj.data && typeof obj.data === "object") walk(obj.data);
-  };
-  walk(data);
-  return out;
+  }
+  return years.map((year) => ({ year, values: byYear.get(year) ?? emptyValues() }));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -256,7 +230,6 @@ export default function FireCodeFeesSection() {
   };
 
   const sortedYears = React.useMemo(() => [...years].sort((a, b) => a - b), [years]);
-  const monthsInScope = React.useMemo(() => allMonths(), []);
 
   const provincesPayload = React.useMemo(
     () => buildDashboardProvinces(provinces, stations),
@@ -264,60 +237,31 @@ export default function FireCodeFeesSection() {
   );
   const scopeKey = provincesPayloadKey(provincesPayload);
   const yearsKey = sortedYears.join(",");
-  const monthsKey = monthsInScope.join(",");
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       const yearList = yearsKey.split(",").map(Number).filter(Boolean);
-      const monthList = monthsKey.split(",").map(Number).filter(Boolean);
-      const Provinces = provincesPayload.map<FSISFeeCollectionParamClass>((p) => ({
-        Provinceno: p.provinceno,
-        Stationnos: p.stationnos,
-      }));
 
-      const results = await Promise.all(
-        yearList.map(async (year) => {
-          const resp = await firecodefeesAPI.getLedger(
-            {
-              parameters: {
-                Searchkey: "",
-                Reportyear: year,
-                Reportmonth: monthList,
-                Interval: ANNUAL_INTERVAL_CODE,
-                Dateaccomplish: `${year}-01-01`,
-                Provinces,
-              },
-              pagenumber: 1,
-              pagesize: 500,
-            },
-            { suppressGlobalLoading: true, suppressErrorToast: true },
-          );
-          const { ok, data: payload } = unwrap<unknown>(resp);
-          const records = ok ? pickRecords(payload) : [];
-
-          const values = emptyValues();
-          for (const rec of records) {
-            const iso = String(rec?.dateaccomplish ?? "").slice(0, 10);
-            if (!iso || Number(iso.slice(0, 4)) !== year) continue;
-            const month = Number(iso.slice(5, 7)) || 0;
-            if (!monthList.includes(month)) continue;
-            addRecord(values, rec);
-          }
-          return { year, values };
-        }),
+      const resp = await dashboardAPI.getYearlyFireCodeFees(
+        {
+          reportyear: yearList,
+          Provinces: provincesPayload,
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
       );
+      const { ok, data: payload } = unwrap<DashboardYearlyFireCodeFeeCollectionModel>(resp);
 
       if (cancelled) return;
-      setData(results);
+      setData(ok ? mapSummaryToYears(payload, yearList) : mapSummaryToYears(null, yearList));
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearsKey, monthsKey, scopeKey]);
+  }, [yearsKey, scopeKey]);
 
   const groups = React.useMemo(() => groupCategories(categories), [categories]);
   const valuesOf = React.useCallback(
@@ -387,19 +331,6 @@ export default function FireCodeFeesSection() {
               className="w-full shrink-0 sm:w-[240px]"
             />
           )}
-        </div>
-      </div>
-
-      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-3 text-amber-900 shadow-sm">
-        <div className="flex items-start gap-2">
-          <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-          <div>
-            <p className="text-sm font-semibold">Feature Under Development</p>
-            <p className="text-xs leading-relaxed text-amber-900/80">
-              This Fire Code Fees module is currently being refined. Data shown here may be
-              incomplete or subject to verification.
-            </p>
-          </div>
         </div>
       </div>
 

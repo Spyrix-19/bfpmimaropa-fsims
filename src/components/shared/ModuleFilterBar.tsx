@@ -280,18 +280,18 @@ export function MonthMultiSelect({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-max min-w-[220px] p-0 pointer-events-auto" align="start">
+        <button
+          type="button"
+          onClick={toggleAll}
+          className={cn(
+            "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted",
+            allSelected && "bg-muted",
+          )}
+        >
+          <div className="min-w-0 flex-1 truncate font-medium">All months</div>
+          {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+        </button>
         <div className="max-h-64 overflow-auto">
-          <button
-            type="button"
-            onClick={toggleAll}
-            className={cn(
-              "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted",
-              allSelected && "bg-muted",
-            )}
-          >
-            <div className="min-w-0 flex-1 truncate font-medium">All months</div>
-            {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
-          </button>
           {MONTHS.map((m) => {
             const sel = value.includes(m.value) && !allSelected;
             return (
