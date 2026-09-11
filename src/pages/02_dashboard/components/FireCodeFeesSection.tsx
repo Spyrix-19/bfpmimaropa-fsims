@@ -19,11 +19,18 @@ import {
   provincesPayloadKey,
 } from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
-import type { DashboardYearlyFireCodeFeeCollectionModel } from "@/types/dashboardType";
-import { FEE_SECTORS, FIRE_CODE_MODE_FSIS, SECTOR_BY_CODE, peso } from "./fees/feeColumns";
+import type { DashboardFeeCollectionModel } from "@/types/dashboardType";
+import {
+  FEE_SECTORS,
+  FIRE_CODE_MODE_FSIS,
+  SECTOR_BY_CODE,
+  peso,
+  sectorKeyFromCode,
+} from "./fees/feeColumns";
 import {
   groupCategories,
   useFeeCategories,
+  type FeeCategory,
 } from "./fees/feeCategories";
 import {
   MODES,
@@ -37,39 +44,84 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** Combined Manual + FSIS amount of one fee category for a sector. */
-const categoryTotal = (v: SectorValues, sector: string, feecateg: number) =>
-  MODES.reduce((a, m) => a + (v[sector as keyof SectorValues][m.code][feecateg] ?? 0), 0);
+const categoryTotal = (v: SectorValues, sector: string, categIndex: number) =>
+  MODES.reduce((a, m) => a + (v[sector as keyof SectorValues][m.code][categIndex] ?? 0), 0);
 
 const sectorGrand = (v: SectorValues, sector: string) =>
   MODES.reduce((a, m) => a + sumAmounts(v[sector as keyof SectorValues][m.code]), 0);
 
 /**
- * Maps the FireCodeFee Summary response into the per-year value buckets the
- * table renders. The summary is already aggregated per sector/year/category,
- * so every amount lands in the FSIS bucket of its sector.
+ * API grouped summary keys: the backend aggregates by fee parent code, not by
+ * the local printed report-column order. Use the parent code as the canonical
+ * grouping key so the plotted values match the payload returned by the API.
  */
+const apiFeeGroupKey = (
+  fee: Partial<{
+    feeparentcode: string | null;
+    feecategcode: string | number | null;
+    feecateg: number | string | null;
+    feecategname: string | null;
+  }>,
+) => String(fee?.feeparentcode ?? fee?.feecategcode ?? fee?.feecateg ?? fee?.feecategname ?? "").trim();
+
+const apiFeeLabel = (
+  fee: Partial<{
+    feeparentcode: string | null;
+    feecategcode: string | number | null;
+    feecategname: string | null;
+  }>,
+) => String(fee?.feecategcode ?? fee?.feeparentcode ?? fee?.feecategname ?? "").trim();
+
+function buildApiFeeCategories(payload: DashboardFeeCollectionModel | null): FeeCategory[] {
+  const byKey = new Map<string, FeeCategory>();
+  for (const fee of payload?.feeList ?? []) {
+    const key = apiFeeGroupKey(fee);
+    if (!key || byKey.has(key)) continue;
+    byKey.set(key, {
+      key: `api-${key}`,
+      detno: Number(fee?.feecateg) || 0,
+      code: key,
+      label: apiFeeLabel(fee) || key,
+      groupLabel: apiFeeLabel(fee) || key,
+    });
+  }
+  return [...byKey.values()];
+}
+
 function mapSummaryToYears(
-  payload: DashboardYearlyFireCodeFeeCollectionModel | null,
+  payload: DashboardFeeCollectionModel | null,
   years: number[],
 ): { year: number; values: SectorValues }[] {
   const byYear = new Map<number, SectorValues>(years.map((y) => [y, emptyValues()]));
-  for (const sectorEntry of payload?.collectionList ?? []) {
-    const sectorKey = SECTOR_BY_CODE.get(Number(sectorEntry?.sectorno));
-    if (!sectorKey) continue;
-    for (const yearEntry of sectorEntry.yearList ?? []) {
+  const categoryOrder = new Map<string, number>();
+
+  for (const fee of payload?.feeList ?? []) {
+    const key = apiFeeGroupKey(fee);
+    if (!key) continue;
+    if (!categoryOrder.has(key)) categoryOrder.set(key, categoryOrder.size);
+  }
+
+  for (const fee of payload?.feeList ?? []) {
+    const key = apiFeeGroupKey(fee);
+    if (!key) continue;
+    const categoryIndex = categoryOrder.get(key) ?? 0;
+    for (const yearEntry of fee.yearList ?? []) {
       const values = byYear.get(Number(yearEntry?.reportyear));
       if (!values) continue;
-      for (const fee of yearEntry.feeList ?? []) {
-        const feecateg = Number(fee?.feecateg) || 0;
-        if (!feecateg) continue;
-        values[sectorKey][FIRE_CODE_MODE_FSIS][feecateg] =
-          (values[sectorKey][FIRE_CODE_MODE_FSIS][feecateg] ?? 0) +
-          (Number(fee?.collectionamount ?? 0) || 0);
+      for (const sector of yearEntry.sectors ?? []) {
+        const sectorKey =
+          SECTOR_BY_CODE.get(Number(sector?.sectorno)) ??
+          sectorKeyFromCode(String(sector?.sectorcode ?? ""));
+        if (!sectorKey) continue;
+        const bucket = values[sectorKey as keyof SectorValues][FIRE_CODE_MODE_FSIS];
+        bucket[categoryIndex] = (bucket[categoryIndex] ?? 0) + (Number(sector?.collectionamount ?? 0) || 0);
       }
     }
   }
+
   return years.map((year) => ({ year, values: byYear.get(year) ?? emptyValues() }));
 }
+
 
 /* -------------------------------------------------------------------------- */
 /*  Year multi-select — mirrors the Year-over-Year Inspection Comparison       */
@@ -169,6 +221,7 @@ export default function FireCodeFeesSection() {
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [data, setData] = React.useState<{ year: number; values: SectorValues }[]>([]);
+  const [apiCategories, setApiCategories] = React.useState<FeeCategory[]>([]);
 
   // Role-based scope: seed the locked province / station.
   React.useEffect(() => {
@@ -251,9 +304,11 @@ export default function FireCodeFeesSection() {
         },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
-      const { ok, data: payload } = unwrap<DashboardYearlyFireCodeFeeCollectionModel>(resp);
+      const { ok, data: payload } = unwrap<DashboardFeeCollectionModel>(resp);
 
       if (cancelled) return;
+      const nextApiCategories = buildApiFeeCategories(ok ? payload : null);
+      setApiCategories(nextApiCategories);
       setData(ok ? mapSummaryToYears(payload, yearList) : mapSummaryToYears(null, yearList));
       setLoading(false);
     })();
@@ -263,7 +318,18 @@ export default function FireCodeFeesSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearsKey, scopeKey]);
 
-  const groups = React.useMemo(() => groupCategories(categories), [categories]);
+  const displayCategories = React.useMemo(
+    () => (apiCategories.length ? apiCategories : categories),
+    [apiCategories, categories],
+  );
+  const groups = React.useMemo(() => groupCategories(displayCategories), [displayCategories]);
+  /** Report-order position of each category — the API keys amounts by position. */
+  const categIndex = React.useMemo(() => {
+    const map = new Map<string, number>();
+    displayCategories.forEach((c, i) => map.set(c.key, i));
+    return map;
+  }, [displayCategories]);
+
   const valuesOf = React.useCallback(
     (year: number) => data.find((d) => d.year === year)?.values,
     [data],
@@ -413,7 +479,7 @@ export default function FireCodeFeesSection() {
                       if (!v) return yearAcc;
                       return (
                         yearAcc +
-                        FEE_SECTORS.reduce((a, s) => a + categoryTotal(v, s.key, c.detno), 0)
+                        FEE_SECTORS.reduce((a, s) => a + categoryTotal(v, s.key, categIndex.get(c.key) ?? -1), 0)
                       );
                     }, 0);
                     return (
@@ -425,7 +491,7 @@ export default function FireCodeFeesSection() {
                           <React.Fragment key={`${s.key}-${c.key}`}>
                             {sortedYears.map((y, yi) => {
                               const v = valuesOf(y);
-                              const amount = v ? categoryTotal(v, s.key, c.detno) : 0;
+                              const amount = v ? categoryTotal(v, s.key, categIndex.get(c.key) ?? -1) : 0;
                               return (
                                 <td
                                   key={`${s.key}-${c.key}-${y}`}

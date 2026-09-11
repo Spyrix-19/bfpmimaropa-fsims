@@ -16,7 +16,7 @@ export interface DashboardDTO {
 
 export interface DashboardYearToYearDTO {
   reportyear: number[];
-  Feecateg: number[];
+  Feecateg?: number[];
   Provinces: DashboardClass[];
 }
 
