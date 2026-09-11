@@ -60,6 +60,7 @@ import type {
   FSISStationFeeDetailModel,
 } from "@/types/firecodefeesType";
 import {
+  FEE_COLUMNS,
   FEE_SECTORS,
   FIRE_CODE_MODE_FSIS,
   SECTOR_BY_CODE,
@@ -68,7 +69,9 @@ import {
   peso,
   type FireCodeSectorKey,
 } from "../feeColumns";
-import { useFeeCategories } from "./feeCategories";
+import { groupCategories, useFeeCategories, type FeeCategory } from "./feeCategories";
+import { FeeTypeMultiSelect, useFeeTypes } from "./fireCodeFeesFeeTypeFilter";
+
 import {
   FeeMatrixTable,
   MODES,
@@ -148,7 +151,50 @@ export function FireCodeFeesYearEditorBody({
 }) {
   const { user, systemAccess } = useAuth();
   const { categories } = useFeeCategories();
+  const { options: feeTypeOptions, loading: feeTypesLoading } = useFeeTypes();
+  const [feeTypes, setFeeTypes] = React.useState<string[]>([]);
+
+  /**
+   * The matrix crown shows the fee PARENT code (`feeparentcode`, e.g.
+   * "628-BFP-01") with the parent name printed next to it only when that
+   * parent holds more than one fee category — same as the entry form.
+   */
+  const displayCategories = React.useMemo<FeeCategory[]>(
+    () =>
+      categories.map((c, i) => ({
+        ...c,
+        code: FEE_COLUMNS[i]?.code || c.code,
+        groupLabel: FEE_COLUMNS[i]?.groupLabel || c.groupLabel,
+      })),
+    [categories],
+  );
+
+  /** Display-only fee-type filter. Hidden categories are still submitted. */
+  const filteredCategories = React.useMemo(() => {
+    if (feeTypes.length === 0) return displayCategories;
+    const wanted = feeTypes.map((c) => c.toUpperCase());
+    const selectedNames = feeTypeOptions
+      .filter((o) => feeTypes.includes(o.code))
+      .map((o) => o.name.toUpperCase())
+      .filter(Boolean);
+    const norm = (text: string) => String(text ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    const matches = (text: string) => {
+      const t = norm(text);
+      if (!t) return false;
+      return (
+        wanted.some((c) => c && (t === c || t.includes(c))) ||
+        selectedNames.some((n) => n && (t === n || t.includes(n) || n.includes(t)))
+      );
+    };
+    const groups = groupCategories(displayCategories);
+    const filtered = groups.filter(
+      (g) => matches(g.code) || matches(g.label) || g.items.some((i) => matches(i.label)),
+    );
+    return filtered.length ? filtered.flatMap((g) => g.items) : [];
+  }, [displayCategories, feeTypes, feeTypeOptions]);
+
   const YEARS = React.useMemo(buildYears, []);
+
 
   const [year, setYear] = React.useState(initialYear);
   React.useEffect(() => setYear(initialYear), [initialYear]);
@@ -392,12 +438,23 @@ export function FireCodeFeesYearEditorBody({
 
       {/* 3. Months */}
       <Card className="border-border/60 bg-card shadow-soft">
-        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Coins className="h-4 w-4" /> Monthly Collection · {year}
+            <Coins className="h-4 w-4" /> Monthly Collection · {year}{" "}
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-extrabold tabular-nums text-primary">
+              {peso(yearTotal)}
+            </span>
           </h2>
-          <span className="text-xs font-bold tabular-nums text-primary">{peso(yearTotal)}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <FeeTypeMultiSelect
+              options={feeTypeOptions}
+              loading={feeTypesLoading}
+              value={feeTypes}
+              onChange={setFeeTypes}
+            />
+          </div>
         </div>
+
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
@@ -562,7 +619,7 @@ export function FireCodeFeesYearEditorBody({
                       )}
 
                       <FeeMatrixTable
-                        categories={categories}
+                        categories={filteredCategories}
                         values={m.values}
                         locked={info.locked}
                         onChange={(sector, mode, feecateg, raw) =>

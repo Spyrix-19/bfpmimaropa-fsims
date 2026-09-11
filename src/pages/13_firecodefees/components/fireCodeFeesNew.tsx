@@ -62,6 +62,7 @@ import type {
   FSISFeeCollectionDetailModel,
 } from "@/types/firecodefeesType";
 import {
+  FEE_COLUMNS,
   FEE_SECTORS,
   FIRE_CODE_MODES,
   FIRE_CODE_MODE_FSIS,
@@ -75,10 +76,7 @@ import {
   type FireCodeSectorKey,
 } from "../feeColumns";
 import { groupCategories, useFeeCategories, type FeeCategory } from "./feeCategories";
-import {
-  FeeTypeMultiSelect,
-  useFeeTypes,
-} from "@/pages/02_dashboard/components/fees/FeeTypeMultiSelect";
+import { FeeTypeMultiSelect, useFeeTypes } from "./fireCodeFeesFeeTypeFilter";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                    */
@@ -585,27 +583,46 @@ export function FireCodeFeesFormBody({
   const { categories } = useFeeCategories();
   const { options: feeTypeOptions, loading: feeTypesLoading } = useFeeTypes();
   const [feeTypes, setFeeTypes] = React.useState<string[]>([]);
-  /** Display-only fee-type filter — mirrors the dashboard Fire Code Fees
-   *  section. Hidden categories are still submitted on save. */
+
+  /**
+   * Entry-form only: the matrix crown shows the fee PARENT code
+   * (`feeparentcode`, e.g. "628-BFP-01") with the parent name printed next to
+   * it only when that parent holds more than one fee category. The categories
+   * come back in report order, so column position resolves the parent.
+   */
+  const displayCategories = React.useMemo<FeeCategory[]>(
+    () =>
+      categories.map((c, i) => ({
+        ...c,
+        code: FEE_COLUMNS[i]?.code || c.code,
+        groupLabel: FEE_COLUMNS[i]?.groupLabel || c.groupLabel,
+      })),
+    [categories],
+  );
+
+  /** Display-only fee-type filter. Hidden categories are still submitted. */
   const filteredCategories = React.useMemo(() => {
-    if (feeTypes.length === 0) return categories;
+    if (feeTypes.length === 0) return displayCategories;
     const wanted = feeTypes.map((c) => c.toUpperCase());
-    const selectedLabels = feeTypeOptions
+    const selectedNames = feeTypeOptions
       .filter((o) => feeTypes.includes(o.code))
-      .map((o) => o.label.toUpperCase());
+      .map((o) => o.name.toUpperCase())
+      .filter(Boolean);
+    const norm = (text: string) => String(text ?? "").replace(/\s+/g, " ").trim().toUpperCase();
     const matches = (text: string) => {
-      const t = text.toUpperCase();
+      const t = norm(text);
+      if (!t) return false;
       return (
         wanted.some((c) => c && (t === c || t.includes(c))) ||
-        selectedLabels.some((l) => l && (t === l || t.includes(l)))
+        selectedNames.some((n) => n && (t === n || t.includes(n) || n.includes(t)))
       );
     };
-    const groups = groupCategories(categories);
+    const groups = groupCategories(displayCategories);
     const filtered = groups.filter(
       (g) => matches(g.code) || matches(g.label) || g.items.some((i) => matches(i.label)),
     );
     return filtered.length ? filtered.flatMap((g) => g.items) : [];
-  }, [categories, feeTypes, feeTypeOptions]);
+  }, [displayCategories, feeTypes, feeTypeOptions]);
 
   /* Reporting period (monthly basis — the record is keyed on the 1st) ------ */
   const YEARS = React.useMemo(buildYears, []);

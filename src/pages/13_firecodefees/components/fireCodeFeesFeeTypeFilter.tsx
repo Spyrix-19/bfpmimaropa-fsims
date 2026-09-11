@@ -9,19 +9,22 @@ import { unwrap } from "@/lib/api-envelope";
 import { gentableAPI } from "@/services/gentableAPI";
 import type { SearchGentableModel } from "@/types/gentableType";
 
-/** Gentable lookup name that drives the dashboard fee-type filter. */
+/**
+ * Fee-type filter of the Fire Code Fees ENTRY FORM only. It is intentionally a
+ * standalone copy of the dashboard filter so the two features stay independent.
+ */
 export const FIRE_CODE_FEES_TABLE = "FIRE CODE FEES";
 
 export interface FeeTypeOption {
   detno: number;
-  /** `recordcode`, e.g. "628-BFP-01". */
+  /** `recordcode`, e.g. "628-BFP-01" — matches the parent code of the matrix. */
   code: string;
   /** Fee parent name, e.g. "Fire Code Construction Tax". */
   name: string;
   label: string;
 }
 
-/** Loads the "FIRE CODE FEES" gentable codes (dashboard filter only). */
+/** Loads the "FIRE CODE FEES" parent codes used by the entry-form filter. */
 export function useFeeTypes() {
   const [options, setOptions] = React.useState<FeeTypeOption[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -41,9 +44,7 @@ export function useFeeTypes() {
       setOptions(
         rows.map((r) => {
           const code = String(r.recordcode ?? "").trim();
-          const name = String(r.description ?? "")
-            .replace(/\s+/g, " ")
-            .trim();
+          const name = String(r.description ?? "").replace(/\s+/g, " ").trim();
           return {
             detno: Number(r.detno ?? 0),
             code,
@@ -76,39 +77,35 @@ export function FeeTypeMultiSelect({
   onChange: (next: string[]) => void;
   className?: string;
 }) {
-  const selectedLabels = options
-    .filter((o) => value.includes(o.code))
-    .map((o) => o.label || o.code);
+  const selected = options.filter((o) => value.includes(o.code));
   const label = loading
     ? "Loading fee types…"
-    : selectedLabels.length === 0
+    : selected.length === 0
       ? "All fee types"
-      : selectedLabels.length === 1
-        ? selectedLabels[0]
-        : `${selectedLabels.length} fee types`;
+      : selected.length === 1
+        ? selected[0].label
+        : `${selected.length} fee types`;
 
   const toggle = (code: string) => {
     onChange(value.includes(code) ? value.filter((c) => c !== code) : [...value, code]);
   };
 
   return (
-    <Popover>
+    <Popover modal>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           size="sm"
           className={cn("w-full shrink-0 justify-between sm:w-[280px]", className)}
-          title={selectedLabels.join(", ")}
+          title={selected.map((o) => o.label).join(", ")}
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="h-4 w-4 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        collisionPadding={12}
-        className="z-[300] w-[min(340px,calc(100vw-2rem))] p-0"
-      >
+      {/* z-index sits above the dialog (z-200) this form is rendered inside. */}
+      <PopoverContent align="end" className="z-[300] w-[340px] p-0">
         <div className="p-3 pb-0">
           <label
             className={cn(
@@ -147,9 +144,9 @@ export function FeeTypeMultiSelect({
                       if (checkedState === "indeterminate") return;
                       toggle(o.code);
                     }}
-                    aria-label={`Toggle ${o.label || o.code}`}
+                    aria-label={`Toggle ${o.label}`}
                   />
-                  <span className="text-sm leading-snug">{o.label || o.code}</span>
+                  <span className="text-sm leading-snug">{o.label}</span>
                 </label>
               ))
             )}
