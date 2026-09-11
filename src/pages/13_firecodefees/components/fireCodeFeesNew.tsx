@@ -75,6 +75,10 @@ import {
   type FireCodeSectorKey,
 } from "../feeColumns";
 import { groupCategories, useFeeCategories, type FeeCategory } from "./feeCategories";
+import {
+  FeeTypeMultiSelect,
+  useFeeTypes,
+} from "@/pages/02_dashboard/components/fees/FeeTypeMultiSelect";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                    */
@@ -579,6 +583,29 @@ export function FireCodeFeesFormBody({
     [user, systemAccess],
   );
   const { categories } = useFeeCategories();
+  const { options: feeTypeOptions, loading: feeTypesLoading } = useFeeTypes();
+  const [feeTypes, setFeeTypes] = React.useState<string[]>([]);
+  /** Display-only fee-type filter — mirrors the dashboard Fire Code Fees
+   *  section. Hidden categories are still submitted on save. */
+  const filteredCategories = React.useMemo(() => {
+    if (feeTypes.length === 0) return categories;
+    const wanted = feeTypes.map((c) => c.toUpperCase());
+    const selectedLabels = feeTypeOptions
+      .filter((o) => feeTypes.includes(o.code))
+      .map((o) => o.label.toUpperCase());
+    const matches = (text: string) => {
+      const t = text.toUpperCase();
+      return (
+        wanted.some((c) => c && (t === c || t.includes(c))) ||
+        selectedLabels.some((l) => l && (t === l || t.includes(l)))
+      );
+    };
+    const groups = groupCategories(categories);
+    const filtered = groups.filter(
+      (g) => matches(g.code) || matches(g.label) || g.items.some((i) => matches(i.label)),
+    );
+    return filtered.length ? filtered.flatMap((g) => g.items) : [];
+  }, [categories, feeTypes, feeTypeOptions]);
 
   /* Reporting period (monthly basis — the record is keyed on the 1st) ------ */
   const YEARS = React.useMemo(buildYears, []);
@@ -1026,9 +1053,17 @@ export function FireCodeFeesFormBody({
           icon={<Coins className="h-4 w-4" />}
           title="Fire Code Fees Collection"
           subtitle="Encode MANUAL and FSIS amounts per fee category across establishment sectors."
+          right={
+            <FeeTypeMultiSelect
+              options={feeTypeOptions}
+              loading={feeTypesLoading}
+              value={feeTypes}
+              onChange={setFeeTypes}
+            />
+          }
         />
         <FeeCategoryMatrix
-          categories={categories}
+          categories={filteredCategories}
           values={values}
           locked={fieldsLocked}
           onChange={(sector, mode, feecateg, raw) => setAmount(sector, mode, feecateg, raw)}

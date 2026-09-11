@@ -32,6 +32,7 @@ import {
   useFeeCategories,
   type FeeCategory,
 } from "./fees/feeCategories";
+import { FeeTypeMultiSelect, useFeeTypes } from "./fees/FeeTypeMultiSelect";
 import {
   MODES,
   emptyValues,
@@ -70,7 +71,8 @@ const apiFeeLabel = (
     feecategcode: string | number | null;
     feecategname: string | null;
   }>,
-) => String(fee?.feecategcode ?? fee?.feeparentcode ?? fee?.feecategname ?? "").trim();
+) =>
+  String(fee?.feecategname ?? fee?.feecategcode ?? fee?.feeparentcode ?? "").trim();
 
 function buildApiFeeCategories(payload: DashboardFeeCollectionModel | null): FeeCategory[] {
   const byKey = new Map<string, FeeCategory>();
@@ -222,6 +224,8 @@ export default function FireCodeFeesSection() {
   const [loading, setLoading] = React.useState(false);
   const [data, setData] = React.useState<{ year: number; values: SectorValues }[]>([]);
   const [apiCategories, setApiCategories] = React.useState<FeeCategory[]>([]);
+  const { options: feeTypeOptions, loading: feeTypesLoading } = useFeeTypes();
+  const [feeTypes, setFeeTypes] = React.useState<string[]>([]);
 
   // Role-based scope: seed the locked province / station.
   React.useEffect(() => {
@@ -322,7 +326,26 @@ export default function FireCodeFeesSection() {
     () => (apiCategories.length ? apiCategories : categories),
     [apiCategories, categories],
   );
-  const groups = React.useMemo(() => groupCategories(displayCategories), [displayCategories]);
+  const allGroups = React.useMemo(() => groupCategories(displayCategories), [displayCategories]);
+  /** Fee-type filter is display-only: category positions below stay untouched. */
+  const groups = React.useMemo(() => {
+    if (feeTypes.length === 0) return allGroups;
+    const wanted = feeTypes.map((c) => c.toUpperCase());
+    const selectedLabels = feeTypeOptions
+      .filter((o) => feeTypes.includes(o.code))
+      .map((o) => o.label.toUpperCase());
+    const matches = (text: string) => {
+      const t = text.toUpperCase();
+      return (
+        wanted.some((c) => c && (t === c || t.includes(c))) ||
+        selectedLabels.some((l) => l && (t === l || t.includes(l)))
+      );
+    };
+    const filtered = allGroups.filter(
+      (g) => matches(g.code) || matches(g.label) || g.items.some((i) => matches(i.label)),
+    );
+    return filtered.length ? filtered : [];
+  }, [allGroups, feeTypes, feeTypeOptions]);
   /** Report-order position of each category — the API keys amounts by position. */
   const categIndex = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -357,6 +380,13 @@ export default function FireCodeFeesSection() {
 
         <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
           <YearMultiSelect value={years} onChange={setYears} />
+
+          <FeeTypeMultiSelect
+            options={feeTypeOptions}
+            loading={feeTypesLoading}
+            value={feeTypes}
+            onChange={setFeeTypes}
+          />
 
           {scope.provinceLocked ? (
             <ReadOnlyField
