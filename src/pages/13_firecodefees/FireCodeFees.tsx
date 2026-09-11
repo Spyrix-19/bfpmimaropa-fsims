@@ -27,7 +27,7 @@ import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { canManageTargetAndCompliance, canShowEditAction } from "@/lib/permissions";
-import { MONTHS } from "@/lib/fsims-constants";
+import { EMPTY_GUID, MONTHS } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { usePagination } from "@/hooks/usePagination";
 import PaginationControls from "@/components/pagination";
@@ -45,6 +45,7 @@ import {
 } from "@/components/shared/ScopedLocationMultiFilterPair";
 
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
+import { stationAPI } from "@/services/stationAPI";
 import type {
   FSISFeeAccomDetailModel,
   FSISFeeCollectionDetailModel,
@@ -344,6 +345,9 @@ export default function FireCodeFeesPage() {
 
   const [rows, setRows] = React.useState<FireCodeFeeLedgerRow[]>([]);
   const [total, setTotal] = React.useState(0);
+  const [provincePayload, setProvincePayload] = React.useState<FSISFeeCollectionParamClass[] | null>(
+    null,
+  );
   const [showAllFeeDetailsForAllCards, setShowAllFeeDetailsForAllCards] = React.useState(false);
 
   const displayCategories = React.useMemo(
@@ -532,15 +536,73 @@ export default function FireCodeFeesPage() {
   );
 
   React.useEffect(() => {
+    const params = JSON.parse(locationParamsKey) as FSISFeeCollectionParamClass[];
+    let cancelled = false;
+    (async () => {
+      const needsFill = params.length === 0 || params.some((p) => (p.Stationnos ?? []).length === 0);
+      if (!needsFill) {
+        setProvincePayload(
+          params.map((p) => ({
+            Provinceno: p.Provinceno,
+            Stationnos: p.Stationnos ?? [],
+          })),
+        );
+        return;
+      }
+
+      setProvincePayload(null);
+
+      const byProvince = new Map<string, string[]>();
+      params
+        .filter((p) => (p.Stationnos ?? []).length > 0)
+        .forEach((p) => byProvince.set(p.Provinceno, [...(p.Stationnos ?? [])]));
+
+      const targets =
+        params.length === 0
+          ? [undefined]
+          : params.filter((p) => (p.Stationnos ?? []).length === 0).map((p) => p.Provinceno);
+
+      for (const provinceno of targets) {
+        const resp = await stationAPI.search(
+          {
+            provinceno: provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined,
+            pageNumber: 1,
+            pageSize: 1000,
+          },
+          { suppressGlobalLoading: true, suppressErrorToast: true },
+        );
+        const { ok, data } = unwrap<{ stationno: string; provinceno?: string }[]>(resp);
+        if (cancelled) return;
+        if (ok && Array.isArray(data)) {
+          data.forEach((s) => {
+            const p = s.provinceno || provinceno || EMPTY_GUID;
+            if (!byProvince.has(p)) byProvince.set(p, []);
+            if (s.stationno) byProvince.get(p)!.push(s.stationno);
+          });
+        }
+      }
+
+      if (cancelled) return;
+      const payload = Array.from(byProvince.entries()).map(([provinceno, stationnos]) => ({
+        Provinceno: provinceno,
+        Stationnos: stationnos,
+      }));
+      setProvincePayload(payload.length ? payload : [{ Provinceno: EMPTY_GUID, Stationnos: [] }]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [locationParamsKey]);
+
+  React.useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
     (async () => {
       setLoading(true);
-      const Provinces = (
-        JSON.parse(locationParamsKey) as { provinceno: string; stationnos: string[] }[]
-      ).map<FSISFeeCollectionParamClass>((p) => ({
-        Provinceno: p.provinceno,
-        Stationnos: p.stationnos,
+      const Provinces = (provincePayload ?? []).map<FSISFeeCollectionParamClass>((p) => ({
+        Provinceno: p.Provinceno,
+        Stationnos: p.Stationnos,
       }));
       const resp = await firecodefeesAPI.getLedger(
         {
@@ -593,7 +655,7 @@ export default function FireCodeFeesPage() {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month, monthsKey, intervalCode, locationParamsKey, page, pageSize, reloadKey]);
+  }, [year, month, monthsKey, intervalCode, provincePayload, page, pageSize, reloadKey]);
 
   React.useEffect(() => {
     setPage(1);
@@ -602,6 +664,11 @@ export default function FireCodeFeesPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
+      const exportProvinces = (provincePayload ?? []).map<FSISFeeCollectionParamClass>((p) => ({
+        Provinceno: p.Provinceno,
+        Stationnos: p.Stationnos,
+      }));
+
       const resp = await firecodefeesAPI.getLedger(
         {
           parameters: {
@@ -610,10 +677,7 @@ export default function FireCodeFeesPage() {
             Reportmonth: [...selectedMonths],
             Interval: intervalCode,
             Feeparentno: selectedFeeParentNos,
-            Provinces: locationSel.provinceParams.map<FSISFeeCollectionParamClass>((p) => ({
-              Provinceno: p.provinceno,
-              Stationnos: p.stationnos,
-            })),
+            Provinces: exportProvinces,
           },
           // No pagination — export always covers every matching station.
         },
