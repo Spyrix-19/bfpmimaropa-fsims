@@ -63,6 +63,7 @@ import SecureDeleteDialog from "@/components/secure-delete-dialog";
 import FireCodeFeesFormModal from "./components/fireCodeFeesNew";
 import FireCodeFeesYearEditorModal, { type FeeEditorStation } from "./components/fireCodeFeesEdit";
 import FireCodeFeesYearViewModal from "./components/fireCodeFeesView";
+import { FeeTypeMultiSelect, useFeeTypes } from "./components/fireCodeFeesFeeTypeFilter";
 
 /** Station + period context handed to the entry form when editing a ledger card. */
 interface FeeFormTarget {
@@ -247,6 +248,13 @@ function totalsForSector(lines: FeeLine[], sector: FireCodeSectorKey) {
 export default function FireCodeFeesPage() {
   const { user, systemAccess } = useAuth();
   const navigate = useNavigate();
+  const { categories } = useFeeCategories();
+  const { options: feeTypeOptions, loading: feeTypesLoading } = useFeeTypes();
+  const [feeTypes, setFeeTypes] = React.useState<string[]>([]);
+  const isRestrictedStationType = React.useMemo(
+    () => [25, 26, 27].includes(Number(user?.stationtype ?? 0)),
+    [user?.stationtype],
+  );
   const scope = React.useMemo(
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
@@ -325,6 +333,38 @@ export default function FireCodeFeesPage() {
 
   const [rows, setRows] = React.useState<FireCodeFeeLedgerRow[]>([]);
   const [total, setTotal] = React.useState(0);
+
+  const displayCategories = React.useMemo(
+    () =>
+      categories.map((c, i) => ({
+        ...c,
+        code: FEE_COLUMNS[i]?.code || c.code,
+        groupLabel: FEE_COLUMNS[i]?.groupLabel || c.groupLabel,
+      })),
+    [categories],
+  );
+
+  const filteredCategories = React.useMemo(() => {
+    if (feeTypes.length === 0) return displayCategories;
+    const wanted = feeTypes.map((c) => c.toUpperCase());
+    const selectedNames = feeTypeOptions
+      .filter((o) => feeTypes.includes(o.code))
+      .map((o) => o.name.toUpperCase())
+      .filter(Boolean);
+    const norm = (text: string) => String(text ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    const matches = (text: string) => {
+      const t = norm(text);
+      if (!t) return false;
+      return (
+        wanted.some((c) => c && (t === c || t.includes(c))) ||
+        selectedNames.some((n) => n && (t === n || t.includes(n) || n.includes(t)))
+      );
+    };
+    const filtered = displayCategories.filter(
+      (c) => matches(c.code) || matches(c.label) || matches(c.groupLabel),
+    );
+    return filtered.length ? filtered : [];
+  }, [displayCategories, feeTypes, feeTypeOptions]);
   const [loading, setLoading] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
   const [matrixOpen, setMatrixOpen] = React.useState(false);
@@ -426,6 +466,13 @@ export default function FireCodeFeesPage() {
     setPage(1);
   };
 
+  const selectedFeeParentNos = React.useMemo(() => {
+    if (!feeTypeOptions.length || feeTypes.length === 0) return [];
+    return feeTypes
+      .map((code) => Number(feeTypeOptions.find((option) => option.code === code)?.detno ?? 0))
+      .filter((id) => Number.isFinite(id) && id > 0);
+  }, [feeTypeOptions, feeTypes]);
+
   const mapStation = React.useCallback(
     (station: FSISStationFeeDetailModel, monthSet: Set<number>): FireCodeFeeLedgerRow => {
       const list = Array.isArray(station.feedetaillist) ? station.feedetaillist : [];
@@ -486,7 +533,7 @@ export default function FireCodeFeesPage() {
             Reportyear: Number(year),
             Reportmonth: [...selectedMonths],
             Interval: intervalCode,
-            Dateaccomplish: `${year}-${String(month).padStart(2, "0")}-01`,
+            Feeparentno: selectedFeeParentNos,
             Provinces,
           },
           pagenumber: page,
@@ -546,7 +593,7 @@ export default function FireCodeFeesPage() {
             Reportyear: Number(year),
             Reportmonth: [...selectedMonths],
             Interval: intervalCode,
-            Dateaccomplish: `${year}-${String(month).padStart(2, "0")}-01`,
+            Feeparentno: selectedFeeParentNos,
             Provinces: locationSel.provinceParams.map<FSISFeeCollectionParamClass>((p) => ({
               Provinceno: p.provinceno,
               Stationnos: p.stationnos,
@@ -652,6 +699,17 @@ export default function FireCodeFeesPage() {
         />
       </ModuleFilterBar>
 
+      {isRestrictedStationType && (
+        <div className="flex justify-end">
+          <FeeTypeMultiSelect
+            options={feeTypeOptions}
+            loading={feeTypesLoading}
+            value={feeTypes}
+            onChange={setFeeTypes}
+          />
+        </div>
+      )}
+
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading Fire Code Fees collection…
@@ -671,6 +729,12 @@ export default function FireCodeFeesPage() {
               reportYear={Number(year)}
               periodLabel={periodLabel}
               canManage={canManage}
+              filteredCategories={filteredCategories}
+              showFeeFilter={!isRestrictedStationType}
+              feeTypes={feeTypes}
+              feeTypeOptions={feeTypeOptions}
+              feeTypesLoading={feeTypesLoading}
+              onFeeTypesChange={setFeeTypes}
               onView={() => openViewer(r)}
               onEdit={() => openEditor(r, false)}
               onDelete={() => askDelete(r)}
@@ -921,6 +985,12 @@ function FireCodeFeesLedgerCard({
   reportYear,
   periodLabel,
   canManage,
+  filteredCategories,
+  showFeeFilter,
+  feeTypes,
+  feeTypeOptions,
+  feeTypesLoading,
+  onFeeTypesChange,
   onView,
   onEdit,
   onDelete,
@@ -932,6 +1002,12 @@ function FireCodeFeesLedgerCard({
   reportYear?: number;
   periodLabel: string | null;
   canManage: boolean;
+  filteredCategories?: ReturnType<typeof useFeeCategories>["categories"];
+  showFeeFilter?: boolean;
+  feeTypes?: string[];
+  feeTypeOptions?: Array<{ code: string; name: string; label: string }>;
+  feeTypesLoading?: boolean;
+  onFeeTypesChange?: (next: string[]) => void;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -956,7 +1032,10 @@ function FireCodeFeesLedgerCard({
         : groupBy === "semester"
           ? "SEMESTER COLLECTION"
           : "ANNUAL COLLECTION";
-  const { categories } = useFeeCategories();
+  const matrixCategories = React.useMemo(
+    () => (filteredCategories && filteredCategories.length > 0 ? filteredCategories : []),
+    [filteredCategories],
+  );
 
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   const toggle = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1005,7 +1084,7 @@ function FireCodeFeesLedgerCard({
             {row.provincename}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <div
             className="grid h-10 min-w-[6rem] place-items-center rounded-lg bg-primary/10 px-2 text-center text-primary"
             title="Total collection"
@@ -1013,6 +1092,17 @@ function FireCodeFeesLedgerCard({
             <div className="text-[8px] font-bold uppercase leading-none">Total</div>
             <div className="text-xs font-bold leading-none">{peso(row.grandTotal)}</div>
           </div>
+          {showFeeFilter && feeTypes !== undefined && onFeeTypesChange && feeTypeOptions && (
+            <div className="ml-auto shrink-0">
+              <FeeTypeMultiSelect
+                options={feeTypeOptions}
+                loading={feeTypesLoading}
+                value={feeTypes}
+                onChange={onFeeTypesChange}
+                className="w-[220px] sm:w-[240px] xl:w-[280px]"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -1088,7 +1178,7 @@ function FireCodeFeesLedgerCard({
                   </div>
                   {isOpen && (
                     <div className="border-t border-border/40 bg-muted/10 p-3">
-                      <FeeMatrixTable categories={categories} values={toSectorValues(line)} />
+                      <FeeMatrixTable categories={matrixCategories} values={toSectorValues(line)} />
                     </div>
                   )}
                 </div>

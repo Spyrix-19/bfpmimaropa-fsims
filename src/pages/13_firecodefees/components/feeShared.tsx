@@ -20,7 +20,7 @@ import {
   type FeeAmounts,
   type FireCodeSectorKey,
 } from "../feeColumns";
-import { groupCategories, type FeeCategory } from "./feeCategories";
+import { groupByParent, type FeeCategory } from "./feeCategories";
 
 /* -------------------------------------------------------------------------- */
 /*  Types & value helpers                                                      */
@@ -182,7 +182,7 @@ export function FeeMatrixTable({
   onChange?: (sector: FireCodeSectorKey, mode: ModeCode, feecateg: number, raw: string) => void;
   locked?: boolean;
 }) {
-  const groups = React.useMemo(() => groupCategories(categories), [categories]);
+  const groups = React.useMemo(() => groupByParent(categories), [categories]);
   const editable = typeof onChange === "function";
 
   const columnTotals = React.useMemo(
@@ -269,18 +269,18 @@ export function FeeMatrixTable({
         </thead>
         <tbody>
           {groups.map((g) => (
-            <React.Fragment key={g.label}>
+            <React.Fragment key={g.parentno || g.code || g.name}>
               <tr className="bg-primary/5">
                 <td
                   colSpan={2}
                   className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
                 >
                   <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {g.code || g.label}
+                    {g.code || g.name}
                   </span>
-                  {g.items.length > 1 && g.label ? (
+                  {g.items.length > 1 && g.name && g.name !== g.code ? (
                     <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
-                      {g.label}
+                      {g.name}
                     </span>
                   ) : null}
                 </td>

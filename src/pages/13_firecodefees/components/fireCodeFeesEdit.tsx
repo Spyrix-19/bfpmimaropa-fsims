@@ -220,7 +220,7 @@ export function FireCodeFeesYearEditorBody({
             Reportyear: year,
             Reportmonth: MONTHS.map((m) => m.value),
             Interval: 2,
-            Dateaccomplish: monthKey(year, 1),
+            Feeparentno: [],
             Provinces: [
               { Provinceno: station.provinceno || EMPTY_GUID, Stationnos: [station.stationno] },
             ],

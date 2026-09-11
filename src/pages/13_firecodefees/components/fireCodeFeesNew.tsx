@@ -624,6 +624,13 @@ export function FireCodeFeesFormBody({
     return filtered.length ? filtered.flatMap((g) => g.items) : [];
   }, [displayCategories, feeTypes, feeTypeOptions]);
 
+  const selectedFeeParentNos = React.useMemo(() => {
+    if (!feeTypeOptions.length || feeTypes.length === 0) return [];
+    return feeTypes
+      .map((code) => Number(feeTypeOptions.find((option) => option.code === code)?.detno ?? 0))
+      .filter((id) => Number.isFinite(id) && id > 0);
+  }, [feeTypeOptions, feeTypes]);
+
   /* Reporting period (monthly basis — the record is keyed on the 1st) ------ */
   const YEARS = React.useMemo(buildYears, []);
   const [year, setYear] = React.useState<number>(() => {
@@ -766,7 +773,12 @@ export function FireCodeFeesFormBody({
       clearValues();
       resetExisting();
       const resp = await firecodefeesAPI.getDetailBydate(
-        { Stationno: activeStationNo, Reportyear: year, Reportmonth: month },
+        {
+          Stationno: activeStationNo,
+          Reportyear: year,
+          Reportmonth: month,
+          Feeparentno: selectedFeeParentNos,
+        },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
       if (cancelled) return;
@@ -786,7 +798,7 @@ export function FireCodeFeesFormBody({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [station.no, scope.stationLocked, scope.stationno, selectedDateKey, reloadNonce]);
+  }, [station.no, scope.stationLocked, scope.stationno, selectedDateKey, reloadNonce, selectedFeeParentNos]);
 
   /* Revision requests ----------------------------------------------------- */
   const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);

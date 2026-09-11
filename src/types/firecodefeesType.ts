@@ -44,7 +44,7 @@ export interface FSISFeeCollectionParams {
   Reportyear: number;
   Reportmonth: number[];
   Interval: number;
-  Dateaccomplish: string;
+  Feeparentno: number[];
   Provinces: FSISFeeCollectionParamClass[];
 }
 
@@ -62,15 +62,19 @@ export interface ExportFSISFeeCollectionDTO {
 /* Detail / ledger response                                           */
 /* ------------------------------------------------------------------ */
 
+// Parameters specifically for detail endpoints (by year)
+// Parameters specifically for detail-by-date endpoint (single month)
 export interface FSISFeeCollectionDetailByDateParams {
   Stationno: string;
   Reportyear: number;
   Reportmonth: number;
+  Feeparentno: number[];
 }
 
 export interface FSISFeeCollectionDetailParams {
   Stationno: string;
   Reportyear: number;
+   Feeparentno: number[];
 }
 
 export interface FSISFeeCollectionLedgerParams {
@@ -82,11 +86,12 @@ export interface FSISFeeCollectionLedgerParams {
 export interface FSISFeeAccomDetailModel {
   accomplishno: string;
   feeno: string;
-  /** Only present on legacy flat payloads — the current API carries it on the
-   *  parent `sectorlist` entry instead. */
   sectorno?: number;
   fsicmode: number;
   feecateg: number;
+  Feeparentno: string;
+  feeparentcode: string;
+  Feeparentname: string;
   collectedamount: number;
 }
 

@@ -19,22 +19,26 @@ export const firecodefeesAPI = {
     params?: FSISFeeCollectionDetailByDateParams,
     options?: import("@/lib/api").ApiOptions,
   ) {
-    return await apiGet<FSISFeeCollectionDetailModel>("/api/v1/FSISFeeCollection/Detail/Date", {
+    return await apiPost<FSISFeeCollectionDetailModel>(
+      "/api/v1/FSISFeeCollection/Detail/Date",
       params,
-      ...GET_RETRY,
-      ...options,
-    });
+      {
+        ...options,
+      },
+    );
   },
 
   async getDetail(
     params?: FSISFeeCollectionDetailParams,
     options?: import("@/lib/api").ApiOptions,
   ) {
-    return await apiGet<FSISFeeCollectionDetailModel>("/api/v1/FSISFeeCollection/Detail", {
+    return await apiPost<FSISFeeCollectionDetailModel>(
+      "/api/v1/FSISFeeCollection/Detail",
       params,
-      ...GET_RETRY,
-      ...options,
-    });
+      {
+        ...options,
+      },
+    );
   },
 
   async getLedger(

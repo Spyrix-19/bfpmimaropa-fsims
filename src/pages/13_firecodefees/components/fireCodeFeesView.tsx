@@ -44,6 +44,7 @@ import {
 } from "@/pages/06_target-reference/revision/useRevisionRequests";
 import type { FSISFeeCollectionDetailModel } from "@/types/firecodefeesType";
 import {
+  FEE_COLUMNS,
   FEE_SECTORS,
   FIRE_CODE_MODE_FSIS,
   FIRE_CODE_MODE_MANUAL,
@@ -53,6 +54,7 @@ import {
   type FireCodeSectorKey,
 } from "../feeColumns";
 import { useFeeCategories } from "./feeCategories";
+import { FeeTypeMultiSelect, useFeeTypes } from "./fireCodeFeesFeeTypeFilter";
 import {
   FeeMatrixTable,
   MODES,
@@ -150,6 +152,45 @@ export function FireCodeFeesYearViewBody({
   const { user, systemAccess } = useAuth();
   const canEdit = canShowEditAction(user, systemAccess);
   const { categories } = useFeeCategories();
+  const { options: feeTypeOptions, loading: feeTypesLoading } = useFeeTypes();
+  const [feeTypes, setFeeTypes] = React.useState<string[]>([]);
+  const displayCategories = React.useMemo(
+    () =>
+      categories.map((c, i) => ({
+        ...c,
+        code: FEE_COLUMNS[i]?.code || c.code,
+        groupLabel: FEE_COLUMNS[i]?.groupLabel || c.groupLabel,
+      })),
+    [categories],
+  );
+  const filteredCategories = React.useMemo(() => {
+    if (feeTypes.length === 0) return displayCategories;
+    const wanted = feeTypes.map((c) => c.toUpperCase());
+    const selectedNames = feeTypeOptions
+      .filter((o) => feeTypes.includes(o.code))
+      .map((o) => o.name.toUpperCase())
+      .filter(Boolean);
+    const norm = (text: string) => String(text ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    const matches = (text: string) => {
+      const t = norm(text);
+      if (!t) return false;
+      return (
+        wanted.some((c) => c && (t === c || t.includes(c))) ||
+        selectedNames.some((n) => n && (t === n || t.includes(n) || n.includes(t)))
+      );
+    };
+    const filtered = displayCategories.filter(
+      (c) => matches(c.code) || matches(c.label) || matches(c.groupLabel),
+    );
+    return filtered.length ? filtered : [];
+  }, [displayCategories, feeTypes, feeTypeOptions]);
+
+  const selectedFeeParentNos = React.useMemo(() => {
+    if (!feeTypeOptions.length || feeTypes.length === 0) return [];
+    return feeTypes
+      .map((code) => Number(feeTypeOptions.find((option) => option.code === code)?.detno ?? 0))
+      .filter((id) => Number.isFinite(id) && id > 0);
+  }, [feeTypeOptions, feeTypes]);
   const YEARS = React.useMemo(buildYears, []);
 
   const [year, setYear] = React.useState(initialYear);
@@ -168,7 +209,7 @@ export function FireCodeFeesYearViewBody({
     (async () => {
       setLoading(true);
       const resp = await firecodefeesAPI.getDetail(
-        { Stationno: station.stationno, Reportyear: year },
+        { Stationno: station.stationno, Reportyear: year, Feeparentno: selectedFeeParentNos },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
       if (cancelled) return;
@@ -190,7 +231,7 @@ export function FireCodeFeesYearViewBody({
     return () => {
       cancelled = true;
     };
-  }, [station.stationno, year]);
+  }, [station.stationno, year, selectedFeeParentNos]);
 
   /* Revision requests — badges only (read-only screen) ------------------ */
   const revisionRequests = useRevisionLedger({
@@ -271,11 +312,23 @@ export function FireCodeFeesYearViewBody({
 
       {/* 3. Months */}
       <Card className="border-border/60 bg-card shadow-soft">
-        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Coins className="h-4 w-4" /> Monthly Collection · {year}
-          </h2>
-          <span className="text-xs font-bold tabular-nums text-primary">{peso(yearTotal)}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
+          <div className="flex items-center gap-2.5">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <Coins className="h-4 w-4" /> Monthly Collection · {year}
+            </h2>
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-extrabold tabular-nums text-primary">
+              {peso(yearTotal)}
+            </span>
+          </div>
+          <div className="ml-auto">
+            <FeeTypeMultiSelect
+              options={feeTypeOptions}
+              loading={feeTypesLoading}
+              value={feeTypes}
+              onChange={setFeeTypes}
+            />
+          </div>
         </div>
 
         {loading ? (
@@ -373,7 +426,7 @@ export function FireCodeFeesYearViewBody({
                           </span>
                         </div>
                       )}
-                      <FeeMatrixTable categories={categories} values={m.values} />
+                      <FeeMatrixTable categories={filteredCategories} values={m.values} />
                     </div>
                   )}
                 </div>

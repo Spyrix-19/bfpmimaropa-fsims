@@ -16,6 +16,44 @@ export interface FeeCategory {
   code: string;
   label: string;
   groupLabel: string;
+  /** Backend `feeparentno` — the parent this category belongs to (API payloads). */
+  parentno?: number;
+  /** Backend `feeparentname`, shown next to the parent code when it has siblings. */
+  parentname?: string;
+}
+
+/** Parent group of fee categories, keyed by `feeparentno`. */
+export interface FeeParentGroup {
+  parentno: number;
+  /** `feeparentcode`, e.g. "628-BFP-01". */
+  code: string;
+  /** `feeparentname`. */
+  name: string;
+  items: FeeCategory[];
+}
+
+/** Groups categories by their `feeparentno`, preserving first-seen order. */
+export function groupByParent(categories: FeeCategory[]): FeeParentGroup[] {
+  const groups: FeeParentGroup[] = [];
+  const byParent = new Map<string, FeeParentGroup>();
+  for (const c of categories) {
+    const parentno = Number(c.parentno) || 0;
+    const key = parentno ? `p-${parentno}` : `c-${c.code || c.groupLabel}`;
+    const existing = byParent.get(key);
+    if (existing) {
+      existing.items.push(c);
+      continue;
+    }
+    const group: FeeParentGroup = {
+      parentno,
+      code: c.code || c.groupLabel,
+      name: c.parentname ?? c.groupLabel,
+      items: [c],
+    };
+    byParent.set(key, group);
+    groups.push(group);
+  }
+  return groups;
 }
 
 /**
@@ -60,6 +98,8 @@ export function useFeeCategories() {
             code: String(r.recordcode ?? ""),
             label: String(r.description ?? STATIC_FEE_CATEGORIES[i].label),
             groupLabel: STATIC_FEE_CATEGORIES[i].groupLabel,
+            parentno: Number(r.parentno ?? 0) || undefined,
+            parentname: String(r.parentname ?? "").trim() || undefined,
           })),
         );
       }
@@ -75,11 +115,9 @@ export function useFeeCategories() {
 
 /** Groups categories by their BFP account code crown, preserving order. */
 export function groupCategories(categories: FeeCategory[]) {
-  const groups: { code: string; label: string; items: FeeCategory[] }[] = [];
-  for (const c of categories) {
-    const last = groups[groups.length - 1];
-    if (last && last.label === c.groupLabel) last.items.push(c);
-    else groups.push({ code: c.code, label: c.groupLabel, items: [c] });
-  }
-  return groups;
+  return groupByParent(categories).map((group) => ({
+    code: group.code,
+    label: group.name,
+    items: group.items,
+  }));
 }
