@@ -24,6 +24,7 @@ import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   Select,
@@ -205,7 +206,10 @@ export function FireCodeFeesYearEditorBody({
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [reloadNonce, setReloadNonce] = React.useState(0);
-  const [expanded, setExpanded] = React.useState<Record<number, boolean>>({});
+  const [showAllMonthFees, setShowAllMonthFees] = React.useState(false);
+  const [expanded, setExpanded] = React.useState<Record<number, boolean>>(() =>
+    Object.fromEntries(MONTHS.map((m) => [m.value, false])),
+  );
 
   /* Load every month of the year for this station ------------------------- */
   React.useEffect(() => {
@@ -452,6 +456,29 @@ export function FireCodeFeesYearEditorBody({
               value={feeTypes}
               onChange={setFeeTypes}
             />
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {showAllMonthFees ? "Show" : "Hide"}
+              </span>
+              <Switch
+                checked={showAllMonthFees}
+                onCheckedChange={(checked) => {
+                  const next = Boolean(checked);
+                  setShowAllMonthFees(next);
+                  setExpanded((prev) => {
+                    const updated: Record<number, boolean> = { ...prev };
+                    months.forEach((m) => {
+                      updated[m.month] = next;
+                    });
+                    return updated;
+                  });
+                }}
+                aria-label="Show or hide all monthly fee details"
+              />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {showAllMonthFees ? "On" : "Off"}
+              </span>
+            </div>
           </div>
         </div>
 

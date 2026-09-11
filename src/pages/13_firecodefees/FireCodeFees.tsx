@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -333,6 +334,7 @@ export default function FireCodeFeesPage() {
 
   const [rows, setRows] = React.useState<FireCodeFeeLedgerRow[]>([]);
   const [total, setTotal] = React.useState(0);
+  const [showAllFeeDetailsForAllCards, setShowAllFeeDetailsForAllCards] = React.useState(false);
 
   const displayCategories = React.useMemo(
     () =>
@@ -700,13 +702,26 @@ export default function FireCodeFeesPage() {
       </ModuleFilterBar>
 
       {isRestrictedStationType && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
           <FeeTypeMultiSelect
             options={feeTypeOptions}
             loading={feeTypesLoading}
             value={feeTypes}
             onChange={setFeeTypes}
           />
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {showAllFeeDetailsForAllCards ? "Show" : "Hide"}
+            </span>
+            <Switch
+              checked={showAllFeeDetailsForAllCards}
+              onCheckedChange={(checked) => setShowAllFeeDetailsForAllCards(Boolean(checked))}
+              aria-label="Show or hide all fee details for the ledger"
+            />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {showAllFeeDetailsForAllCards ? "On" : "Off"}
+            </span>
+          </div>
         </div>
       )}
 
@@ -734,6 +749,7 @@ export default function FireCodeFeesPage() {
               feeTypes={feeTypes}
               feeTypeOptions={feeTypeOptions}
               feeTypesLoading={feeTypesLoading}
+              globalShowAllFeeDetails={showAllFeeDetailsForAllCards}
               onFeeTypesChange={setFeeTypes}
               onView={() => openViewer(r)}
               onEdit={() => openEditor(r, false)}
@@ -990,6 +1006,7 @@ function FireCodeFeesLedgerCard({
   feeTypes,
   feeTypeOptions,
   feeTypesLoading,
+  globalShowAllFeeDetails,
   onFeeTypesChange,
   onView,
   onEdit,
@@ -1007,6 +1024,7 @@ function FireCodeFeesLedgerCard({
   feeTypes?: string[];
   feeTypeOptions?: Array<{ code: string; name: string; label: string }>;
   feeTypesLoading?: boolean;
+  globalShowAllFeeDetails?: boolean;
   onFeeTypesChange?: (next: string[]) => void;
   onView: () => void;
   onEdit: () => void;
@@ -1038,7 +1056,29 @@ function FireCodeFeesLedgerCard({
   );
 
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
+  const [showAllFeeDetails, setShowAllFeeDetails] = React.useState(false);
+  React.useEffect(() => {
+    if (globalShowAllFeeDetails === undefined) return;
+    setShowAllFeeDetails(globalShowAllFeeDetails);
+    setExpanded((prev) => {
+      const updated = { ...prev };
+      lines.forEach((line) => {
+        updated[line.key] = globalShowAllFeeDetails;
+      });
+      return updated;
+    });
+  }, [globalShowAllFeeDetails, lines]);
   const toggle = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  const setAllFeeDetails = (next: boolean) => {
+    setShowAllFeeDetails(next);
+    setExpanded((prev) => {
+      const updated = { ...prev };
+      lines.forEach((line) => {
+        updated[line.key] = next;
+      });
+      return updated;
+    });
+  };
 
   /** Per-line sector totals (combined manual + FSIC) for the summary row. */
   const lineSummaries = React.useMemo(
@@ -1093,7 +1133,7 @@ function FireCodeFeesLedgerCard({
             <div className="text-xs font-bold leading-none">{peso(row.grandTotal)}</div>
           </div>
           {showFeeFilter && feeTypes !== undefined && onFeeTypesChange && feeTypeOptions && (
-            <div className="ml-auto shrink-0">
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <FeeTypeMultiSelect
                 options={feeTypeOptions}
                 loading={feeTypesLoading}
@@ -1101,6 +1141,19 @@ function FireCodeFeesLedgerCard({
                 onChange={onFeeTypesChange}
                 className="w-[220px] sm:w-[240px] xl:w-[280px]"
               />
+              <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {showAllFeeDetails ? "Show" : "Hide"}
+                </span>
+                <Switch
+                  checked={showAllFeeDetails}
+                  onCheckedChange={(checked) => setAllFeeDetails(Boolean(checked))}
+                  aria-label="Show or hide all fee details for this station period"
+                />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {showAllFeeDetails ? "On" : "Off"}
+                </span>
+              </div>
             </div>
           )}
         </div>

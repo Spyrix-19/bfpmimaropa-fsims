@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import StationInfoCard from "@/components/station-info-card";
+import { Switch } from "@/components/ui/switch";
 
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import {
@@ -200,7 +201,10 @@ export function FireCodeFeesYearViewBody({
     MONTHS.map((m) => freshMonth(m.value)),
   );
   const [loading, setLoading] = React.useState(false);
-  const [expanded, setExpanded] = React.useState<Record<number, boolean>>({});
+  const [showAllMonthFees, setShowAllMonthFees] = React.useState(false);
+  const [expanded, setExpanded] = React.useState<Record<number, boolean>>(() =>
+    Object.fromEntries(MONTHS.map((m) => [m.value, false])),
+  );
 
   /* Whole year from the Detail endpoint --------------------------------- */
   React.useEffect(() => {
@@ -321,13 +325,36 @@ export function FireCodeFeesYearViewBody({
               {peso(yearTotal)}
             </span>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex flex-wrap items-center gap-3">
             <FeeTypeMultiSelect
               options={feeTypeOptions}
               loading={feeTypesLoading}
               value={feeTypes}
               onChange={setFeeTypes}
             />
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {showAllMonthFees ? "Show" : "Hide"}
+              </span>
+              <Switch
+                checked={showAllMonthFees}
+                onCheckedChange={(checked) => {
+                  const next = Boolean(checked);
+                  setShowAllMonthFees(next);
+                  setExpanded((prev) => {
+                    const updated: Record<number, boolean> = { ...prev };
+                    months.forEach((m) => {
+                      updated[m.month] = next;
+                    });
+                    return updated;
+                  });
+                }}
+                aria-label="Show or hide all monthly fee details"
+              />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {showAllMonthFees ? "On" : "Off"}
+              </span>
+            </div>
           </div>
         </div>
 
