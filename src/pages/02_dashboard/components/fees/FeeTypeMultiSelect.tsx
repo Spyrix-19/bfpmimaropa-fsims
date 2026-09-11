@@ -39,7 +39,7 @@ export function useFeeTypes() {
         rows.map((r) => ({
           detno: Number(r.detno ?? 0),
           code: String(r.recordcode ?? "").trim(),
-          label: String(r.description ?? r.recordcode ?? "").trim(),
+          label: String(r.recordcode ?? "").trim(),
         })),
       );
       setLoading(false);

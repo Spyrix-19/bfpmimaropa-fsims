@@ -28,7 +28,7 @@ import {
   sectorKeyFromCode,
 } from "./fees/feeColumns";
 import {
-  groupCategories,
+  groupByParent,
   useFeeCategories,
   type FeeCategory,
 } from "./fees/feeCategories";
@@ -45,49 +45,36 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** Combined Manual + FSIS amount of one fee category for a sector. */
-const categoryTotal = (v: SectorValues, sector: string, categIndex: number) =>
-  MODES.reduce((a, m) => a + (v[sector as keyof SectorValues][m.code][categIndex] ?? 0), 0);
+const categoryTotal = (v: SectorValues, sector: string, feecateg: number) =>
+  MODES.reduce((a, m) => a + (v[sector as keyof SectorValues][m.code][feecateg] ?? 0), 0);
 
 const sectorGrand = (v: SectorValues, sector: string) =>
   MODES.reduce((a, m) => a + sumAmounts(v[sector as keyof SectorValues][m.code]), 0);
 
 /**
- * API grouped summary keys: the backend aggregates by fee parent code, not by
- * the local printed report-column order. Use the parent code as the canonical
- * grouping key so the plotted values match the payload returned by the API.
+ * Fee categories exactly as the API returns them: one row per `feecateg`,
+ * labelled with `feecategname`, carrying its `feeparentno` / `feeparentcode` /
+ * `feeparentname` so the table can group the rows under their parent.
  */
-const apiFeeGroupKey = (
-  fee: Partial<{
-    feeparentcode: string | null;
-    feecategcode: string | number | null;
-    feecateg: number | string | null;
-    feecategname: string | null;
-  }>,
-) => String(fee?.feeparentcode ?? fee?.feecategcode ?? fee?.feecateg ?? fee?.feecategname ?? "").trim();
-
-const apiFeeLabel = (
-  fee: Partial<{
-    feeparentcode: string | null;
-    feecategcode: string | number | null;
-    feecategname: string | null;
-  }>,
-) =>
-  String(fee?.feecategname ?? fee?.feecategcode ?? fee?.feeparentcode ?? "").trim();
-
 function buildApiFeeCategories(payload: DashboardFeeCollectionModel | null): FeeCategory[] {
-  const byKey = new Map<string, FeeCategory>();
+  const byCateg = new Map<number, FeeCategory>();
   for (const fee of payload?.feeList ?? []) {
-    const key = apiFeeGroupKey(fee);
-    if (!key || byKey.has(key)) continue;
-    byKey.set(key, {
-      key: `api-${key}`,
-      detno: Number(fee?.feecateg) || 0,
-      code: key,
-      label: apiFeeLabel(fee) || key,
-      groupLabel: apiFeeLabel(fee) || key,
+    const feecateg = Number(fee?.feecateg) || 0;
+    if (!feecateg || byCateg.has(feecateg)) continue;
+    const label = String(fee?.feecategname ?? "").trim() || String(fee?.feecategcode ?? "").trim();
+    const parentcode = String(fee?.feeparentcode ?? "").trim();
+    const parentname = String(fee?.feeparentname ?? "").trim();
+    byCateg.set(feecateg, {
+      key: `fee-${feecateg}`,
+      detno: feecateg,
+      code: parentcode || parentname,
+      label: label || String(feecateg),
+      groupLabel: parentname || parentcode,
+      parentno: Number(fee?.feeparentno) || 0,
+      parentname: parentname || parentcode,
     });
   }
-  return [...byKey.values()];
+  return [...byCateg.values()];
 }
 
 function mapSummaryToYears(
@@ -95,18 +82,10 @@ function mapSummaryToYears(
   years: number[],
 ): { year: number; values: SectorValues }[] {
   const byYear = new Map<number, SectorValues>(years.map((y) => [y, emptyValues()]));
-  const categoryOrder = new Map<string, number>();
 
   for (const fee of payload?.feeList ?? []) {
-    const key = apiFeeGroupKey(fee);
-    if (!key) continue;
-    if (!categoryOrder.has(key)) categoryOrder.set(key, categoryOrder.size);
-  }
-
-  for (const fee of payload?.feeList ?? []) {
-    const key = apiFeeGroupKey(fee);
-    if (!key) continue;
-    const categoryIndex = categoryOrder.get(key) ?? 0;
+    const feecateg = Number(fee?.feecateg) || 0;
+    if (!feecateg) continue;
     for (const yearEntry of fee.yearList ?? []) {
       const values = byYear.get(Number(yearEntry?.reportyear));
       if (!values) continue;
@@ -116,7 +95,7 @@ function mapSummaryToYears(
           sectorKeyFromCode(String(sector?.sectorcode ?? ""));
         if (!sectorKey) continue;
         const bucket = values[sectorKey as keyof SectorValues][FIRE_CODE_MODE_FSIS];
-        bucket[categoryIndex] = (bucket[categoryIndex] ?? 0) + (Number(sector?.collectionamount ?? 0) || 0);
+        bucket[feecateg] = (bucket[feecateg] ?? 0) + (Number(sector?.collectionamount ?? 0) || 0);
       }
     }
   }
@@ -326,7 +305,7 @@ export default function FireCodeFeesSection() {
     () => (apiCategories.length ? apiCategories : categories),
     [apiCategories, categories],
   );
-  const allGroups = React.useMemo(() => groupCategories(displayCategories), [displayCategories]);
+  const allGroups = React.useMemo(() => groupByParent(displayCategories), [displayCategories]);
   /** Fee-type filter is display-only: category positions below stay untouched. */
   const groups = React.useMemo(() => {
     if (feeTypes.length === 0) return allGroups;
@@ -342,16 +321,10 @@ export default function FireCodeFeesSection() {
       );
     };
     const filtered = allGroups.filter(
-      (g) => matches(g.code) || matches(g.label) || g.items.some((i) => matches(i.label)),
+      (g) => matches(g.code) || matches(g.name) || g.items.some((i) => matches(i.label)),
     );
     return filtered.length ? filtered : [];
   }, [allGroups, feeTypes, feeTypeOptions]);
-  /** Report-order position of each category — the API keys amounts by position. */
-  const categIndex = React.useMemo(() => {
-    const map = new Map<string, number>();
-    displayCategories.forEach((c, i) => map.set(c.key, i));
-    return map;
-  }, [displayCategories]);
 
   const valuesOf = React.useCallback(
     (year: number) => data.find((d) => d.year === year)?.values,
@@ -482,15 +455,15 @@ export default function FireCodeFeesSection() {
             </thead>
             <tbody>
               {groups.map((g) => (
-                <React.Fragment key={g.label}>
+                <React.Fragment key={g.parentno || g.code || g.name}>
                   <tr className="bg-primary/5">
                     <td className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']">
                       <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
-                        {g.code || g.label}
+                        {g.code || g.name}
                       </span>
-                      {g.items.length > 1 && g.label ? (
+                      {g.items.length > 1 && g.name && g.name !== g.code ? (
                         <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
-                          {g.label}
+                          {g.name}
                         </span>
                       ) : null}
                     </td>
@@ -509,7 +482,7 @@ export default function FireCodeFeesSection() {
                       if (!v) return yearAcc;
                       return (
                         yearAcc +
-                        FEE_SECTORS.reduce((a, s) => a + categoryTotal(v, s.key, categIndex.get(c.key) ?? -1), 0)
+                        FEE_SECTORS.reduce((a, s) => a + categoryTotal(v, s.key, c.detno), 0)
                       );
                     }, 0);
                     return (
@@ -521,7 +494,7 @@ export default function FireCodeFeesSection() {
                           <React.Fragment key={`${s.key}-${c.key}`}>
                             {sortedYears.map((y, yi) => {
                               const v = valuesOf(y);
-                              const amount = v ? categoryTotal(v, s.key, categIndex.get(c.key) ?? -1) : 0;
+                              const amount = v ? categoryTotal(v, s.key, c.detno) : 0;
                               return (
                                 <td
                                   key={`${s.key}-${c.key}-${y}`}

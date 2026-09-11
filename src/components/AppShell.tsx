@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
   }, [user]);
 
   const header = (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background sm:bg-background/70 px-4 py-2 backdrop-blur-xl sm:px-6 sm:py-3">
+    <header className="sticky top-0 z-[100] isolate border-b border-border/60 bg-background px-4 py-2 sm:px-6 sm:py-3">
       <div className="flex w-full min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2">
         <div className="flex min-w-0 flex-1 basis-[14rem] items-start gap-2">
           {user && <SidebarTrigger className="shrink-0" />}

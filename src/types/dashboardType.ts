@@ -191,6 +191,7 @@ export interface DashboardFeeItemModel {
   feecategname: string;
   feeparentno: number;
   feeparentcode: string;
+  feeparentname: string;
   yearList: DashboardFeeYearModel[];
 }
 
