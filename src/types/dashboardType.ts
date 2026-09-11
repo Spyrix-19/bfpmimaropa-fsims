@@ -16,6 +16,7 @@ export interface DashboardDTO {
 
 export interface DashboardYearToYearDTO {
   reportyear: number[];
+  Feecateg: number[];
   Provinces: DashboardClass[];
 }
 
@@ -178,25 +179,28 @@ export interface StationMonthlyPerformanceClass {
 
 
 
-export interface DashboardYearlyFireCodeFeeCollectionModel {
-  collectionList: DashboardYearlyFireCodeFeeSectorClass[];
+
+export interface DashboardFeeCollectionModel {
+  feeList: DashboardFeeItemModel[];
 }
 
-export interface DashboardYearlyFireCodeFeeSectorClass {
-  sectorno: number;
-  sectorcode: string;
-  yearList: DashboardYearlyFireCodeFeeYearClass[];
-}
-
-export interface DashboardYearlyFireCodeFeeYearClass {
-  reportyear: number;
-  feeList: DashboardYearlyFireCodeFeeItem[];
-}
-
-export interface DashboardYearlyFireCodeFeeItem {
+export interface DashboardFeeItemModel {
   feeno: string;
   feecateg: number;
-  feecategcode: number;
+  feecategcode: string;
   feecategname: string;
+  feeparentno: number;
+  feeparentcode: string;
+  yearList: DashboardFeeYearModel[];
+}
+
+export interface DashboardFeeYearModel {
+  reportyear: number;
+  sectors: DashboardFeeYearSectorModel[];
+}
+
+export interface DashboardFeeYearSectorModel {
+  sectorno: number;
+  sectorcode: string;
   collectionamount: number;
 }
