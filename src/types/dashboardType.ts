@@ -175,3 +175,28 @@ export interface StationMonthlyPerformanceClass {
   pezaPercentage: number;
   tiezaPercentage: number;
 }
+
+
+
+export interface DashboardYearlyFireCodeFeeCollectionModel {
+  collectionList: DashboardYearlyFireCodeFeeSectorClass[];
+}
+
+export interface DashboardYearlyFireCodeFeeSectorClass {
+  Sectorno: number;
+  Sectorcode: string;
+  yearList: DashboardYearlyFireCodeFeeYearClass[];
+}
+
+export interface DashboardYearlyFireCodeFeeYearClass {
+  Reportyear: number;
+  FeeList: DashboardYearlyFireCodeFeeItem[];
+}
+
+export interface DashboardYearlyFireCodeFeeItem {
+  Feeno: string;
+  Feecateg: number;
+  Feecategcode: number;
+  Feecategname: string;
+  Collectionamount: number;
+}
