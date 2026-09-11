@@ -664,10 +664,53 @@ export default function FireCodeFeesPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const exportProvinces = (provincePayload ?? []).map<FSISFeeCollectionParamClass>((p) => ({
-        Provinceno: p.Provinceno,
-        Stationnos: p.Stationnos,
-      }));
+      const exportProvinces =
+        (provincePayload && provincePayload.length ? provincePayload : JSON.parse(locationParamsKey))
+          ?.map<FSISFeeCollectionParamClass>((p) => ({
+            Provinceno: p.Provinceno ?? p.provinceno,
+            Stationnos: p.Stationnos ?? p.stationnos ?? [],
+          })) ?? [];
+
+      const allStationOptions = new Map<string, { stationno: string; stationcode: string; stationname: string; provinceno: string; provincename: string }>();
+      for (const province of exportProvinces) {
+        const stationNumbers = Array.isArray(province.Stationnos) ? province.Stationnos : [];
+        if (stationNumbers.length > 0) {
+          stationNumbers.forEach((s) => {
+            if (!s) return;
+            allStationOptions.set(String(s), {
+              stationno: String(s),
+              stationcode: "",
+              stationname: "",
+              provinceno: province.Provinceno,
+              provincename: "",
+            });
+          });
+          continue;
+        }
+
+        const resp = await stationAPI.search(
+          {
+            provinceno:
+              province.Provinceno && province.Provinceno !== EMPTY_GUID ? province.Provinceno : undefined,
+            pageNumber: 1,
+            pageSize: 1000,
+          },
+          { suppressGlobalLoading: true, suppressErrorToast: true },
+        );
+        const { ok, data } = unwrap<{ stationno: string; stationcode: string; stationname: string; provinceno: string; provincename: string }[]>(resp);
+        if (ok && Array.isArray(data)) {
+          data.forEach((station) => {
+            if (!station?.stationno) return;
+            allStationOptions.set(String(station.stationno), {
+              stationno: String(station.stationno),
+              stationcode: String(station.stationcode ?? ""),
+              stationname: String(station.stationname ?? ""),
+              provinceno: String(station.provinceno ?? province.Provinceno ?? ""),
+              provincename: String(station.provincename ?? ""),
+            });
+          });
+        }
+      }
 
       const resp = await firecodefeesAPI.getLedger(
         {
@@ -691,7 +734,25 @@ export default function FireCodeFeesPage() {
       }
 
       const monthSet = new Set(selectedMonths);
-      const exportRows = (Array.isArray(data) ? data : []).map((st) => mapStation(st, monthSet));
+      const stationByNo = new Map(
+        (Array.isArray(data) ? data : []).map((st) => [String(st.stationno), st]),
+      );
+      const exportRows = Array.from(allStationOptions.values()).map((station) => {
+        const record = stationByNo.get(station.stationno);
+        return mapStation(
+          record ?? {
+            stationno: station.stationno,
+            stationcode: station.stationcode,
+            stationname: station.stationname,
+            provinceno: station.provinceno,
+            provincename: station.provincename,
+            logourl: "",
+            feedetaillist: [],
+          },
+          monthSet,
+        );
+      });
+
       if (exportRows.length === 0) {
         toast.info("No Fire Code Fees collection records to export.");
         return;
@@ -735,7 +796,7 @@ export default function FireCodeFeesPage() {
             <Button
               variant="outline"
               onClick={() => void handleExport()}
-              disabled={exporting || rows.length === 0}
+              disabled={exporting}
               className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
             >
               {exporting ? (
