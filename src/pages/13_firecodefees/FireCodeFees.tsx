@@ -493,6 +493,30 @@ export default function FireCodeFeesPage() {
       .filter((id) => Number.isFinite(id) && id > 0);
   }, [feeTypeOptions, feeTypes]);
 
+  const normalizeProvinceSelections = React.useCallback(
+    (entries: unknown): FSISFeeCollectionParamClass[] => {
+      if (!Array.isArray(entries)) return [];
+      return entries
+        .map((entry) => {
+          const source = (entry ?? {}) as Record<string, unknown>;
+          const provinceno = String(
+            source.Provinceno ?? source.provinceno ?? EMPTY_GUID,
+          );
+          const stationnos = (Array.isArray(source.Stationnos)
+            ? source.Stationnos
+            : Array.isArray(source.stationnos)
+              ? source.stationnos
+              : []) as unknown[];
+          return {
+            Provinceno: provinceno,
+            Stationnos: stationnos.map((station) => String(station)).filter(Boolean),
+          };
+        })
+        .filter((item) => item.Provinceno !== EMPTY_GUID || item.Stationnos.length > 0);
+    },
+    [],
+  );
+
   const mapStation = React.useCallback(
     (station: FSISStationFeeDetailModel, monthSet: Set<number>): FireCodeFeeLedgerRow => {
       const list = Array.isArray(station.feedetaillist) ? station.feedetaillist : [];
@@ -536,7 +560,7 @@ export default function FireCodeFeesPage() {
   );
 
   React.useEffect(() => {
-    const params = JSON.parse(locationParamsKey) as FSISFeeCollectionParamClass[];
+    const params = normalizeProvinceSelections(JSON.parse(locationParamsKey));
     let cancelled = false;
     (async () => {
       const needsFill = params.length === 0 || params.some((p) => (p.Stationnos ?? []).length === 0);
@@ -593,7 +617,7 @@ export default function FireCodeFeesPage() {
     return () => {
       cancelled = true;
     };
-  }, [locationParamsKey]);
+  }, [locationParamsKey, normalizeProvinceSelections]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -667,7 +691,7 @@ export default function FireCodeFeesPage() {
       const exportProvinces =
         (provincePayload && provincePayload.length
           ? provincePayload
-          : (JSON.parse(locationParamsKey) as FSISFeeCollectionParamClass[])
+          : normalizeProvinceSelections(JSON.parse(locationParamsKey))
         )?.map<FSISFeeCollectionParamClass>((p) => ({
           Provinceno: p.Provinceno,
           Stationnos: p.Stationnos ?? [],
