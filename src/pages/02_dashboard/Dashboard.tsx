@@ -37,29 +37,41 @@ export default function Dashboard() {
     ? `Welcome, ${rank ? rank + " " : ""}${lastName} 👋`
     : "Fire Safety Inspection Monitoring";
 
-  return (
-    <div className="space-y-6">
-      <StickyPageTop>
-        <div>
-          <div className="mb-1 flex items-center gap-2">
-            <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Live monitoring
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
-          <p className="text-sm text-muted-foreground">
-            Real-time fire safety inspection accomplishments across MIMAROPA Region.
-          </p>
+  // The sticky title + filter band is passed into the body so it can be
+  // grouped with the content above "Target vs Actual by Province". That lets
+  // CSS sticky release the band exactly where that section — which has its own
+  // filter — begins.
+  const top = (
+    <StickyPageTop>
+      <div>
+        <div className="mb-1 flex items-center gap-2">
+          <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Live monitoring
+          </span>
         </div>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+        <p className="text-sm text-muted-foreground">
+          Real-time fire safety inspection accomplishments across MIMAROPA Region.
+        </p>
+      </div>
 
-        <Suspense fallback={<FilterBarFallback />}>
-          <FilterBar />
-        </Suspense>
-      </StickyPageTop>
-      <Suspense fallback={<DashboardBodyFallback />}>
-        <DashboardBody />
+      <Suspense fallback={<FilterBarFallback />}>
+        <FilterBar />
       </Suspense>
-    </div>
+    </StickyPageTop>
+  );
+
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          {top}
+          <DashboardBodyFallback />
+        </div>
+      }
+    >
+      <DashboardBody top={top} />
+    </Suspense>
   );
 }

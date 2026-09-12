@@ -665,11 +665,13 @@ export default function FireCodeFeesPage() {
     setExporting(true);
     try {
       const exportProvinces =
-        (provincePayload && provincePayload.length ? provincePayload : JSON.parse(locationParamsKey))
-          ?.map<FSISFeeCollectionParamClass>((p) => ({
-            Provinceno: p.Provinceno ?? p.provinceno,
-            Stationnos: p.Stationnos ?? p.stationnos ?? [],
-          })) ?? [];
+        (provincePayload && provincePayload.length
+          ? provincePayload
+          : (JSON.parse(locationParamsKey) as FSISFeeCollectionParamClass[])
+        )?.map<FSISFeeCollectionParamClass>((p) => ({
+          Provinceno: p.Provinceno,
+          Stationnos: p.Stationnos ?? [],
+        })) ?? [];
 
       const allStationOptions = new Map<string, { stationno: string; stationcode: string; stationname: string; provinceno: string; provincename: string }>();
       for (const province of exportProvinces) {

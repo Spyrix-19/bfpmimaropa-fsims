@@ -79,6 +79,7 @@ import { LocationMultiSelect, type SelectedLocation } from "@/components/locatio
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import StationPerformanceSections from "@/pages/02_dashboard/components/StationPerformanceSections";
 import FireCodeFeesSection from "@/pages/02_dashboard/components/FireCodeFeesSection";
+import FireCodeFeesVarianceSection from "@/pages/02_dashboard/components/FireCodeFeesVarianceSection";
 import PaginationControls from "@/components/pagination";
 import FilterField from "@/components/filter-field";
 import {
@@ -1417,7 +1418,7 @@ function ChartScopeFilters({
   );
 }
 
-export function DashboardBody() {
+export function DashboardBody({ top }: { top?: React.ReactNode }) {
   const { user, systemAccess, isAuthenticated } = useAuth();
   const { filters } = useFilters();
   const scope = useMemo(
@@ -1648,8 +1649,17 @@ export function DashboardBody() {
 
   return (
     <div className="space-y-6">
-      {/* KPIs — sector progress full width */}
-      <SectorProgressCard compliance={compliance} />
+      {/*
+        Everything above "Target vs Actual by Province" is grouped in its own
+        wrapper. The sticky page-top band is a child of this wrapper, so CSS
+        sticky releases it (it scrolls away) exactly where that section — which
+        has its own filter — begins.
+      */}
+      <div className="space-y-6">
+        {top}
+
+        {/* KPIs — sector progress full width */}
+        <SectorProgressCard compliance={compliance} />
 
       {/* Breakdowns — Inspection / FSEC / FSIC */}
       <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1719,11 +1729,12 @@ export function DashboardBody() {
         />
       </div>
 
-      {/* Row 1: Target Gap by Province | Inspections (50/50) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <GapChartCard rows={gapRows} loading={gapLoading} />
+        {/* Row 1: Target Gap by Province | Inspections (50/50) */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <GapChartCard rows={gapRows} loading={gapLoading} />
 
-        <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
+          <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
+        </div>
       </div>
 
       {/* Supplementary row: Target vs Actual by Province */}
@@ -2113,7 +2124,10 @@ export function DashboardBody() {
         )}
       </ChartCard>
 
-      {/* Row 6: Fire Code Fees collection */}
+      {/* Row 6: Fire Code Fees variance comparison (under development) */}
+      <FireCodeFeesVarianceSection />
+
+      {/* Row 6b: Fire Code Fees collection */}
       <FireCodeFeesSection />
 
       {/* Row 7: Station performance leaderboards */}

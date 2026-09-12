@@ -523,7 +523,7 @@ export default function FireCodeFeesSection() {
             <tfoot>
               <tr className="border-t border-grid bg-muted/60">
                 <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
-                  Total
+                  TOTAL
                 </td>
                 {FEE_SECTORS.map((s) => (
                   <React.Fragment key={`${s.key}-total`}>
