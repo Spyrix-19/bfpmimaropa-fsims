@@ -21,7 +21,6 @@ import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 
 import { peso } from "./fees/feeColumns";
-import { groupByParent, useFeeCategories } from "./fees/feeCategories";
 
 /* -------------------------------------------------------------------------- */
 /*  Period filters                                                             */
@@ -156,7 +155,6 @@ function TwoYearSelect({
 /* -------------------------------------------------------------------------- */
 
 export default function FireCodeFeesVarianceSection() {
-  const { categories } = useFeeCategories();
   const { user, systemAccess, isAuthenticated } = useAuth();
   const scope = React.useMemo(
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
@@ -233,7 +231,17 @@ export default function FireCodeFeesVarianceSection() {
   const sortedYears = React.useMemo(() => [...years].sort((a, b) => a - b), [years]);
   const [baseYear, compareYear] = sortedYears;
 
-  const groups = React.useMemo(() => groupByParent(categories), [categories]);
+  const varianceRows = React.useMemo(
+    () => [
+      { code: "FCCT", label: "FCCT + Filing Fees" },
+      { code: "FSIB", label: "FSI Fee (Business)" },
+      { code: "FSIO", label: "FSI Fee (Occupancy)" },
+      { code: "FCTC", label: "Fire Code Tax & Clearances" },
+      { code: "AF", label: "Admin Fees" },
+      { code: "OF", label: "Other Fees" },
+    ],
+    [],
+  );
 
   /** Feature is under development: figures stay empty on purpose. */
   const amount = 0;
@@ -387,59 +395,38 @@ export default function FireCodeFeesVarianceSection() {
             </tr>
           </thead>
           <tbody>
-            {groups.map((g) => (
-              <React.Fragment key={g.parentno || g.code || g.name}>
-                <tr className="bg-primary/5">
-                  <td className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']">
-                    <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
-                      {g.code || g.name}
-                    </span>
-                    {g.items.length > 1 && g.name && g.name !== g.code ? (
-                      <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
-                        {g.name}
-                      </span>
-                    ) : null}
+            {varianceRows.map((row) => {
+              const baseAmt = amount;
+              const compareAmt = amount;
+              const pct = percentOf(baseAmt, compareAmt);
+              return (
+                <tr key={row.code} className="border-t border-grid">
+                  <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
+                    {row.label}
                   </td>
-                  <td className="border-l border-grid px-3 py-1.5" />
-                  <td className="border-l border-grid px-3 py-1.5" />
-                  <td className="border-l border-grid px-3 py-1.5" />
-                  <td className="border-l border-grid px-3 py-1.5" />
-                  <td className="border-l border-grid px-3 py-1.5" />
+                  <td className={cn("border-l border-t border-grid", valueCellClass)}>
+                    {peso(baseAmt)}
+                  </td>
+                  <td className={cn("border-l border-t border-grid", valueCellClass)}>
+                    {peso(compareAmt)}
+                  </td>
+                  <td className="w-32 min-w-32 border-l border-t border-grid px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                    {peso(varianceOf(baseAmt, compareAmt))}
+                  </td>
+                  <td className="w-32 min-w-32 border-l border-t border-grid px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                    {peso(positiveOf(baseAmt, compareAmt))}
+                  </td>
+                  <td
+                    className={cn(
+                      "w-24 min-w-24 border-l border-t border-grid px-3 py-1.5 text-right font-semibold tabular-nums",
+                      percentClass(pct),
+                    )}
+                  >
+                    {percentText(pct)}
+                  </td>
                 </tr>
-                {g.items.map((c) => {
-                  const baseAmt = amount;
-                  const compareAmt = amount;
-                  const pct = percentOf(baseAmt, compareAmt);
-                  return (
-                    <tr key={c.key} className="border-t border-grid">
-                      <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
-                        {c.label}
-                      </td>
-                      <td className={cn("border-l border-t border-grid", valueCellClass)}>
-                        {peso(baseAmt)}
-                      </td>
-                      <td className={cn("border-l border-t border-grid", valueCellClass)}>
-                        {peso(compareAmt)}
-                      </td>
-                      <td className="w-32 min-w-32 border-l border-t border-grid px-3 py-1.5 text-right tabular-nums text-muted-foreground">
-                        {peso(varianceOf(baseAmt, compareAmt))}
-                      </td>
-                      <td className="w-32 min-w-32 border-l border-t border-grid px-3 py-1.5 text-right tabular-nums text-muted-foreground">
-                        {peso(positiveOf(baseAmt, compareAmt))}
-                      </td>
-                      <td
-                        className={cn(
-                          "w-24 min-w-24 border-l border-t border-grid px-3 py-1.5 text-right font-semibold tabular-nums",
-                          percentClass(pct),
-                        )}
-                      >
-                        {percentText(pct)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            ))}
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t border-grid bg-muted/60">

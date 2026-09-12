@@ -2125,10 +2125,10 @@ export function DashboardBody({ top }: { top?: React.ReactNode }) {
       </ChartCard>
 
       {/* Row 6: Fire Code Fees variance comparison (under development) */}
-      <FireCodeFeesVarianceSection />
+      <FireCodeFeesVarianceSection key="fire-code-fees-variance-panel" />
 
       {/* Row 6b: Fire Code Fees collection */}
-      <FireCodeFeesSection />
+      <FireCodeFeesSection key="fire-code-fees-collection-panel" />
 
       {/* Row 7: Station performance leaderboards */}
       <StationPerformanceSections selectedYear={currentYear} />
