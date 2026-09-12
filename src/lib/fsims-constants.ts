@@ -11,6 +11,12 @@ export const REGION_CODE = "Region IV-B";
 /** MIMAROPA region GUID — used as parentcode for all PROVINCE location lookups. */
 export const MIMAROPA_REGION_CODE = "a2f126b7-cb86-403a-906b-c41d63fc2e36";
 
+export const MIMAROPA_ORIENTAL_MINDORO = "7cacd61b-c182-4b2a-808d-9b0327285c7e";
+export const MIMAROPA_OCCIDENTAL_MINDORO = "136d5ef8-6630-40cc-92b0-442549219f7a";
+export const MIMAROPA_MARINDUQUE = "a64cac2b-dd82-440d-9a6d-e15b61d28c8b";
+export const MIMAROPA_ROMBLON = "febbbe0f-cfa6-4280-84a5-6682149809e7";
+export const MIMAROPA_PALAWAN = "e3b0639d-10ea-4291-8f06-c10951d71f61";
+
 export const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
 /** Mode of issuance (`fsicmode`) of a Fire Code Fees collection line. */
