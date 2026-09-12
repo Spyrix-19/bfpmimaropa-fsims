@@ -82,7 +82,7 @@ function useFilterPermissions() {
 }
 
 export default function UsersLedger({ variant, title, description }: Props) {
-  const { user, systemAccess, isAdministrator } = useAuth();
+  const { user, systemAccess, isAdministrator, isSuperAdmin } = useAuth();
   const { provinceEditable, stationEditable } = useFilterPermissions();
 
   // Filters — seed province/station from the authenticated user when fixed.
@@ -127,15 +127,22 @@ export default function UsersLedger({ variant, title, description }: Props) {
   const [newDesignation, setNewDesignation] = React.useState<string>("");
 
   const currentRoleNo = systemAccess?.roleno ?? 0;
+  const isLoggedInSuperAdmin = currentRoleNo === 1 || isSuperAdmin();
+  const isLoggedInAdmin = currentRoleNo === 2;
+  const loggedInStationType = Number(user?.stationtype ?? 0) || 0;
+  const isStationSelectionReadOnlyForAdmin =
+    isLoggedInAdmin && !isLoggedInSuperAdmin && [28, 29, 30, 31].includes(loggedInStationType);
+  const isProvinceScopedStationForAdmin =
+    isLoggedInAdmin && !isLoggedInSuperAdmin && loggedInStationType === 27;
 
   /**
-   * Account-role options follow the authorization matrix:
-   * - SUPER (1)     → all roles (SUPER hidden for restricted station types)
-   * - ADMIN (2)     → everything except SUPER
-   * - PERSONNEL (3) → PERSONNEL only
+   * Role dropdown options follow the current logged-in user authorization matrix:
+   * - SUPER (1)     → all roles visible
+   * - ADMIN (2)     → all roles except SUPER
+   * - PERSONNEL (3) → all roles except SUPER and ADMIN
    */
   const makeRoleFilter = React.useCallback(
-    (stationtype: number | undefined) =>
+    () =>
       (rows: import("@/types/gentableType").SearchGentableModel[]) =>
         rows.filter((row) => {
           const code = String(row.recordcode ?? "")
@@ -145,17 +152,15 @@ export default function UsersLedger({ variant, title, description }: Props) {
             .trim()
             .toUpperCase();
           const isSuperRow = code === "SUPER" || desc.includes("SUPER ADMIN");
+          const isAdminRow = code === "ADMIN" || desc.includes("ADMIN");
           const isPersonnelRow = code === "PERSONNEL" || desc.includes("PERSONNEL");
 
+          if (isLoggedInSuperAdmin) return true;
+          if (currentRoleNo === 2) return !isSuperRow;
           if (currentRoleNo === 3) return isPersonnelRow;
-          if (isSuperRow) {
-            if (currentRoleNo !== 1) return false;
-            const restricted = [27, 28, 29, 30, 31];
-            return !restricted.includes(Number(stationtype ?? 0));
-          }
           return true;
         }),
-    [currentRoleNo],
+    [currentRoleNo, isLoggedInSuperAdmin],
   );
 
   const filterAccountRoleRows = React.useMemo(
@@ -472,7 +477,8 @@ export default function UsersLedger({ variant, title, description }: Props) {
         <div className="space-y-4">
           <div className="space-y-4 md:hidden">
             {paged.map((r) => {
-              const disabled = variant === "active" && isAdministrator() && r.roleno === 1;
+              const disabled =
+                variant === "active" && isAdministrator() && !isLoggedInSuperAdmin && r.roleno === 1;
               const displayName = `${r.rankcode ? `${r.rankcode} ` : ""}${r.fullname}`;
               return (
                 <Card
@@ -583,7 +589,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
                     >
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
-                          {variant === "active" && isAdministrator() && r.roleno === 1 ? (
+                          {variant === "active" && isAdministrator() && !isLoggedInSuperAdmin && r.roleno === 1 ? (
                             <Button size="sm" disabled className="gap-1.5">
                               <Slash className="h-4 w-4" />
                               {actionLabel}
@@ -962,6 +968,9 @@ export default function UsersLedger({ variant, title, description }: Props) {
                     <StationSearchSelect
                       value={newStationno}
                       valueName={newStationname}
+                      provinceno={isProvinceScopedStationForAdmin ? user?.provinceno : undefined}
+                      readOnly={isStationSelectionReadOnlyForAdmin}
+                      disabled={isStationSelectionReadOnlyForAdmin}
                       onChange={(no, name) => {
                         setNewStationno(no);
                         setNewStationname(name);
