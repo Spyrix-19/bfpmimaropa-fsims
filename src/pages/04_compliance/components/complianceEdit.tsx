@@ -85,7 +85,7 @@ import type {
 } from "@/types/complianceType";
 
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 
 /* ========================================================================== */
 /*  Column definitions — keyed by the EXACT API property names               */
@@ -300,7 +300,7 @@ function hasPstLockActivated(
   reportmonth: number,
   now: Date = new Date(),
 ): boolean {
-  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
+  if (!isPastDateLockEnabled("monitoring")) return false;
   const y = Number(reportyear);
   const m = Number(reportmonth);
   if (!y || !m || m < 1 || m > 12) return false;
@@ -311,7 +311,7 @@ function hasPstLockActivated(
 
 /** Check if a given date has already passed (is before today at midnight). */
 function isDayPassed(dateStr: string): boolean {
-  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
+  if (!isPastDateLockEnabled("monitoring")) return false;
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return false;
   const today = new Date();
@@ -954,7 +954,7 @@ function ComplianceEditBody({
             </Select>
           </div>
         </div>
-        <PastDatesLockedNote />
+        <PastDatesLockedNote module="monitoring" />
       </Card>
 
       {/* Station Information ------------------------------------------------- */}
@@ -1832,7 +1832,7 @@ export function ComplianceEditModal({
                 {stationName ? `${stationName} · ` : ""}
                 {monthName} {viewPeriod.year}
               </DialogDescription>
-              {IS_PAST_DATE_LOCK_ENABLED && (
+              {isPastDateLockEnabled("monitoring") && (
                 <p className="mt-1 text-[11px] text-muted-foreground/90">
                   <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
                   Each month locks on the{" "}

@@ -69,7 +69,7 @@ import type {
 } from "@/types/noticeType";
 import { MONITORING_THEME } from "@/pages/04_compliance/components/complianceTheme";
 import type { NoticeRecord } from "@/pages/05_notices/Notice";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 
 /* -------------------------------------------------------------------------- */
 /*  Mode of Issuance — 96 = MANUAL, 97 = FSIS                                 */
@@ -602,7 +602,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           isrevisionrequest: Boolean(entry.isrevisionrequest),
           editablestatus: Number(entry.editablestatus ?? 0),
         });
-        const isPast = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
+        const isPast = isPastDateLockEnabled("notice") && reportingDate.getTime() < startOfToday();
         const unlocked = Number(entry.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(entry.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -645,7 +645,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   });
 
   /* ── Lock rules for the selected date ───────────────────────────────────── */
-  const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
+  const isPastSelectedDate = isPastDateLockEnabled("notice") && reportingDate.getTime() < startOfToday();
   const {
     activeRequest,
     unlockedByApproval,
@@ -817,7 +817,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
               </Field>
             </div>
 
-            <PastDatesLockedNote />
+            <PastDatesLockedNote module="notice" />
           </Card>
 
           {/* 2. Station Information ------------------------------------------ */}

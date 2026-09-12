@@ -60,7 +60,7 @@ import { useRevisionLedger } from "../revision/useRevisionRequests";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 import { serializePhilippineDateTime } from "@/lib/date-format";
 
 interface Props {
@@ -129,7 +129,7 @@ function isPastTargetDate(
   day: number,
   now: Date = new Date(),
 ): boolean {
-  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
+  if (!isPastDateLockEnabled("target-reference")) return false;
   const targetDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 0, 0, 0));
   const todayAtMidnight = new Date(
     Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0),
@@ -1010,7 +1010,7 @@ export default function TargetReferenceForm({
               Record target references per station and reporting period — monthly, quarterly,
               semi-annual, and annual totals are auto-computed.
             </p>
-            {IS_PAST_DATE_LOCK_ENABLED && (
+            {isPastDateLockEnabled("target-reference") && (
               <p className="mt-1 text-[11px] text-muted-foreground/90">
                 <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
                 Past dates are locked until a revision request is approved. Current and future dates
@@ -1078,7 +1078,7 @@ export default function TargetReferenceForm({
                   </Select>
                 </div>
               </div>
-              <PastDatesLockedNote />
+              <PastDatesLockedNote module="target-reference" />
             </Card>
 
             {/* Station Information card */}

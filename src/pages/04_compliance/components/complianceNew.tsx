@@ -75,7 +75,7 @@ import RevisionRequestDialog from "@/pages/06_target-reference/revision/Revision
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import { formatLongDate, serializePhilippineDateTime } from "@/lib/date-format";
 import { Ban, FilePen, Trash2, Lock } from "lucide-react";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 
 /** Row shape returned by the compliance "detail by date" endpoint. */
 type ComplianceRow = FSISComplianceDetailClassModel & { isdeleted?: boolean };
@@ -635,7 +635,7 @@ function InspectionsNewBody({
           totalAccomplishmentpeza: Number(record.inspectpezacount ?? 0),
           totalAccomplishmenttieza: Number(record.inspecttiezacount ?? 0),
         });
-        const isPast = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
+        const isPast = isPastDateLockEnabled("monitoring") && reportingDate.getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(record.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -695,7 +695,7 @@ function InspectionsNewBody({
   });
 
   /* ── Lock rules for the selected (single) date ───────────────────────────── */
-  const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && reportingDate.getTime() < startOfToday();
+  const isPastSelectedDate = isPastDateLockEnabled("monitoring") && reportingDate.getTime() < startOfToday();
   const {
     activeRequest,
     unlockedByApproval,
@@ -976,7 +976,7 @@ function InspectionsNewBody({
           </Field>
         </div>
 
-        <PastDatesLockedNote />
+        <PastDatesLockedNote module="monitoring" />
       </Card>
 
       {/* 2. Station Information -------------------------------------------- */}

@@ -87,7 +87,7 @@ import { useRevisionLedger } from "../revision/useRevisionRequests";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 import { serializePhilippineDateTime } from "@/lib/date-format";
 
 interface Props {
@@ -155,7 +155,7 @@ function hasPstLockActivated(
   reportmonth: number,
   now: Date = new Date(),
 ): boolean {
-  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
+  if (!isPastDateLockEnabled("target-reference")) return false;
   const y = Number(reportyear);
   const m = Number(reportmonth);
   if (!y || !m || m < 1 || m > 12) return false;
@@ -553,7 +553,7 @@ export default function TargetReferenceForm({
         });
 
         const isPast =
-          IS_PAST_DATE_LOCK_ENABLED && parseDateInputValue(selectedDate).getTime() < startOfToday();
+          isPastDateLockEnabled("target-reference") && parseDateInputValue(selectedDate).getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(record.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -742,7 +742,7 @@ export default function TargetReferenceForm({
 
   /* ── Past-date lock rules (Add mode, single date) ───────────────────────── */
   const isPastSelectedDate =
-    IS_PAST_DATE_LOCK_ENABLED &&
+    isPastDateLockEnabled("target-reference") &&
     !!selectedDate &&
     parseDateInputValue(selectedDate).getTime() < startOfToday();
   const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
@@ -1375,7 +1375,7 @@ export default function TargetReferenceForm({
                   </Popover>
                 </div>
               )}
-              <PastDatesLockedNote />
+              <PastDatesLockedNote module="target-reference" />
             </Card>
 
             {/* Station Information card */}

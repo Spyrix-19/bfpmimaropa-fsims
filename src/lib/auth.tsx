@@ -22,6 +22,7 @@ import { getClientIp } from "@/lib/client-ip";
 import { FSIMS_SYSTEMNO, FSIMS_SYSTEMCODE, SUPER, ADMIN, PERSONNEL } from "@/lib/fsims-constants";
 import { encryptPayload, decryptPayload, destroySessionKey } from "@/lib/secure-session";
 import { setAccessToken, setCachedRoleCode, getCachedRoleCode } from "@/lib/auth-token";
+import { setPastDateLockContext } from "@/lib/past-date-lock";
 
 /** Modules a user may be authorized against. Drives sidebar + route guards. */
 export type AppModule =
@@ -385,6 +386,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(s);
     setAccessToken(s?.user.accessToken ?? null);
     setCachedRoleCode(s?.user.systemaccess?.rolecode ?? null);
+    setPastDateLockContext(
+      s ? { provinceno: s.user.provinceno ?? "", roleno: s.user.systemaccess?.roleno ?? 0 } : null,
+    );
   }, []);
 
   const logout = useCallback(() => {
@@ -434,6 +438,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const next: Session = { ...prev, user: nextUser };
       setAccessToken(nextUser.accessToken ?? null);
       setCachedRoleCode(nextUser.systemaccess?.rolecode ?? null);
+      setPastDateLockContext({
+        provinceno: nextUser.provinceno ?? "",
+        roleno: nextUser.systemaccess?.roleno ?? 0,
+      });
       void writeStoredSession(
         { user: nextUser, expiration: prev.expiration },
         prefersLocalStorage(),

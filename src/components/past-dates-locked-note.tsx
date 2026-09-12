@@ -1,6 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled, type PastDateLockModule } from "@/lib/past-date-lock";
 
 /**
  * Emphasized inline advisory shown under the reporting-period date explaining
@@ -8,8 +8,14 @@ import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
  * Shared by the Compliance, Notice, and Target Reference entry dialogs so the
  * wording and treatment stay identical across the app.
  */
-export function PastDatesLockedNote({ className }: { className?: string }) {
-  if (!IS_PAST_DATE_LOCK_ENABLED) return null;
+export function PastDatesLockedNote({
+  className,
+  module,
+}: {
+  className?: string;
+  module?: PastDateLockModule;
+}) {
+  if (!isPastDateLockEnabled(module)) return null;
   return (
     <div
       role="note"

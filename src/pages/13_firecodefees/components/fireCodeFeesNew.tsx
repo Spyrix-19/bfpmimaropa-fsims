@@ -19,7 +19,7 @@ import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { canManageTargetAndCompliance, canShowEditAction } from "@/lib/permissions";
 import { EMPTY_GUID, MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { serializePhilippineDateTime } from "@/lib/date-format";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -813,7 +813,7 @@ export function FireCodeFeesFormBody({
     reloadNonce,
   });
 
-  const isPastSelectedDate = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, month);
+  const isPastSelectedDate = isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, month);
   const {
     activeRequest,
     unlockedByApproval,
@@ -998,7 +998,7 @@ export function FireCodeFeesFormBody({
         <p className="text-[11px] text-muted-foreground">
           Reporting month · {monthName} {year}
         </p>
-        <PastDatesLockedNote />
+        <PastDatesLockedNote module="fire-code-fees" />
       </Card>
 
       {/* 2. Station information */}

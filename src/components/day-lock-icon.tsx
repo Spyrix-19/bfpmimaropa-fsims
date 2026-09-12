@@ -1,6 +1,6 @@
 import { Lock, LockOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled, type PastDateLockModule } from "@/lib/past-date-lock";
 
 /** Local YYYY-MM-DD key for a calendar day. */
 export function dayKey(year: number, month: number, day: number): string {
@@ -8,8 +8,8 @@ export function dayKey(year: number, month: number, day: number): string {
 }
 
 /** A date is locked once it is before today (local midnight). */
-export function isDayLocked(date: string | Date): boolean {
-  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
+export function isDayLocked(date: string | Date, module?: PastDateLockModule): boolean {
+  if (!isPastDateLockEnabled(module)) return false;
   const d = typeof date === "string" ? new Date(`${date.slice(0, 10)}T00:00:00`) : new Date(date);
   if (Number.isNaN(d.getTime())) return false;
   const today = new Date();

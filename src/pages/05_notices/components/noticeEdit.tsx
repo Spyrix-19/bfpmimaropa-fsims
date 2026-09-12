@@ -70,7 +70,7 @@ import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -186,7 +186,7 @@ const SERIES = {
  * A month locks on day 4 of the following calendar month at 00:00 PST.
  */
 function hasPstLockActivated(year: number, month: number, now: Date = new Date()): boolean {
-  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
+  if (!isPastDateLockEnabled("notice")) return false;
   const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
   const lockActivationMs = Date.UTC(year, month, 4, 0, 0, 0);
   return manilaNowMs >= lockActivationMs;
@@ -194,7 +194,7 @@ function hasPstLockActivated(year: number, month: number, now: Date = new Date()
 
 /** Check if a given date (YYYY-MM-DD) has already passed. */
 function isDayPassed(dateStr: string): boolean {
-  if (!IS_PAST_DATE_LOCK_ENABLED) return false;
+  if (!isPastDateLockEnabled("notice")) return false;
   try {
     const [y, m, d] = dateStr.split("-").map(Number);
     if (!y || !m || !d) return false;
@@ -772,7 +772,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                 {record.stationname ? `${record.stationname} · ` : ""}
                 {monthName} {year}
               </DialogDescription>
-              {IS_PAST_DATE_LOCK_ENABLED && (
+              {isPastDateLockEnabled("notice") && (
                 <p className="mt-1 text-[11px] text-muted-foreground/90">
                   <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
                   Each month locks on the{" "}
@@ -844,7 +844,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                 </Select>
               </div>
             </div>
-            <PastDatesLockedNote />
+            <PastDatesLockedNote module="notice" />
           </Card>
 
           {/* Station Information ------------------------------------------- */}

@@ -19,7 +19,7 @@ import { unwrap } from "@/lib/api-envelope";
 import { buildYears, cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { EMPTY_GUID, MONTHS } from "@/lib/fsims-constants";
-import { IS_PAST_DATE_LOCK_ENABLED } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -270,7 +270,7 @@ export function FireCodeFeesYearEditorBody({
   /** Per-month lock resolution — mirrors the compliance editor rules. */
   const lockInfo = React.useCallback(
     (m: MonthState) => {
-      const past = IS_PAST_DATE_LOCK_ENABLED && isPastMonth(year, m.month);
+      const past = isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, m.month);
       const lock = deriveRevisionLock({
         requests: revisionRequests,
         referencekey: m.feeno || null,
@@ -428,7 +428,7 @@ export function FireCodeFeesYearEditorBody({
             </Select>
           </div>
         </div>
-        {!readOnly && <PastDatesLockedNote />}
+        {!readOnly && <PastDatesLockedNote module="fire-code-fees" />}
       </Card>
 
       {/* 2. Station information */}
