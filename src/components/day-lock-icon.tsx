@@ -27,12 +27,14 @@ export function DayLockIcon({
   date,
   className,
   locked: lockedProp,
+  module,
 }: {
   date?: string | Date;
   className?: string;
   locked?: boolean;
+  module?: PastDateLockModule;
 }) {
-  const locked = lockedProp ?? (date ? isDayLocked(date) : false);
+  const locked = lockedProp ?? (date ? isDayLocked(date, module) : false);
   const Icon = locked ? Lock : LockOpen;
   return (
     <Icon

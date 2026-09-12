@@ -75,6 +75,7 @@ import {
 import ReadOnlyField from "./components/ReadOnlyField";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
+import { DayLockIcon } from "@/components/day-lock-icon";
 
 function BucketCell({
   b,
@@ -751,10 +752,18 @@ function TargetCard({
                   <tbody>
                     {dailyDerived.days.map((d, i) => {
                       const b = dailyDerived.daily[d];
+                      const dateKey = `${group.year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
                       return (
                         <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
                           <td className="whitespace-nowrap px-2 py-1.5 font-medium">
-                            {formatDayLabel(group.year, month, d)}
+                            <span className="flex items-center gap-2 whitespace-nowrap">
+                              <DayLockIcon
+                                date={dateKey}
+                                module="target-reference"
+                                className="h-3 w-3"
+                              />
+                              {formatDayLabel(group.year, month, d)}
+                            </span>
                           </td>
                           <BucketCell b={b} k="bplo" />
                           <BucketCell b={b} k="gov" />

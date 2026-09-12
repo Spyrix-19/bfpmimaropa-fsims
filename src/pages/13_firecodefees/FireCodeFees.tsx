@@ -76,6 +76,7 @@ import FireCodeFeesFormModal from "./components/fireCodeFeesNew";
 import FireCodeFeesYearEditorModal, { type FeeEditorStation } from "./components/fireCodeFeesEdit";
 import FireCodeFeesYearViewModal from "./components/fireCodeFeesView";
 import { FeeTypeMultiSelect, useFeeTypes } from "./components/fireCodeFeesFeeTypeFilter";
+import { DayLockIcon } from "@/components/day-lock-icon";
 
 /** Station + period context handed to the entry form when editing a ledger card. */
 interface FeeFormTarget {
@@ -1354,7 +1355,16 @@ function FireCodeFeesLedgerCard({
                     className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
                   >
                     <div className="flex min-w-[10rem] flex-1 items-center gap-2.5">
-                      <span className="text-sm font-semibold">{line.label}</span>
+                      <span className="flex items-center gap-2 whitespace-nowrap">
+                        {/^\d{4}-\d{2}$/.test(line.key) && (
+                          <DayLockIcon
+                            date={`${line.key}-01`}
+                            module="fire-code-fees"
+                            className="h-3.5 w-3.5"
+                          />
+                        )}
+                        <span className="text-sm font-semibold">{line.label}</span>
+                      </span>
                       {!hasRecord && (
                         <span className="rounded-md bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                           No Record

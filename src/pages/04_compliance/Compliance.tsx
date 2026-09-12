@@ -63,6 +63,7 @@ import { complianceAPI } from "@/services/complianceAPI.ts";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
+import { DayLockIcon } from "@/components/day-lock-icon";
 import {
   calendarDaysInMonth,
   calendarDayKeys,
@@ -1759,17 +1760,32 @@ function ComplianceLedgerCard({
                   </thead>
 
                   <tbody>
-                    {lines.map((l, lineIdx) => (
-                      <React.Fragment key={l.key}>
-                        <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
-                          <th scope="row" rowSpan={2} className={rowHeadCell}>
-                            {l.label}
-                          </th>
-                          {INSPECTION_PLAIN_COLS.map((c) => (
-                            <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
-                              <N v={l.inspection[c.key] ?? 0} />
-                            </td>
-                          ))}
+                    {lines.map((l, lineIdx) => {
+                      const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                        ? l.key
+                        : l.key.match(/^\d{4}-\d{2}$/)
+                          ? `${l.key}-01`
+                          : null;
+                      return (
+                        <React.Fragment key={l.key}>
+                          <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
+                            <th scope="row" rowSpan={2} className={rowHeadCell}>
+                              <span className="flex items-center gap-2 whitespace-nowrap">
+                                {labelDate && (
+                                  <DayLockIcon
+                                    date={labelDate}
+                                    module="monitoring"
+                                    className="h-3 w-3"
+                                  />
+                                )}
+                                {l.label}
+                              </span>
+                            </th>
+                            {INSPECTION_PLAIN_COLS.map((c) => (
+                              <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                                <N v={l.inspection[c.key] ?? 0} />
+                              </td>
+                            ))}
                           {INSPECTION_SECTORS.map((s) => (
                             <SectorMetricCells
                               key={s.key}
@@ -1786,19 +1802,20 @@ function ComplianceLedgerCard({
                               <N v={l.manual[c.key] ?? 0} />
                             </td>
                           ))}
-                        </tr>
-                        <tr className="group row-alt transition-colors hover:bg-primary/5">
-                          <td className={`${bodyCell} ${strongRight}`}>
-                            <ModeBadge label="FSIS" />
-                          </td>
-                          {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
-                            <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                              <N v={l.fsis[c.key] ?? 0} />
+                          </tr>
+                          <tr className="group row-alt transition-colors hover:bg-primary/5">
+                            <td className={`${bodyCell} ${strongRight}`}>
+                              <ModeBadge label="FSIS" />
                             </td>
-                          ))}
-                        </tr>
-                      </React.Fragment>
-                    ))}
+                            {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                              <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                <N v={l.fsis[c.key] ?? 0} />
+                              </td>
+                            ))}
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
 
                   <tfoot>
@@ -1899,38 +1916,54 @@ function ComplianceLedgerCard({
                   </thead>
 
                   <tbody>
-                    {lines.map((l) => (
-                      <React.Fragment key={l.key}>
-                        <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
-                          <th scope="row" rowSpan={2} className={rowHeadCell}>
-                            {l.label}
-                          </th>
-                          {REINSPECTION_COLS.map((c) => (
-                            <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
-                              <N v={l.reinspection[c.key] ?? 0} />
+                    {lines.map((l) => {
+                      const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                        ? l.key
+                        : l.key.match(/^\d{4}-\d{2}$/)
+                          ? `${l.key}-01`
+                          : null;
+                      return (
+                        <React.Fragment key={l.key}>
+                          <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
+                            <th scope="row" rowSpan={2} className={rowHeadCell}>
+                              <span className="flex items-center gap-2 whitespace-nowrap">
+                                {labelDate && (
+                                  <DayLockIcon
+                                    date={labelDate}
+                                    module="monitoring"
+                                    className="h-3 w-3"
+                                  />
+                                )}
+                                {l.label}
+                              </span>
+                            </th>
+                            {REINSPECTION_COLS.map((c) => (
+                              <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                                <N v={l.reinspection[c.key] ?? 0} />
+                              </td>
+                            ))}
+                            <td className={`${bodyCell} ${strongRight}`}>
+                              <ModeBadge label="MANUAL" />
                             </td>
-                          ))}
-                          <td className={`${bodyCell} ${strongRight}`}>
-                            <ModeBadge label="MANUAL" />
-                          </td>
-                          {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
-                            <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                              <N v={l.manual[c.key] ?? 0} />
+                            {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                              <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                <N v={l.manual[c.key] ?? 0} />
+                              </td>
+                            ))}
+                          </tr>
+                          <tr className="group row-alt transition-colors hover:bg-primary/5">
+                            <td className={`${bodyCell} ${strongRight}`}>
+                              <ModeBadge label="FSIS" />
                             </td>
-                          ))}
-                        </tr>
-                        <tr className="group row-alt transition-colors hover:bg-primary/5">
-                          <td className={`${bodyCell} ${strongRight}`}>
-                            <ModeBadge label="FSIS" />
-                          </td>
-                          {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
-                            <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                              <N v={l.fsis[c.key] ?? 0} />
-                            </td>
-                          ))}
-                        </tr>
-                      </React.Fragment>
-                    ))}
+                            {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                              <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                <N v={l.fsis[c.key] ?? 0} />
+                              </td>
+                            ))}
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
 
                   <tfoot>

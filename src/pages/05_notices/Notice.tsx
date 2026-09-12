@@ -67,6 +67,7 @@ import { NoticeAddModal } from "./components/noticeNew";
 import { NoticeEditModal } from "./components/noticeEdit";
 import { NoticeViewModal } from "./components/noticeView";
 import { NoticeMatrixModal } from "./noticeMatrix";
+import { DayLockIcon } from "@/components/day-lock-icon";
 
 /* -------------------------------------------------------------------------
  * Constants
@@ -1126,41 +1127,53 @@ function NoticeLedgerCard({
               </thead>
 
               <tbody>
-                {lines.map((line) => (
-                  <React.Fragment key={line.key}>
-                    <tr className="bg-card dark:bg-slate-800">
-                      <th
-                        scope="row"
-                        rowSpan={2}
-                        className="sticky left-0 z-10 border border-border/40 border-r-2 border-r-border/60 bg-inherit px-2 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap"
-                      >
-                        {line.label}
-                      </th>
-                      <td
-                        className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-primary`}
-                      >
-                        MANUAL
-                      </td>
+                {lines.map((line) => {
+                  const labelDate = line.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                    ? line.key
+                    : line.key.match(/^\d{4}-\d{2}$/)
+                      ? `${line.key}-01`
+                      : null;
+                  return (
+                    <React.Fragment key={line.key}>
+                      <tr className="bg-card dark:bg-slate-800">
+                        <th
+                          scope="row"
+                          rowSpan={2}
+                          className="sticky left-0 z-10 border border-border/40 border-r-2 border-r-border/60 bg-inherit px-2 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap"
+                        >
+                          <span className="flex items-center gap-2 whitespace-nowrap">
+                            {labelDate && (
+                              <DayLockIcon date={labelDate} module="notice" className="h-3 w-3" />
+                            )}
+                            {line.label}
+                          </span>
+                        </th>
+                        <td
+                          className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-primary`}
+                        >
+                          MANUAL
+                        </td>
                       {NOTICE_CATEGORIES.map((category) => (
                         <td key={category} className={bodyCell}>
                           {(line.manual[category] ?? 0).toLocaleString()}
                         </td>
                       ))}
                     </tr>
-                    <tr className="row-alt">
-                      <td
-                        className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-primary`}
-                      >
-                        FSIS
-                      </td>
-                      {NOTICE_CATEGORIES.map((category) => (
-                        <td key={category} className={bodyCell}>
-                          {(line.fsis[category] ?? 0).toLocaleString()}
+                      <tr className="row-alt">
+                        <td
+                          className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-primary`}
+                        >
+                          FSIS
                         </td>
-                      ))}
-                    </tr>
-                  </React.Fragment>
-                ))}
+                        {NOTICE_CATEGORIES.map((category) => (
+                          <td key={category} className={bodyCell}>
+                            {(line.fsis[category] ?? 0).toLocaleString()}
+                          </td>
+                        ))}
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
 
               <tfoot>

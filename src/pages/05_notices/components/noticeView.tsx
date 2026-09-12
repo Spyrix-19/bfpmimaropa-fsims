@@ -601,6 +601,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                                   <span className="flex items-center gap-2 whitespace-nowrap">
                                     <DayLockIcon
                                       date={dayKey(year, month, entry.day)}
+                                      module="notice"
                                       className="h-3 w-3"
                                     />
                                     {entry.label}

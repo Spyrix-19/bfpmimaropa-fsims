@@ -78,7 +78,7 @@ function Row({
       <td className="border-b px-3 py-2">
         {lockDate ? (
           <span className="flex items-center gap-2 whitespace-nowrap">
-            <DayLockIcon date={lockDate} className="h-3 w-3" />
+            <DayLockIcon date={lockDate} module="target-reference" className="h-3 w-3" />
             {label}
           </span>
         ) : (
