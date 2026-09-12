@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import StationInfoCard from "@/components/station-info-card";
 
 import { Button } from "@/components/ui/button";
+import { ModalFooterLayout, ModalFooterPortal } from "@/components/shared/ModalFooterPortal";
 import { NumericInput } from "@/components/numeric-input";
 import {
   Select,
@@ -1083,7 +1084,7 @@ function ComplianceEditBody({
           </div>
         </div>
       )}
-      <div className="flex flex-wrap justify-end gap-2 pt-2">
+      <ModalFooterPortal>
         <Button variant="outline" onClick={requestCancel} className="gap-2" disabled={saving}>
           <ArrowLeft className="h-4 w-4" /> Cancel
         </Button>
@@ -1095,7 +1096,7 @@ function ComplianceEditBody({
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           {saving ? "Saving changes…" : isDirty ? "Save Changes" : "Saved"}
         </Button>
-      </div>
+      </ModalFooterPortal>
 
       <AlertDialog open={confirmLeave} onOpenChange={setConfirmLeave}>
         <AlertDialogContent>
@@ -1851,21 +1852,23 @@ export function ComplianceEditModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
-          {open ? (
-            <ComplianceEditBody
-              stationno={stationno}
-              year={year}
-              month={month}
-              onSaved={() => {
-                onSaved?.();
-                onOpenChange(false);
-              }}
-              onCancel={() => onOpenChange(false)}
-              onPeriodChange={handlePeriodChange}
-            />
-          ) : null}
-        </div>
+        <ModalFooterLayout>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">
+            {open ? (
+              <ComplianceEditBody
+                stationno={stationno}
+                year={year}
+                month={month}
+                onSaved={() => {
+                  onSaved?.();
+                  onOpenChange(false);
+                }}
+                onCancel={() => onOpenChange(false)}
+                onPeriodChange={handlePeriodChange}
+              />
+            ) : null}
+          </div>
+        </ModalFooterLayout>
       </DialogContent>
     </Dialog>
   );

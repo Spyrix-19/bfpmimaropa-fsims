@@ -768,7 +768,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         onInteractOutside={(e) => e.preventDefault()}
         className="flex max-h-[92vh] w-[calc(100vw-2rem)] min-h-0 max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
-        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+        <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
               <Table2 className="h-5 w-5 text-primary" />
@@ -797,337 +797,346 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         <form
           onSubmit={submit}
           noValidate
-          className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20"
         >
-          {/* Reporting Period ---------------------------------------------- */}
-          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                <CalendarIcon className="h-4 w-4" />
-                Reporting Period
-              </h2>
-              {isPeriodChanged && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => changePeriod(basePeriodMonth, basePeriodYear)}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Reset to {MONTHS[basePeriodMonth - 1]?.name} {basePeriodYear}
-                </Button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Month</span>
-                <Select value={String(month)} onValueChange={(v) => changePeriod(Number(v), year)}>
-                  <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
-                    <SelectValue placeholder="Select month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map((mo) => (
-                      <SelectItem key={mo.value} value={String(mo.value)}>
-                        {mo.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-5 py-5">
+            {/* Reporting Period ---------------------------------------------- */}
+            <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  <CalendarIcon className="h-4 w-4" />
+                  Reporting Period
+                </h2>
+                {isPeriodChanged && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => changePeriod(basePeriodMonth, basePeriodYear)}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset to {MONTHS[basePeriodMonth - 1]?.name} {basePeriodYear}
+                  </Button>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Year</span>
-                <Select value={String(year)} onValueChange={(v) => changePeriod(month, Number(v))}>
-                  <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {YEAR_OPTIONS.map((y) => (
-                      <SelectItem key={y} value={String(y)}>
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Month</span>
+                  <Select
+                    value={String(month)}
+                    onValueChange={(v) => changePeriod(Number(v), year)}
+                  >
+                    <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((mo) => (
+                        <SelectItem key={mo.value} value={String(mo.value)}>
+                          {mo.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Year</span>
+                  <Select
+                    value={String(year)}
+                    onValueChange={(v) => changePeriod(month, Number(v))}
+                  >
+                    <SelectTrigger className="h-10 w-full [&>span]:flex-1 [&>span]:text-left">
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YEAR_OPTIONS.map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            <PastDatesLockedNote module="notice" />
-          </Card>
+              <PastDatesLockedNote module="notice" />
+            </Card>
 
-          {/* Station Information ------------------------------------------- */}
-          <StationInfoCard
-            stationName={record.stationname || ""}
-            unitCode={record.stationcode || ""}
-            logoUrl={record.logourl || null}
-            fields={[
-              { label: "Station Code", value: record.stationcode ?? "" },
-              { label: "City / Municipality", value: record.cityname ?? "" },
-              { label: "Province", value: record.provincename || record.province || "" },
-            ]}
-          />
+            {/* Station Information ------------------------------------------- */}
+            <StationInfoCard
+              stationName={record.stationname || ""}
+              unitCode={record.stationcode || ""}
+              logoUrl={record.logourl || null}
+              fields={[
+                { label: "Station Code", value: record.stationcode ?? "" },
+                { label: "City / Municipality", value: record.cityname ?? "" },
+                { label: "Province", value: record.provincename || record.province || "" },
+              ]}
+            />
 
-          {/* Daily Complied Notices Details ------------------------------------------- */}
-          <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <SectionTitle
-                title="Daily Complied Notices Details"
-                subtitle="Complied Notices per day"
-              />
-              <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {monthName} {year}
+            {/* Daily Complied Notices Details ------------------------------------------- */}
+            <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <SectionTitle
+                  title="Daily Complied Notices Details"
+                  subtitle="Complied Notices per day"
+                />
+                <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {monthName} {year}
+                </div>
               </div>
-            </div>
 
-            <div
-              className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
-              style={{ maxHeight: "70vh" }}
-            >
-              <table className="w-full min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
-                <thead className="sticky top-0 z-30">
-                  <tr>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "sticky left-0 top-0 z-40 min-w-[96px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerPrimary,
-                      )}
-                    >
-                      Action
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "sticky left-[96px] top-0 z-40 min-w-[170px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerPrimary,
-                      )}
-                    >
-                      Date
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "sticky left-[266px] top-0 z-40 min-w-[140px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerPrimary,
-                      )}
-                    >
-                      Mode of Issuance
-                    </th>
-                    <th
-                      colSpan={NOTICE_CATEGORIES.length}
-                      className={cn(
-                        "border-b border-r px-2 py-2 text-center font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerGroup,
-                      )}
-                    >
-                      Other Complied Notices
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className={cn(
-                        "min-w-[80px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
-                        MONITORING_THEME.headerPrimary,
-                      )}
-                    >
-                      Total
-                    </th>
-                  </tr>
-                  <tr>
-                    {NOTICE_CATEGORIES.map((category) => (
+              <div
+                className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
+                style={{ maxHeight: "70vh" }}
+              >
+                <table className="w-full min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
+                  <thead className="sticky top-0 z-30">
+                    <tr>
                       <th
-                        key={category}
+                        rowSpan={2}
                         className={cn(
-                          "min-w-[86px] border-b border-r px-2 py-1.5 text-center font-semibold uppercase tracking-wider",
-                          MONITORING_THEME.headerSoft,
+                          "sticky left-0 top-0 z-40 min-w-[96px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerPrimary,
                         )}
                       >
-                        {CATEGORY_LABEL[category]}
+                        Action
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((entry, index) => {
-                    const zebra = index % 2 === 1;
-                    const cellBg = zebra ? MONITORING_THEME.rowOdd : MONITORING_THEME.rowEven;
-                    const rev = entry.rev;
-                    const showRevisionAction = rev.pending || rev.needsRequest;
-                    return (
-                      <React.Fragment key={entry.day}>
-                        {MODE_ROWS.map((mode, modeIndex) => (
-                          <tr key={`${entry.day}-${mode.key}`} className={cellBg}>
-                            {modeIndex === 0 && (
-                              <td
-                                rowSpan={2}
-                                className={cn(
-                                  "sticky left-0 z-20 min-w-[96px] border-b border-r px-2 py-1.5 text-center align-middle",
-                                  cellBg,
-                                )}
-                              >
-                                {showRevisionAction ? (
-                                  rev.pending ? (
-                                    <div className="flex items-center justify-center gap-1.5">
-                                      <EditButton
-                                        variant="square"
-                                        tooltip="Cancel Revision Request"
-                                        ariaLabel="Cancel Revision Request"
-                                        icon={<Ban className="h-4 w-4" />}
-                                        onClick={() => {
-                                          if (rev.req) setCancelRequestId(rev.req.requestno);
-                                          else toast.info("No active revision request to cancel.");
-                                        }}
-                                      />
-                                      <DeleteButton
-                                        variant="square"
-                                        tooltip="Delete Revision Request"
-                                        ariaLabel="Delete Revision Request"
-                                        icon={<Trash2 className="h-4 w-4" />}
-                                        onClick={() => {
-                                          if (rev.req) setDeleteRequestId(rev.req.requestno);
-                                          else toast.info("No revision request to delete.");
-                                        }}
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center justify-center gap-1.5">
-                                      <EditButton
-                                        variant="square"
-                                        tooltip={
-                                          !stationno
-                                            ? "Select a station to request a revision"
-                                            : "Request Revision"
-                                        }
-                                        ariaLabel={
-                                          !stationno
-                                            ? "Select a station to request a revision"
-                                            : "Request Revision"
-                                        }
-                                        disabled={!stationno}
-                                        icon={<FilePen className="h-4 w-4" />}
-                                        onClick={() => {
-                                          setRevisionReferenceKey(EMPTY_GUID);
-                                          setRevisionDate(entry.date);
-                                          setRevisionOpen(true);
-                                        }}
-                                      />
-                                    </div>
-                                  )
-                                ) : null}
-                              </td>
-                            )}
-                            {modeIndex === 0 && (
-                              <td
-                                rowSpan={2}
-                                className={cn(
-                                  "sticky left-[96px] z-20 min-w-[170px] border-b border-r px-3 py-1.5 align-middle font-medium",
-                                  cellBg,
-                                )}
-                              >
-                                <span className="flex items-center gap-2 whitespace-nowrap">
-                                  <DayLockIcon
-                                    date={entry.date}
-                                    module="notice"
-                                    className="h-3.5 w-3.5"
-                                  />
-                                  {entry.label}
-                                </span>
-                              </td>
-                            )}
-                            <td
-                              className={cn(
-                                "sticky left-[266px] z-20 min-w-[140px] border-b border-r px-3 py-1.5 text-center align-middle font-semibold uppercase tracking-wide text-primary",
-                                cellBg,
-                              )}
-                            >
-                              {mode.label}
-                            </td>
-                            {NOTICE_CATEGORIES.map((category) => {
-                              const value = entry.modes[mode.key][category] ?? 0;
-                              return (
-                                <td
-                                  key={`${entry.day}-${category}-${mode.key}`}
-                                  className="border-b border-r px-1.5 py-1.5 text-center"
-                                >
-                                  {entry.isLocked ? (
-                                    <span className="text-muted-foreground tabular-nums">
-                                      {value.toLocaleString()}
-                                    </span>
-                                  ) : (
-                                    <NumericInput
-                                      aria-label={`${CATEGORY_LABEL[category]} ${mode.label} for ${entry.label}`}
-                                      value={value}
-                                      onValueChange={(raw) =>
-                                        updateField(entry.day, category, mode.key, raw)
-                                      }
-                                      className="h-8 w-full rounded-sm border-border/70 px-2 py-1 text-center tabular-nums"
-                                    />
-                                  )}
-                                </td>
-                              );
-                            })}
-                            {modeIndex === 0 && (
-                              <>
+                      <th
+                        rowSpan={2}
+                        className={cn(
+                          "sticky left-[96px] top-0 z-40 min-w-[170px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerPrimary,
+                        )}
+                      >
+                        Date
+                      </th>
+                      <th
+                        rowSpan={2}
+                        className={cn(
+                          "sticky left-[266px] top-0 z-40 min-w-[140px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerPrimary,
+                        )}
+                      >
+                        Mode of Issuance
+                      </th>
+                      <th
+                        colSpan={NOTICE_CATEGORIES.length}
+                        className={cn(
+                          "border-b border-r px-2 py-2 text-center font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerGroup,
+                        )}
+                      >
+                        Other Complied Notices
+                      </th>
+                      <th
+                        rowSpan={2}
+                        className={cn(
+                          "min-w-[80px] border-b border-r px-3 py-2 text-center align-middle font-bold uppercase tracking-wider",
+                          MONITORING_THEME.headerPrimary,
+                        )}
+                      >
+                        Total
+                      </th>
+                    </tr>
+                    <tr>
+                      {NOTICE_CATEGORIES.map((category) => (
+                        <th
+                          key={category}
+                          className={cn(
+                            "min-w-[86px] border-b border-r px-2 py-1.5 text-center font-semibold uppercase tracking-wider",
+                            MONITORING_THEME.headerSoft,
+                          )}
+                        >
+                          {CATEGORY_LABEL[category]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((entry, index) => {
+                      const zebra = index % 2 === 1;
+                      const cellBg = zebra ? MONITORING_THEME.rowOdd : MONITORING_THEME.rowEven;
+                      const rev = entry.rev;
+                      const showRevisionAction = rev.pending || rev.needsRequest;
+                      return (
+                        <React.Fragment key={entry.day}>
+                          {MODE_ROWS.map((mode, modeIndex) => (
+                            <tr key={`${entry.day}-${mode.key}`} className={cellBg}>
+                              {modeIndex === 0 && (
                                 <td
                                   rowSpan={2}
-                                  className="border-b border-r px-3 py-1.5 text-center align-middle font-bold tabular-nums"
+                                  className={cn(
+                                    "sticky left-0 z-20 min-w-[96px] border-b border-r px-2 py-1.5 text-center align-middle",
+                                    cellBg,
+                                  )}
                                 >
-                                  {rowTotal(entry).toLocaleString()}
+                                  {showRevisionAction ? (
+                                    rev.pending ? (
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <EditButton
+                                          variant="square"
+                                          tooltip="Cancel Revision Request"
+                                          ariaLabel="Cancel Revision Request"
+                                          icon={<Ban className="h-4 w-4" />}
+                                          onClick={() => {
+                                            if (rev.req) setCancelRequestId(rev.req.requestno);
+                                            else
+                                              toast.info("No active revision request to cancel.");
+                                          }}
+                                        />
+                                        <DeleteButton
+                                          variant="square"
+                                          tooltip="Delete Revision Request"
+                                          ariaLabel="Delete Revision Request"
+                                          icon={<Trash2 className="h-4 w-4" />}
+                                          onClick={() => {
+                                            if (rev.req) setDeleteRequestId(rev.req.requestno);
+                                            else toast.info("No revision request to delete.");
+                                          }}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <EditButton
+                                          variant="square"
+                                          tooltip={
+                                            !stationno
+                                              ? "Select a station to request a revision"
+                                              : "Request Revision"
+                                          }
+                                          ariaLabel={
+                                            !stationno
+                                              ? "Select a station to request a revision"
+                                              : "Request Revision"
+                                          }
+                                          disabled={!stationno}
+                                          icon={<FilePen className="h-4 w-4" />}
+                                          onClick={() => {
+                                            setRevisionReferenceKey(EMPTY_GUID);
+                                            setRevisionDate(entry.date);
+                                            setRevisionOpen(true);
+                                          }}
+                                        />
+                                      </div>
+                                    )
+                                  ) : null}
                                 </td>
-                              </>
-                            )}
-                          </tr>
-                        ))}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-                <tfoot className="sticky bottom-0 z-20">
-                  <tr className="total-row font-bold text-foreground">
-                    <td className="sticky left-0 z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2" />
-                    <td className="sticky left-[96px] z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2 text-left uppercase tracking-wide">
-                      Total
-                    </td>
-                    <td className="sticky left-[266px] z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2" />
-                    {NOTICE_CATEGORIES.map((category) => (
-                      <td
-                        key={`total-${category}`}
-                        className="total-row border-r border-t-2 border-grid-strong px-2 py-2 text-center tabular-nums"
-                      >
-                        {columnTotal(category).toLocaleString()}
+                              )}
+                              {modeIndex === 0 && (
+                                <td
+                                  rowSpan={2}
+                                  className={cn(
+                                    "sticky left-[96px] z-20 min-w-[170px] border-b border-r px-3 py-1.5 align-middle font-medium",
+                                    cellBg,
+                                  )}
+                                >
+                                  <span className="flex items-center gap-2 whitespace-nowrap">
+                                    <DayLockIcon
+                                      date={entry.date}
+                                      module="notice"
+                                      className="h-3.5 w-3.5"
+                                    />
+                                    {entry.label}
+                                  </span>
+                                </td>
+                              )}
+                              <td
+                                className={cn(
+                                  "sticky left-[266px] z-20 min-w-[140px] border-b border-r px-3 py-1.5 text-center align-middle font-semibold uppercase tracking-wide text-primary",
+                                  cellBg,
+                                )}
+                              >
+                                {mode.label}
+                              </td>
+                              {NOTICE_CATEGORIES.map((category) => {
+                                const value = entry.modes[mode.key][category] ?? 0;
+                                return (
+                                  <td
+                                    key={`${entry.day}-${category}-${mode.key}`}
+                                    className="border-b border-r px-1.5 py-1.5 text-center"
+                                  >
+                                    {entry.isLocked ? (
+                                      <span className="text-muted-foreground tabular-nums">
+                                        {value.toLocaleString()}
+                                      </span>
+                                    ) : (
+                                      <NumericInput
+                                        aria-label={`${CATEGORY_LABEL[category]} ${mode.label} for ${entry.label}`}
+                                        value={value}
+                                        onValueChange={(raw) =>
+                                          updateField(entry.day, category, mode.key, raw)
+                                        }
+                                        className="h-8 w-full rounded-sm border-border/70 px-2 py-1 text-center tabular-nums"
+                                      />
+                                    )}
+                                  </td>
+                                );
+                              })}
+                              {modeIndex === 0 && (
+                                <>
+                                  <td
+                                    rowSpan={2}
+                                    className="border-b border-r px-3 py-1.5 text-center align-middle font-bold tabular-nums"
+                                  >
+                                    {rowTotal(entry).toLocaleString()}
+                                  </td>
+                                </>
+                              )}
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="sticky bottom-0 z-20">
+                    <tr className="total-row font-bold text-foreground">
+                      <td className="sticky left-0 z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2" />
+                      <td className="sticky left-[96px] z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2 text-left uppercase tracking-wide">
+                        Total
                       </td>
-                    ))}
-                    <td className="total-row-strong border-r border-t-2 border-grid-strong px-3 py-2 text-center tabular-nums">
-                      {grandTotal.toLocaleString()}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </Card>
-
-          {saveError && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div className="flex-1">
-                <div className="font-semibold">Unable to save changes</div>
-                <div className="text-xs opacity-90">{saveError}</div>
+                      <td className="sticky left-[266px] z-30 total-row border-r border-t-2 border-grid-strong px-3 py-2" />
+                      {NOTICE_CATEGORIES.map((category) => (
+                        <td
+                          key={`total-${category}`}
+                          className="total-row border-r border-t-2 border-grid-strong px-2 py-2 text-center tabular-nums"
+                        >
+                          {columnTotal(category).toLocaleString()}
+                        </td>
+                      ))}
+                      <td className="total-row-strong border-r border-t-2 border-grid-strong px-3 py-2 text-center tabular-nums">
+                        {grandTotal.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-            </div>
-          )}
+            </Card>
 
-          {allLocked && (
-            <div className="flex items-start gap-2 rounded-md border border-warning/40 tone-warning-soft px-3 py-2 text-xs">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <div className="font-semibold">This reporting month is locked</div>
-                <p className="mt-1">A revision request is required to edit these records.</p>
+            {saveError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="flex-1">
+                  <div className="font-semibold">Unable to save changes</div>
+                  <div className="text-xs opacity-90">{saveError}</div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            {allLocked && (
+              <div className="flex items-start gap-2 rounded-md border border-warning/40 tone-warning-soft px-3 py-2 text-xs">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <div className="font-semibold">This reporting month is locked</div>
+                  <p className="mt-1">A revision request is required to edit these records.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-card px-5 py-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

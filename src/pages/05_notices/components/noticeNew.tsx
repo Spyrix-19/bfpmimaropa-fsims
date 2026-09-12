@@ -645,7 +645,8 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   });
 
   /* ── Lock rules for the selected date ───────────────────────────────────── */
-  const isPastSelectedDate = isPastDateLockEnabled("notice") && reportingDate.getTime() < startOfToday();
+  const isPastSelectedDate =
+    isPastDateLockEnabled("notice") && reportingDate.getTime() < startOfToday();
   const {
     activeRequest,
     unlockedByApproval,
@@ -749,8 +750,8 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden p-0">
-        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+      <DialogContent className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+        <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <FilePlus2 className="h-5 w-5" />
@@ -768,112 +769,114 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
         <form
           onSubmit={submit}
           noValidate
-          className="max-h-[calc(90vh-6rem)] space-y-6 overflow-y-auto bg-muted/20 px-5 py-5"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20"
         >
-          {fieldsLocked && (
-            <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
-              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
-              <span>
-                {hasPendingRevision
-                  ? "A revision request for this date is pending approval. Fields stay locked until it is approved."
-                  : "This date has already passed and is locked. Submit a revision request to enable editing."}
-              </span>
-            </div>
-          )}
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-5 py-5">
+            {fieldsLocked && (
+              <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+                <span>
+                  {hasPendingRevision
+                    ? "A revision request for this date is pending approval. Fields stay locked until it is approved."
+                    : "This date has already passed and is locked. Submit a revision request to enable editing."}
+                </span>
+              </div>
+            )}
 
-          {/* 1. Reporting Period --------------------------------------------- */}
-          <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
-            <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
-            <div className="grid grid-cols-1 gap-4 sm:max-w-md">
-              <Field label="Reporting Period As Of" required>
-                <Popover open={dateOpen} onOpenChange={setDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {reportingDate ? format(reportingDate, "PPP") : "Pick a date"}
-                      {checkingExisting && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={reportingDate}
-                      defaultMonth={reportingDate}
-                      onSelect={(d) => {
-                        if (d) {
-                          setReportingDate(d);
-                          setDateOpen(false);
-                        }
-                      }}
-                      initialFocus
-                      className="pointer-events-auto p-3"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </Field>
-            </div>
+            {/* 1. Reporting Period --------------------------------------------- */}
+            <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+              <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
+              <div className="grid grid-cols-1 gap-4 sm:max-w-md">
+                <Field label="Reporting Period As Of" required>
+                  <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {reportingDate ? format(reportingDate, "PPP") : "Pick a date"}
+                        {checkingExisting && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={reportingDate}
+                        defaultMonth={reportingDate}
+                        onSelect={(d) => {
+                          if (d) {
+                            setReportingDate(d);
+                            setDateOpen(false);
+                          }
+                        }}
+                        initialFocus
+                        className="pointer-events-auto p-3"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </Field>
+              </div>
 
-            <PastDatesLockedNote module="notice" />
-          </Card>
+              <PastDatesLockedNote module="notice" />
+            </Card>
 
-          {/* 2. Station Information ------------------------------------------ */}
-          <StationInfoCard
-            stationName={stationDetails.stationName || record.stationname || ""}
-            unitCode={stationDetails.stationCode || record.stationcode || ""}
-            logoUrl={stationDetails.logoUrl || record.logourl || null}
-            fields={[
-              {
-                label: "Station Code",
-                value: stationDetails.stationCode || record.stationcode || "",
-              },
-              {
-                label: "City / Municipality",
-                value:
-                  record.cityname ||
-                  stationDetails.cityName ||
-                  (stationDetails.loading ? "Loading…" : ""),
-              },
-              {
-                label: "Province",
-                value:
-                  record.provincename ||
-                  record.province ||
-                  stationDetails.provinceName ||
-                  (stationDetails.loading ? "Loading…" : ""),
-              },
-            ]}
-          />
-
-          {/* 3. Issued vs. Complied -------------------------------------- */}
-          <NoticeAccomplishmentPanel
-            issued={panelIssued}
-            accomplished={issuedTotals}
-            periodLabel={format(reportingDate, "PPP")}
-          />
-
-          {/* 4. Daily Complied Notices --------------------------------- */}
-
-          <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
-            <SectionTitle
-              title="Daily Complied Notices"
-              subtitle="Encode complied notices separately for MANUAL and FSIS"
+            {/* 2. Station Information ------------------------------------------ */}
+            <StationInfoCard
+              stationName={stationDetails.stationName || record.stationname || ""}
+              unitCode={stationDetails.stationCode || record.stationcode || ""}
+              logoUrl={stationDetails.logoUrl || record.logourl || null}
+              fields={[
+                {
+                  label: "Station Code",
+                  value: stationDetails.stationCode || record.stationcode || "",
+                },
+                {
+                  label: "City / Municipality",
+                  value:
+                    record.cityname ||
+                    stationDetails.cityName ||
+                    (stationDetails.loading ? "Loading…" : ""),
+                },
+                {
+                  label: "Province",
+                  value:
+                    record.provincename ||
+                    record.province ||
+                    stationDetails.provinceName ||
+                    (stationDetails.loading ? "Loading…" : ""),
+                },
+              ]}
             />
 
-            <NoticesTable
-              manualValues={manualValues}
-              fsisValues={fsisValues}
-              setManualValues={setManualValues}
-              setFsisValues={setFsisValues}
-              locked={fieldsLocked}
+            {/* 3. Issued vs. Complied -------------------------------------- */}
+            <NoticeAccomplishmentPanel
+              issued={panelIssued}
+              accomplished={issuedTotals}
+              periodLabel={format(reportingDate, "PPP")}
             />
-          </Card>
 
-          {/* Actions ---------------------------------------------------------- */}
-          <div className="flex flex-wrap justify-end gap-2">
+            {/* 4. Daily Complied Notices --------------------------------- */}
+
+            <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+              <SectionTitle
+                title="Daily Complied Notices"
+                subtitle="Encode complied notices separately for MANUAL and FSIS"
+              />
+
+              <NoticesTable
+                manualValues={manualValues}
+                fsisValues={fsisValues}
+                setManualValues={setManualValues}
+                setFsisValues={setFsisValues}
+                locked={fieldsLocked}
+              />
+            </Card>
+          </div>
+
+          {/* Actions — fixed footer, outside the scroll area ------------------ */}
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-card px-5 py-3">
             {needsRevisionRequest ? (
               <Button
                 type="button"

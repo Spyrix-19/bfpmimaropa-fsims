@@ -21,7 +21,10 @@ import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 
 import { unwrap } from "@/lib/api-envelope";
-import { buildDashboardProvinces, provincesPayloadKey } from "@/pages/02_dashboard/buildProvincesPayload";
+import {
+  buildDashboardProvinces,
+  provincesPayloadKey,
+} from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import type { DashboardFeeCollectionModel } from "@/types/dashboardType";
 
@@ -103,7 +106,9 @@ function buildVarianceTotals(
 
   for (const fee of payload?.feeList ?? []) {
     const categoryNo = Number(fee?.feecateg) || 0;
-    const group = VARIANCE_GROUPS.find((item) => item.categoryNos.includes(categoryNo));
+    const group = VARIANCE_GROUPS.find((item) =>
+      (item.categoryNos as readonly number[]).includes(categoryNo),
+    );
     if (!group) continue;
 
     for (const yearEntry of fee.yearList ?? []) {
@@ -305,7 +310,9 @@ export default function FireCodeFeesVarianceSection() {
       const { ok, data: payload } = unwrap<DashboardFeeCollectionModel>(resp);
 
       if (cancelled) return;
-      setGroupTotals(ok ? buildVarianceTotals(payload, yearList) : buildVarianceTotals(null, yearList));
+      setGroupTotals(
+        ok ? buildVarianceTotals(payload, yearList) : buildVarianceTotals(null, yearList),
+      );
       setLoading(false);
     })();
 
@@ -315,10 +322,15 @@ export default function FireCodeFeesVarianceSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearsKey, scopeKey]);
 
-  const baseTotals = groupTotals[baseYear] ?? Object.fromEntries(VARIANCE_GROUPS.map((g) => [g.code, 0]));
-  const compareTotals = groupTotals[compareYear] ?? Object.fromEntries(VARIANCE_GROUPS.map((g) => [g.code, 0]));
+  const baseTotals =
+    groupTotals[baseYear] ?? Object.fromEntries(VARIANCE_GROUPS.map((g) => [g.code, 0]));
+  const compareTotals =
+    groupTotals[compareYear] ?? Object.fromEntries(VARIANCE_GROUPS.map((g) => [g.code, 0]));
   const totalBase = VARIANCE_GROUPS.reduce((sum, row) => sum + (baseTotals[row.code] ?? 0), 0);
-  const totalCompare = VARIANCE_GROUPS.reduce((sum, row) => sum + (compareTotals[row.code] ?? 0), 0);
+  const totalCompare = VARIANCE_GROUPS.reduce(
+    (sum, row) => sum + (compareTotals[row.code] ?? 0),
+    0,
+  );
 
   /**
    * Comparison rules (base = first year, compare = second year):

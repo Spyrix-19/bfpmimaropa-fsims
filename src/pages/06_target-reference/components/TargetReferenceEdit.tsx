@@ -873,7 +873,8 @@ export default function TargetReferenceForm({
               const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
               const rowDateKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
               const lock = rowRevisionLock(d);
-              const activeReq = lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
+              const activeReq =
+                lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
               const rowLocked =
                 lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(d));
               const isEditable = !rowLocked;
@@ -1014,9 +1015,9 @@ export default function TargetReferenceForm({
         <DialogContent
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
-          className="max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] gap-0 overflow-y-auto overflow-x-hidden p-0 sm:rounded-xl"
+          className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[980px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
         >
-          <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+          <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
             <DialogTitle className="text-base font-bold">
               {isEdit ? "Edit Target Reference" : "Target Reference Entry"}
             </DialogTitle>
@@ -1033,7 +1034,7 @@ export default function TargetReferenceForm({
             )}
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 px-5 py-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-5 py-4">
             {/* Reporting Period card */}
             <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
               <div className="flex items-center justify-between gap-3">
@@ -1152,7 +1153,7 @@ export default function TargetReferenceForm({
             </div>
           </div>
 
-          <DialogFooter className="border-t bg-muted/30 px-5 py-3">
+          <DialogFooter className="shrink-0 border-t bg-muted/30 px-5 py-3">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}

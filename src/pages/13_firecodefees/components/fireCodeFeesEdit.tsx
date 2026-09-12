@@ -50,6 +50,7 @@ import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRema
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { DayLockIcon } from "@/components/day-lock-icon";
+import { ModalFooterLayout, ModalFooterPortal } from "@/components/shared/ModalFooterPortal";
 import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
 import {
   deriveRevisionLock,
@@ -657,7 +658,7 @@ export function FireCodeFeesYearEditorBody({
       </Card>
 
       {/* Actions */}
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <ModalFooterPortal>
         {readOnly && (
           <span className="mr-auto flex items-center gap-1.5 text-xs text-muted-foreground">
             <Eye className="h-3.5 w-3.5" /> View only
@@ -685,7 +686,7 @@ export function FireCodeFeesYearEditorBody({
               : `Save Changes${dirtyMonths.length ? ` (${dirtyMonths.length})` : ""}`}
           </Button>
         )}
-      </div>
+      </ModalFooterPortal>
 
       {revisionMonth && (
         <RevisionRequestDialog
@@ -819,18 +820,20 @@ export default function FireCodeFeesYearEditorModal({
           </div>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {open && station ? (
-            <FireCodeFeesYearEditorBody
-              station={station}
-              year={year}
-              readOnly={readOnly}
-              onYearChange={setViewYear}
-              onSaved={onSaved}
-              onCancel={() => onOpenChange(false)}
-            />
-          ) : null}
-        </div>
+        <ModalFooterLayout>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {open && station ? (
+              <FireCodeFeesYearEditorBody
+                station={station}
+                year={year}
+                readOnly={readOnly}
+                onYearChange={setViewYear}
+                onSaved={onSaved}
+                onCancel={() => onOpenChange(false)}
+              />
+            ) : null}
+          </div>
+        </ModalFooterLayout>
       </DialogContent>
     </Dialog>
   );

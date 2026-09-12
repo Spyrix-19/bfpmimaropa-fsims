@@ -18,6 +18,7 @@ import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ModalFooterLayout, ModalFooterPortal } from "@/components/shared/ModalFooterPortal";
 import { NumericInput } from "@/components/numeric-input";
 import { Label } from "@/components/ui/label";
 
@@ -1303,7 +1304,7 @@ function InspectionsNewBody({
       </Card>
 
       {/* Actions ----------------------------------------------------------- */}
-      <div className="flex flex-wrap justify-end gap-2">
+      <ModalFooterPortal>
         {needsRevisionRequest ? (
           <Button
             type="button"
@@ -1364,7 +1365,7 @@ function InspectionsNewBody({
             </Button>
           </>
         )}
-      </div>
+      </ModalFooterPortal>
 
       <ConfirmDialog
         open={duplicateDialogOpen}
@@ -1543,21 +1544,23 @@ export function InspectionsNewModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-          <div className="min-h-full pr-2">
-            {open ? (
-              <InspectionsNewBody
-                initialYear={initialYear}
-                initialMonth={initialMonth}
-                onSaved={() => {
-                  onSaved?.();
-                  onOpenChange(false);
-                }}
-                onCancel={() => onOpenChange(false)}
-              />
-            ) : null}
+        <ModalFooterLayout>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            <div className="min-h-full pr-2">
+              {open ? (
+                <InspectionsNewBody
+                  initialYear={initialYear}
+                  initialMonth={initialMonth}
+                  onSaved={() => {
+                    onSaved?.();
+                    onOpenChange(false);
+                  }}
+                  onCancel={() => onOpenChange(false)}
+                />
+              ) : null}
+            </div>
           </div>
-        </div>
+        </ModalFooterLayout>
       </DialogContent>
     </Dialog>
   );

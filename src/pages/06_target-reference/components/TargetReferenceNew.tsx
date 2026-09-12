@@ -551,7 +551,8 @@ export default function TargetReferenceForm({
         });
 
         const isPast =
-          isPastDateLockEnabled("target-reference") && parseDateInputValue(selectedDate).getTime() < startOfToday();
+          isPastDateLockEnabled("target-reference") &&
+          parseDateInputValue(selectedDate).getTime() < startOfToday();
         const unlocked = Number(record.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(record.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -1246,9 +1247,9 @@ export default function TargetReferenceForm({
         <DialogContent
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
-          className="max-h-[92vh] w-[calc(100vw-2rem)] max-w-[980px] gap-0 overflow-y-auto overflow-x-hidden p-0 sm:rounded-xl"
+          className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[980px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
         >
-          <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+          <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <FilePlus2 className="h-5 w-5" />
@@ -1265,7 +1266,7 @@ export default function TargetReferenceForm({
             </div>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 px-5 py-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-5 py-4">
             {/* Reporting Period card */}
             <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft">
               <div className="flex items-center justify-between gap-3">
@@ -1438,7 +1439,7 @@ export default function TargetReferenceForm({
             </div>
           </div>
 
-          <DialogFooter className="border-t bg-muted/30 px-5 py-3">
+          <DialogFooter className="shrink-0 border-t bg-muted/30 px-5 py-3">
             {needsRevisionRequest ? (
               <Button
                 onClick={() => {

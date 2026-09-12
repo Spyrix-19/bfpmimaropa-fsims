@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import StationInfoCard from "@/components/station-info-card";
 import { Switch } from "@/components/ui/switch";
+import { ModalFooterLayout, ModalFooterPortal } from "@/components/shared/ModalFooterPortal";
 
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import {
@@ -463,7 +464,7 @@ export function FireCodeFeesYearViewBody({
         )}
       </Card>
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <ModalFooterPortal>
         {onEdit && canEdit && (
           <Button type="button" variant="outline" className="gap-2" onClick={() => onEdit(year)}>
             <Pencil className="h-4 w-4" /> Edit
@@ -474,7 +475,7 @@ export function FireCodeFeesYearViewBody({
             Close
           </Button>
         )}
-      </div>
+      </ModalFooterPortal>
     </div>
   );
 }
@@ -530,24 +531,26 @@ export default function FireCodeFeesYearViewModal({
           </div>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {open && station ? (
-            <FireCodeFeesYearViewBody
-              station={station}
-              year={year}
-              onYearChange={setViewYear}
-              onClose={() => onOpenChange(false)}
-              onEdit={
-                onEdit
-                  ? (y) => {
-                      onOpenChange(false);
-                      onEdit(station, y);
-                    }
-                  : undefined
-              }
-            />
-          ) : null}
-        </div>
+        <ModalFooterLayout>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {open && station ? (
+              <FireCodeFeesYearViewBody
+                station={station}
+                year={year}
+                onYearChange={setViewYear}
+                onClose={() => onOpenChange(false)}
+                onEdit={
+                  onEdit
+                    ? (y) => {
+                        onOpenChange(false);
+                        onEdit(station, y);
+                      }
+                    : undefined
+                }
+              />
+            ) : null}
+          </div>
+        </ModalFooterLayout>
       </DialogContent>
     </Dialog>
   );

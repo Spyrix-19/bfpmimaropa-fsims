@@ -46,6 +46,7 @@ import LocationSearchSelect from "@/components/location-search-select";
 import StationSearchSelect from "@/components/station-search-select";
 import StationInfoCard, { StationReadOnlyField } from "@/components/station-info-card";
 import { useStationDetails } from "@/hooks/useStationDetails";
+import { ModalFooterLayout, ModalFooterPortal } from "@/components/shared/ModalFooterPortal";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 
@@ -1166,7 +1167,7 @@ export function FireCodeFeesFormBody({
       </Card>
 
       {/* Actions */}
-      <div className="flex flex-wrap justify-end gap-2">
+      <ModalFooterPortal>
         {needsRevisionRequest ? (
           <Button
             type="button"
@@ -1231,7 +1232,7 @@ export function FireCodeFeesFormBody({
             )}
           </>
         )}
-      </div>
+      </ModalFooterPortal>
 
       {addRevisionOpen && (
         <RevisionRequestDialog
@@ -1376,20 +1377,22 @@ export default function FireCodeFeesFormModal({
           </div>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {open ? (
-            <FireCodeFeesFormBody
-              initialYear={initialYear}
-              initialMonth={initialMonth}
-              initialStation={initialStation}
-              onSaved={() => {
-                onSaved?.();
-                onOpenChange(false);
-              }}
-              onCancel={() => onOpenChange(false)}
-            />
-          ) : null}
-        </div>
+        <ModalFooterLayout>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {open ? (
+              <FireCodeFeesFormBody
+                initialYear={initialYear}
+                initialMonth={initialMonth}
+                initialStation={initialStation}
+                onSaved={() => {
+                  onSaved?.();
+                  onOpenChange(false);
+                }}
+                onCancel={() => onOpenChange(false)}
+              />
+            ) : null}
+          </div>
+        </ModalFooterLayout>
       </DialogContent>
     </Dialog>
   );
