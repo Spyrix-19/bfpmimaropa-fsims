@@ -934,6 +934,14 @@ export default function FireCodeFeesPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <Alert className="mb-3 border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100">
+            <Construction className="h-4 w-4" />
+            <AlertTitle className="font-semibold">Note</AlertTitle>
+            <AlertDescription>
+              This feature is under development. The matrix output may still change.
+            </AlertDescription>
+          </Alert>
+
           <div className="max-h-[70vh] overflow-auto rounded-lg border border-border/60">
             {matrixRow ? (
               <StationMatrixTable
