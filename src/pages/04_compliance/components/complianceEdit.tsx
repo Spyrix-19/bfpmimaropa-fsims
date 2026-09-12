@@ -293,8 +293,8 @@ const YEAR_OPTIONS: number[] = (() => {
 })();
 
 /**
- * PST lock activation — mirrors Target Reference.
- * A month locks on day 4 of the following calendar month at 00:00 PST.
+ * Past-date lock rule: the current month remains editable, and any earlier
+ * month is locked as soon as the past-date lock is enabled.
  */
 function hasPstLockActivated(
   reportyear: number,
@@ -302,12 +302,15 @@ function hasPstLockActivated(
   now: Date = new Date(),
 ): boolean {
   if (!isPastDateLockEnabled("monitoring")) return false;
+
   const y = Number(reportyear);
   const m = Number(reportmonth);
   if (!y || !m || m < 1 || m > 12) return false;
-  const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
-  const lockActivationMs = Date.UTC(y, m /* next month, 0-indexed */, 4, 0, 0, 0);
-  return manilaNowMs >= lockActivationMs;
+
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const selectedMonthStart = new Date(y, m - 1, 1).getTime();
+
+  return selectedMonthStart < currentMonthStart;
 }
 
 /** Check if a given date has already passed (is before today at midnight). */

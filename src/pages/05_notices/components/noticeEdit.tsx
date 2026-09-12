@@ -183,14 +183,16 @@ const SERIES = {
 } as const;
 
 /**
- * PST lock activation — mirrors the compliance editor.
- * A month locks on day 4 of the following calendar month at 00:00 PST.
+ * Past-date lock rule: the current month remains editable, and any earlier
+ * month is locked as soon as the past-date lock is enabled.
  */
 function hasPstLockActivated(year: number, month: number, now: Date = new Date()): boolean {
   if (!isPastDateLockEnabled("notice")) return false;
-  const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
-  const lockActivationMs = Date.UTC(year, month, 4, 0, 0, 0);
-  return manilaNowMs >= lockActivationMs;
+
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const selectedMonthStart = new Date(year, month - 1, 1).getTime();
+
+  return selectedMonthStart < currentMonthStart;
 }
 
 /** Check if a given date (YYYY-MM-DD) has already passed. */

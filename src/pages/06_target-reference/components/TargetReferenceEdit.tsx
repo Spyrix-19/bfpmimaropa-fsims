@@ -82,20 +82,8 @@ interface Props {
 type CellMap = Record<string, string>;
 
 /**
- * Lock activation rule (Philippine Standard Time, Asia/Manila, UTC+08:00).
- *
- * A report (reportyear, reportmonth) only becomes officially locked once the
- * current PST time reaches day 4 of the following calendar month at
- * 00:00:00 PST. Before that instant the row must behave exactly like an
- * unlocked / current month, regardless of any server-side lock hint.
- *
- * Implementation notes:
- *  - We compare in a shared, tz-neutral millisecond space by shifting the
- *    real UTC "now" forward by +8h and treating the lock activation as if
- *    its wall-clock components (Y, next-month, day 4, 00:00) were UTC.
- *  - `reportmonth` is 1..12. `Date.UTC(y, reportmonth, 4)` uses `reportmonth`
- *    as a 0-indexed month, which conveniently yields the NEXT calendar month
- *    (December => January of the following year automatically).
+ * Any day already in the past is locked once the past-date lock is enabled;
+ * future dates in the current month remain editable.
  */
 /** Builds the ISO date-time the Create endpoint expects for a target day. */
 function toTargetDate(year: number, month: number, day: number): string {
@@ -131,15 +119,22 @@ function resolveDetailDay(
 function hasPstLockActivated(
   reportyear: number,
   reportmonth: number,
+  reportday: number,
   now: Date = new Date(),
 ): boolean {
   if (!isPastDateLockEnabled("target-reference")) return false;
+
   const y = Number(reportyear);
   const m = Number(reportmonth);
-  if (!y || !m || m < 1 || m > 12) return false;
-  const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
-  const lockActivationMs = Date.UTC(y, m /* next month, 0-indexed */, 4, 0, 0, 0);
-  return manilaNowMs >= lockActivationMs;
+  const d = Number(reportday);
+  if (!y || !m || !d || m < 1 || m > 12 || d < 1) return false;
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const selectedDate = new Date(y, m - 1, d);
+  selectedDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  return selectedDate < today;
 }
 
 export default function TargetReferenceForm({
@@ -422,13 +417,13 @@ export default function TargetReferenceForm({
       const req = matchRequest(revisionRequests, { dateKey });
       const editablestatus = Number(existingEditableStatus[String(day)] ?? 0);
       const isrevisionrequest = Boolean(existingIsRevisionRequest[String(day)] ?? false);
-      const monthLocked = hasPstLockActivated(Number(year), Number(month));
+      const dayLocked = hasPstLockActivated(Number(year), Number(month), Number(day));
       return {
         req,
         ...deriveRevisionLock({
           requests: revisionRequests,
           dateKey,
-          isPast: monthLocked,
+          isPast: dayLocked,
           editablestatus,
           isrevisionrequest,
         }),
@@ -879,7 +874,8 @@ export default function TargetReferenceForm({
               const rowDateKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
               const lock = rowRevisionLock(d);
               const activeReq = lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
-              const rowLocked = lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month));
+              const rowLocked =
+                lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(d));
               const isEditable = !rowLocked;
               const rowReferenceKey = existingTargetNos?.[String(d)] || "";
               return (

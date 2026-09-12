@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, ChevronDown, Coins } from "lucide-react";
+import { ChevronDown, Coins, Loader2 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,11 @@ import { StationMultiSelect, type SelectedStation } from "@/components/station-m
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+
+import { unwrap } from "@/lib/api-envelope";
+import { buildDashboardProvinces, provincesPayloadKey } from "@/pages/02_dashboard/buildProvincesPayload";
+import { dashboardAPI } from "@/services/dashboardAPI";
+import type { DashboardFeeCollectionModel } from "@/types/dashboardType";
 
 import { peso } from "./fees/feeColumns";
 
@@ -69,6 +74,51 @@ const SUB_OPTIONS: Record<Interval, { value: string; label: string }[]> = {
   ],
   ANNUAL: [],
 };
+
+const VARIANCE_GROUPS = [
+  { code: "FCCT", label: "FCCT + Filing Fees", categoryNos: [541, 560] },
+  { code: "FSIB", label: "FSI Fee (Business)", categoryNos: [547] },
+  { code: "FSIO", label: "FSI Fee (Occupancy)", categoryNos: [546] },
+  {
+    code: "FCTC",
+    label: "Fire Code Tax & Clearances",
+    categoryNos: [542, 543, 544, 545, 548, 549, 550, 551, 552, 553, 554, 555, 556],
+  },
+  { code: "AF", label: "Admin Fees", categoryNos: [557] },
+  {
+    code: "OF",
+    label: "Other Fees",
+    categoryNos: [558, 559, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572],
+  },
+] as const;
+
+function buildVarianceTotals(
+  payload: DashboardFeeCollectionModel | null,
+  years: number[],
+): Record<number, Record<string, number>> {
+  const totals: Record<number, Record<string, number>> = {};
+  for (const year of years) {
+    totals[year] = Object.fromEntries(VARIANCE_GROUPS.map((group) => [group.code, 0]));
+  }
+
+  for (const fee of payload?.feeList ?? []) {
+    const categoryNo = Number(fee?.feecateg) || 0;
+    const group = VARIANCE_GROUPS.find((item) => item.categoryNos.includes(categoryNo));
+    if (!group) continue;
+
+    for (const yearEntry of fee.yearList ?? []) {
+      const year = Number(yearEntry?.reportyear) || 0;
+      if (!totals[year]) continue;
+      const totalForCategory = (yearEntry?.sectors ?? []).reduce(
+        (sum, sector) => sum + (Number(sector?.collectionamount ?? 0) || 0),
+        0,
+      );
+      totals[year][group.code] += totalForCategory;
+    }
+  }
+
+  return totals;
+}
 
 /** Column caption, e.g. "1st Semester 2026". */
 function periodLabel(interval: Interval, sub: string, year: number) {
@@ -166,6 +216,8 @@ export default function FireCodeFeesVarianceSection() {
   const [subPeriod, setSubPeriod] = React.useState<string>("1");
   const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [groupTotals, setGroupTotals] = React.useState<Record<number, Record<string, number>>>({});
 
   React.useEffect(() => {
     if (!isAuthenticated) return;
@@ -231,20 +283,42 @@ export default function FireCodeFeesVarianceSection() {
   const sortedYears = React.useMemo(() => [...years].sort((a, b) => a - b), [years]);
   const [baseYear, compareYear] = sortedYears;
 
-  const varianceRows = React.useMemo(
-    () => [
-      { code: "FCCT", label: "FCCT + Filing Fees" },
-      { code: "FSIB", label: "FSI Fee (Business)" },
-      { code: "FSIO", label: "FSI Fee (Occupancy)" },
-      { code: "FCTC", label: "Fire Code Tax & Clearances" },
-      { code: "AF", label: "Admin Fees" },
-      { code: "OF", label: "Other Fees" },
-    ],
-    [],
+  const provincesPayload = React.useMemo(
+    () => buildDashboardProvinces(provinces, stations),
+    [provinces, stations],
   );
+  const scopeKey = provincesPayloadKey(provincesPayload);
+  const yearsKey = sortedYears.join(",");
 
-  /** Feature is under development: figures stay empty on purpose. */
-  const amount = 0;
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const yearList = sortedYears.filter(Boolean);
+      const resp = await dashboardAPI.getYearlyFireCodeFees(
+        {
+          reportyear: yearList,
+          Provinces: provincesPayload,
+        },
+        { suppressGlobalLoading: true, suppressErrorToast: true },
+      );
+      const { ok, data: payload } = unwrap<DashboardFeeCollectionModel>(resp);
+
+      if (cancelled) return;
+      setGroupTotals(ok ? buildVarianceTotals(payload, yearList) : buildVarianceTotals(null, yearList));
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yearsKey, scopeKey]);
+
+  const baseTotals = groupTotals[baseYear] ?? Object.fromEntries(VARIANCE_GROUPS.map((g) => [g.code, 0]));
+  const compareTotals = groupTotals[compareYear] ?? Object.fromEntries(VARIANCE_GROUPS.map((g) => [g.code, 0]));
+  const totalBase = VARIANCE_GROUPS.reduce((sum, row) => sum + (baseTotals[row.code] ?? 0), 0);
+  const totalCompare = VARIANCE_GROUPS.reduce((sum, row) => sum + (compareTotals[row.code] ?? 0), 0);
 
   /**
    * Comparison rules (base = first year, compare = second year):
@@ -351,13 +425,11 @@ export default function FireCodeFeesVarianceSection() {
         </div>
       </div>
 
-      <div
-        role="note"
-        className="mb-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive"
-      >
-        <AlertTriangle className="mt-[1px] h-4 w-4 shrink-0" />
-        <span>Note: This feature is under development. Figures shown here are not yet final.</span>
-      </div>
+      {loading ? (
+        <div className="mb-3 flex items-center justify-center gap-2 rounded-xl border border-border/60 p-8 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading variance comparison…
+        </div>
+      ) : null}
 
       <div className="overflow-x-auto rounded-xl border border-border/60">
         <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
@@ -395,9 +467,9 @@ export default function FireCodeFeesVarianceSection() {
             </tr>
           </thead>
           <tbody>
-            {varianceRows.map((row) => {
-              const baseAmt = amount;
-              const compareAmt = amount;
+            {VARIANCE_GROUPS.map((row) => {
+              const baseAmt = baseTotals[row.code] ?? 0;
+              const compareAmt = compareTotals[row.code] ?? 0;
               const pct = percentOf(baseAmt, compareAmt);
               return (
                 <tr key={row.code} className="border-t border-grid">
@@ -434,24 +506,24 @@ export default function FireCodeFeesVarianceSection() {
                 Total
               </td>
               <td className="w-40 min-w-40 border-l border-grid px-3 py-2 text-right font-bold tabular-nums">
-                {peso(amount)}
+                {peso(totalBase)}
               </td>
               <td className="w-40 min-w-40 border-l border-grid px-3 py-2 text-right font-bold tabular-nums">
-                {peso(amount)}
+                {peso(totalCompare)}
               </td>
               <td className="w-32 min-w-32 border-l border-grid px-3 py-2 text-right font-bold tabular-nums">
-                {peso(varianceOf(amount, amount))}
+                {peso(varianceOf(totalBase, totalCompare))}
               </td>
               <td className="w-32 min-w-32 border-l border-grid px-3 py-2 text-right font-bold tabular-nums">
-                {peso(positiveOf(amount, amount))}
+                {peso(positiveOf(totalBase, totalCompare))}
               </td>
               <td
                 className={cn(
                   "w-24 min-w-24 border-l border-grid px-3 py-2 text-right font-bold tabular-nums",
-                  percentClass(percentOf(amount, amount)),
+                  percentClass(percentOf(totalBase, totalCompare)),
                 )}
               >
-                {percentText(percentOf(amount, amount))}
+                {percentText(percentOf(totalBase, totalCompare))}
               </td>
             </tr>
           </tfoot>

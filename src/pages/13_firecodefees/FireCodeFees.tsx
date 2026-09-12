@@ -77,6 +77,8 @@ import FireCodeFeesYearEditorModal, { type FeeEditorStation } from "./components
 import FireCodeFeesYearViewModal from "./components/fireCodeFeesView";
 import { FeeTypeMultiSelect, useFeeTypes } from "./components/fireCodeFeesFeeTypeFilter";
 import { DayLockIcon } from "@/components/day-lock-icon";
+import { isPastDateLockEnabled } from "@/lib/past-date-lock";
+import { isPastMonth } from "./components/feeShared";
 
 /** Station + period context handed to the entry form when editing a ledger card. */
 interface FeeFormTarget {
@@ -1356,13 +1358,19 @@ function FireCodeFeesLedgerCard({
                   >
                     <div className="flex min-w-[10rem] flex-1 items-center gap-2.5">
                       <span className="flex items-center gap-2 whitespace-nowrap">
-                        {/^\d{4}-\d{2}$/.test(line.key) && (
-                          <DayLockIcon
-                            date={`${line.key}-01`}
-                            module="fire-code-fees"
-                            className="h-3.5 w-3.5"
-                          />
-                        )}
+                        {/^\d{4}-\d{2}$/.test(line.key) && (() => {
+                          const [yearText, monthText] = line.key.split("-");
+                          const monthYear = Number(yearText);
+                          const monthNo = Number(monthText);
+                          const monthLocked =
+                            isPastDateLockEnabled("fire-code-fees") && isPastMonth(monthYear, monthNo);
+                          return (
+                            <DayLockIcon
+                              locked={monthLocked}
+                              className="h-3.5 w-3.5"
+                            />
+                          );
+                        })()}
                         <span className="text-sm font-semibold">{line.label}</span>
                       </span>
                       {!hasRecord && (

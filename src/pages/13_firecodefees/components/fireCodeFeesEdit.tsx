@@ -567,8 +567,7 @@ export function FireCodeFeesYearEditorBody({
                     )}
                     <div className="flex min-w-[9rem] items-center gap-2">
                       <DayLockIcon
-                        date={`${year}-${String(m.month).padStart(2, "0")}-01`}
-                        module="fire-code-fees"
+                        locked={isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, m.month)}
                         className="h-3.5 w-3.5"
                       />
                       <span className="text-sm font-semibold">{name}</span>
