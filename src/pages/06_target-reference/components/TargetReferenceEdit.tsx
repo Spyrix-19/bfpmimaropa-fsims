@@ -56,10 +56,15 @@ import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import { resolveTargetScope, buildDays, formatDayLabel } from "../helpers";
 import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import { revisionRequestType } from "../revision/types";
-import { useRevisionLedger } from "../revision/useRevisionRequests";
+import {
+  deriveRevisionLock,
+  matchRequest,
+  useRevisionLedger,
+} from "../revision/useRevisionRequests";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import { DayLockIcon } from "@/components/day-lock-icon";
 import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 import { serializePhilippineDateTime } from "@/lib/date-format";
 
@@ -123,18 +128,18 @@ function resolveDetailDay(
   return null;
 }
 
-function isPastTargetDate(
-  year: number,
-  month: number,
-  day: number,
+function hasPstLockActivated(
+  reportyear: number,
+  reportmonth: number,
   now: Date = new Date(),
 ): boolean {
   if (!isPastDateLockEnabled("target-reference")) return false;
-  const targetDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 0, 0, 0));
-  const todayAtMidnight = new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0),
-  );
-  return targetDate.getTime() < todayAtMidnight.getTime();
+  const y = Number(reportyear);
+  const m = Number(reportmonth);
+  if (!y || !m || m < 1 || m > 12) return false;
+  const manilaNowMs = now.getTime() + 8 * 60 * 60 * 1000;
+  const lockActivationMs = Date.UTC(y, m /* next month, 0-indexed */, 4, 0, 0, 0);
+  return manilaNowMs >= lockActivationMs;
 }
 
 export default function TargetReferenceForm({
@@ -410,6 +415,27 @@ export default function TargetReferenceForm({
     enabled: !!open,
     reloadNonce,
   });
+
+  const rowRevisionLock = React.useCallback(
+    (day: number) => {
+      const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const req = matchRequest(revisionRequests, { dateKey });
+      const editablestatus = Number(existingEditableStatus[String(day)] ?? 0);
+      const isrevisionrequest = Boolean(existingIsRevisionRequest[String(day)] ?? false);
+      const monthLocked = hasPstLockActivated(Number(year), Number(month));
+      return {
+        req,
+        ...deriveRevisionLock({
+          requests: revisionRequests,
+          dateKey,
+          isPast: monthLocked,
+          editablestatus,
+          isrevisionrequest,
+        }),
+      };
+    },
+    [revisionRequests, existingEditableStatus, existingIsRevisionRequest, year, month],
+  );
 
   // Reset baseline state when opening.
   // NOTE: depend on primitive fields (not the `editing` object) — the parent
@@ -850,77 +876,69 @@ export default function TargetReferenceForm({
           <tbody>
             {days.map((d, i) => {
               const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
-              const activeReq = revisionRequests.find(
-                (req) =>
-                  Number(req.reportmonth) === Number(month) &&
-                  Number((req as { reportday?: number }).reportday || d) === Number(d) &&
-                  req.statuscode?.toUpperCase() === "PENDING",
-              );
-              // Server-driven flags (only source of truth for editability + action state)
-              const editablestatus = Number(existingEditableStatus[String(d)] ?? 0);
-              const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
-              const serverIsEditable = editablestatus === 153;
-              const hasPendingRevisionRequest = Boolean(activeReq) || serverIsRevisionRequest;
-              const isPastDate = isPastTargetDate(Number(year), Number(month), Number(d));
-              const isEditable = serverIsEditable || !isPastDate;
-              const row = {
-                isrevisionrequest: hasPendingRevisionRequest,
-              };
-
-              // Pick a referencekey (targetno) for the row.
+              const rowDateKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+              const lock = rowRevisionLock(d);
+              const activeReq = lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
+              const rowLocked = lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month));
+              const isEditable = !rowLocked;
               const rowReferenceKey = existingTargetNos?.[String(d)] || "";
               return (
                 <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
                   <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
-                    {serverIsEditable ? null : row.isrevisionrequest ? (
-                      <div className="flex items-center justify-center gap-1.5">
-                        <EditButton
-                          variant="square"
-                          tooltip="Cancel Revision Request"
-                          ariaLabel="Cancel Revision Request"
-                          icon={<Ban className="h-4 w-4" />}
-                          onClick={() => {
-                            if (activeReq) setCancelRequestId(activeReq.requestno);
-                            else toast.info("No active revision request to cancel.");
-                          }}
-                        />
-                        <DeleteButton
-                          variant="square"
-                          tooltip="Delete Revision Request"
-                          ariaLabel="Delete Revision Request"
-                          icon={<Trash2 className="h-4 w-4" />}
-                          onClick={() => {
-                            if (activeReq) setDeleteRequestId(activeReq.requestno);
-                            else toast.info("No revision request to delete.");
-                          }}
-                        />
-                      </div>
-                    ) : isPastDate ? (
-                      <div className="flex items-center justify-center gap-1.5">
-                        <EditButton
-                          variant="square"
-                          tooltip={
-                            !revStation
-                              ? "Select a station to request a revision"
-                              : "Request Revision"
-                          }
-                          ariaLabel={
-                            !revStation
-                              ? "Select a station to request a revision"
-                              : "Request Revision"
-                          }
-                          disabled={!revStation}
-                          icon={<FilePen className="h-4 w-4" />}
-                          onClick={() => setRevisionDay(Number(d))}
-                        />
-                      </div>
+                    {!isEditable && !lock.unlockedByApproval ? (
+                      lock.hasPendingRevision ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <EditButton
+                            variant="square"
+                            tooltip="Cancel Revision Request"
+                            ariaLabel="Cancel Revision Request"
+                            icon={<Ban className="h-4 w-4" />}
+                            onClick={() => {
+                              if (activeReq) setCancelRequestId(activeReq.requestno);
+                              else toast.info("No active revision request to cancel.");
+                            }}
+                          />
+                          <DeleteButton
+                            variant="square"
+                            tooltip="Delete Revision Request"
+                            ariaLabel="Delete Revision Request"
+                            icon={<Trash2 className="h-4 w-4" />}
+                            onClick={() => {
+                              if (activeReq) setDeleteRequestId(activeReq.requestno);
+                              else toast.info("No revision request to delete.");
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <EditButton
+                            variant="square"
+                            tooltip={
+                              !revStation
+                                ? "Select a station to request a revision"
+                                : "Request Revision"
+                            }
+                            ariaLabel={
+                              !revStation
+                                ? "Select a station to request a revision"
+                                : "Request Revision"
+                            }
+                            disabled={!revStation}
+                            icon={<FilePen className="h-4 w-4" />}
+                            onClick={() => setRevisionDay(Number(d))}
+                          />
+                        </div>
+                      )
                     ) : null}
                   </td>
                   <td className="whitespace-nowrap px-3 py-1.5 font-medium">
                     <div className="flex items-center gap-2">
-                      {!isEditable && (
-                        <Lock className="h-3 w-3 text-warning" aria-label="Locked day" />
-                      )}
+                      <DayLockIcon
+                        date={rowDateKey}
+                        module="target-reference"
+                        locked={rowLocked}
+                        className="h-3 w-3"
+                      />
                       <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
                       {activeReq ? (
                         <RevisionStatusBadge

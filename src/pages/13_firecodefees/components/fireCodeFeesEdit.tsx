@@ -49,6 +49,7 @@ import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRema
 
 import { firecodefeesAPI } from "@/services/firecodefeesAPI";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
+import { DayLockIcon } from "@/components/day-lock-icon";
 import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
 import {
   deriveRevisionLock,
@@ -565,17 +566,11 @@ export function FireCodeFeesYearEditorBody({
                       <div className="min-w-[5.5rem]" aria-hidden="true" />
                     )}
                     <div className="flex min-w-[9rem] items-center gap-2">
-                      {info.locked ? (
-                        <Lock
-                          className="h-3.5 w-3.5 text-warning"
-                          aria-label={`${name} is locked`}
-                        />
-                      ) : (
-                        <LockOpen
-                          className="h-3.5 w-3.5 text-success"
-                          aria-label={`${name} is open for editing`}
-                        />
-                      )}
+                      <DayLockIcon
+                        date={`${year}-${String(m.month).padStart(2, "0")}-01`}
+                        module="fire-code-fees"
+                        className="h-3.5 w-3.5"
+                      />
                       <span className="text-sm font-semibold">{name}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider">

@@ -1,4 +1,5 @@
 import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
+import { DayLockIcon } from "@/components/day-lock-icon";
 import * as React from "react";
 import {
   AlertCircle,
@@ -591,14 +592,12 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
         }
       }
       const loaded = buildDays(parsed, year, month);
-      // Only overwrite the seeded days when the detail response actually
-      // contains encoded records. If the API returns no noticedetallist the
-      // seeded ledger row (from the parent `record`) should remain visible.
-      if (parsed.size > 0) {
-        setDays(loaded);
-        setBaselineRows(captureBaseline(loaded));
-        setDaySourceMap(parsed);
-      }
+      // Always replace the visible month snapshot with the selected period.
+      // If the API returns no rows for that month, we still need to clear the
+      // previous month's data rather than leaving stale values on screen.
+      setDays(loaded);
+      setBaselineRows(captureBaseline(loaded));
+      setDaySourceMap(parsed);
     })();
     return () => {
       cancelled = true;
@@ -640,6 +639,12 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   );
 
   const changePeriod = (nextMonth: number, nextYear: number) => {
+    setSaveError(null);
+    const emptyMap = createEmptyDaySourceMap(nextYear, nextMonth);
+    const seeded = buildDays(emptyMap, nextYear, nextMonth);
+    setDays(seeded);
+    setBaselineRows(captureBaseline(seeded));
+    setDaySourceMap(emptyMap);
     setMonth(nextMonth);
     setYear(nextYear);
   };
@@ -1016,12 +1021,11 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                                 )}
                               >
                                 <span className="flex items-center gap-2 whitespace-nowrap">
-                                  {entry.isLocked && (
-                                    <Lock
-                                      className="h-3.5 w-3.5 shrink-0 text-warning"
-                                      aria-label="Locked day"
-                                    />
-                                  )}
+                                  <DayLockIcon
+                                    date={entry.date}
+                                    module="notice"
+                                    className="h-3.5 w-3.5"
+                                  />
                                   {entry.label}
                                 </span>
                               </td>

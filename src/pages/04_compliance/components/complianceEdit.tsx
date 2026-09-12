@@ -74,6 +74,7 @@ import DeleteButton from "@/components/delete-button";
 
 import { complianceAPI } from "@/services/complianceAPI";
 import { stationAPI } from "@/services/stationAPI";
+import { DayLockIcon } from "@/components/day-lock-icon";
 import type { SearchStationModel } from "@/types/stationTypes";
 import type {
   FSISIssuanceClassDTO,
@@ -1453,7 +1454,7 @@ function ActivityTable({
                     className={`sticky left-[96px] z-20 border-b border-r px-3 py-1.5 align-middle text-[11px] font-semibold ${zebra}`}
                   >
                     <div className="flex items-center gap-2 whitespace-nowrap">
-                      {day.isLocked && <Lock className="h-3 w-3 shrink-0 text-warning" />}
+                      <DayLockIcon date={day.key} module="monitoring" className="h-3 w-3" />
                       <span
                         className={
                           total > 0 ? "text-primary-700 dark:text-primary-300 font-semibold" : ""
