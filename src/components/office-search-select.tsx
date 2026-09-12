@@ -125,7 +125,7 @@ export default function OfficeSearchSelect({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent className="z-[300] w-max min-w-[320px] p-0" align="start">
+      <PopoverContent className="z-[600] w-max min-w-[320px] p-0" align="start">
         <div className="border-b p-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

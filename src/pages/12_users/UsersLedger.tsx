@@ -164,12 +164,12 @@ export default function UsersLedger({ variant, title, description }: Props) {
   );
 
   const filterAccountRoleRows = React.useMemo(
-    () => makeRoleFilter(activateTarget?.stationtype),
-    [makeRoleFilter, activateTarget?.stationtype],
+    () => makeRoleFilter(),
+    [makeRoleFilter],
   );
   const filterUpdateRoleRows = React.useMemo(
-    () => makeRoleFilter(roleTarget?.stationtype),
-    [makeRoleFilter, roleTarget?.stationtype],
+    () => makeRoleFilter(),
+    [makeRoleFilter],
   );
 
   const openRoleDialog = (r: UserModel) => {

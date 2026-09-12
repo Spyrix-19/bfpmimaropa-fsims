@@ -108,7 +108,7 @@ export function FeeTypeMultiSelect({
         </Button>
       </PopoverTrigger>
       {/* z-index sits above the dialog (z-200) this form is rendered inside. */}
-      <PopoverContent align="end" className="z-[300] w-[min(560px,calc(100vw-2rem))] p-0">
+      <PopoverContent align="end" className="z-[600] w-[min(560px,calc(100vw-2rem))] p-0">
         <div className="p-3 pb-0">
           <label
             className={cn(
