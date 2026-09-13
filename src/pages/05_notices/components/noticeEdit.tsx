@@ -71,7 +71,7 @@ import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
-import { isPastDateLockEnabled } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled, isPastMonth, isDateLocked } from "@/lib/past-date-lock";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
@@ -188,26 +188,12 @@ const SERIES = {
  */
 function hasPstLockActivated(year: number, month: number, now: Date = new Date()): boolean {
   if (!isPastDateLockEnabled("notice")) return false;
-
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const selectedMonthStart = new Date(year, month - 1, 1).getTime();
-
-  return selectedMonthStart < currentMonthStart;
+  return isPastMonth(year, month, now);
 }
 
 /** Check if a given date (YYYY-MM-DD) has already passed. */
 function isDayPassed(dateStr: string): boolean {
-  if (!isPastDateLockEnabled("notice")) return false;
-  try {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    if (!y || !m || !d) return false;
-    const day = new Date(y, m - 1, d);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return day.getTime() < today.getTime();
-  } catch {
-    return false;
-  }
+  return isDateLocked(dateStr, "notice");
 }
 
 interface DayRow {

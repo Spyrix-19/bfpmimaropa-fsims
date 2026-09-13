@@ -6,7 +6,7 @@ import { FiltersProvider } from "@/lib/filters";
 import { AppShell } from "@/components/AppShell";
 import { Toaster } from "@/components/ui/sonner";
 import { PwaStatus } from "@/components/PwaStatus";
-import { isMaintenanceMode, subscribeMaintenance } from "@/lib/maintenance";
+import { isMaintenanceMode } from "@/lib/maintenance";
 
 const Maintenance = lazy(() => import("@/pages/Maintenance"));
 
@@ -255,7 +255,12 @@ export { moduleForPath };
 export default function App() {
   // Global maintenance gate — takes precedence over routing and authentication.
   const [maintenance, setMaintenance] = useState(() => isMaintenanceMode());
-  useEffect(() => subscribeMaintenance(setMaintenance), []);
+  useEffect(() => {
+    // Poll the maintenance flag periodically so runtime toggles (e.g.
+    // `window.setMaintenanceMode`) take effect across already-open clients.
+    const id = window.setInterval(() => setMaintenance(isMaintenanceMode()), 2000);
+    return () => window.clearInterval(id);
+  }, []);
 
   
 

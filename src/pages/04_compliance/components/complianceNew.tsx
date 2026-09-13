@@ -40,6 +40,7 @@ import StationInfoCard, { StationReadOnlyField } from "@/components/station-info
 import { useStationDetails } from "@/hooks/useStationDetails";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
+import { isDateLocked } from "@/lib/past-date-lock";
 import { MONITORING_THEME } from "./complianceTheme";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { unwrap } from "@/lib/api-envelope";
@@ -636,7 +637,7 @@ function InspectionsNewBody({
           totalAccomplishmentpeza: Number(record.inspectpezacount ?? 0),
           totalAccomplishmenttieza: Number(record.inspecttiezacount ?? 0),
         });
-        const isPast = isPastDateLockEnabled("monitoring") && reportingDate.getTime() < startOfToday();
+        const isPast = isDateLocked(reportingDate, "monitoring");
         const unlocked = Number(record.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(record.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -696,7 +697,7 @@ function InspectionsNewBody({
   });
 
   /* ── Lock rules for the selected (single) date ───────────────────────────── */
-  const isPastSelectedDate = isPastDateLockEnabled("monitoring") && reportingDate.getTime() < startOfToday();
+  const isPastSelectedDate = isDateLocked(reportingDate, "monitoring");
   const {
     activeRequest,
     unlockedByApproval,

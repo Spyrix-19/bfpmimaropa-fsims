@@ -16,7 +16,7 @@ import {
   type ModuleFilterState,
 } from "@/components/shared/ModuleFilterBar";
 import { fromISODate } from "@/lib/filters";
-import { isPastDateLockEnabled } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled, isPastMonth } from "@/lib/past-date-lock";
 
 /* ------------------------------------------------------------------ *
  * Ledger request builder (POST /FSISTargetReference/Ledger)
@@ -138,13 +138,7 @@ export function isReportMonthLocked(
   now: Date = new Date(),
 ) {
   if (!isPastDateLockEnabled("target-reference")) return false;
-  const cy = now.getFullYear();
-  const cm = now.getMonth() + 1;
-  const y = Number(reportYear) || 0;
-  const m = Number(reportMonth) || 0;
-  if (y < cy) return true;
-  if (y > cy) return false;
-  return m < cm;
+  return isPastMonth(reportYear, reportMonth, now);
 }
 
 /* ------------------------------------------------------------------ *

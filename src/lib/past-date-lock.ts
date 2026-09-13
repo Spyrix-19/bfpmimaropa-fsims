@@ -109,3 +109,44 @@ export function isPastDateLockEnabled(module?: PastDateLockModule): boolean {
 }
 
 export default isPastDateLockEnabled;
+
+/**
+ * True when the given year/month should be considered past according to the
+ * "4th-of-following-month" rule:
+ * - current month is never past
+ * - previous month becomes past starting on day 4 of the current month
+ * - older months are always past
+ */
+export function isPastMonth(year: number, month: number, now: Date = new Date()): boolean {
+  const y = Number(year);
+  const m = Number(month);
+  if (!y || !m || m < 1 || m > 12) return false;
+  const cy = now.getFullYear();
+  const cm = now.getMonth() + 1;
+  if (y === cy && m === cm) return false;
+  const prev = new Date(cy, cm - 2, 1); // cm-2 because Date months are 0-based
+  const prevY = prev.getFullYear();
+  const prevM = prev.getMonth() + 1;
+  if (y === prevY && m === prevM) return now.getDate() >= 4;
+  return new Date(y, m - 1, 1).getTime() < new Date(cy, cm - 1, 1).getTime();
+}
+
+/**
+ * True when a specific calendar date should be locked for editing according
+ * to the month-based rule. This ignores the day-of-month of the target date
+ * and uses the target's month/year only.
+ */
+export function isDateLocked(value: string | Date, module?: PastDateLockModule, now: Date = new Date()): boolean {
+  if (!isPastDateLockEnabled(module)) return false;
+  let d: Date;
+  if (typeof value === "string") {
+    const iso = value.slice(0, 10);
+    d = new Date(`${iso}T00:00:00`);
+  } else {
+    d = new Date(value);
+  }
+  if (Number.isNaN(d.getTime())) return false;
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  return isPastMonth(y, m, now);
+}

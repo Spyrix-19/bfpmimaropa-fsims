@@ -87,7 +87,7 @@ import { useRevisionLedger } from "../revision/useRevisionRequests";
 import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
-import { isPastDateLockEnabled } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled, isDateLocked } from "@/lib/past-date-lock";
 import { serializePhilippineDateTime } from "@/lib/date-format";
 
 interface Props {
@@ -148,18 +148,11 @@ function hasPstLockActivated(
   now: Date = new Date(),
 ): boolean {
   if (!isPastDateLockEnabled("target-reference")) return false;
-
   const y = Number(reportyear);
   const m = Number(reportmonth);
   const d = Number(reportday);
   if (!y || !m || !d || m < 1 || m > 12 || d < 1) return false;
-
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const selectedDate = new Date(y, m - 1, d);
-  selectedDate.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-
-  return selectedDate < today;
+  return isDateLocked(new Date(y, m - 1, d), "target-reference", now);
 }
 
 function formatDateInputValue(date: Date): string {
@@ -550,9 +543,7 @@ export default function TargetReferenceForm({
           editablestatus: Number(record.editablestatus ?? 0),
         });
 
-        const isPast =
-          isPastDateLockEnabled("target-reference") &&
-          parseDateInputValue(selectedDate).getTime() < startOfToday();
+        const isPast = isDateLocked(parseDateInputValue(selectedDate), "target-reference");
         const unlocked = Number(record.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(record.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -740,10 +731,7 @@ export default function TargetReferenceForm({
   const selectedDay = Number(selectedDate.slice(8, 10));
 
   /* ── Past-date lock rules (Add mode, single date) ───────────────────────── */
-  const isPastSelectedDate =
-    isPastDateLockEnabled("target-reference") &&
-    !!selectedDate &&
-    parseDateInputValue(selectedDate).getTime() < startOfToday();
+  const isPastSelectedDate = !!selectedDate && isDateLocked(parseDateInputValue(selectedDate), "target-reference");
   const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
   /** Pending revision request for the selected date (used for cancel/delete). */
   const activeAddRequest = React.useMemo(() => {

@@ -30,11 +30,13 @@ export function setMaintenanceMode(v: boolean) {
   for (const cb of Array.from(listeners)) cb(current);
 }
 
-export function subscribeMaintenance(cb: (v: boolean) => void) {
+export function subscribeMaintenance(cb: (v: boolean) => void): () => void {
   listeners.add(cb);
   // invoke immediately with current value so subscribers are in sync
   cb(current);
-  return () => listeners.delete(cb);
+  return () => {
+    void listeners.delete(cb);
+  };
 }
 
 // Expose a small helper for manual toggling from the console (convenience only).

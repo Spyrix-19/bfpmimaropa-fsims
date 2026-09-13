@@ -65,7 +65,7 @@ import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { DayLockIcon } from "@/components/day-lock-icon";
-import { isPastDateLockEnabled } from "@/lib/past-date-lock";
+import { isPastDateLockEnabled, isDateLocked } from "@/lib/past-date-lock";
 import { serializePhilippineDateTime } from "@/lib/date-format";
 
 interface Props {
@@ -123,18 +123,11 @@ function hasPstLockActivated(
   now: Date = new Date(),
 ): boolean {
   if (!isPastDateLockEnabled("target-reference")) return false;
-
   const y = Number(reportyear);
   const m = Number(reportmonth);
   const d = Number(reportday);
   if (!y || !m || !d || m < 1 || m > 12 || d < 1) return false;
-
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const selectedDate = new Date(y, m - 1, d);
-  selectedDate.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-
-  return selectedDate < today;
+  return isDateLocked(new Date(y, m - 1, d), "target-reference", now);
 }
 
 export default function TargetReferenceForm({

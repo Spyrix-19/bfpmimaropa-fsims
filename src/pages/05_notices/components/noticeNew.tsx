@@ -26,6 +26,7 @@ import {
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 
 import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
+import { isDateLocked } from "@/lib/past-date-lock";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
@@ -602,7 +603,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           isrevisionrequest: Boolean(entry.isrevisionrequest),
           editablestatus: Number(entry.editablestatus ?? 0),
         });
-        const isPast = isPastDateLockEnabled("notice") && reportingDate.getTime() < startOfToday();
+        const isPast = isDateLocked(reportingDate, "notice");
         const unlocked = Number(entry.editablestatus ?? 0) === 153;
         const pending = !unlocked && Boolean(entry.isrevisionrequest);
         const locked = !unlocked && (isPast || pending);
@@ -645,8 +646,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   });
 
   /* ── Lock rules for the selected date ───────────────────────────────────── */
-  const isPastSelectedDate =
-    isPastDateLockEnabled("notice") && reportingDate.getTime() < startOfToday();
+  const isPastSelectedDate = isDateLocked(reportingDate, "notice");
   const {
     activeRequest,
     unlockedByApproval,

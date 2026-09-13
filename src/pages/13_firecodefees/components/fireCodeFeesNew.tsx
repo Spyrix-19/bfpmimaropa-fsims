@@ -111,9 +111,21 @@ function startOfCurrentMonth(): number {
   return new Date(n.getFullYear(), n.getMonth(), 1).getTime();
 }
 
-/** True when the given year/month is earlier than the current month. */
+/**
+ * True when the given year/month should be considered past according to the
+ * "4th-of-following-month" rule (current month never past; previous month
+ * becomes past starting day 4 of current month; older months always past).
+ */
 export function isPastMonth(year: number, month: number): boolean {
-  return new Date(year, month - 1, 1).getTime() < startOfCurrentMonth();
+  const now = new Date();
+  const startCurrent = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevY = prev.getFullYear();
+  const prevM = prev.getMonth() + 1;
+
+  if (year === now.getFullYear() && month === now.getMonth() + 1) return false;
+  if (year === prevY && month === prevM) return now.getDate() >= 4;
+  return new Date(year, month - 1, 1).getTime() < startCurrent;
 }
 
 /**

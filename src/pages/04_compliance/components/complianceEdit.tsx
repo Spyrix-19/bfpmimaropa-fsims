@@ -1,6 +1,7 @@
 import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { isDateLocked, isPastMonth } from "@/lib/past-date-lock";
 
 import {
   AlertCircle,
@@ -302,26 +303,14 @@ function hasPstLockActivated(
   reportmonth: number,
   now: Date = new Date(),
 ): boolean {
+  // Delegate to centralized month rule.
   if (!isPastDateLockEnabled("monitoring")) return false;
-
-  const y = Number(reportyear);
-  const m = Number(reportmonth);
-  if (!y || !m || m < 1 || m > 12) return false;
-
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const selectedMonthStart = new Date(y, m - 1, 1).getTime();
-
-  return selectedMonthStart < currentMonthStart;
+  return isPastMonth(reportyear, reportmonth, now);
 }
 
 /** Check if a given date has already passed (is before today at midnight). */
 function isDayPassed(dateStr: string): boolean {
-  if (!isPastDateLockEnabled("monitoring")) return false;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return d < today;
+  return isDateLocked(dateStr, "monitoring");
 }
 
 function emptyIssuance(fsicmode: number): EditableIssuance {
