@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { lazy, Suspense, type ReactElement } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactElement } from "react";
 import { AuthProvider, useAuth, moduleForPath, type AppModule } from "@/lib/auth";
 import { FiltersProvider } from "@/lib/filters";
 import { AppShell } from "@/components/AppShell";
 import { Toaster } from "@/components/ui/sonner";
 import { PwaStatus } from "@/components/PwaStatus";
-import { IS_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { isMaintenanceMode, subscribeMaintenance } from "@/lib/maintenance";
 
 const Maintenance = lazy(() => import("@/pages/Maintenance"));
 
@@ -79,7 +79,10 @@ export { moduleForPath };
 
 export default function App() {
   // Global maintenance gate — takes precedence over routing and authentication.
-  if (IS_MAINTENANCE_MODE) {
+  const [maintenance, setMaintenance] = useState(() => isMaintenanceMode());
+  useEffect(() => subscribeMaintenance(setMaintenance), []);
+
+  if (maintenance) {
     return (
       <Suspense fallback={<PageLoader />}>
         <Maintenance />
