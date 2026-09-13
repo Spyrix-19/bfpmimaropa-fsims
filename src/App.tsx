@@ -75,6 +75,181 @@ function PageLoader() {
   );
 }
 
+function AppContent({ maintenance }: { maintenance: boolean }) {
+  const { isSuperAdmin, initialized, hasRole } = useAuth();
+  if (!initialized) return <PageLoader />;
+  const bypass = isSuperAdmin() || hasRole(1);
+  if (maintenance && !bypass) {
+    return <Maintenance />;
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route
+        path="/profile"
+        element={
+          <RequireAccess module="profile">
+            <Profile />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/monitoring"
+        element={
+          <RequireAccess module="monitoring">
+            <Monitoring />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/monitoring/view/:stationno/:year/:month"
+        element={
+          <RequireAccess module="monitoring">
+            <ComplianceViewPage />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/monitoring/edit/:stationno/:year/:month"
+        element={
+          <RequireAccess module="monitoring">
+            <ComplianceEditPage />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/target-reference"
+        element={
+          <RequireAccess module="monitoring">
+            <TargetReference />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/accomplished-notice"
+        element={
+          <RequireAccess module="monitoring">
+            <AccomplishedNotice />
+          </RequireAccess>
+        }
+      />
+
+      <Route
+        path="/target-revision-requests"
+        element={
+          <RequireAccess module="target-revisions">
+            <TargetRevisionRequests
+              moduleFilter="target-reference"
+              title="Target Reference Requests"
+              description="Review, approve, or deny revision requests submitted against locked Target Reference months."
+            />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/monitoring-revision-requests"
+        element={
+          <RequireAccess module="target-revisions">
+            <TargetRevisionRequests
+              moduleFilter="monitoring"
+              title="Monitoring (Compliance) Requests"
+              description="Review, approve, or deny revision requests submitted against locked Fire Safety Compliance monitoring records."
+            />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/revision-requests"
+        element={
+          <RequireAccess module="target-revisions">
+            <TargetRevisionRequests
+              title="Revision Requests"
+              description="Review, approve, or deny all revision requests submitted against locked records."
+            />
+          </RequireAccess>
+        }
+      />
+
+      <Route
+        path="/reports"
+        element={
+          <RequireAccess module="reports">
+            <Reports />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/collection/fire-code-fees"
+        element={
+          <RequireAccess module="collection">
+            <FireCodeFees />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/logistics"
+        element={
+          <RequireAccess module="logistics">
+            <IssuedBwc />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/logistics/issued-bwc"
+        element={
+          <RequireAccess module="logistics">
+            <IssuedBwc />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/logistics/fire-safety-inspector"
+        element={
+          <RequireAccess module="logistics">
+            <FireSafetyInspector />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/inspections/new"
+        element={
+          <RequireAccess module="inspections">
+            <InspectionsNew />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <RequireAccess module="settings">
+            <SettingsPage />
+          </RequireAccess>
+        }
+      />
+
+      <Route
+        path="/users/available"
+        element={
+          <RequireAccess module="users">
+            <AvailableUsers />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/users/active"
+        element={
+          <RequireAccess module="users">
+            <ActiveUsers />
+          </RequireAccess>
+        }
+      />
+      <Route path="/access-denied" element={<AccessDenied />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
 export { moduleForPath };
 
 export default function App() {
@@ -82,13 +257,7 @@ export default function App() {
   const [maintenance, setMaintenance] = useState(() => isMaintenanceMode());
   useEffect(() => subscribeMaintenance(setMaintenance), []);
 
-  if (maintenance) {
-    return (
-      <Suspense fallback={<PageLoader />}>
-        <Maintenance />
-      </Suspense>
-    );
-  }
+  
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -97,169 +266,7 @@ export default function App() {
           <BrowserRouter>
             <AppShell>
               <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route
-                    path="/profile"
-                    element={
-                      <RequireAccess module="profile">
-                        <Profile />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/monitoring"
-                    element={
-                      <RequireAccess module="monitoring">
-                        <Monitoring />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/monitoring/view/:stationno/:year/:month"
-                    element={
-                      <RequireAccess module="monitoring">
-                        <ComplianceViewPage />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/monitoring/edit/:stationno/:year/:month"
-                    element={
-                      <RequireAccess module="monitoring">
-                        <ComplianceEditPage />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/target-reference"
-                    element={
-                      <RequireAccess module="monitoring">
-                        <TargetReference />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/accomplished-notice"
-                    element={
-                      <RequireAccess module="monitoring">
-                        <AccomplishedNotice />
-                      </RequireAccess>
-                    }
-                  />
-
-                  <Route
-                    path="/target-revision-requests"
-                    element={
-                      <RequireAccess module="target-revisions">
-                        <TargetRevisionRequests
-                          moduleFilter="target-reference"
-                          title="Target Reference Requests"
-                          description="Review, approve, or deny revision requests submitted against locked Target Reference months."
-                        />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/monitoring-revision-requests"
-                    element={
-                      <RequireAccess module="target-revisions">
-                        <TargetRevisionRequests
-                          moduleFilter="monitoring"
-                          title="Monitoring (Compliance) Requests"
-                          description="Review, approve, or deny revision requests submitted against locked Fire Safety Compliance monitoring records."
-                        />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/revision-requests"
-                    element={
-                      <RequireAccess module="target-revisions">
-                        <TargetRevisionRequests
-                          title="Revision Requests"
-                          description="Review, approve, or deny all revision requests submitted against locked records."
-                        />
-                      </RequireAccess>
-                    }
-                  />
-
-                  <Route
-                    path="/reports"
-                    element={
-                      <RequireAccess module="reports">
-                        <Reports />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/collection/fire-code-fees"
-                    element={
-                      <RequireAccess module="collection">
-                        <FireCodeFees />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/logistics"
-                    element={
-                      <RequireAccess module="logistics">
-                        <IssuedBwc />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/logistics/issued-bwc"
-                    element={
-                      <RequireAccess module="logistics">
-                        <IssuedBwc />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/logistics/fire-safety-inspector"
-                    element={
-                      <RequireAccess module="logistics">
-                        <FireSafetyInspector />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/inspections/new"
-                    element={
-                      <RequireAccess module="inspections">
-                        <InspectionsNew />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/settings"
-                    element={
-                      <RequireAccess module="settings">
-                        <SettingsPage />
-                      </RequireAccess>
-                    }
-                  />
-
-                  <Route
-                    path="/users/available"
-                    element={
-                      <RequireAccess module="users">
-                        <AvailableUsers />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route
-                    path="/users/active"
-                    element={
-                      <RequireAccess module="users">
-                        <ActiveUsers />
-                      </RequireAccess>
-                    }
-                  />
-                  <Route path="/access-denied" element={<AccessDenied />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                <AppContent maintenance={maintenance} />
               </Suspense>
             </AppShell>
             <Toaster richColors position="top-right" />
