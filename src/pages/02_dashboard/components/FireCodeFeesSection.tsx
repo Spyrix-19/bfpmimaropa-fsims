@@ -27,18 +27,9 @@ import {
   peso,
   sectorKeyFromCode,
 } from "./fees/feeColumns";
-import {
-  groupByParent,
-  useFeeCategories,
-  type FeeCategory,
-} from "./fees/feeCategories";
+import { groupByParent, useFeeCategories, type FeeCategory } from "./fees/feeCategories";
 import { FeeTypeMultiSelect, useFeeTypes } from "./fees/FeeTypeMultiSelect";
-import {
-  MODES,
-  emptyValues,
-  sumAmounts,
-  type SectorValues,
-} from "./fees/feeShared";
+import { MODES, emptyValues, sumAmounts, type SectorValues } from "./fees/feeShared";
 
 /* -------------------------------------------------------------------------- */
 /*  Aggregation helpers                                                        */
@@ -50,6 +41,9 @@ const categoryTotal = (v: SectorValues, sector: string, feecateg: number) =>
 
 const sectorGrand = (v: SectorValues, sector: string) =>
   MODES.reduce((a, m) => a + sumAmounts(v[sector as keyof SectorValues][m.code]), 0);
+
+/** The dashboard collection summary is intentionally limited to BPLO. */
+const DASHBOARD_FEE_SECTORS = FEE_SECTORS.filter((sector) => sector.key === "bplo");
 
 /**
  * Fee categories exactly as the API returns them: one row per `feecateg`,
@@ -102,7 +96,6 @@ function mapSummaryToYears(
 
   return years.map((year) => ({ year, values: byYear.get(year) ?? emptyValues() }));
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*  Year multi-select — mirrors the Year-over-Year Inspection Comparison       */
@@ -335,23 +328,23 @@ export default function FireCodeFeesSection() {
   const yearTotal = (year: number) => {
     const v = valuesOf(year);
     if (!v) return 0;
-    return FEE_SECTORS.reduce((a, s) => a + sectorGrand(v, s.key), 0);
+    return DASHBOARD_FEE_SECTORS.reduce((a, s) => a + sectorGrand(v, s.key), 0);
   };
 
   const yearColClass = "w-24 min-w-24 sm:w-32 sm:min-w-32";
 
   return (
     <Card className="border-border/60 bg-card p-3 shadow-soft sm:p-4">
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="mb-1 flex flex-wrap items-center gap-2">
+      <div className="mb-4 space-y-4">
+        <div className="min-w-0 border-b border-border/60 pb-3">
+          <div className="mb-1 flex items-center gap-2">
             <Coins className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Fire Code Fees Collection</h3>
+            <h3 className="text-base font-semibold leading-tight">Fire Code Fees Collection</h3>
           </div>
-          <p className="text-xs text-muted-foreground">Year to Year Data Comparison</p>
+          <p className="pl-6 text-sm text-muted-foreground">Year to Year Data Comparison</p>
         </div>
 
-        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[176px_minmax(220px,1fr)_minmax(200px,1fr)_minmax(200px,1fr)]">
           <YearMultiSelect value={years} onChange={setYears} />
 
           <FeeTypeMultiSelect
@@ -409,7 +402,7 @@ export default function FireCodeFeesSection() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border/60">
-          <table className="w-max min-w-[620px] border-separate border-spacing-0 text-[10px] sm:text-xs">
+          <table className="w-full min-w-[620px] border-separate border-spacing-0 text-[10px] sm:text-xs">
             <thead>
               <tr>
                 <th
@@ -418,7 +411,7 @@ export default function FireCodeFeesSection() {
                 >
                   Fee Category
                 </th>
-                {FEE_SECTORS.map((s) => (
+                {DASHBOARD_FEE_SECTORS.map((s) => (
                   <th
                     key={s.key}
                     colSpan={sortedYears.length}
@@ -435,7 +428,7 @@ export default function FireCodeFeesSection() {
                 </th>
               </tr>
               <tr>
-                {FEE_SECTORS.map((s) => (
+                {DASHBOARD_FEE_SECTORS.map((s) => (
                   <React.Fragment key={`${s.key}-years`}>
                     {sortedYears.map((y, yi) => (
                       <th
@@ -467,7 +460,7 @@ export default function FireCodeFeesSection() {
                         </span>
                       ) : null}
                     </td>
-                    {FEE_SECTORS.map((s) => (
+                    {DASHBOARD_FEE_SECTORS.map((s) => (
                       <td
                         key={`${s.key}-g`}
                         colSpan={sortedYears.length}
@@ -482,7 +475,10 @@ export default function FireCodeFeesSection() {
                       if (!v) return yearAcc;
                       return (
                         yearAcc +
-                        FEE_SECTORS.reduce((a, s) => a + categoryTotal(v, s.key, c.detno), 0)
+                        DASHBOARD_FEE_SECTORS.reduce(
+                          (a, s) => a + categoryTotal(v, s.key, c.detno),
+                          0,
+                        )
                       );
                     }, 0);
                     return (
@@ -490,7 +486,7 @@ export default function FireCodeFeesSection() {
                         <td className="sticky left-0 z-20 w-52 min-w-52 border-t border-grid bg-card px-2 py-1.5 align-middle text-foreground/90 sm:w-64 sm:min-w-64 sm:px-3">
                           {c.label}
                         </td>
-                        {FEE_SECTORS.map((s) => (
+                        {DASHBOARD_FEE_SECTORS.map((s) => (
                           <React.Fragment key={`${s.key}-${c.key}`}>
                             {sortedYears.map((y, yi) => {
                               const v = valuesOf(y);
@@ -525,7 +521,7 @@ export default function FireCodeFeesSection() {
                 <td className="sticky left-0 z-30 w-52 min-w-52 bg-muted px-2 py-2 text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-3">
                   TOTAL
                 </td>
-                {FEE_SECTORS.map((s) => (
+                {DASHBOARD_FEE_SECTORS.map((s) => (
                   <React.Fragment key={`${s.key}-total`}>
                     {sortedYears.map((y, yi) => {
                       const v = valuesOf(y);

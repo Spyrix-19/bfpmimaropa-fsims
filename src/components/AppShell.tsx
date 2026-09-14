@@ -101,6 +101,12 @@ export function AppShell({ children, maintenance }: { children: ReactNode; title
     return () => window.removeEventListener("keydown", handler);
   }, [user]);
 
+  // During maintenance the sidebar is hidden for non-super-admins, so the
+  // trigger (which needs SidebarProvider) must not render either.
+  const isSuperAdminUser = isSuperAdmin() || hasRole(1);
+  const hideSidebar = Boolean(maintenance) && !isSuperAdminUser;
+  const showSidebar = Boolean(user) && !hideSidebar;
+
   const header = (
     <header
       ref={headerRef}
@@ -108,7 +114,7 @@ export function AppShell({ children, maintenance }: { children: ReactNode; title
     >
       <div className="flex w-full min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2">
         <div className="flex min-w-0 flex-1 basis-[14rem] items-start gap-2">
-          {user && <SidebarTrigger className="shrink-0" />}
+          {showSidebar && <SidebarTrigger className="shrink-0" />}
           <div className="flex min-w-0 items-start gap-2">
             <div
               className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white p-1 ring-1 ring-border ${user ? "md:hidden" : ""}`}
@@ -235,10 +241,6 @@ export function AppShell({ children, maintenance }: { children: ReactNode; title
       </>
     );
   }
-
-  // During maintenance, hide sidebar for non-super-admin users
-  const isSuperAdminUser = isSuperAdmin() || hasRole(1);
-  const hideSidebar = maintenance && !isSuperAdminUser;
 
   if (hideSidebar) {
     return (

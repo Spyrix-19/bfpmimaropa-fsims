@@ -349,102 +349,190 @@ export default function FireCodeFeesVarianceSection() {
   const percentClass = (pct: number | null) =>
     pct !== null && pct >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground";
 
-  const valueCellClass = "w-28 min-w-28 px-2 py-1.5 text-right tabular-nums text-muted-foreground sm:w-40 sm:min-w-40 sm:px-3";
+  const valueCellClass =
+    "w-28 min-w-28 px-3 py-2.5 text-right tabular-nums text-muted-foreground sm:w-40 sm:min-w-40 sm:px-4";
+
+  const varianceRows = VARIANCE_GROUPS.map((row) => {
+    const baseAmt = baseTotals[row.code] ?? 0;
+    const compareAmt = compareTotals[row.code] ?? 0;
+    return {
+      ...row,
+      baseAmt,
+      compareAmt,
+      variance: varianceOf(baseAmt, compareAmt),
+      positive: positiveOf(baseAmt, compareAmt),
+      percentage: percentOf(baseAmt, compareAmt),
+    };
+  });
 
   return (
-    <Card className="border-border/60 bg-card p-3 shadow-soft sm:p-4">
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <Coins className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Fire Code Fees Variance Comparison</h3>
+    <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
+      <div className="border-b border-border/60 p-4 sm:p-5">
+        <div className="space-y-4">
+          <div className="min-w-0 border-b border-border/60 pb-3">
+            <div className="mb-1 flex items-center gap-2">
+              <Coins className="h-4 w-4 text-primary" />
+              <h3 className="text-base font-semibold leading-tight">
+                Fire Code Fees Variance Comparison
+              </h3>
+            </div>
+            <p className="pl-6 text-sm text-muted-foreground">
+              Combination of Manual Collection and Online Collection
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Combination of Manual Collection and Online Collection
-          </p>
-        </div>
 
-        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
-          <TwoYearSelect value={years} onChange={setYears} />
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[176px_150px_160px_minmax(200px,1fr)_minmax(200px,1fr)]">
+            <TwoYearSelect value={years} onChange={setYears} />
 
-          <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
-            <SelectTrigger className="h-9 w-full shrink-0 text-sm sm:w-[150px]">
-              <SelectValue placeholder="Period" />
-            </SelectTrigger>
-            <SelectContent>
-              {INTERVALS.map((i) => (
-                <SelectItem key={i.value} value={i.value}>
-                  {i.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {interval !== "ANNUAL" && (
-            <Select value={subPeriod} onValueChange={setSubPeriod}>
-              <SelectTrigger className="h-9 w-full shrink-0 text-sm sm:w-[160px]">
-                <SelectValue placeholder="Select period" />
+            <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
+              <SelectTrigger className="h-9 w-full shrink-0 text-sm sm:w-[150px]">
+                <SelectValue placeholder="Period" />
               </SelectTrigger>
               <SelectContent>
-                {SUB_OPTIONS[interval].map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                {INTERVALS.map((i) => (
+                  <SelectItem key={i.value} value={i.value}>
+                    {i.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          )}
 
-          {scope.provinceLocked ? (
-            <ReadOnlyField
-              value={scope.provincename}
-              placeholder="All provinces"
-              title="Restricted to your assigned province"
-              className="w-full shrink-0 sm:w-[240px]"
-            />
-          ) : (
-            <LocationMultiSelect
-              mode="location"
-              value={provinces}
-              locationtype="PROVINCE"
-              parentcode={MIMAROPA_REGION_CODE}
-              onChange={handleProvincesChange}
-              placeholder="All provinces"
-              hideCode
-              className="w-full shrink-0 sm:w-[240px]"
-            />
-          )}
+            {interval !== "ANNUAL" && (
+              <Select value={subPeriod} onValueChange={setSubPeriod}>
+                <SelectTrigger className="h-9 w-full shrink-0 text-sm sm:w-[160px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUB_OPTIONS[interval].map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-          {scope.stationLocked ? (
-            <ReadOnlyField
-              value={scope.stationname}
-              placeholder="All stations"
-              title="Restricted to your assigned station"
-              className="w-full shrink-0 sm:w-[240px]"
-            />
-          ) : (
-            <StationMultiSelect
-              mode="station"
-              value={stations}
-              provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
-              reportyear={compareYear}
-              onChange={handleStationsChange}
-              placeholder="All stations"
-              alwaysEnabled
-              className="w-full shrink-0 sm:w-[240px]"
-            />
-          )}
+            {scope.provinceLocked ? (
+              <ReadOnlyField
+                value={scope.provincename}
+                placeholder="All provinces"
+                title="Restricted to your assigned province"
+                className="w-full shrink-0 sm:w-[240px]"
+              />
+            ) : (
+              <LocationMultiSelect
+                mode="location"
+                value={provinces}
+                locationtype="PROVINCE"
+                parentcode={MIMAROPA_REGION_CODE}
+                onChange={handleProvincesChange}
+                placeholder="All provinces"
+                hideCode
+                className="w-full shrink-0 sm:w-[240px]"
+              />
+            )}
+
+            {scope.stationLocked ? (
+              <ReadOnlyField
+                value={scope.stationname}
+                placeholder="All stations"
+                title="Restricted to your assigned station"
+                className="w-full shrink-0 sm:w-[240px]"
+              />
+            ) : (
+              <StationMultiSelect
+                mode="station"
+                value={stations}
+                provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+                reportyear={compareYear}
+                onChange={handleStationsChange}
+                placeholder="All stations"
+                alwaysEnabled
+                className="w-full shrink-0 sm:w-[240px]"
+              />
+            )}
+          </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="mb-3 flex items-center justify-center gap-2 rounded-xl border border-border/60 p-8 text-sm text-muted-foreground">
+        <div className="m-4 flex items-center justify-center gap-2 rounded-lg border border-border/60 p-8 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading variance comparison…
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-border/60">
-        <table className="w-max min-w-[720px] border-separate border-spacing-0 text-[10px] sm:text-xs">
+      <div className="space-y-3 p-3 md:hidden">
+        {varianceRows.map((row) => (
+          <article
+            key={row.code}
+            className="overflow-hidden rounded-lg border border-border/60 bg-card"
+          >
+            <div className="border-b border-border/60 bg-muted/40 px-3 py-2.5 text-sm font-semibold">
+              {row.label}
+            </div>
+            <dl className="grid grid-cols-2 gap-px bg-border/60 text-xs">
+              <div className="bg-card p-3">
+                <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
+                  {periodLabel(interval, subPeriod, baseYear)}
+                </dt>
+                <dd className="mt-1 font-semibold tabular-nums">{peso(row.baseAmt)}</dd>
+              </div>
+              <div className="bg-card p-3 text-right">
+                <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
+                  {periodLabel(interval, subPeriod, compareYear)}
+                </dt>
+                <dd className="mt-1 font-semibold tabular-nums">{peso(row.compareAmt)}</dd>
+              </div>
+              <div className="bg-card p-3">
+                <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
+                  Variance
+                </dt>
+                <dd className="mt-1 tabular-nums text-muted-foreground">{peso(row.variance)}</dd>
+              </div>
+              <div className="bg-card p-3 text-right">
+                <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
+                  Positive listing
+                </dt>
+                <dd className="mt-1 tabular-nums text-muted-foreground">{peso(row.positive)}</dd>
+              </div>
+            </dl>
+            <div className="flex items-center justify-between border-t border-border/60 px-3 py-2.5 text-xs">
+              <span className="font-semibold uppercase text-muted-foreground">Performance</span>
+              <span className={cn("font-bold tabular-nums", percentClass(row.percentage))}>
+                {percentText(row.percentage)}
+              </span>
+            </div>
+          </article>
+        ))}
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <div className="mb-2 text-xs font-bold uppercase text-primary">Total</div>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="block text-muted-foreground">{baseYear}</span>
+              <strong className="tabular-nums">{peso(totalBase)}</strong>
+            </div>
+            <div className="text-right">
+              <span className="block text-muted-foreground">{compareYear}</span>
+              <strong className="tabular-nums">{peso(totalCompare)}</strong>
+            </div>
+            <div>
+              <span className="block text-muted-foreground">Variance</span>
+              <strong className="tabular-nums">{peso(varianceOf(totalBase, totalCompare))}</strong>
+            </div>
+            <div className="text-right">
+              <span className="block text-muted-foreground">Performance</span>
+              <strong
+                className={cn("tabular-nums", percentClass(percentOf(totalBase, totalCompare)))}
+              >
+                {percentText(percentOf(totalBase, totalCompare))}
+              </strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[920px] border-separate border-spacing-0 text-xs">
           <thead>
             <tr>
               <th
@@ -479,13 +567,11 @@ export default function FireCodeFeesVarianceSection() {
             </tr>
           </thead>
           <tbody>
-            {VARIANCE_GROUPS.map((row) => {
-              const baseAmt = baseTotals[row.code] ?? 0;
-              const compareAmt = compareTotals[row.code] ?? 0;
-              const pct = percentOf(baseAmt, compareAmt);
+            {varianceRows.map((row) => {
+              const { baseAmt, compareAmt, percentage: pct } = row;
               return (
                 <tr key={row.code} className="border-t border-grid">
-                  <td className="sticky left-0 z-20 w-52 min-w-52 border-t border-grid bg-card px-2 py-1.5 align-middle text-foreground/90 sm:w-64 sm:min-w-64 sm:px-3">
+                  <td className="sticky left-0 z-20 w-52 min-w-52 border-t border-grid bg-card px-3 py-2.5 align-middle font-medium text-foreground/90 sm:w-64 sm:min-w-64 sm:px-4">
                     {row.label}
                   </td>
                   <td className={cn("border-l border-t border-grid", valueCellClass)}>

@@ -106,6 +106,9 @@ interface MonthState {
 
 const snapshot = (v: SectorValues) => JSON.stringify(v);
 
+const sumAmounts = (amounts: Record<string, number> | undefined) =>
+  Object.values(amounts ?? {}).reduce((total, value) => total + (Number(value) || 0), 0);
+
 const freshMonth = (month: number): MonthState => {
   const values = emptyValues();
   return { month, feeno: null, accomplishNos: {}, values, baseline: snapshot(values) };
