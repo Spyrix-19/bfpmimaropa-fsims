@@ -1,5 +1,5 @@
 import {
-  LockKeyholeOff,
+  LockKeyhole,
   ShieldAlert,
   Shield,
   Wrench,
@@ -49,7 +49,7 @@ export default function MaintenanceAccessBlocked() {
         <Card className="mt-8 overflow-hidden border-border/60 p-0 shadow-elegant">
           <div className="border-b border-border/60 bg-red-50/40 dark:bg-red-950/20 px-6 py-8 text-center sm:px-10">
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-100/60 dark:bg-red-900/30 ring-1 ring-red-200/60 dark:ring-red-800/60">
-              <LockKeyholeOff className="h-7 w-7 text-red-600 dark:text-red-400" />
+              <LockKeyhole className="h-7 w-7 text-red-600 dark:text-red-400" />
             </div>
             <h1 className="mt-5 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               System Maintenance — Access Restricted
