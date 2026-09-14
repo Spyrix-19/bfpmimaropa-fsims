@@ -51,8 +51,8 @@ function useCurrentDate() {
   return now;
 }
 
-export function AppShell({ children }: { children: ReactNode; title?: string }) {
-  const { user } = useAuth();
+export function AppShell({ children, maintenance }: { children: ReactNode; title?: string; maintenance?: boolean }) {
+  const { user, isSuperAdmin, hasRole } = useAuth();
   const headerRef = useRef<HTMLElement>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -211,6 +211,36 @@ export function AppShell({ children }: { children: ReactNode; title?: string }) 
   );
 
   if (!user) {
+    return (
+      <>
+        <div className="flex min-h-screen w-full flex-col">
+          {header}
+          {main}
+          <Footer />
+        </div>
+        <Suspense fallback={null}>
+          <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+        </Suspense>
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogContent
+            hideCloseButton
+            className="w-full max-w-[min(100vw-1rem,48rem)] max-h-[calc(100vh-1rem)] overflow-y-auto focus:outline-none focus:ring-0"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <Suspense fallback={null}>
+              <SettingsPage onClose={() => setSettingsOpen(false)} />
+            </Suspense>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  // During maintenance, hide sidebar for non-super-admin users
+  const isSuperAdminUser = isSuperAdmin() || hasRole(1);
+  const hideSidebar = maintenance && !isSuperAdminUser;
+
+  if (hideSidebar) {
     return (
       <>
         <div className="flex min-h-screen w-full flex-col">

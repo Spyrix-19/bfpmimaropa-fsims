@@ -9,6 +9,7 @@ import { PwaStatus } from "@/components/PwaStatus";
 import { isMaintenanceMode } from "@/lib/maintenance";
 
 const Maintenance = lazy(() => import("@/pages/Maintenance"));
+const MaintenanceAccessBlocked = lazy(() => import("@/pages/MaintenanceAccessBlocked"));
 
 const Dashboard = lazy(() => import("@/pages/02_dashboard/Dashboard"));
 const Monitoring = lazy(() => import("./pages/04_compliance/Compliance.tsx"));
@@ -76,11 +77,22 @@ function PageLoader() {
 }
 
 function AppContent({ maintenance }: { maintenance: boolean }) {
-  const { isSuperAdmin, initialized, hasRole } = useAuth();
+  const { isSuperAdmin, initialized, isAuthenticated, hasRole } = useAuth();
   if (!initialized) return <PageLoader />;
-  const bypass = isSuperAdmin() || hasRole(1);
-  if (maintenance && !bypass) {
-    return <Maintenance />;
+  const isSuperAdminUser = isSuperAdmin() || hasRole(1);
+  
+  // During maintenance:
+  // 1. Not authenticated → show Maintenance (allows login via header + Ctrl+/)
+  // 2. Authenticated but not super admin → show blocked message
+  // 3. Super admin → bypass and show normal routes
+  if (maintenance) {
+    if (!isAuthenticated) {
+      return <Maintenance />;
+    }
+    if (!isSuperAdminUser) {
+      return <MaintenanceAccessBlocked />;
+    }
+    // Super admin bypasses maintenance
   }
 
   return (
@@ -269,7 +281,7 @@ export default function App() {
       <AuthProvider>
         <FiltersProvider>
           <BrowserRouter>
-            <AppShell>
+            <AppShell maintenance={maintenance}>
               <Suspense fallback={<PageLoader />}>
                 <AppContent maintenance={maintenance} />
               </Suspense>
