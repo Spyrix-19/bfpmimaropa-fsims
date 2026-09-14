@@ -166,10 +166,10 @@ function TwoYearSelect({
         <Button
           variant="outline"
           size="sm"
-          className="w-full shrink-0 justify-between sm:w-[176px]"
+          className="h-10 w-full shrink-0 justify-between rounded-lg border-border/70 bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/30 sm:w-[176px]"
         >
           <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className="h-4 w-4 text-primary" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[240px] p-3">
@@ -371,86 +371,90 @@ export default function FireCodeFeesVarianceSection() {
         <div className="space-y-4">
           <div className="min-w-0 border-b border-border/60 pb-3">
             <div className="mb-1 flex items-center gap-2">
-              <Coins className="h-4 w-4 text-primary" />
-              <h3 className="text-base font-semibold leading-tight">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
+                <Coins className="h-4 w-4" />
+              </div>
+              <h3 className="text-base font-semibold leading-tight tracking-tight">
                 Fire Code Fees Variance Comparison
               </h3>
             </div>
-            <p className="pl-6 text-sm text-muted-foreground">
+            <p className="pl-10 text-sm text-muted-foreground">
               Combination of Manual Collection and Online Collection
             </p>
           </div>
 
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[176px_150px_160px_minmax(200px,1fr)_minmax(200px,1fr)]">
-            <TwoYearSelect value={years} onChange={setYears} />
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5">
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[176px_150px_160px_minmax(200px,1fr)_minmax(200px,1fr)]">
+              <TwoYearSelect value={years} onChange={setYears} />
 
-            <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
-              <SelectTrigger className="h-9 w-full shrink-0 text-sm sm:w-[150px]">
-                <SelectValue placeholder="Period" />
-              </SelectTrigger>
-              <SelectContent>
-                {INTERVALS.map((i) => (
-                  <SelectItem key={i.value} value={i.value}>
-                    {i.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {interval !== "ANNUAL" && (
-              <Select value={subPeriod} onValueChange={setSubPeriod}>
-                <SelectTrigger className="h-9 w-full shrink-0 text-sm sm:w-[160px]">
-                  <SelectValue placeholder="Select period" />
+              <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
+                <SelectTrigger className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card px-3 text-sm shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/30 sm:w-[150px]">
+                  <SelectValue placeholder="Period" />
                 </SelectTrigger>
                 <SelectContent>
-                  {SUB_OPTIONS[interval].map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
+                  {INTERVALS.map((i) => (
+                    <SelectItem key={i.value} value={i.value}>
+                      {i.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            )}
 
-            {scope.provinceLocked ? (
-              <ReadOnlyField
-                value={scope.provincename}
-                placeholder="All provinces"
-                title="Restricted to your assigned province"
-                className="w-full shrink-0 sm:w-[240px]"
-              />
-            ) : (
-              <LocationMultiSelect
-                mode="location"
-                value={provinces}
-                locationtype="PROVINCE"
-                parentcode={MIMAROPA_REGION_CODE}
-                onChange={handleProvincesChange}
-                placeholder="All provinces"
-                hideCode
-                className="w-full shrink-0 sm:w-[240px]"
-              />
-            )}
+              {interval !== "ANNUAL" && (
+                <Select value={subPeriod} onValueChange={setSubPeriod}>
+                  <SelectTrigger className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card px-3 text-sm shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/30 sm:w-[160px]">
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUB_OPTIONS[interval].map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
-            {scope.stationLocked ? (
-              <ReadOnlyField
-                value={scope.stationname}
-                placeholder="All stations"
-                title="Restricted to your assigned station"
-                className="w-full shrink-0 sm:w-[240px]"
-              />
-            ) : (
-              <StationMultiSelect
-                mode="station"
-                value={stations}
-                provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
-                reportyear={compareYear}
-                onChange={handleStationsChange}
-                placeholder="All stations"
-                alwaysEnabled
-                className="w-full shrink-0 sm:w-[240px]"
-              />
-            )}
+              {scope.provinceLocked ? (
+                <ReadOnlyField
+                  value={scope.provincename}
+                  placeholder="All provinces"
+                  title="Restricted to your assigned province"
+                  className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card text-sm shadow-sm sm:w-[240px]"
+                />
+              ) : (
+                <LocationMultiSelect
+                  mode="location"
+                  value={provinces}
+                  locationtype="PROVINCE"
+                  parentcode={MIMAROPA_REGION_CODE}
+                  onChange={handleProvincesChange}
+                  placeholder="All provinces"
+                  hideCode
+                  className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card text-sm shadow-sm sm:w-[240px]"
+                />
+              )}
+
+              {scope.stationLocked ? (
+                <ReadOnlyField
+                  value={scope.stationname}
+                  placeholder="All stations"
+                  title="Restricted to your assigned station"
+                  className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card text-sm shadow-sm sm:w-[240px]"
+                />
+              ) : (
+                <StationMultiSelect
+                  mode="station"
+                  value={stations}
+                  provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+                  reportyear={compareYear}
+                  onChange={handleStationsChange}
+                  placeholder="All stations"
+                  alwaysEnabled
+                  className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card text-sm shadow-sm sm:w-[240px]"
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
