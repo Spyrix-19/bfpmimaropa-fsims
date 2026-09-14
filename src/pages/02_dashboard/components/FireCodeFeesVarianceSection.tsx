@@ -349,10 +349,10 @@ export default function FireCodeFeesVarianceSection() {
   const percentClass = (pct: number | null) =>
     pct !== null && pct >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground";
 
-  const valueCellClass = "w-40 min-w-40 px-3 py-1.5 text-right tabular-nums text-muted-foreground";
+  const valueCellClass = "w-28 min-w-28 px-2 py-1.5 text-right tabular-nums text-muted-foreground sm:w-40 sm:min-w-40 sm:px-3";
 
   return (
-    <Card className="border-border/60 bg-card p-4 shadow-soft">
+    <Card className="border-border/60 bg-card p-3 shadow-soft sm:p-4">
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -444,12 +444,12 @@ export default function FireCodeFeesVarianceSection() {
       ) : null}
 
       <div className="overflow-x-auto rounded-xl border border-border/60">
-        <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
+        <table className="w-max min-w-[720px] border-separate border-spacing-0 text-[10px] sm:text-xs">
           <thead>
             <tr>
               <th
                 rowSpan={2}
-                className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-center align-middle text-[10px] font-bold uppercase tracking-wider"
+                className="head-soft sticky left-0 z-30 w-52 min-w-52 px-2 py-2 text-center align-middle text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-3"
               >
                 Fire Code Fee Collection
               </th>
@@ -461,19 +461,19 @@ export default function FireCodeFeesVarianceSection() {
               </th>
             </tr>
             <tr>
-              <th className="head-soft w-40 min-w-40 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
+              <th className="head-soft w-28 min-w-28 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
                 {periodLabel(interval, subPeriod, baseYear)}
               </th>
-              <th className="head-soft w-40 min-w-40 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
+              <th className="head-soft w-28 min-w-28 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
                 {periodLabel(interval, subPeriod, compareYear)}
               </th>
-              <th className="head-soft w-32 min-w-32 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
+              <th className="head-soft w-24 min-w-24 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
                 Variance
               </th>
-              <th className="head-soft w-32 min-w-32 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
+              <th className="head-soft w-24 min-w-24 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
                 Positive Listing
               </th>
-              <th className="head-soft w-24 min-w-24 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
+              <th className="head-soft w-20 min-w-20 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-24 sm:min-w-24 sm:px-3">
                 %
               </th>
             </tr>
@@ -485,7 +485,7 @@ export default function FireCodeFeesVarianceSection() {
               const pct = percentOf(baseAmt, compareAmt);
               return (
                 <tr key={row.code} className="border-t border-grid">
-                  <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
+                  <td className="sticky left-0 z-20 w-52 min-w-52 border-t border-grid bg-card px-2 py-1.5 align-middle text-foreground/90 sm:w-64 sm:min-w-64 sm:px-3">
                     {row.label}
                   </td>
                   <td className={cn("border-l border-t border-grid", valueCellClass)}>
@@ -494,15 +494,15 @@ export default function FireCodeFeesVarianceSection() {
                   <td className={cn("border-l border-t border-grid", valueCellClass)}>
                     {peso(compareAmt)}
                   </td>
-                  <td className="w-32 min-w-32 border-l border-t border-grid px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                  <td className="w-24 min-w-24 border-l border-t border-grid px-2 py-1.5 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
                     {peso(varianceOf(baseAmt, compareAmt))}
                   </td>
-                  <td className="w-32 min-w-32 border-l border-t border-grid px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                  <td className="w-24 min-w-24 border-l border-t border-grid px-2 py-1.5 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
                     {peso(positiveOf(baseAmt, compareAmt))}
                   </td>
                   <td
                     className={cn(
-                      "w-24 min-w-24 border-l border-t border-grid px-3 py-1.5 text-right font-semibold tabular-nums",
+                      "w-20 min-w-20 border-l border-t border-grid px-2 py-1.5 text-right font-semibold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
                       percentClass(pct),
                     )}
                   >
@@ -514,24 +514,24 @@ export default function FireCodeFeesVarianceSection() {
           </tbody>
           <tfoot>
             <tr className="border-t border-grid bg-muted/60">
-              <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+              <td className="sticky left-0 z-30 w-52 min-w-52 bg-muted px-2 py-2 text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-3">
                 Total
               </td>
-              <td className="w-40 min-w-40 border-l border-grid px-3 py-2 text-right font-bold tabular-nums">
+              <td className="w-28 min-w-28 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
                 {peso(totalBase)}
               </td>
-              <td className="w-40 min-w-40 border-l border-grid px-3 py-2 text-right font-bold tabular-nums">
+              <td className="w-28 min-w-28 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
                 {peso(totalCompare)}
               </td>
-              <td className="w-32 min-w-32 border-l border-grid px-3 py-2 text-right font-bold tabular-nums">
+              <td className="w-24 min-w-24 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
                 {peso(varianceOf(totalBase, totalCompare))}
               </td>
-              <td className="w-32 min-w-32 border-l border-grid px-3 py-2 text-right font-bold tabular-nums">
+              <td className="w-24 min-w-24 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
                 {peso(positiveOf(totalBase, totalCompare))}
               </td>
               <td
                 className={cn(
-                  "w-24 min-w-24 border-l border-grid px-3 py-2 text-right font-bold tabular-nums",
+                  "w-20 min-w-20 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
                   percentClass(percentOf(totalBase, totalCompare)),
                 )}
               >

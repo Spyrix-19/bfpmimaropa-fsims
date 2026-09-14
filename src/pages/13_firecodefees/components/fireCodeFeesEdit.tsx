@@ -601,7 +601,7 @@ export function FireCodeFeesYearEditorBody({
                     </div>
                     <div className="ml-auto flex items-center gap-4">
                       <div className="hidden md:flex md:items-end">
-                        {FEE_SECTORS.map((s) => (
+                        {FEE_SECTORS.filter((s) => s.key === "bplo").map((s) => (
                           <div key={s.key} className="w-28 shrink-0 px-2 text-right">
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                               {s.label}

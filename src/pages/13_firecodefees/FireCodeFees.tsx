@@ -106,6 +106,8 @@ type Granularity = "month" | "quarter" | "semester" | "annual";
 const emptyAmounts = (): FeeAmounts =>
   Object.fromEntries(FEE_CATEGS.map((categ) => [categ, 0])) as FeeAmounts;
 
+const MAIN_LEDGER_VISIBLE_SECTORS = FEE_SECTORS.filter((sector) => sector.key === "bplo");
+
 interface SectorBucket {
   manual: FeeAmounts;
   fsic: FeeAmounts;
@@ -989,7 +991,7 @@ export default function FireCodeFeesPage() {
                     <th className="sticky left-0 top-0 bg-background px-3 py-2 text-left font-semibold">
                       Station
                     </th>
-                    {FEE_SECTORS.map((sector) => (
+                    {MAIN_LEDGER_VISIBLE_SECTORS.map((sector) => (
                       <th
                         key={sector.key}
                         className="bg-background px-3 py-2 text-right font-semibold"
@@ -1006,7 +1008,7 @@ export default function FireCodeFeesPage() {
                       <td className="sticky left-0 bg-background px-3 py-2 text-left font-medium">
                         {row.stationname}
                       </td>
-                      {FEE_SECTORS.map((sector) => (
+                      {MAIN_LEDGER_VISIBLE_SECTORS.map((sector) => (
                         <td key={`${row.key}-${sector.key}`} className="px-3 py-2 text-right">
                           {peso(row.sectorTotals[sector.key] ?? 0)}
                         </td>
@@ -1248,7 +1250,7 @@ function FireCodeFeesLedgerCard({
   const lineSummaries = React.useMemo(
     () =>
       lines.map((line) => {
-        const perSector = FEE_SECTORS.map((s) => ({
+        const perSector = MAIN_LEDGER_VISIBLE_SECTORS.map((s) => ({
           key: s.key,
           title: s.label,
           value: sumAmounts(totalsForSector([line], s.key).combined),

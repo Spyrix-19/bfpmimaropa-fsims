@@ -338,10 +338,10 @@ export default function FireCodeFeesSection() {
     return FEE_SECTORS.reduce((a, s) => a + sectorGrand(v, s.key), 0);
   };
 
-  const yearColClass = "w-32 min-w-32";
+  const yearColClass = "w-24 min-w-24 sm:w-32 sm:min-w-32";
 
   return (
-    <Card className="border-border/60 bg-card p-4 shadow-soft">
+    <Card className="border-border/60 bg-card p-3 shadow-soft sm:p-4">
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -409,12 +409,12 @@ export default function FireCodeFeesSection() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border/60">
-          <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
+          <table className="w-max min-w-[620px] border-separate border-spacing-0 text-[10px] sm:text-xs">
             <thead>
               <tr>
                 <th
                   rowSpan={2}
-                  className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider"
+                  className="head-soft sticky left-0 z-30 w-52 min-w-52 px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-3"
                 >
                   Fee Category
                 </th>
@@ -422,14 +422,14 @@ export default function FireCodeFeesSection() {
                   <th
                     key={s.key}
                     colSpan={sortedYears.length}
-                    className="head-soft border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
+                    className="head-soft border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-3"
                   >
                     {s.label}
                   </th>
                 ))}
                 <th
                   rowSpan={2}
-                  className="head-soft border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
+                  className="head-soft border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-3"
                 >
                   Total
                 </th>
@@ -441,7 +441,7 @@ export default function FireCodeFeesSection() {
                       <th
                         key={`${s.key}-${y}`}
                         className={cn(
-                          "head-soft px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
+                          "head-soft px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-3",
                           yearColClass,
                           yi === 0 && "border-l border-grid",
                         )}
@@ -487,7 +487,7 @@ export default function FireCodeFeesSection() {
                     }, 0);
                     return (
                       <tr key={c.key} className="border-t border-grid">
-                        <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
+                        <td className="sticky left-0 z-20 w-52 min-w-52 border-t border-grid bg-card px-2 py-1.5 align-middle text-foreground/90 sm:w-64 sm:min-w-64 sm:px-3">
                           {c.label}
                         </td>
                         {FEE_SECTORS.map((s) => (
@@ -499,7 +499,7 @@ export default function FireCodeFeesSection() {
                                 <td
                                   key={`${s.key}-${c.key}-${y}`}
                                   className={cn(
-                                    "border-t border-grid px-3 py-1.5 text-right tabular-nums",
+                                    "border-t border-grid px-2 py-1.5 text-right tabular-nums sm:px-3",
                                     yearColClass,
                                     yi === 0 && "border-l",
                                     !amount && "text-muted-foreground",
@@ -511,7 +511,7 @@ export default function FireCodeFeesSection() {
                             })}
                           </React.Fragment>
                         ))}
-                        <td className="border-l border-t border-grid px-3 py-1.5 text-right font-semibold tabular-nums">
+                        <td className="border-l border-t border-grid px-2 py-1.5 text-right font-semibold tabular-nums sm:px-3">
                           {peso(rowTotal)}
                         </td>
                       </tr>
@@ -522,7 +522,7 @@ export default function FireCodeFeesSection() {
             </tbody>
             <tfoot>
               <tr className="border-t border-grid bg-muted/60">
-                <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+                <td className="sticky left-0 z-30 w-52 min-w-52 bg-muted px-2 py-2 text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-3">
                   TOTAL
                 </td>
                 {FEE_SECTORS.map((s) => (
@@ -534,7 +534,7 @@ export default function FireCodeFeesSection() {
                         <td
                           key={`${s.key}-${y}-total`}
                           className={cn(
-                            "px-3 py-2 text-right font-bold tabular-nums",
+                            "px-2 py-2 text-right font-bold tabular-nums sm:px-3",
                             yearColClass,
                             yi === 0 && "border-l border-grid",
                           )}
@@ -545,7 +545,7 @@ export default function FireCodeFeesSection() {
                     })}
                   </React.Fragment>
                 ))}
-                <td className="border-l border-grid px-3 py-2 text-right font-bold tabular-nums text-primary">
+                <td className="border-l border-grid px-2 py-2 text-right font-bold tabular-nums text-primary sm:px-3">
                   {peso(sortedYears.reduce((a, y) => a + yearTotal(y), 0))}
                 </td>
               </tr>

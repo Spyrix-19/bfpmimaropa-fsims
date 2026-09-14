@@ -391,18 +391,19 @@ export function FeeCategoryMatrix({
   locked?: boolean;
 }) {
   const groups = React.useMemo(() => groupCategories(categories), [categories]);
+  const visibleSectors = FEE_SECTORS.filter((sector) => sector.key === "bplo");
 
   /** Column total of one sector + mode, e.g. BPLO · MANUAL. */
   const columnTotals = React.useMemo(
     () =>
-      FEE_SECTORS.map((s) => ({
+      visibleSectors.map((s) => ({
         key: s.key,
         byMode: MODES.map((m) => ({ code: m.code, total: sumAmounts(values[s.key][m.code]) })),
       })),
-    [values],
+    [values, visibleSectors],
   );
 
-  /** Overall total across every sector and mode — shown once, never per sector. */
+  /** Overall total across every visible sector and mode — shown once, never per sector. */
   const grand = React.useMemo(
     () => columnTotals.reduce((a, s) => a + s.byMode.reduce((b, m) => b + m.total, 0), 0),
     [columnTotals],
@@ -414,7 +415,7 @@ export function FeeCategoryMatrix({
         <colgroup>
           <col className="w-64" />
           <col className="w-28" />
-          {FEE_SECTORS.map((s) => (
+          {visibleSectors.map((s) => (
             <React.Fragment key={`${s.key}-cols`}>
               <col className="w-36" />
               <col className="w-36" />
@@ -435,7 +436,7 @@ export function FeeCategoryMatrix({
             >
               Total
             </th>
-            {FEE_SECTORS.map((s) => (
+            {visibleSectors.map((s) => (
               <th
                 key={s.key}
                 colSpan={2}
@@ -446,7 +447,7 @@ export function FeeCategoryMatrix({
             ))}
           </tr>
           <tr>
-            {FEE_SECTORS.map((s) => (
+            {visibleSectors.map((s) => (
               <React.Fragment key={`${s.key}-sub`}>
                 {MODES.map((m, mi) => (
                   <th
@@ -480,12 +481,12 @@ export function FeeCategoryMatrix({
                     </span>
                   ) : null}
                 </td>
-                {FEE_SECTORS.map((s) => (
+                {visibleSectors.map((s) => (
                   <td key={`${s.key}-g`} colSpan={2} className="border-l border-grid px-3 py-1.5" />
                 ))}
               </tr>
               {g.items.map((c) => {
-                const rowTotal = FEE_SECTORS.reduce(
+                const rowTotal = visibleSectors.reduce(
                   (a, s) =>
                     a + MODES.reduce((b, m) => b + (values[s.key][m.code][c.detno] ?? 0), 0),
                   0,
@@ -498,7 +499,7 @@ export function FeeCategoryMatrix({
                     <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-t border-grid bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
                       {peso(rowTotal)}
                     </td>
-                    {FEE_SECTORS.map((s) => {
+                    {visibleSectors.map((s) => {
                       const manual = values[s.key][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0;
                       const fsis = values[s.key][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
                       return (
