@@ -22,6 +22,7 @@ export function useComplianceSummary() {
   const { filters } = useFilters();
   const [data, setData] = React.useState<DashboardComplianceModel | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const isMountedRef = React.useRef(true);
 
   const reportyear = Number(filters.year) || new Date().getFullYear();
   const range = React.useMemo(
@@ -68,6 +69,7 @@ export function useComplianceSummary() {
     // Debounce rapid filter updates so only the latest fetch runs.
     const timer = setTimeout(() => {
       (async () => {
+        if (!isMountedRef.current) return; // Early exit if unmounted
         setLoading(true);
         const resp = await dashboardAPI.getComplianceSummary(
           {
@@ -87,7 +89,8 @@ export function useComplianceSummary() {
           },
         );
         const { ok, data: payload, error, canceled } = unwrap<DashboardComplianceModel>(resp);
-        if (cancelled || canceled) return;
+        // Don't update state if cancelled or component unmounted
+        if (cancelled || canceled || !isMountedRef.current) return;
         if (!ok) {
           toast.error(isGenericError(error) ? "Unable to load compliance summary." : error);
           setData(null);
@@ -105,6 +108,13 @@ export function useComplianceSummary() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportyear, rangeKey, provincesKey]);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   return { compliance: data, loading };
 }

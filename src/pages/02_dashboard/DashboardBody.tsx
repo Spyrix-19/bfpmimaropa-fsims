@@ -16,7 +16,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import * as React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { toPng } from "html-to-image";
 import { toast } from "@/lib/toast";
 import {

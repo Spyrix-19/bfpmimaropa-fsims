@@ -46,7 +46,26 @@ function RequireAccess({ module, children }: { module: AppModule; children: Reac
   return children;
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Cache data for 5 minutes before marking as stale
+      staleTime: 5 * 60 * 1000,
+      // Keep unused data in cache for 10 minutes, then garbage collect
+      gcTime: 10 * 60 * 1000,
+      // Retry failed requests up to 2 times
+      retry: 2,
+      // Don't refetch when window regains focus (prevent memory spike on tab switch)
+      refetchOnWindowFocus: false,
+      // Don't refetch on component mount if data is fresh
+      refetchOnMount: false,
+    },
+    mutations: {
+      // Don't retry mutations automatically (user should handle retries)
+      retry: 0,
+    },
+  },
+});
 
 function NotFound() {
   return (
