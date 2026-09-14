@@ -5,7 +5,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import Footer from "@/components/Footer";
+
 import { brand } from "@/lib/brand";
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
@@ -151,9 +151,6 @@ export default function MaintenanceAccessBlocked() {
           </div>
         </div>
 
-        <div className="mt-10 border-t border-border/60 pt-6 text-center">
-          <Footer />
-        </div>
       </div>
     </main>
   );

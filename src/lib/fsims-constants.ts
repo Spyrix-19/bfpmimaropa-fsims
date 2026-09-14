@@ -297,7 +297,7 @@ export type FireCodeSectorKey = SectorKey;
 /** The four establishment sectors of the report, in printed order. */
 export const FEE_SECTORS: { key: FireCodeSectorKey; code: number; label: string; title: string }[] =
   [
-    { key: "bplo", code: SECTOR_NO.BPLO, label: "BPLO", title: "BPLO (Business Establishments)" },
+    { key: "bplo", code: SECTOR_NO.BPLO, label: "Collection", title: "Collection (Business Establishments)" },
     { key: "gov", code: SECTOR_NO.GOV, label: "GOV", title: "GOV (Government Buildings)" },
     { key: "peza", code: SECTOR_NO.PEZA, label: "PEZA", title: "PEZA (PEZA Establishments)" },
     { key: "tieza", code: SECTOR_NO.TIEZA, label: "TIEZA", title: "TIEZA (Other Economic Zones)" },

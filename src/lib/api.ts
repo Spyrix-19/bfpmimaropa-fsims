@@ -316,6 +316,166 @@ const dedupeKey = (method: string, url: string, params: unknown): string => {
   return `${method} ${url} ${paramStr}`;
 };
 
+/* =========================
+   SHORT-LIVED GET RESPONSE CACHE
+   -------------------------
+   The in-flight map above only merges *concurrent* identical GETs. This cache
+   additionally serves a recent successful response to callers that ask again a
+   few seconds later (sibling components, remount after navigation, modals
+   re-opening), which is the main source of duplicate outbound traffic.
+
+   - Reference/lookup endpoints (stations, offices, personnel, locations,
+     gentable) change rarely and get a long TTL.
+   - Every other GET gets a short burst TTL, enough to collapse duplicates
+     within a single page load without showing stale data.
+   - Any mutation (POST/PUT/PATCH/DELETE) clears the cache, so writes are
+     always reflected on the next read.
+   - The cache is capped so it can never grow into a memory leak.
+========================= */
+const BURST_TTL_MS = 15_000;
+const REFERENCE_TTL_MS = 10 * 60_000;
+const MAX_CACHE_ENTRIES = 120;
+/** Reference payloads bigger than this are not persisted (keeps storage small). */
+const MAX_PERSISTED_BYTES = 512 * 1024;
+const PERSIST_KEY = "bfp.apicache.v1";
+
+/** Endpoints whose data rarely changes — safe to reuse for minutes. */
+const REFERENCE_PATHS = [
+  "/api/v1/Station/Search",
+  "/api/v1/Station/Details",
+  "/api/v1/Office/Search",
+  "/api/v1/Office/Details",
+  "/api/v1/Personnel/Search",
+  "/api/v1/Personnel/Details",
+  "/api/v1/Location/Search",
+  "/api/v1/Location/Details",
+  "/api/v1/Gentable/Search",
+  "/api/v1/Gentable/Code",
+];
+
+const isReferenceUrl = (url: string) => REFERENCE_PATHS.some((p) => url.startsWith(p));
+
+const ttlForUrl = (url: string): number =>
+  isReferenceUrl(url) ? REFERENCE_TTL_MS : BURST_TTL_MS;
+
+interface CacheEntry {
+  expiresAt: number;
+  value: ApiResponse<unknown>;
+  /** Reference entries survive mutations and page reloads. */
+  reference?: boolean;
+}
+
+const getCache = new Map<string, CacheEntry>();
+
+/* ---- sessionStorage persistence (reference endpoints only) ----
+   A full page reload would otherwise re-download every dropdown/lookup table.
+   Persisting them for the browser session removes that traffic entirely. */
+const persistSoon = (() => {
+  let scheduled = false;
+  return () => {
+    if (scheduled || typeof sessionStorage === "undefined") return;
+    scheduled = true;
+    setTimeout(() => {
+      scheduled = false;
+      try {
+        const now = Date.now();
+        const entries = Array.from(getCache.entries()).filter(
+          ([, e]) => e.reference && e.expiresAt > now,
+        );
+        const payload: Array<[string, CacheEntry]> = [];
+        for (const [k, e] of entries) {
+          const json = JSON.stringify(e.value);
+          if (json.length <= MAX_PERSISTED_BYTES) payload.push([k, e]);
+        }
+        sessionStorage.setItem(PERSIST_KEY, JSON.stringify(payload));
+      } catch {
+        /* quota or serialization issues — caching is best-effort */
+      }
+    }, 1000);
+  };
+})();
+
+const restorePersisted = () => {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    const raw = sessionStorage.getItem(PERSIST_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Array<[string, CacheEntry]>;
+    const now = Date.now();
+    for (const [k, e] of parsed) {
+      if (e && e.expiresAt > now) getCache.set(k, e);
+    }
+  } catch {
+    /* ignore corrupt cache */
+  }
+};
+restorePersisted();
+
+const readCache = <T>(key: string): ApiResponse<T> | undefined => {
+  const hit = getCache.get(key);
+  if (!hit) return undefined;
+  if (hit.expiresAt <= Date.now()) {
+    getCache.delete(key);
+    return undefined;
+  }
+  // Refresh recency for the LRU trim below.
+  getCache.delete(key);
+  getCache.set(key, hit);
+  return hit.value as ApiResponse<T>;
+};
+
+const writeCache = (key: string, value: ApiResponse<unknown>, url: string) => {
+  if (!value.isSuccess) return;
+  const reference = isReferenceUrl(url);
+  getCache.set(key, { expiresAt: Date.now() + ttlForUrl(url), value, reference });
+  while (getCache.size > MAX_CACHE_ENTRIES) {
+    const oldest = getCache.keys().next().value;
+    if (oldest === undefined) break;
+    getCache.delete(oldest);
+  }
+  if (reference) persistSoon();
+};
+
+/** Drop cached GETs. Called automatically after every mutation. */
+export const clearApiCache = (urlPrefix?: string) => {
+  if (!urlPrefix) {
+    getCache.clear();
+    try {
+      sessionStorage?.removeItem(PERSIST_KEY);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  for (const key of Array.from(getCache.keys())) {
+    if (key.includes(urlPrefix)) getCache.delete(key);
+  }
+  persistSoon();
+};
+
+/**
+ * Invalidate after a write. Reference/lookup data (stations, offices,
+ * personnel, locations, gentable) is kept unless the write itself targeted a
+ * reference endpoint — re-downloading every dropdown after each save was a
+ * large slice of outbound traffic.
+ */
+const invalidateAfterMutation = (url: string) => {
+  if (isReferenceUrl(url)) {
+    getCache.clear();
+    try {
+      sessionStorage?.removeItem(PERSIST_KEY);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  for (const [key, entry] of Array.from(getCache.entries())) {
+    if (!entry.reference) getCache.delete(key);
+  }
+};
+
+
+
 const canceledResponse = <T>(): ApiResponse<T> => ({
   statusCode: 0,
   isSuccess: false,
@@ -330,18 +490,27 @@ const request = async <T>(
   body?: unknown,
   options?: ApiOptions,
 ): Promise<ApiResponse<T>> => {
-  // In-flight dedupe for GET only.
+  // In-flight dedupe + short-lived cache for GET only.
   if (method === "GET" && !options?.noDedupe) {
     const key = dedupeKey(method, url, options?.params);
+
+    const cached = readCache<T>(key);
+    if (cached) return cached;
+
     // The shared request must NOT be tied to a single caller's AbortSignal —
     // otherwise one consumer unmounting (e.g. React StrictMode's first mount)
     // cancels the request that every other consumer is awaiting.
     const { signal, ...shared } = options ?? {};
     let p = inflight.get(key) as Promise<ApiResponse<T>> | undefined;
     if (!p) {
-      p = doRequest<T>(method, url, body, shared).finally(() => {
-        inflight.delete(key);
-      });
+      p = doRequest<T>(method, url, body, shared)
+        .then((res) => {
+          writeCache(key, res as ApiResponse<unknown>, url);
+          return res;
+        })
+        .finally(() => {
+          inflight.delete(key);
+        });
       inflight.set(key, p as Promise<ApiResponse<unknown>>);
     }
     if (!signal) return p;
@@ -355,7 +524,11 @@ const request = async <T>(
       }),
     ]);
   }
-  return doRequest<T>(method, url, body, options);
+
+  // Any write invalidates cached reads so the next fetch sees fresh data.
+  const result = await doRequest<T>(method, url, body, options);
+  if (method !== "GET") clearApiCache();
+  return result;
 };
 
 const doRequest = async <T>(

@@ -66,6 +66,7 @@ import {
   FEE_COLUMNS,
   FEE_SECTORS,
   FIRE_CODE_MODE_FSIS,
+  FIRE_CODE_MODE_MANUAL,
   SECTOR_BY_CODE,
   flattenFeeAccomItems,
   lastDayOfMonthISO,
@@ -601,13 +602,24 @@ export function FireCodeFeesYearEditorBody({
                     </div>
                     <div className="ml-auto flex items-center gap-4">
                       <div className="hidden md:flex md:items-end">
-                        {FEE_SECTORS.filter((s) => s.key === "bplo").map((s) => (
-                          <div key={s.key} className="w-28 shrink-0 px-2 text-right">
+                        {FEE_SECTORS.filter((s) => s.key === "bplo").flatMap((s) => [
+                          {
+                            key: `${s.key}-manual`,
+                            title: "MANUAL",
+                            value: sumAmounts(m.values[s.key][FIRE_CODE_MODE_MANUAL]),
+                          },
+                          {
+                            key: `${s.key}-fsis`,
+                            title: "FSIS",
+                            value: sumAmounts(m.values[s.key][FIRE_CODE_MODE_FSIS]),
+                          },
+                        ]).map((item) => (
+                          <div key={item.key} className="w-28 shrink-0 px-2 text-right">
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                              {s.label}
+                              {item.title}
                             </div>
                             <div className="text-[11px] font-semibold tabular-nums text-foreground">
-                              {peso(sectorTotal(m.values, s.key))}
+                              {peso(item.value)}
                             </div>
                           </div>
                         ))}

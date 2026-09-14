@@ -12,13 +12,13 @@ import type { JournalModel } from "@/types/journalType";
  *
  * Refresh behaviour:
  * - Skeleton only on the FIRST load.
- * - Silent background refresh every 60s: no skeleton, no spinner, no toast,
+ * - Silent background refresh every 3 minutes: no skeleton, no spinner, no toast,
  *   and state is only written when the payload actually changed — so a poll
  *   that returns the same entry causes zero visible change.
  * - A failed background poll keeps the last good data on screen; the error
  *   state is only surfaced when there is nothing to show.
  */
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 180_000;
 const PAGE_SIZE = 5;
 
 export function useRecentActivity(enabled = true) {

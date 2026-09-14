@@ -5,7 +5,7 @@ import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
 import type { AnnouncementLedgerModel } from "@/types/announcementType";
 
 /** How often the unread badge re-syncs with the backend (ms). */
-const POLL_INTERVAL_MS = 120_000;
+const POLL_INTERVAL_MS = 300_000;
 /** Hard floor between two network calls, no matter how many triggers fire. */
 const MIN_FETCH_GAP_MS = 20_000;
 

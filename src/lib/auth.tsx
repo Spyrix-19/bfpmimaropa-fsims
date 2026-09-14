@@ -16,6 +16,7 @@ import type {
   SystemAccessEntry,
 } from "@/types/authType";
 import { authAPI } from "@/services/authAPI";
+import { clearApiCache } from "@/lib/api";
 import { personnelAPI } from "@/services/personnelAPI";
 import { unwrap } from "@/lib/api-envelope";
 import { getClientIp } from "@/lib/client-ip";
@@ -395,6 +396,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applySession(null);
     setPendingMember(null);
     clearStoredSession();
+    // Never let one account's cached responses leak into the next session.
+    clearApiCache();
   }, [applySession]);
 
   const restoreSession = useCallback(async () => {

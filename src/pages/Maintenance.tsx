@@ -11,7 +11,7 @@ import {
   Server,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import Footer from "@/components/Footer";
+
 import { brand } from "@/lib/brand";
 import logo from "@/assets/bfp-mimaropa.png";
 
@@ -75,14 +75,6 @@ export default function Maintenance() {
               maintenance to improve system performance, reliability, security, and overall service
               quality.
             </p>
-            <div className="mt-4 rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
-              <p className="font-medium">
-                Super Administrators: Sign in to access the system during maintenance.
-              </p>
-              <p className="mt-1 text-[11px]">
-                Use <kbd className="rounded bg-white dark:bg-blue-900 px-1.5 py-0.5 font-mono text-[10px] border border-blue-300 dark:border-blue-700">Ctrl</kbd> + <kbd className="rounded bg-white dark:bg-blue-900 px-1.5 py-0.5 font-mono text-[10px] border border-blue-300 dark:border-blue-700">/</kbd> to sign in on desktop, or tap the <strong>Sign in</strong> button on mobile.
-              </p>
-            </div>
           </div>
 
           {/* Status card */}
@@ -185,9 +177,6 @@ export default function Maintenance() {
           </p>
         </Card>
 
-        <div className="mt-10 border-t border-border/60 pt-6 text-center">
-          <Footer />
-        </div>
       </div>
     </main>
   );

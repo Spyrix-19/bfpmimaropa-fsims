@@ -58,6 +58,7 @@ import {
 import { useFeeCategories } from "./feeCategories";
 import { FeeTypeMultiSelect, useFeeTypes } from "./fireCodeFeesFeeTypeFilter";
 import {
+  EDITABLE_FEE_SECTORS,
   FeeMatrixTable,
   MODES,
   emptyValues,
@@ -130,6 +131,9 @@ const monthTotal = (v: SectorValues) =>
 
 const sectorTotal = (v: SectorValues, sector: FireCodeSectorKey) =>
   MODES.reduce((b, m) => b + sumAmounts(v[sector][m.code]), 0);
+
+const sectorModeTotal = (v: SectorValues, sector: FireCodeSectorKey, mode: ModeCode) =>
+  sumAmounts(v[sector][mode]);
 
 const monthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, "0")}-01`;
 
@@ -414,19 +418,30 @@ export function FireCodeFeesYearViewBody({
                         </span>
                       )}
                     </div>
-                    <div className="ml-auto flex items-center gap-4">
-                      <div className="hidden md:flex md:items-end">
-                        {FEE_SECTORS.map((s) => (
-                          <div key={s.key} className="w-28 shrink-0 px-2 text-right">
+                      <div className="ml-auto flex items-center gap-4">
+                        <div className="hidden md:flex md:items-end">
+                        {EDITABLE_FEE_SECTORS.flatMap((s) => [
+                          {
+                            key: `${s.key}-manual`,
+                            title: "MANUAL",
+                            value: sectorModeTotal(m.values, s.key, FIRE_CODE_MODE_MANUAL),
+                          },
+                          {
+                            key: `${s.key}-fsis`,
+                            title: "FSIS",
+                            value: sectorModeTotal(m.values, s.key, FIRE_CODE_MODE_FSIS),
+                          },
+                        ]).map((item) => (
+                          <div key={item.key} className="w-28 shrink-0 px-2 text-right">
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                              {s.label}
+                              {item.title}
                             </div>
                             <div className="text-[11px] font-semibold tabular-nums text-foreground">
-                              {peso(sectorTotal(m.values, s.key))}
+                              {peso(item.value)}
                             </div>
                           </div>
                         ))}
-                        <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
+                          <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Total
                           </div>

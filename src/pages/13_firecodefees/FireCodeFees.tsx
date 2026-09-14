@@ -1246,19 +1246,21 @@ function FireCodeFeesLedgerCard({
     });
   };
 
-  /** Per-line sector totals (combined manual + FSIC) for the summary row. */
+  /** Per-line collection mode totals (MANUAL + FSIS) for the summary row. */
   const lineSummaries = React.useMemo(
     () =>
       lines.map((line) => {
-        const perSector = MAIN_LEDGER_VISIBLE_SECTORS.map((s) => ({
-          key: s.key,
-          title: s.label,
-          value: sumAmounts(totalsForSector([line], s.key).combined),
-        }));
+        const perMode = MAIN_LEDGER_VISIBLE_SECTORS.flatMap((s) => {
+          const t = totalsForSector([line], s.key);
+          return [
+            { key: `${s.key}-manual`, title: "MANUAL", value: sumAmounts(t.manual) },
+            { key: `${s.key}-fsis`, title: "FSIS", value: sumAmounts(t.fsic) },
+          ];
+        });
         return {
           line,
-          perSector,
-          total: perSector.reduce((a, b) => a + b.value, 0),
+          perSector: perMode,
+          total: perMode.reduce((a, b) => a + b.value, 0),
         };
       }),
     [lines],
