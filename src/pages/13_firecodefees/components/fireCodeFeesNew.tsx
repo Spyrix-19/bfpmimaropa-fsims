@@ -570,8 +570,12 @@ export function FireCodeFeesFormBody({
   const [existingAccomplishNos, setExistingAccomplishNos] = React.useState<Record<string, string>>(
     {},
   );
+  const [pendingRecord, setPendingRecord] = React.useState<
+    FSISFeeCollectionDetailModel | null
+  >(null);
   const [checkingExisting, setCheckingExisting] = React.useState(false);
   const [reloadNonce, setReloadNonce] = React.useState(0);
+  const [confirmExistingOpen, setConfirmExistingOpen] = React.useState(false);
 
   const clearValues = React.useCallback(() => {
     setValues(emptyValues());
@@ -640,8 +644,9 @@ export function FireCodeFeesFormBody({
       const record = ok ? pickFeeRecord(data) : null;
       setCheckingExisting(false);
       if (record) {
-        plotExisting(record);
-        setLoadedExisting(true);
+        // Defer plotting until user confirms to avoid accidental duplicates.
+        setPendingRecord(record);
+        setConfirmExistingOpen(true);
       }
     })();
     return () => {
@@ -1101,6 +1106,30 @@ export function FireCodeFeesFormBody({
           toast.success("Revision request cancelled.");
           setCancelRequestId(null);
           setReloadNonce((n) => n + 1);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmExistingOpen}
+        onOpenChange={(v) => {
+          if (!v) {
+            setConfirmExistingOpen(false);
+            setPendingRecord(null);
+            // leave values cleared if user dismisses
+            resetExisting();
+            clearValues();
+          }
+        }}
+        title="Existing record found"
+        description={`A Fire Code Fees record for ${monthName} ${year} already exists. Plot its data into the form (this will load and allow updating), or dismiss to leave the form empty.`}
+        confirmLabel="Load existing"
+        onConfirm={() => {
+          if (pendingRecord) {
+            plotExisting(pendingRecord);
+            setLoadedExisting(true);
+          }
+          setConfirmExistingOpen(false);
+          setPendingRecord(null);
         }}
       />
 
