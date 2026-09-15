@@ -330,7 +330,7 @@ export default function FireCodeFeesSection() {
     return DASHBOARD_FEE_SECTORS.reduce((a, s) => a + sectorGrand(v, s.key), 0);
   };
 
-  const yearColClass = "w-24 min-w-24 sm:w-28 sm:min-w-28";
+  const yearColClass = "w-[12%] min-w-[90px]";
 
   return (
     <Card className="border-border/60 bg-card p-2.5 shadow-soft sm:p-3.5">
@@ -405,13 +405,24 @@ export default function FireCodeFeesSection() {
           <Loader2 className="h-4 w-4 animate-spin" /> Loading collection records…
         </div>
       ) : (
-        <div className="rounded-xl border border-border/60">
-          <table className="w-full border-separate border-spacing-0 text-[10px] sm:text-[11px]">
+        <div className="overflow-x-auto rounded-xl border border-border/60 md:overflow-hidden">
+          <table className="w-full table-fixed border-separate border-spacing-0 text-[10px] sm:text-[11px]">
+            <colgroup>
+              <col className="w-[38%]" />
+              {DASHBOARD_FEE_SECTORS.map((s) => (
+                <React.Fragment key={`${s.key}-colgroup`}>
+                  {sortedYears.map((y) => (
+                    <col key={`${s.key}-${y}-col`} className="w-[12%]" />
+                  ))}
+                </React.Fragment>
+              ))}
+              <col className="w-[14%]" />
+            </colgroup>
             <thead>
               <tr>
                 <th
                   rowSpan={2}
-                  className="head-soft sticky left-0 z-30 w-[32rem] min-w-[32rem] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
+                  className="head-soft sticky left-0 z-30 px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
                 >
                   Fee Category
                 </th>
@@ -426,7 +437,7 @@ export default function FireCodeFeesSection() {
                 ))}
                 <th
                   rowSpan={2}
-                  className="head-soft w-[10rem] min-w-[10rem] border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
+                  className="head-soft border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
                 >
                   Total
                 </th>
@@ -487,7 +498,7 @@ export default function FireCodeFeesSection() {
                     }, 0);
                     return (
                       <tr key={c.key} className="border-t border-grid">
-                        <td className="sticky left-0 z-20 w-[32rem] min-w-[32rem] border-t border-grid bg-card px-2 py-1 align-middle text-foreground/90 sm:px-2.5">
+                        <td className="sticky left-0 z-20 border-t border-grid bg-card px-2 py-1 align-middle text-foreground/90 sm:px-2.5">
                           {c.label}
                         </td>
                         {DASHBOARD_FEE_SECTORS.map((s) => (
@@ -511,7 +522,7 @@ export default function FireCodeFeesSection() {
                             })}
                           </React.Fragment>
                         ))}
-                        <td className="w-[10rem] min-w-[10rem] border-l border-t border-grid px-2 py-1 text-right font-semibold tabular-nums sm:px-2.5">
+                        <td className="border-l border-t border-grid px-2 py-1 text-right font-semibold tabular-nums sm:px-2.5">
                           {peso(rowTotal)}
                         </td>
                       </tr>
@@ -522,7 +533,7 @@ export default function FireCodeFeesSection() {
             </tbody>
             <tfoot>
               <tr className="border-t border-grid bg-muted/60">
-                <td className="sticky left-0 z-30 w-[32rem] min-w-[32rem] bg-muted px-2 py-2 text-[10px] font-bold uppercase tracking-wider sm:px-2.5">
+                <td className="sticky left-0 z-30 bg-muted px-2 py-2 text-[10px] font-bold uppercase tracking-wider sm:px-2.5">
                   TOTAL
                 </td>
                 {DASHBOARD_FEE_SECTORS.map((s) => (
@@ -545,7 +556,7 @@ export default function FireCodeFeesSection() {
                     })}
                   </React.Fragment>
                 ))}
-                <td className="w-[10rem] min-w-[10rem] border-l border-grid px-2 py-2 text-right font-bold tabular-nums text-primary sm:px-2.5">
+                <td className="border-l border-grid px-2 py-2 text-right font-bold tabular-nums text-primary sm:px-2.5">
                   {peso(sortedYears.reduce((a, y) => a + yearTotal(y), 0))}
                 </td>
               </tr>
