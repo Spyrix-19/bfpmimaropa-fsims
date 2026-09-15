@@ -114,23 +114,35 @@ const freshMonth = (month: number): MonthState => {
   return { month, feeno: null, accomplishNos: {}, values, baseline: snapshot(values) };
 };
 
+const normalizePrimaryGuid = (value: unknown): string => {
+  const text = String(value ?? "").trim();
+  return text && text !== EMPTY_GUID ? text : EMPTY_GUID;
+};
+
+const maybePrimaryGuid = (value: unknown): string | null => {
+  const text = String(value ?? "").trim();
+  return text && text !== EMPTY_GUID ? text : null;
+};
+
 /** Converts a raw collection record into an editable month state. */
 function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthState {
   const values = emptyValues();
   const accomplishNos: Record<string, string> = {};
   for (const item of flattenFeeAccomItems(rec)) {
-    const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
-    if (!sector) continue;
+    // Some Detail responses omit `sectorno`. Default missing/unknown
+    // sectors to the business-establishment bucket so values are
+    // not silently dropped when loading into the editor.
+    const sector = SECTOR_BY_CODE.get(Number(item.sectorno)) ?? "bplo";
     const mode: ModeCode =
       Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : MODES[0].code;
     const feecateg = Number(item.feecateg) || 0;
     values[sector][mode][feecateg] = Number(item.collectedamount ?? 0) || 0;
-    if (item.accomplishno)
+    if (item.accomplishno && String(item.accomplishno) !== EMPTY_GUID)
       accomplishNos[`${sector}|${mode}|${feecateg}`] = String(item.accomplishno);
   }
   return {
     month,
-    feeno: rec.feeno && String(rec.feeno) !== EMPTY_GUID ? String(rec.feeno) : null,
+    feeno: maybePrimaryGuid(rec.feeno),
     accomplishNos,
     values,
     baseline: snapshot(values),
@@ -350,8 +362,9 @@ export function FireCodeFeesYearEditorBody({
           for (const mode of MODES) {
             const amounts = m.values[s.key][mode.code];
             for (const c of categories) {
+              const key = `${s.key}|${mode.code}|${c.detno}`;
               fsisfeecollectionList.push({
-                accomplishno: m.accomplishNos[`${s.key}|${mode.code}|${c.detno}`] || EMPTY_GUID,
+                accomplishno: normalizePrimaryGuid(m.accomplishNos[key]),
                 fsicmode: mode.code,
                 feecateg: c.detno,
                 collectedamount: amounts[c.detno] ?? 0,
@@ -360,7 +373,7 @@ export function FireCodeFeesYearEditorBody({
           }
         }
         return {
-          feeno: m.feeno || EMPTY_GUID,
+          feeno: normalizePrimaryGuid(m.feeno),
           dateaccomplish: lastDayOfMonthISO(year, m.month),
           isaccomplished: true,
           remarks: "",

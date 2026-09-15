@@ -88,8 +88,10 @@ const freshMonth = (month: number): MonthView => ({
 function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthView {
   const values = emptyValues();
   for (const item of flattenFeeAccomItems(rec)) {
-    const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
-    if (!sector) continue;
+    // Some Detail responses omit `sectorno`. Default missing/unknown
+    // sectors to the business-establishment bucket so values are
+    // not silently dropped from the year view.
+    const sector = SECTOR_BY_CODE.get(Number(item.sectorno)) ?? "bplo";
     const mode: ModeCode =
       Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;
     const feecateg = Number(item.feecateg) || 0;

@@ -144,6 +144,16 @@ export const toAmount = (raw: string) => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
+const normalizePrimaryGuid = (value: unknown): string => {
+  const text = String(value ?? "").trim();
+  return text && text !== EMPTY_GUID ? text : EMPTY_GUID;
+};
+
+const maybePrimaryGuid = (value: unknown): string | null => {
+  const text = String(value ?? "").trim();
+  return text && text !== EMPTY_GUID ? text : null;
+};
+
 /** Pulls the collection record out of whatever shape the detail endpoint returns. */
 export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | null {
   const rows: FSISFeeCollectionDetailModel[] = [];
@@ -596,11 +606,12 @@ export function FireCodeFeesFormBody({
         Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;
       const feecateg = Number(item.feecateg) || 0;
       next[mode][feecateg] = Number(item.collectedamount ?? 0) || 0;
-      if (item.accomplishno) accomplishNos[`${mode}|${feecateg}`] = String(item.accomplishno);
+      if (item.accomplishno && String(item.accomplishno) !== EMPTY_GUID)
+        accomplishNos[`${mode}|${feecateg}`] = String(item.accomplishno);
     }
     setValues(next);
     setExistingAccomplishNos(accomplishNos);
-    setExistingFeeno(String(rec.feeno));
+    setExistingFeeno(maybePrimaryGuid(rec.feeno));
     setErrors({});
   }, []);
 
@@ -728,8 +739,9 @@ export function FireCodeFeesFormBody({
       for (const m of MODES) {
         const amounts = values[m.code];
         for (const c of categories) {
+          const key = `${m.code}|${c.detno}`;
           fsisfeecollectionList.push({
-            accomplishno: existingAccomplishNos[`${m.code}|${c.detno}`] || EMPTY_GUID,
+            accomplishno: normalizePrimaryGuid(existingAccomplishNos[key]),
             fsicmode: m.code,
             feecateg: c.detno,
             collectedamount: amounts[c.detno] ?? 0,
@@ -742,7 +754,7 @@ export function FireCodeFeesFormBody({
         encodedby: encodedby,
         fsisfeeList: [
           {
-            feeno: existingFeeno || EMPTY_GUID,
+            feeno: normalizePrimaryGuid(existingFeeno),
             dateaccomplish: lastDayOfMonthISO(year, month),
             isaccomplished: true,
             remarks: "",

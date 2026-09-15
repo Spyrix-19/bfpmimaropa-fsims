@@ -210,8 +210,10 @@ function buildFeeLines(
 
     const items = flattenSectorItems(rec);
     for (const item of items) {
-      const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
-      if (!sector) continue;
+      // Detail responses are flat and do not include a sector id; they only carry
+      // the raw fee data for a station. Default missing/unknown sectors to the
+      // business-establishment bucket rather than silently dropping the row.
+      const sector = SECTOR_BY_CODE.get(Number(item.sectorno)) ?? "bplo";
       const bucket =
         num(item.fsicmode) === FIRE_CODE_MODE_FSIS
           ? line.sectors[sector].fsic
