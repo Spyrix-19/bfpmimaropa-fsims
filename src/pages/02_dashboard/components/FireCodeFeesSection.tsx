@@ -136,7 +136,7 @@ function YearMultiSelect({
         <Button
           variant="outline"
           size="sm"
-          className="h-10 w-full shrink-0 justify-between rounded-lg border-border/70 bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/30 sm:w-[176px]"
+          className="h-12 w-full shrink-0 justify-between rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm font-medium text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[176px] sm:rounded-lg"
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="h-4 w-4 text-primary" />
@@ -374,8 +374,8 @@ export default function FireCodeFeesSection() {
             <p className="pl-10 text-sm text-muted-foreground">Year to Year Data Comparison</p>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-2">
-            <div className="grid w-full grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[176px_minmax(220px,1fr)_minmax(200px,1fr)_minmax(200px,1fr)]">
+          <div className="rounded-2xl border border-border/70 bg-slate-900/20 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-xl sm:bg-muted/20 sm:p-2">
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[176px_minmax(220px,1fr)_minmax(200px,1fr)_minmax(200px,1fr)]">
               <YearMultiSelect value={years} onChange={setYears} />
 
               <FeeTypeMultiSelect
@@ -383,7 +383,7 @@ export default function FireCodeFeesSection() {
                 loading={feeTypesLoading}
                 value={feeTypes}
                 onChange={setFeeTypes}
-                className="h-10 rounded-lg border-border/70 bg-card text-sm shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/30"
+                className="h-12 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:rounded-lg"
               />
 
               {scope.provinceLocked ? (
@@ -391,7 +391,7 @@ export default function FireCodeFeesSection() {
                   value={scope.provincename}
                   placeholder="All provinces"
                   title="Restricted to your assigned province"
-                  className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card text-sm shadow-sm sm:w-[240px]"
+                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
                 />
               ) : (
                 <LocationMultiSelect
@@ -402,7 +402,7 @@ export default function FireCodeFeesSection() {
                   onChange={handleProvincesChange}
                   placeholder="All provinces"
                   hideCode
-                  className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card text-sm shadow-sm sm:w-[240px]"
+                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
                 />
               )}
 
@@ -411,7 +411,7 @@ export default function FireCodeFeesSection() {
                   value={scope.stationname}
                   placeholder="All stations"
                   title="Restricted to your assigned station"
-                  className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card text-sm shadow-sm sm:w-[240px]"
+                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
                 />
               ) : (
                 <StationMultiSelect
@@ -422,7 +422,7 @@ export default function FireCodeFeesSection() {
                   onChange={handleStationsChange}
                   placeholder="All stations"
                   alwaysEnabled
-                  className="h-10 w-full shrink-0 rounded-lg border-border/70 bg-card text-sm shadow-sm sm:w-[240px]"
+                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
                 />
               )}
             </div>
