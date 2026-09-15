@@ -139,7 +139,7 @@ function YearMultiSelect({
           className="h-10 w-full shrink-0 justify-between rounded-lg border-border/70 bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/30 sm:w-[176px]"
         >
           <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4 text-primary" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[240px] p-3">
@@ -337,7 +337,7 @@ export default function FireCodeFeesSection() {
       <div className="mb-3 space-y-3">
         <div className="min-w-0 border-b border-border/60 pb-2.5">
           <div className="mb-1 flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground ring-1 ring-border/70">
               <Coins className="h-4 w-4" />
             </div>
             <h3 className="text-base font-semibold leading-tight tracking-tight">Fire Code Fees Collection</h3>
@@ -455,9 +455,9 @@ export default function FireCodeFeesSection() {
             <tbody>
               {groups.map((g) => (
                 <React.Fragment key={g.parentno || g.code || g.name}>
-                  <tr className="bg-primary/5">
-                    <td className="bg-card px-2 py-1.5 text-left before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']">
-                      <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
+                  <tr className="bg-muted/60">
+                    <td className="bg-card px-2 py-1.5 text-left before:pointer-events-none before:absolute before:inset-0 before:bg-muted/60 before:content-['']">
+                      <span className="relative text-[10px] font-bold uppercase tracking-wider text-foreground/80">
                         {g.code || g.name}
                       </span>
                       {g.items.length > 1 && g.name && g.name !== g.code ? (
@@ -545,7 +545,7 @@ export default function FireCodeFeesSection() {
                     })}
                   </React.Fragment>
                 ))}
-                <td className="border-l border-grid px-1 py-2 text-right font-bold tabular-nums text-primary sm:px-2">
+                <td className="border-l border-grid px-1 py-2 text-right font-bold tabular-nums text-foreground sm:px-2">
                   {peso(sortedYears.reduce((a, y) => a + yearTotal(y), 0))}
                 </td>
               </tr>

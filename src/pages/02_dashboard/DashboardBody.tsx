@@ -173,7 +173,7 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-soft">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted text-foreground shadow-soft ring-1 ring-border/60">
               <Target className="h-4.5 w-4.5" />
             </div>
             <div className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -190,7 +190,7 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
 
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-gradient-primary transition-[width] duration-500"
+              className="h-full rounded-full bg-primary/80 transition-[width] duration-500"
               style={{ width: `${Math.min(completion, 100)}%` }}
             />
           </div>
@@ -919,7 +919,10 @@ function ChartCard({
   };
 
   return (
-    <Card ref={ref} className={`border-border/60 bg-card p-5 shadow-soft ${className ?? ""}`}>
+    <Card
+      ref={ref}
+      className={`border-border/60 bg-background/80 p-5 shadow-soft ring-1 ring-border/60 ${className ?? ""}`}
+    >
       <div className="mb-4 flex flex-wrap items-start gap-2">
         <div className="order-1 min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold">{title}</h3>
