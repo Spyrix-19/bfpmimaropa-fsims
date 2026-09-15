@@ -122,7 +122,7 @@ export const dashboardAPI = {
     body: DashboardYearToYearDTO,
     options?: import("@/lib/api").ApiOptions,
   ) {
-    return await apiPost<DashboardFeeCollectionModel>(
+    return await apiPost<DashboardFeeCollectionModel[]>(
       "/api/v1/Dashboard/FSIMS/FireCodeFee/Summary",
       body,
       {

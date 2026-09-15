@@ -96,7 +96,7 @@ const VARIANCE_GROUPS = [
 ] as const;
 
 function buildVarianceTotals(
-  payload: DashboardFeeCollectionModel | null,
+  payload: DashboardFeeCollectionModel[] | null,
   years: number[],
 ): Record<number, Record<string, number>> {
   const totals: Record<number, Record<string, number>> = {};
@@ -104,25 +104,17 @@ function buildVarianceTotals(
     totals[year] = Object.fromEntries(VARIANCE_GROUPS.map((group) => [group.code, 0]));
   }
 
-  for (const rawFee of payload?.feeList ?? []) {
-    const fee = rawFee as unknown as {
-      feecateg?: number;
-      yearList?: { reportyear?: number; sectors?: { collectionamount?: number }[] }[];
-    };
-    const categoryNo = Number(fee?.feecateg) || 0;
-    const group = VARIANCE_GROUPS.find((item) =>
-      (item.categoryNos as readonly number[]).includes(categoryNo),
-    );
-    if (!group) continue;
+  for (const yearEntry of payload ?? []) {
+    const year = Number(yearEntry?.reportyear) || 0;
+    if (!totals[year]) continue;
 
-    for (const yearEntry of fee.yearList ?? []) {
-      const year = Number(yearEntry?.reportyear) || 0;
-      if (!totals[year]) continue;
-      const totalForCategory = (yearEntry?.sectors ?? []).reduce(
-        (sum, sector) => sum + (Number(sector?.collectionamount ?? 0) || 0),
-        0,
+    for (const rawFee of yearEntry?.feeList ?? []) {
+      const categoryNo = Number(rawFee?.feecateg) || 0;
+      const group = VARIANCE_GROUPS.find((item) =>
+        (item.categoryNos as readonly number[]).includes(categoryNo),
       );
-      totals[year][group.code] += totalForCategory;
+      if (!group) continue;
+      totals[year][group.code] += Number(rawFee?.collectionamount ?? 0) || 0;
     }
   }
 
@@ -311,7 +303,7 @@ export default function FireCodeFeesVarianceSection() {
         },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
-      const { ok, data: payload } = unwrap<DashboardFeeCollectionModel>(resp);
+      const { ok, data: payload } = unwrap<DashboardFeeCollectionModel[]>(resp);
 
       if (cancelled) return;
       setGroupTotals(
@@ -371,9 +363,9 @@ export default function FireCodeFeesVarianceSection() {
 
   return (
     <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
-      <div className="border-b border-border/60 p-4 sm:p-5">
-        <div className="space-y-4">
-          <div className="min-w-0 border-b border-border/60 pb-3">
+      <div className="border-b border-border/60 p-3 sm:p-4">
+        <div className="space-y-3">
+          <div className="min-w-0 border-b border-border/60 pb-2.5">
             <div className="mb-1 flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
                 <Coins className="h-4 w-4" />
@@ -387,8 +379,8 @@ export default function FireCodeFeesVarianceSection() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5">
-            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[176px_150px_160px_minmax(200px,1fr)_minmax(200px,1fr)]">
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-2">
+            <div className="grid w-full grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[176px_150px_160px_minmax(200px,1fr)_minmax(200px,1fr)]">
               <TwoYearSelect value={years} onChange={setYears} />
 
               <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
