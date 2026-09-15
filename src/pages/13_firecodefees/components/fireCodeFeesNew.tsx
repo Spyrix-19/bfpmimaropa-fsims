@@ -194,7 +194,7 @@ function SectionTitle({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           {icon}
@@ -202,7 +202,11 @@ function SectionTitle({
         </h2>
         {subtitle ? <p className="text-[11px] text-muted-foreground">{subtitle}</p> : null}
       </div>
-      {right ? <div className="flex shrink-0 items-center gap-2">{right}</div> : null}
+      {right ? (
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+          {right}
+        </div>
+      ) : null}
     </div>
   );
 }

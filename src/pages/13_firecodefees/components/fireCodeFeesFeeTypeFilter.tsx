@@ -98,7 +98,7 @@ export function FeeTypeMultiSelect({
           variant="outline"
           size="sm"
           className={cn(
-            "w-full shrink-0 justify-between sm:w-[420px] xl:w-[520px]",
+            "w-full shrink-0 justify-between sm:w-[320px] md:w-[420px] xl:w-[520px]",
             className,
           )}
           title={selected.map((o) => o.label).join(", ")}
@@ -108,7 +108,7 @@ export function FeeTypeMultiSelect({
         </Button>
       </PopoverTrigger>
       {/* z-index sits above the dialog (z-200) this form is rendered inside. */}
-      <PopoverContent align="end" className="z-[600] w-[min(560px,calc(100vw-2rem))] p-0">
+      <PopoverContent align="end" className="z-[600] w-[min(560px,calc(100vw-1rem))] p-0">
         <div className="p-3 pb-0">
           <label
             className={cn(

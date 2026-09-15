@@ -332,15 +332,15 @@ export function FireCodeFeesYearViewBody({
               {peso(yearTotal)}
             </span>
           </div>
-          <div className="ml-auto flex flex-wrap items-center gap-3">
+          <div className="ml-auto flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             <FeeTypeMultiSelect
               options={feeTypeOptions}
               loading={feeTypesLoading}
               value={feeTypes}
               onChange={setFeeTypes}
             />
-            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 sm:w-auto sm:justify-start">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 {showAllMonthFees ? "Show" : "Hide"}
               </span>
               <Switch
@@ -358,7 +358,7 @@ export function FireCodeFeesYearViewBody({
                 }}
                 aria-label="Show or hide all monthly fee details"
               />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 {showAllMonthFees ? "On" : "Off"}
               </span>
             </div>

@@ -279,7 +279,7 @@ export function MonthMultiSelect({
           <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-max min-w-[220px] p-0 pointer-events-auto" align="start">
+      <PopoverContent className="w-[min(320px,calc(100vw-2rem))] p-0 pointer-events-auto" align="start">
         <button
           type="button"
           onClick={toggleAll}
@@ -475,7 +475,7 @@ export function PeriodSelect({
 
   return (
     <Select value={value} onValueChange={handleIntervalChange}>
-      <SelectTrigger>
+      <SelectTrigger className="w-full">
         <SelectValue placeholder="Period" />
       </SelectTrigger>
       <SelectContent>
@@ -594,7 +594,7 @@ export function SubFilterControl({
   if (state.interval === "QUARTERLY") {
     return (
       <Select value={state.quarter} onValueChange={(v) => onChange({ quarter: v })}>
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Quarter" />
         </SelectTrigger>
         <SelectContent>
@@ -610,7 +610,7 @@ export function SubFilterControl({
   if (state.interval === "SEMESTER") {
     return (
       <Select value={state.semester} onValueChange={(v) => onChange({ semester: v })}>
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Semester" />
         </SelectTrigger>
         <SelectContent>
@@ -663,14 +663,14 @@ export function ModuleFilterBar({
   const subLabel = subFilterLabel[state.interval];
 
   return (
-    <div className="glass-panel rounded-2xl p-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="grid flex-1 grid-cols-2 gap-2 md:grid-cols-5">
+    <div className="glass-panel rounded-2xl p-3 sm:p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {leading}
 
           <FilterField label="Year">
             <Select value={state.year} onValueChange={(v) => onChange({ year: v })}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -696,7 +696,7 @@ export function ModuleFilterBar({
           {children}
         </div>
 
-        <ResetFiltersButton onReset={onReset} className="shrink-0" />
+        <ResetFiltersButton onReset={onReset} className="self-end md:shrink-0" />
       </div>
     </div>
   );

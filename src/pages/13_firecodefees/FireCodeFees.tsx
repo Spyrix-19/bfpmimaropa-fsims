@@ -874,15 +874,15 @@ export default function FireCodeFeesPage() {
         </ModuleFilterBar>
 
         {isRestrictedStationType && (
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
             <FeeTypeMultiSelect
               options={feeTypeOptions}
               loading={feeTypesLoading}
               value={feeTypes}
               onChange={setFeeTypes}
             />
-            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 sm:w-auto sm:justify-start">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 {showAllFeeDetailsForAllCards ? "Show" : "Hide"}
               </span>
               <Switch
@@ -890,7 +890,7 @@ export default function FireCodeFeesPage() {
                 onCheckedChange={(checked) => setShowAllFeeDetailsForAllCards(Boolean(checked))}
                 aria-label="Show or hide all fee details for the ledger"
               />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 {showAllFeeDetailsForAllCards ? "On" : "Off"}
               </span>
             </div>
@@ -1360,9 +1360,9 @@ function FireCodeFeesLedgerCard({
                         toggle(line.key);
                       }
                     }}
-                    className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
+                    className="flex cursor-pointer select-none items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
                   >
-                    <div className="flex min-w-[10rem] flex-1 items-center gap-2.5">
+                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
                       <span className="flex items-center gap-2 whitespace-nowrap">
                         {/^\d{4}-\d{2}$/.test(line.key) && (() => {
                           const [yearText, monthText] = line.key.split("-");
@@ -1385,10 +1385,10 @@ function FireCodeFeesLedgerCard({
                         </span>
                       )}
                     </div>
-                    <div className="ml-auto flex items-center gap-4">
-                      <div className="hidden md:flex md:items-end">
+                    <div className="ml-auto flex items-center justify-end gap-2 md:gap-3">
+                      <div className="hidden md:flex md:items-end md:justify-end md:gap-3">
                         {perSector.map((s) => (
-                          <div key={s.key} className="w-28 shrink-0 px-2 text-right">
+                          <div key={s.key} className="min-w-[5.5rem] shrink-0 text-right">
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                               {s.title}
                             </div>
@@ -1397,7 +1397,7 @@ function FireCodeFeesLedgerCard({
                             </div>
                           </div>
                         ))}
-                        <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
+                        <div className="min-w-[6.5rem] shrink-0 border-l border-border/60 pl-3 text-right">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Total
                           </div>
@@ -1416,7 +1416,7 @@ function FireCodeFeesLedgerCard({
                   </div>
                   {isOpen && (
                     <div className="border-t border-border/40 bg-muted/10 p-3">
-                      <FeeMatrixTable categories={matrixCategories} values={emptyValues()} />
+                      <FeeMatrixTable categories={matrixCategories} values={toSectorValues(line)} />
                     </div>
                   )}
                 </div>

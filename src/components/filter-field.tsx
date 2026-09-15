@@ -8,11 +8,11 @@ export default function FilterField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
+    <div className="min-w-0 space-y-1">
       <div className="text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
         {label}
       </div>
-      {children}
+      <div className="min-w-0 w-full">{children}</div>
     </div>
   );
 }
