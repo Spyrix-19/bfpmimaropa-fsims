@@ -162,7 +162,7 @@ export function AppShell({
               variant="outline"
               size="sm"
               onClick={() => setLoginOpen(true)}
-              className="whitespace-nowrap"
+              className="whitespace-nowrap sm:hidden"
             >
               Sign in
             </Button>
