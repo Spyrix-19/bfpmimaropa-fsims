@@ -181,27 +181,16 @@ export interface StationMonthlyPerformanceClass {
 
 
 export interface DashboardFeeCollectionModel {
+  reportyear: number;
   feeList: DashboardFeeItemModel[];
 }
 
 export interface DashboardFeeItemModel {
-  feeno: string;
   feecateg: number;
   feecategcode: string;
   feecategname: string;
   feeparentno: number;
   feeparentcode: string;
   feeparentname: string;
-  yearList: DashboardFeeYearModel[];
-}
-
-export interface DashboardFeeYearModel {
-  reportyear: number;
-  sectors: DashboardFeeYearSectorModel[];
-}
-
-export interface DashboardFeeYearSectorModel {
-  sectorno: number;
-  sectorcode: string;
   collectionamount: number;
 }

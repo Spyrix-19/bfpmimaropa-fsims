@@ -12,7 +12,6 @@ export interface FSISFeeCollectionClassDTO {
   fsicmode: number;
   feecateg: number;
   collectedamount: number;
-  sectorno: number;
 }
 
 export interface FSISFeeCollectionClass {
@@ -83,38 +82,31 @@ export interface FSISFeeCollectionLedgerParams {
   pagesize?: number;
 }
 
-export interface FSISFeeAccomDetailModel {
+export interface FeeAccomDetailModel {
   accomplishno: string;
   feeno: string;
-  sectorno?: number;
   fsicmode: number;
   feecateg: number;
-  Feeparentno: string;
+  feeparentno: number;
   feeparentcode: string;
-  Feeparentname: string;
+  feeparentname: string;
   collectedamount: number;
 }
 
-export interface FSISFeeCollectionSectorDetailModel {
-  sectorno: number;
-  accomfeelist: FSISFeeAccomDetailModel[];
-}
-
-export interface FSISFeeCollectionDetailModel {
+export interface FeeCollectionDetailModel {
   feeno: string;
-  stationno: string;
   dateaccomplish: string;
-  sectorlist: FSISFeeCollectionSectorDetailModel[];
+  accomfeelist: FeeAccomDetailModel[];
 }
 
-export interface FSISStationFeeDetailModel {
+export interface StationFeeDetailModel {
   stationno: string;
   stationcode: string;
   stationname: string;
+  logourl: string;
   provinceno: string;
   provincename: string;
-  logourl: string;
-  feedetaillist: FSISFeeCollectionDetailModel[];
+  feedetaillist: FeeCollectionDetailModel[];
 }
 
 /* Delete */
