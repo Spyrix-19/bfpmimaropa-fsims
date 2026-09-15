@@ -355,7 +355,6 @@ export function FireCodeFeesYearEditorBody({
                 fsicmode: mode.code,
                 feecateg: c.detno,
                 collectedamount: amounts[c.detno] ?? 0,
-                sectorno: s.code,
               });
             }
           }

@@ -104,7 +104,11 @@ function buildVarianceTotals(
     totals[year] = Object.fromEntries(VARIANCE_GROUPS.map((group) => [group.code, 0]));
   }
 
-  for (const fee of payload?.feeList ?? []) {
+  for (const rawFee of payload?.feeList ?? []) {
+    const fee = rawFee as unknown as {
+      feecateg?: number;
+      yearList?: { reportyear?: number; sectors?: { collectionamount?: number }[] }[];
+    };
     const categoryNo = Number(fee?.feecateg) || 0;
     const group = VARIANCE_GROUPS.find((item) =>
       (item.categoryNos as readonly number[]).includes(categoryNo),

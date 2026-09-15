@@ -64,17 +64,14 @@ import type {
 } from "@/types/firecodefeesType";
 import {
   FEE_COLUMNS,
-  FEE_SECTORS,
   FIRE_CODE_MODES,
   FIRE_CODE_MODE_FSIS,
   FIRE_CODE_MODE_MANUAL,
-  SECTOR_BY_CODE,
   flattenFeeAccomItems,
   groupAmountText,
   lastDayOfMonthISO,
   peso,
   type FeeAmounts,
-  type FireCodeSectorKey,
 } from "../feeColumns";
 import { groupCategories, useFeeCategories, type FeeCategory } from "./feeCategories";
 import { FeeTypeMultiSelect, useFeeTypes } from "./fireCodeFeesFeeTypeFilter";
@@ -88,19 +85,17 @@ export const MODES = FIRE_CODE_MODES;
 export type ModeCode = typeof FIRE_CODE_MODE_MANUAL | typeof FIRE_CODE_MODE_FSIS;
 /** Collected amounts keyed by fee category (`feecateg`). */
 export type Amounts = FeeAmounts;
-export type SectorValues = Record<FireCodeSectorKey, Record<ModeCode, Amounts>>;
+/** Collected amounts per collection mode. */
+export type ModeValues = Record<ModeCode, Amounts>;
 
 const emptyAmounts = (): Amounts => ({});
 
-export const emptyValues = (): SectorValues =>
-  Object.fromEntries(
-    FEE_SECTORS.map((s) => [
-      s.key,
-      { [FIRE_CODE_MODE_MANUAL]: emptyAmounts(), [FIRE_CODE_MODE_FSIS]: emptyAmounts() },
-    ]),
-  ) as unknown as SectorValues;
+export const emptyValues = (): ModeValues => ({
+  [FIRE_CODE_MODE_MANUAL]: emptyAmounts(),
+  [FIRE_CODE_MODE_FSIS]: emptyAmounts(),
+});
 
-/** Sum of every collected amount of one sector + mode. */
+/** Sum of every collected amount of one mode. */
 export const sumAmounts = (amounts: Amounts) =>
   Object.values(amounts).reduce((a, b) => a + (Number(b) || 0), 0);
 
@@ -160,10 +155,7 @@ export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | nul
     // Individual accomfeelist rows also carry a feeno, so they must not be
     // mistaken for the record itself.
     const isRecord =
-      !!obj.feeno &&
-      (Array.isArray(obj.sectorlist) ||
-        Array.isArray(obj.accomfeelist) ||
-        obj.dateaccomplish !== undefined);
+      !!obj.feeno && (Array.isArray(obj.accomfeelist) || obj.dateaccomplish !== undefined);
     if (isRecord) {
       rows.push(obj as unknown as FSISFeeCollectionDetailModel);
       return;
@@ -280,105 +272,7 @@ function AmountInput({
   );
 }
 
-/** One sector panel: every fee category with a MANUAL and an FSIC amount. */
-export function SectorPanel({
-  sectorTitle,
-  categories,
-  values,
-  onChange,
-  locked,
-}: {
-  sectorTitle: string;
-  categories: FeeCategory[];
-  values: Record<ModeCode, Amounts>;
-  onChange: (mode: ModeCode, feecateg: number, raw: string) => void;
-  locked?: boolean;
-}) {
-  const groups = React.useMemo(() => groupCategories(categories), [categories]);
-  const totals = MODES.map((m) => sumAmounts(values[m.code]));
-
-  const grand = totals.reduce((a, b) => a + b, 0);
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-border/60">
-      <table className="w-full border-separate border-spacing-0 text-xs">
-        <thead>
-          <tr>
-            <th className="head-soft px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider">
-              Fee Category
-            </th>
-            {MODES.map((m) => (
-              <th
-                key={m.code}
-                className="head-soft w-[9.5rem] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
-              >
-                {m.label}
-              </th>
-            ))}
-            <th className="head-soft w-[7rem] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
-              Total
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => (
-            <React.Fragment key={`${sectorTitle}-${g.label}`}>
-              <tr className="bg-primary/5">
-                <td colSpan={4} className="px-3 py-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {g.code || g.label}
-                  </span>
-                  {g.items.length > 1 && g.label ? (
-                    <span className="ml-2 text-[10px] font-normal normal-case text-muted-foreground">
-                      {g.label}
-                    </span>
-                  ) : null}
-                </td>
-              </tr>
-              {g.items.map((c) => {
-                const rowTotal = MODES.reduce((a, m) => a + (values[m.code][c.detno] ?? 0), 0);
-                return (
-                  <tr key={c.key} className="border-t border-border/40">
-                    <td className="px-3 py-1.5 align-middle text-foreground/90">{c.label}</td>
-                    {MODES.map((m) => (
-                      <td key={m.code} className="px-2 py-1.5">
-                        <AmountInput
-                          value={values[m.code][c.detno] ?? 0}
-                          disabled={locked}
-                          onValueChange={(raw) => onChange(m.code, c.detno, raw)}
-                        />
-                      </td>
-                    ))}
-
-                    <td className="px-3 py-1.5 text-right font-semibold tabular-nums">
-                      {peso(rowTotal)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="bg-muted/60">
-            <td className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider">Total</td>
-            {totals.map((t, i) => (
-              <td key={MODES[i].code} className="px-3 py-2 text-right font-bold tabular-nums">
-                {peso(t)}
-              </td>
-            ))}
-            <td className="px-3 py-2 text-right font-bold tabular-nums text-primary">
-              {peso(grand)}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-}
-
-/** Matrix view: fee categories as rows, sectors (BPLO, GOV, PEZA, TIEZA) as
- *  column groups with MANUAL / FSIS inputs and a per-sector total. */
+/** Matrix view: fee categories as rows, MANUAL / FSIS amounts as columns. */
 export function FeeCategoryMatrix({
   categories,
   values,
@@ -386,81 +280,50 @@ export function FeeCategoryMatrix({
   locked,
 }: {
   categories: FeeCategory[];
-  values: SectorValues;
-  onChange: (sector: FireCodeSectorKey, mode: ModeCode, feecateg: number, raw: string) => void;
+  values: ModeValues;
+  onChange: (mode: ModeCode, feecateg: number, raw: string) => void;
   locked?: boolean;
 }) {
   const groups = React.useMemo(() => groupCategories(categories), [categories]);
-  const visibleSectors = FEE_SECTORS.filter((sector) => sector.key === "bplo");
 
-  /** Column total of one sector + mode, e.g. BPLO · MANUAL. */
-  const columnTotals = React.useMemo(
-    () =>
-      visibleSectors.map((s) => ({
-        key: s.key,
-        byMode: MODES.map((m) => ({ code: m.code, total: sumAmounts(values[s.key][m.code]) })),
-      })),
-    [values, visibleSectors],
+  const modeTotals = React.useMemo(
+    () => MODES.map((m) => ({ code: m.code, total: sumAmounts(values[m.code]) })),
+    [values],
   );
 
-  /** Overall total across every visible sector and mode — shown once, never per sector. */
   const grand = React.useMemo(
-    () => columnTotals.reduce((a, s) => a + s.byMode.reduce((b, m) => b + m.total, 0), 0),
-    [columnTotals],
+    () => modeTotals.reduce((a, m) => a + m.total, 0),
+    [modeTotals],
   );
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border/60">
-      <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
+      <table className="w-full min-w-[42rem] border-separate border-spacing-0 text-xs">
         <colgroup>
           <col className="w-64" />
           <col className="w-28" />
-          {visibleSectors.map((s) => (
-            <React.Fragment key={`${s.key}-cols`}>
-              <col className="w-36" />
-              <col className="w-36" />
-            </React.Fragment>
+          {MODES.map((m) => (
+            <col key={`${m.code}-col`} className="w-36" />
           ))}
         </colgroup>
         <thead>
           <tr>
-            <th
-              rowSpan={2}
-              className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider"
-            >
+            <th className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider">
               Fee Category
             </th>
-            <th
-              rowSpan={2}
-              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
-            >
+            <th className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
               Total
             </th>
-            {visibleSectors.map((s) => (
+            {MODES.map((m, mi) => (
               <th
-                key={s.key}
-                colSpan={2}
-                className="head-soft border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
+                key={m.code}
+                className={cn(
+                  "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
+                  mi === 0 && "border-l border-grid",
+                )}
               >
-                {s.label}
+                {m.label}
               </th>
-            ))}
-          </tr>
-          <tr>
-            {visibleSectors.map((s) => (
-              <React.Fragment key={`${s.key}-sub`}>
-                {MODES.map((m, mi) => (
-                  <th
-                    key={`${s.key}-${m.code}`}
-                    className={cn(
-                      "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
-                      mi === 0 && "border-l border-grid",
-                    )}
-                  >
-                    {m.label}
-                  </th>
-                ))}
-              </React.Fragment>
             ))}
           </tr>
         </thead>
@@ -481,16 +344,15 @@ export function FeeCategoryMatrix({
                     </span>
                   ) : null}
                 </td>
-                {visibleSectors.map((s) => (
-                  <td key={`${s.key}-g`} colSpan={2} className="border-l border-grid px-3 py-1.5" />
+                {MODES.map((m, mi) => (
+                  <td
+                    key={`${g.label}-${m.code}`}
+                    className={cn("px-3 py-1.5", mi === 0 && "border-l border-grid")}
+                  />
                 ))}
               </tr>
               {g.items.map((c) => {
-                const rowTotal = visibleSectors.reduce(
-                  (a, s) =>
-                    a + MODES.reduce((b, m) => b + (values[s.key][m.code][c.detno] ?? 0), 0),
-                  0,
-                );
+                const rowTotal = MODES.reduce((a, m) => a + (values[m.code][c.detno] ?? 0), 0);
                 return (
                   <tr key={c.key} className="border-t border-grid">
                     <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
@@ -499,32 +361,21 @@ export function FeeCategoryMatrix({
                     <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-t border-grid bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
                       {peso(rowTotal)}
                     </td>
-                    {visibleSectors.map((s) => {
-                      const manual = values[s.key][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0;
-                      const fsis = values[s.key][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
-                      return (
-                        <React.Fragment key={`${s.key}-${c.key}`}>
-                          <td className="w-36 min-w-36 border-l border-grid border-t border-grid px-2 py-1.5">
-                            <AmountInput
-                              value={manual}
-                              disabled={locked}
-                              onValueChange={(raw) =>
-                                onChange(s.key, FIRE_CODE_MODE_MANUAL, c.detno, raw)
-                              }
-                            />
-                          </td>
-                          <td className="w-36 min-w-36 border-t border-grid px-2 py-1.5">
-                            <AmountInput
-                              value={fsis}
-                              disabled={locked}
-                              onValueChange={(raw) =>
-                                onChange(s.key, FIRE_CODE_MODE_FSIS, c.detno, raw)
-                              }
-                            />
-                          </td>
-                        </React.Fragment>
-                      );
-                    })}
+                    {MODES.map((m, mi) => (
+                      <td
+                        key={`${c.key}-${m.code}`}
+                        className={cn(
+                          "w-36 min-w-36 border-t border-grid px-2 py-1.5",
+                          mi === 0 && "border-l border-grid",
+                        )}
+                      >
+                        <AmountInput
+                          value={values[m.code][c.detno] ?? 0}
+                          disabled={locked}
+                          onValueChange={(raw) => onChange(m.code, c.detno, raw)}
+                        />
+                      </td>
+                    ))}
                   </tr>
                 );
               })}
@@ -539,20 +390,16 @@ export function FeeCategoryMatrix({
             <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-grid bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
               {peso(grand)}
             </td>
-            {columnTotals.map((s) => (
-              <React.Fragment key={`${s.key}-total`}>
-                {s.byMode.map((m, mi) => (
-                  <td
-                    key={`${s.key}-${m.code}-total`}
-                    className={cn(
-                      "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
-                      mi === 0 && "border-l border-grid",
-                    )}
-                  >
-                    {peso(m.total)}
-                  </td>
-                ))}
-              </React.Fragment>
+            {modeTotals.map((m, mi) => (
+              <td
+                key={`${m.code}-total`}
+                className={cn(
+                  "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
+                  mi === 0 && "border-l border-grid",
+                )}
+              >
+                {peso(m.total)}
+              </td>
             ))}
           </tr>
         </tfoot>
@@ -704,15 +551,15 @@ export function FireCodeFeesFormBody({
   });
 
   /* Values ---------------------------------------------------------------- */
-  const [values, setValues] = React.useState<SectorValues>(emptyValues);
+  const [values, setValues] = React.useState<ModeValues>(emptyValues);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
 
   const setAmount = React.useCallback(
-    (sector: FireCodeSectorKey, mode: ModeCode, feecateg: number, raw: string) => {
+    (mode: ModeCode, feecateg: number, raw: string) => {
       setValues((prev) => ({
         ...prev,
-        [sector]: { ...prev[sector], [mode]: { ...prev[sector][mode], [feecateg]: toAmount(raw) } },
+        [mode]: { ...prev[mode], [feecateg]: toAmount(raw) },
       }));
     },
     [],
@@ -741,15 +588,11 @@ export function FireCodeFeesFormBody({
     const accomplishNos: Record<string, string> = {};
     const items = flattenFeeAccomItems(rec);
     for (const item of items) {
-      const sector = SECTOR_BY_CODE.get(Number(item.sectorno));
-      if (!sector) continue;
-
       const mode: ModeCode =
         Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;
       const feecateg = Number(item.feecateg) || 0;
-      next[sector][mode][feecateg] = Number(item.collectedamount ?? 0) || 0;
-      if (item.accomplishno)
-        accomplishNos[`${sector}|${mode}|${feecateg}`] = String(item.accomplishno);
+      next[mode][feecateg] = Number(item.collectedamount ?? 0) || 0;
+      if (item.accomplishno) accomplishNos[`${mode}|${feecateg}`] = String(item.accomplishno);
     }
     setValues(next);
     setExistingAccomplishNos(accomplishNos);
@@ -760,38 +603,35 @@ export function FireCodeFeesFormBody({
   /**
    * Whenever the station, month or year changes (initial load included) the
    * Detail/Date endpoint decides the mode: a record found → edit + plot its
-   * amounts, nothing found → a fresh creation.
+   * amounts immediately, nothing found → a fresh creation.
+   *
+   * The whole month is always requested (`Feeparentno: []`) so the display-only
+   * fee-type filter can never hide the amounts that are plotted, and so the
+   * existence check does not re-run whenever the filter changes.
    */
-  /** Last period the existence check ran for — used to only prompt on a
-   *  month/year CHANGE, not on the initial load or a station switch. */
-  const lastCheckedPeriodRef = React.useRef<string | null>(null);
-  /** Existing record waiting for the user's confirmation before it is plotted. */
-  const [pendingExisting, setPendingExisting] = React.useState<FSISFeeCollectionDetailModel | null>(
-    null,
-  );
-  const [existingDialogOpen, setExistingDialogOpen] = React.useState(false);
+  /** True once an existing record has been plotted for the selected period. */
+  const [loadedExisting, setLoadedExisting] = React.useState(false);
 
   React.useEffect(() => {
     const activeStationNo = scope.stationLocked ? scope.stationno || station.no : station.no;
     if (!activeStationNo || activeStationNo === EMPTY_GUID) {
       resetExisting();
       clearValues();
+      setLoadedExisting(false);
       return;
     }
-    const periodChanged =
-      lastCheckedPeriodRef.current !== null && lastCheckedPeriodRef.current !== selectedDateKey;
-    lastCheckedPeriodRef.current = selectedDateKey;
     let cancelled = false;
     (async () => {
       setCheckingExisting(true);
       clearValues();
       resetExisting();
+      setLoadedExisting(false);
       const resp = await firecodefeesAPI.getDetailBydate(
         {
           Stationno: activeStationNo,
           Reportyear: year,
           Reportmonth: month,
-          Feeparentno: selectedFeeParentNos,
+          Feeparentno: [],
         },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
@@ -800,19 +640,15 @@ export function FireCodeFeesFormBody({
       const record = ok ? pickFeeRecord(data) : null;
       setCheckingExisting(false);
       if (record) {
-        if (periodChanged) {
-          setPendingExisting(record);
-          setExistingDialogOpen(true);
-        } else {
-          plotExisting(record);
-        }
+        plotExisting(record);
+        setLoadedExisting(true);
       }
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [station.no, scope.stationLocked, scope.stationno, selectedDateKey, reloadNonce, selectedFeeParentNos]);
+  }, [station.no, scope.stationLocked, scope.stationno, selectedDateKey, reloadNonce]);
 
   /* Revision requests ----------------------------------------------------- */
   const [addRevisionOpen, setAddRevisionOpen] = React.useState(false);
@@ -843,32 +679,17 @@ export function FireCodeFeesFormBody({
   });
 
   /* Totals ---------------------------------------------------------------- */
-  const sectorTotals = React.useMemo(() => {
-    const totals = {} as Record<FireCodeSectorKey, Record<ModeCode, number>>;
-    for (const s of FEE_SECTORS) {
-      const byMode = {} as Record<ModeCode, number>;
-      for (const m of MODES) byMode[m.code] = sumAmounts(values[s.key][m.code]);
-      totals[s.key] = byMode;
-    }
-    return totals;
+  /** Overall total per collection mode. */
+  const modeTotals = React.useMemo(() => {
+    const t = {} as Record<ModeCode, number>;
+    for (const m of MODES) t[m.code] = sumAmounts(values[m.code]);
+    return t;
   }, [values]);
 
   const grandTotal = React.useMemo(
-    () =>
-      FEE_SECTORS.reduce(
-        (a, s) => a + MODES.reduce((b, m) => b + sectorTotals[s.key][m.code], 0),
-        0,
-      ),
-    [sectorTotals],
+    () => MODES.reduce((a, m) => a + modeTotals[m.code], 0),
+    [modeTotals],
   );
-
-  /** Overall total per collection mode across all sectors. */
-  const modeTotals = React.useMemo(() => {
-    const t = {} as Record<ModeCode, number>;
-    for (const m of MODES)
-      t[m.code] = FEE_SECTORS.reduce((a, s) => a + sectorTotals[s.key][m.code], 0);
-    return t;
-  }, [sectorTotals]);
 
   /* Submit ---------------------------------------------------------------- */
   const submit = async (e: React.FormEvent) => {
@@ -899,18 +720,15 @@ export function FireCodeFeesFormBody({
     setSaving(true);
     try {
       const fsisfeecollectionList: FSISFeeCollectionClassDTO[] = [];
-      for (const s of FEE_SECTORS) {
-        for (const m of MODES) {
-          const amounts = values[s.key][m.code];
-          for (const c of categories) {
-            fsisfeecollectionList.push({
-              accomplishno: existingAccomplishNos[`${s.key}|${m.code}|${c.detno}`] || EMPTY_GUID,
-              fsicmode: m.code,
-              feecateg: c.detno,
-              collectedamount: amounts[c.detno] ?? 0,
-              sectorno: s.code,
-            });
-          }
+      for (const m of MODES) {
+        const amounts = values[m.code];
+        for (const c of categories) {
+          fsisfeecollectionList.push({
+            accomplishno: existingAccomplishNos[`${m.code}|${c.detno}`] || EMPTY_GUID,
+            fsicmode: m.code,
+            feecateg: c.detno,
+            collectedamount: amounts[c.detno] ?? 0,
+          });
         }
       }
 
@@ -963,6 +781,18 @@ export function FireCodeFeesFormBody({
           </span>
         </div>
       )}
+
+      {loadedExisting && !checkingExisting && (
+        <div className="flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground/80">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+          <span>
+            An existing Fire Code Fees record for {monthName} {year} was loaded. Saving will update
+            it instead of creating a new one.
+          </span>
+        </div>
+      )}
+
+
 
       {/* 1. Reporting period */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
@@ -1095,7 +925,7 @@ export function FireCodeFeesFormBody({
         <SectionTitle
           icon={<Coins className="h-4 w-4" />}
           title="Fire Code Fees Collection"
-          subtitle="Encode MANUAL and FSIS amounts per fee category across establishment sectors."
+          subtitle="Encode MANUAL and FSIS amounts per fee category."
           right={
             <FeeTypeMultiSelect
               options={feeTypeOptions}
@@ -1109,54 +939,37 @@ export function FireCodeFeesFormBody({
           categories={filteredCategories}
           values={values}
           locked={fieldsLocked}
-          onChange={(sector, mode, feecateg, raw) => setAmount(sector, mode, feecateg, raw)}
+          onChange={(mode, feecateg, raw) => setAmount(mode, feecateg, raw)}
         />
       </Card>
 
-      {/* 4. Collection summary — simple per-sector totals */}
+      {/* 4. Collection summary — totals per collection mode */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
         <SectionTitle
           icon={<Coins className="h-4 w-4" />}
           title="Collection Summary"
-          subtitle="Totals per establishment sector."
+          subtitle="Totals per collection mode."
         />
         <div className="overflow-x-auto rounded-xl border border-border/60">
           <table className="min-w-full border-separate border-spacing-0 text-xs">
             <thead>
               <tr className="bg-muted/50">
                 <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Sector
+                  Collection Mode
                 </th>
-                {MODES.map((m) => (
-                  <th
-                    key={m.code}
-                    className="w-44 border-l border-border/60 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-                  >
-                    {m.label}
-                  </th>
-                ))}
-                <th className="w-44 border-l border-border/60 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Total
+                <th className="w-44 border-l border-border/60 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Amount Collected
                 </th>
               </tr>
             </thead>
             <tbody>
-              {FEE_SECTORS.map((s) => (
-                <tr key={s.key} className="border-t border-border/40">
+              {MODES.map((m) => (
+                <tr key={m.code} className="border-t border-border/40">
                   <td className="px-3 py-2 align-middle font-medium text-foreground/90">
-                    {s.title}
+                    {m.label}
                   </td>
                   <td className="border-l border-border/60 px-3 py-2 text-right tabular-nums">
-                    {peso(sectorTotals[s.key][FIRE_CODE_MODE_MANUAL])}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {peso(sectorTotals[s.key][FIRE_CODE_MODE_FSIS])}
-                  </td>
-                  <td className="border-l border-border/60 px-3 py-2 text-right font-semibold tabular-nums">
-                    {peso(
-                      sectorTotals[s.key][FIRE_CODE_MODE_MANUAL] +
-                        sectorTotals[s.key][FIRE_CODE_MODE_FSIS],
-                    )}
+                    {peso(modeTotals[m.code])}
                   </td>
                 </tr>
               ))}
@@ -1164,12 +977,6 @@ export function FireCodeFeesFormBody({
             <tfoot>
               <tr className="border-t border-border/60 bg-muted/60">
                 <td className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider">Total</td>
-                <td className="border-l border-border/60 px-3 py-2 text-right font-bold tabular-nums">
-                  {peso(modeTotals[FIRE_CODE_MODE_MANUAL])}
-                </td>
-                <td className="px-3 py-2 text-right font-bold tabular-nums">
-                  {peso(modeTotals[FIRE_CODE_MODE_FSIS])}
-                </td>
                 <td className="border-l border-border/60 px-3 py-2 text-right font-bold tabular-nums text-primary">
                   {peso(grandTotal)}
                 </td>
@@ -1297,25 +1104,6 @@ export function FireCodeFeesFormBody({
         }}
       />
 
-      <ConfirmDialog
-        open={existingDialogOpen}
-        onOpenChange={(v) => {
-          if (v) setExistingDialogOpen(true);
-        }}
-        ContentIcon={AlertTriangle}
-        contentIconBgClass="tone-warning-soft"
-        contentIconColorClass="text-warning"
-        title="Fire Code Fees Record Already Exists"
-        description={`A Fire Code Fees record already exists for this station and period (${monthName} ${year}).\n\nOpening the existing record for editing.`}
-        confirmLabel="Edit Existing"
-        showCancel={false}
-        dismissible={false}
-        onConfirm={() => {
-          if (pendingExisting) plotExisting(pendingExisting);
-          setPendingExisting(null);
-          setExistingDialogOpen(false);
-        }}
-      />
 
       <ConfirmDialog
         open={!!deleteRequestId}
@@ -1384,7 +1172,8 @@ export default function FireCodeFeesFormModal({
             <div>
               <DialogTitle className="text-base font-bold">Fire Code Fees Collection</DialogTitle>
               <DialogDescription>
-                Select a collection date and station, then encode the amounts collected per sector.
+                Select a collection date and station, then encode the amounts collected per fee
+                category.
               </DialogDescription>
             </div>
           </div>

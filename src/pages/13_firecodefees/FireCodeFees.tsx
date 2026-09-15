@@ -136,7 +136,7 @@ const monthLabel = (ym: string) => {
 /** Sums every collection record of a station into one line per period bucket. */
 const flattenSectorItems = (
   rec: FSISFeeCollectionDetailModel | undefined,
-): FSISFeeAccomDetailModel[] => flattenFeeAccomItems(rec);
+): (FSISFeeAccomDetailModel & { sectorno: number })[] => flattenFeeAccomItems(rec);
 
 /**
  * Builds one ledger line per period the current filter covers — mirroring the

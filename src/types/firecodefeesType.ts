@@ -82,7 +82,7 @@ export interface FSISFeeCollectionLedgerParams {
   pagesize?: number;
 }
 
-export interface FeeAccomDetailModel {
+export interface FSISFeeAccomDetailModel {
   accomplishno: string;
   feeno: string;
   fsicmode: number;
@@ -93,20 +93,20 @@ export interface FeeAccomDetailModel {
   collectedamount: number;
 }
 
-export interface FeeCollectionDetailModel {
+export interface FSISFeeCollectionDetailModel {
   feeno: string;
   dateaccomplish: string;
-  accomfeelist: FeeAccomDetailModel[];
+  accomfeelist: FSISFeeAccomDetailModel[];
 }
 
-export interface StationFeeDetailModel {
+export interface FSISStationFeeDetailModel {
   stationno: string;
   stationcode: string;
   stationname: string;
   logourl: string;
   provinceno: string;
   provincename: string;
-  feedetaillist: FeeCollectionDetailModel[];
+  feedetaillist: FSISFeeCollectionDetailModel[];
 }
 
 /* Delete */

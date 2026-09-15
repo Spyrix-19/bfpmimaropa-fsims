@@ -50,11 +50,9 @@ export interface FireCodeFeeLedgerRow {
 }
 
 /**
- * Flattens a collection record into accomplishment rows that always carry a
- * `sectorno`. The API nests the rows under `sectorlist[].accomfeelist[]` and
- * only the parent entry holds the sector, so the parent value is applied to
- * every child row. Legacy flat payloads (`accomfeelist` straight on the
- * record) keep working unchanged.
+ * Flattens a collection record into its accomplishment rows. The API returns
+ * them flat under `accomfeelist`; legacy grouped payloads are still unwrapped
+ * so older cached responses keep working.
  */
 export function flattenFeeAccomItems(
   rec: FSISFeeCollectionDetailModel | null | undefined,
@@ -62,22 +60,28 @@ export function flattenFeeAccomItems(
   const out: (FSISFeeAccomDetailModel & { sectorno: number })[] = [];
   if (!rec || typeof rec !== "object") return out;
 
-  const sectors = Array.isArray(rec.sectorlist) ? rec.sectorlist : [];
-  for (const sector of sectors) {
-    const parentSectorno = Number(sector?.sectorno) || 0;
-    const rows = Array.isArray(sector?.accomfeelist) ? sector.accomfeelist : [];
-    for (const row of rows) {
-      if (!row || typeof row !== "object") continue;
-      out.push({ ...row, sectorno: Number(row.sectorno) || parentSectorno });
+  const legacy = (rec as unknown as { sectorlist?: unknown }).sectorlist;
+  if (Array.isArray(legacy)) {
+    for (const sector of legacy) {
+      const parentSectorno = Number((sector as { sectorno?: unknown })?.sectorno) || 0;
+      const rows = (sector as { accomfeelist?: FSISFeeAccomDetailModel[] })?.accomfeelist;
+      if (!Array.isArray(rows)) continue;
+      for (const row of rows) {
+        if (!row || typeof row !== "object") continue;
+        out.push({
+          ...row,
+          sectorno: Number((row as { sectorno?: unknown }).sectorno) || parentSectorno,
+        });
+      }
     }
   }
   if (out.length > 0) return out;
 
-  const flat = (rec as { accomfeelist?: FSISFeeAccomDetailModel[] }).accomfeelist;
+  const flat = rec.accomfeelist;
   if (Array.isArray(flat)) {
     for (const row of flat) {
       if (!row || typeof row !== "object") continue;
-      out.push({ ...row, sectorno: Number(row.sectorno) || 0 });
+      out.push({ ...row, sectorno: Number((row as { sectorno?: unknown }).sectorno) || 0 });
     }
   }
   return out;

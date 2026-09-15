@@ -77,7 +77,14 @@ function mapSummaryToYears(
 ): { year: number; values: SectorValues }[] {
   const byYear = new Map<number, SectorValues>(years.map((y) => [y, emptyValues()]));
 
-  for (const fee of payload?.feeList ?? []) {
+  for (const rawFee of payload?.feeList ?? []) {
+    const fee = rawFee as unknown as {
+      feecateg?: number;
+      yearList?: {
+        reportyear?: number;
+        sectors?: { sectorno?: number; sectorcode?: string; collectionamount?: number }[];
+      }[];
+    };
     const feecateg = Number(fee?.feecateg) || 0;
     if (!feecateg) continue;
     for (const yearEntry of fee.yearList ?? []) {
