@@ -12,15 +12,7 @@ import { useEffect } from "react";
 import logo from "@/assets/bfp-mimaropa.png";
 
 export default function MaintenanceAccessBlocked() {
-  const { logout, user } = useAuth();
-
-  useEffect(() => {
-    // Auto-logout non-super-admin users after brief delay
-    const timer = setTimeout(() => {
-      logout();
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [logout]);
+  const { user } = useAuth();
 
   return (
     <main className="min-h-screen bg-background px-4 py-10 sm:px-6 lg:py-16">

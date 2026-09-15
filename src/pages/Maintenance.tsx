@@ -37,7 +37,11 @@ const activities = [
   "Service reliability improvements",
 ];
 
-export default function Maintenance() {
+export default function Maintenance({
+  showAccessStatus = false,
+}: {
+  showAccessStatus?: boolean;
+}) {
   return (
     <main className="min-h-screen bg-background px-4 py-10 sm:px-6 lg:py-16">
       <div className="mx-auto w-full max-w-3xl">
@@ -79,6 +83,42 @@ export default function Maintenance() {
 
           {/* Status card */}
           <div className="px-6 py-6 sm:px-10">
+            {showAccessStatus ? (
+              <div className="mb-6 rounded-xl border border-red-200/60 bg-red-50/40 p-4 dark:border-red-800/60 dark:bg-red-950/20 sm:p-5">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-red-600 dark:text-red-400" aria-hidden />
+                  <h2 className="text-sm font-semibold text-foreground">Access Status</h2>
+                </div>
+                <div className="mt-4 rounded-lg border border-red-200/60 bg-white/50 p-4 dark:border-red-800/60 dark:bg-red-950/10">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 dark:text-red-400">
+                    Access Status
+                  </p>
+                  <div className="mt-3 flex items-center gap-2.5">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-red-500/50" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-600" />
+                    </span>
+                    <span className="text-sm font-semibold text-red-700 dark:text-red-400">
+                      Restricted to Super Admin
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    Normal user access is currently restricted while maintenance procedures are
+                    ongoing. Only authorized Super Administrators are permitted to access the system
+                    during this period.
+                  </p>
+                </div>
+                <div className="mt-4 rounded-lg border border-border/60 bg-card p-4">
+                  <h3 className="text-sm font-semibold text-foreground">Super Admin Access Required</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    Access is limited to authorized Super Administrator accounts only. If you do not
+                    have Super Administrator privileges, please wait until the maintenance window has
+                    ended before attempting to sign in again.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             <div className="rounded-lg border border-border/60 bg-card p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 System Status

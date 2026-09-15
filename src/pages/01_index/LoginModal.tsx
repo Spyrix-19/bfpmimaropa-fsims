@@ -20,9 +20,13 @@ import SetNewPasswordModal from "./newpasswordmodal";
 export function LoginModal({
   open,
   onOpenChange,
+  maintenance,
+  onLoginAttempt,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  maintenance?: boolean;
+  onLoginAttempt?: () => void;
 }) {
   const { login, pendingMember, clearPendingMember } = useAuth();
   const [badgeno, setBadgeno] = useState("");
@@ -49,6 +53,7 @@ export function LoginModal({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
+    if (maintenance) onLoginAttempt?.();
     setBusy(true);
     const res = await login(badgeno, password, remember);
     setBusy(false);
@@ -60,6 +65,17 @@ export function LoginModal({
       // Keep login modal open behind — new-password modal is triggered by effect.
       return;
     }
+
+    if (maintenance) {
+      if (res.isSuperAdmin === false) {
+        toast.error("Access restricted: Super Admin access required during maintenance.");
+        return;
+      }
+      toast.success("Welcome back");
+      onOpenChange(false);
+      return;
+    }
+
     toast.success("Welcome back");
     onOpenChange(false);
   };

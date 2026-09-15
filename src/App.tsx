@@ -95,21 +95,23 @@ function PageLoader() {
   );
 }
 
-function AppContent({ maintenance }: { maintenance: boolean }) {
+function AppContent({
+  maintenance,
+  maintenanceLoginAttempt,
+}: {
+  maintenance: boolean;
+  maintenanceLoginAttempt: boolean;
+}) {
   const { isSuperAdmin, initialized, isAuthenticated, hasRole } = useAuth();
   if (!initialized) return <PageLoader />;
   const isSuperAdminUser = isSuperAdmin() || hasRole(1);
-  
-  // During maintenance:
-  // 1. Not authenticated → show Maintenance (allows login via header + Ctrl+/)
-  // 2. Authenticated but not super admin → show blocked message
-  // 3. Super admin → bypass and show normal routes
+
+  // During maintenance the original Maintenance page remains the only visible UI.
+  // The login-specific access-status section is appended only after an actual
+  // login attempt, and super-admin users bypass the gate.
   if (maintenance) {
-    if (!isAuthenticated) {
-      return <Maintenance />;
-    }
     if (!isSuperAdminUser) {
-      return <MaintenanceAccessBlocked />;
+      return <Maintenance showAccessStatus={maintenanceLoginAttempt} />;
     }
     // Super admin bypasses maintenance
   }
@@ -286,23 +288,32 @@ export { moduleForPath };
 export default function App() {
   // Global maintenance gate — takes precedence over routing and authentication.
   const [maintenance, setMaintenance] = useState(() => isMaintenanceMode());
+  const [maintenanceLoginAttempt, setMaintenanceLoginAttempt] = useState(false);
   useEffect(() => {
     // Poll the maintenance flag periodically so runtime toggles (e.g.
     // `window.setMaintenanceMode`) take effect across already-open clients.
-    const id = window.setInterval(() => setMaintenance(isMaintenanceMode()), 2000);
+    const id = window.setInterval(() => {
+      const next = isMaintenanceMode();
+      setMaintenance(next);
+      if (!next) setMaintenanceLoginAttempt(false);
+    }, 2000);
     return () => window.clearInterval(id);
   }, []);
-
-  
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <FiltersProvider>
           <BrowserRouter>
-            <AppShell maintenance={maintenance}>
+            <AppShell
+              maintenance={maintenance}
+              onMaintenanceLoginAttempt={setMaintenanceLoginAttempt}
+            >
               <Suspense fallback={<PageLoader />}>
-                <AppContent maintenance={maintenance} />
+                <AppContent
+                  maintenance={maintenance}
+                  maintenanceLoginAttempt={maintenanceLoginAttempt}
+                />
               </Suspense>
             </AppShell>
             <Toaster richColors position="top-right" />

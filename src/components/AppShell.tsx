@@ -51,7 +51,16 @@ function useCurrentDate() {
   return now;
 }
 
-export function AppShell({ children, maintenance }: { children: ReactNode; title?: string; maintenance?: boolean }) {
+export function AppShell({
+  children,
+  maintenance,
+  onMaintenanceLoginAttempt,
+}: {
+  children: ReactNode;
+  title?: string;
+  maintenance?: boolean;
+  onMaintenanceLoginAttempt?: (attempted: boolean) => void;
+}) {
   const { user, isSuperAdmin, hasRole } = useAuth();
   const headerRef = useRef<HTMLElement>(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -90,20 +99,24 @@ export function AppShell({ children, maintenance }: { children: ReactNode; title
     return () => observer.disconnect();
   }, [user]);
 
+  const isSuperAdminUser = isSuperAdmin() || hasRole(1);
+  const maintenanceLoginAllowed = Boolean(maintenance) && !isSuperAdminUser;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "/") {
         e.preventDefault();
-        if (!user) setLoginOpen(true);
+        if (!user || maintenanceLoginAllowed) {
+          setLoginOpen(true);
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [user]);
+  }, [user, maintenanceLoginAllowed]);
 
   // During maintenance the sidebar is hidden for non-super-admins, so the
   // trigger (which needs SidebarProvider) must not render either.
-  const isSuperAdminUser = isSuperAdmin() || hasRole(1);
   const hideSidebar = Boolean(maintenance) && !isSuperAdminUser;
   const showSidebar = Boolean(user) && !hideSidebar;
 
@@ -143,13 +156,13 @@ export function AppShell({ children, maintenance }: { children: ReactNode; title
         </div>
 
         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
-          {!user ? (
+          {!user || maintenanceLoginAllowed ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setLoginOpen(true)}
-              className="whitespace-nowrap sm:hidden"
+              className="whitespace-nowrap"
             >
               Sign in
             </Button>
@@ -225,7 +238,14 @@ export function AppShell({ children, maintenance }: { children: ReactNode; title
           <Footer />
         </div>
         <Suspense fallback={null}>
-          <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+          <LoginModal
+            open={loginOpen}
+            onOpenChange={setLoginOpen}
+            maintenance={maintenance}
+            onLoginAttempt={() => {
+              if (maintenance) onMaintenanceLoginAttempt?.(true);
+            }}
+          />
         </Suspense>
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogContent
@@ -251,7 +271,14 @@ export function AppShell({ children, maintenance }: { children: ReactNode; title
           <Footer />
         </div>
         <Suspense fallback={null}>
-          <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+          <LoginModal
+            open={loginOpen}
+            onOpenChange={setLoginOpen}
+            maintenance={maintenance}
+            onLoginAttempt={() => {
+              if (maintenance) onMaintenanceLoginAttempt?.(true);
+            }}
+          />
         </Suspense>
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogContent
@@ -281,7 +308,14 @@ export function AppShell({ children, maintenance }: { children: ReactNode; title
         </SidebarInset>
       </div>
       <Suspense fallback={null}>
-        <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+        <LoginModal
+          open={loginOpen}
+          onOpenChange={setLoginOpen}
+          maintenance={maintenance}
+          onLoginAttempt={() => {
+            if (maintenance) onMaintenanceLoginAttempt?.(true);
+          }}
+        />
       </Suspense>
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent

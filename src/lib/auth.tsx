@@ -94,7 +94,12 @@ interface AuthCtx {
     badgeno: string,
     password: string,
     remember: boolean,
-  ) => Promise<{ ok: boolean; error?: string; requiresPasswordChange?: boolean }>;
+  ) => Promise<{
+    ok: boolean;
+    error?: string;
+    requiresPasswordChange?: boolean;
+    isSuperAdmin?: boolean;
+  }>;
   logout: () => void;
   restoreSession: () => Promise<void>;
   isPersonnel: () => boolean;
@@ -594,7 +599,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const stored: Session = { user, expiration: data.expiration ?? "" };
           await writeStoredSession(stored, remember);
           applySession({ user, expiration: data.expiration ?? "" });
-          return { ok: true };
+          return {
+            ok: true,
+            isSuperAdmin: (user.systemaccess?.roleno ?? 0) === 1,
+          };
         } catch (e: unknown) {
           const err = e as {
             response?: { status?: number; data?: { errorMessages?: string } };
