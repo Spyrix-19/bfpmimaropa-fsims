@@ -139,7 +139,7 @@ function YearMultiSelect({
           className="h-10 w-full shrink-0 justify-between rounded-lg border-border/70 bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/30 sm:w-[176px]"
         >
           <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <ChevronDown className="h-4 w-4 text-primary" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[240px] p-3">
@@ -337,7 +337,7 @@ export default function FireCodeFeesSection() {
       <div className="mb-3 space-y-3">
         <div className="min-w-0 border-b border-border/60 pb-2.5">
           <div className="mb-1 flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-foreground ring-1 ring-border/70">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
               <Coins className="h-4 w-4" />
             </div>
             <h3 className="text-base font-semibold leading-tight tracking-tight">Fire Code Fees Collection</h3>
@@ -405,14 +405,13 @@ export default function FireCodeFeesSection() {
           <Loader2 className="h-4 w-4 animate-spin" /> Loading collection records…
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border/60">
-          <table className="w-full table-fixed border-separate border-spacing-0 text-[10px] sm:text-[11px]">
+        <div className="rounded-xl border border-border/60">
+          <table className="w-full border-separate border-spacing-0 text-[10px] sm:text-[11px]">
             <thead>
               <tr>
                 <th
                   rowSpan={2}
-                  className="head-soft px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
-                  style={{ width: "42%" }}
+                  className="head-soft sticky left-0 z-30 w-[32rem] min-w-[32rem] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
                 >
                   Fee Category
                 </th>
@@ -421,15 +420,13 @@ export default function FireCodeFeesSection() {
                     key={s.key}
                     colSpan={sortedYears.length}
                     className="head-soft border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
-                    style={{ width: `${Math.max(40, 58 - DASHBOARD_FEE_SECTORS.length * 2)}%` }}
                   >
                     {s.label}
                   </th>
                 ))}
                 <th
                   rowSpan={2}
-                  className="head-soft border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
-                  style={{ width: "12%" }}
+                  className="head-soft w-[10rem] min-w-[10rem] border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
                 >
                   Total
                 </th>
@@ -441,7 +438,8 @@ export default function FireCodeFeesSection() {
                       <th
                         key={`${s.key}-${y}`}
                         className={cn(
-                          "head-soft px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2",
+                          "head-soft px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5",
+                          yearColClass,
                           yi === 0 && "border-l border-grid",
                         )}
                       >
@@ -455,9 +453,9 @@ export default function FireCodeFeesSection() {
             <tbody>
               {groups.map((g) => (
                 <React.Fragment key={g.parentno || g.code || g.name}>
-                  <tr className="bg-muted/60">
-                    <td className="bg-card px-2 py-1.5 text-left before:pointer-events-none before:absolute before:inset-0 before:bg-muted/60 before:content-['']">
-                      <span className="relative text-[10px] font-bold uppercase tracking-wider text-foreground/80">
+                  <tr className="bg-primary/5">
+                    <td className="sticky left-0 z-20 bg-card px-2 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']">
+                      <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
                         {g.code || g.name}
                       </span>
                       {g.items.length > 1 && g.name && g.name !== g.code ? (
@@ -489,8 +487,8 @@ export default function FireCodeFeesSection() {
                     }, 0);
                     return (
                       <tr key={c.key} className="border-t border-grid">
-                        <td className="border-t border-grid bg-card px-2 py-1 align-middle text-left text-foreground/90 sm:px-2.5">
-                          <span className="block truncate">{c.label}</span>
+                        <td className="sticky left-0 z-20 w-[32rem] min-w-[32rem] border-t border-grid bg-card px-2 py-1 align-middle text-foreground/90 sm:px-2.5">
+                          {c.label}
                         </td>
                         {DASHBOARD_FEE_SECTORS.map((s) => (
                           <React.Fragment key={`${s.key}-${c.key}`}>
@@ -501,7 +499,8 @@ export default function FireCodeFeesSection() {
                                 <td
                                   key={`${s.key}-${c.key}-${y}`}
                                   className={cn(
-                                    "border-t border-grid px-1 py-1 text-right tabular-nums sm:px-2",
+                                    "border-t border-grid px-2 py-1 text-right tabular-nums sm:px-2.5",
+                                    yearColClass,
                                     yi === 0 && "border-l",
                                     !amount && "text-muted-foreground",
                                   )}
@@ -512,7 +511,7 @@ export default function FireCodeFeesSection() {
                             })}
                           </React.Fragment>
                         ))}
-                        <td className="border-l border-t border-grid px-1 py-1 text-right font-semibold tabular-nums sm:px-2">
+                        <td className="w-[10rem] min-w-[10rem] border-l border-t border-grid px-2 py-1 text-right font-semibold tabular-nums sm:px-2.5">
                           {peso(rowTotal)}
                         </td>
                       </tr>
@@ -523,7 +522,7 @@ export default function FireCodeFeesSection() {
             </tbody>
             <tfoot>
               <tr className="border-t border-grid bg-muted/60">
-                <td className="bg-muted px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider sm:px-2.5">
+                <td className="sticky left-0 z-30 w-[32rem] min-w-[32rem] bg-muted px-2 py-2 text-[10px] font-bold uppercase tracking-wider sm:px-2.5">
                   TOTAL
                 </td>
                 {DASHBOARD_FEE_SECTORS.map((s) => (
@@ -535,7 +534,8 @@ export default function FireCodeFeesSection() {
                         <td
                           key={`${s.key}-${y}-total`}
                           className={cn(
-                            "px-1 py-2 text-right font-bold tabular-nums sm:px-2",
+                            "px-2 py-2 text-right font-bold tabular-nums sm:px-2.5",
+                            yearColClass,
                             yi === 0 && "border-l border-grid",
                           )}
                         >
@@ -545,7 +545,7 @@ export default function FireCodeFeesSection() {
                     })}
                   </React.Fragment>
                 ))}
-                <td className="border-l border-grid px-1 py-2 text-right font-bold tabular-nums text-foreground sm:px-2">
+                <td className="w-[10rem] min-w-[10rem] border-l border-grid px-2 py-2 text-right font-bold tabular-nums text-primary sm:px-2.5">
                   {peso(sortedYears.reduce((a, y) => a + yearTotal(y), 0))}
                 </td>
               </tr>
