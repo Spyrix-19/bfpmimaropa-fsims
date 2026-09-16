@@ -695,13 +695,13 @@ function ActivityTable({
   );
   const issuanceCols = groups.flatMap((g) => g.cols);
 
-  const issuanceCells = (day: ViewDay, mode: "manual" | "fsis") =>
+  const issuanceCells = (bucket: Record<string, number>) =>
     issuanceCols.map((col) => (
       <td
         key={col.api}
         className="min-w-[72px] w-[72px] border-b border-r px-2 py-1.5 text-center tabular-nums"
       >
-        {num(day[mode][col.api]).toLocaleString()}
+        {num(bucket[col.api]).toLocaleString()}
       </td>
     ));
 
@@ -833,7 +833,10 @@ function ActivityTable({
         <tbody>
           {days.map((day, dayIndex) => {
             const zebra = dayIndex % 2 === 0 ? MONITORING_THEME.rowEven : MONITORING_THEME.rowOdd;
-            const total = rowTotal(day);
+            const inspection = day?.inspection ?? emptyInspection(day?.key ?? "0000-00-00");
+            const manual = day?.manual ?? emptyIssuance(FSIC_MODE_MANUAL);
+            const fsis = day?.fsis ?? emptyIssuance(FSIC_MODE_FSIS);
+            const total = rowTotal({ ...(day ?? ({} as ViewDay)), inspection, manual, fsis } as ViewDay);
 
             return (
               <React.Fragment key={day.key}>
@@ -857,8 +860,8 @@ function ActivityTable({
                   {inspectionCols.flatMap((col) => {
                     const cells: React.ReactNode[] = [];
                     if (col.target) {
-                      const target = num(day.inspection[col.target]);
-                      const accomplished = num(day.inspection[col.api]);
+                      const target = num(inspection[col.target]);
+                      const accomplished = num(inspection[col.api]);
                       cells.push(
                         <td
                           key={`${col.api}__target`}
@@ -925,7 +928,7 @@ function ActivityTable({
                   >
                     MANUAL
                   </td>
-                  {issuanceCells(day, "manual")}
+                  {issuanceCells(manual)}
 
                   <td
                     rowSpan={2}
@@ -941,7 +944,7 @@ function ActivityTable({
                   >
                     FSIS
                   </td>
-                  {issuanceCells(day, "fsis")}
+                  {issuanceCells(fsis)}
                 </tr>
               </React.Fragment>
             );

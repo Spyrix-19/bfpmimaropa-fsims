@@ -707,23 +707,28 @@ export function FireCodeFeesFormBody({
       clearValues();
       resetExisting();
       setLoadedExisting(false);
-      const resp = await firecodefeesAPI.getDetailBydate(
-        {
-          Stationno: activeStationNo,
-          Reportyear: year,
-          Reportmonth: month,
-          Feeparentno: [],
-        },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
-      );
-      if (cancelled) return;
-      const { ok, data } = unwrap<unknown>(resp);
-      const record = ok ? pickFeeRecord(data) : null;
-      setCheckingExisting(false);
-      if (record) {
-        // Defer plotting until user confirms to avoid accidental duplicates.
-        setPendingRecord(record);
-        setConfirmExistingOpen(true);
+      try {
+        const resp = await firecodefeesAPI.getDetailBydate(
+          {
+            Stationno: activeStationNo,
+            Reportyear: year,
+            Reportmonth: month,
+            Feeparentno: [],
+          },
+          { suppressGlobalLoading: true, suppressErrorToast: true },
+        );
+        if (cancelled) return;
+        const { ok, data } = unwrap<unknown>(resp);
+        const record = ok ? pickFeeRecord(data) : null;
+        if (record) {
+          // Defer plotting until user confirms to avoid accidental duplicates.
+          setPendingRecord(record);
+          setConfirmExistingOpen(true);
+        }
+      } catch (err) {
+        // Swallow - UI will show empty form. Keep checking flag cleared below.
+      } finally {
+        setCheckingExisting(false);
       }
     })();
     return () => {

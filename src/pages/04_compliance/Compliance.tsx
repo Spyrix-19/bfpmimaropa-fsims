@@ -1607,13 +1607,42 @@ function ComplianceLedgerCard({
     () => buildDayLines(row.daily, dateISO, groupBy, weekByDate, weekRangeLabels),
     [row.daily, dateISO, groupBy, weekByDate, weekRangeLabels],
   );
+  // Normalize lines to ensure every rendered line has the expected shape
+  // (guards against malformed API records or unexpected undefineds).
+  const normalizeLine = React.useCallback((l?: DayLine): DayLine => {
+    if (!l) return emptyLine("unknown", "");
+    const inspection = Object.fromEntries(
+      INSPECTION_PLAIN_COLS.map((c) => [c.key, num((l.inspection && l.inspection[c.key]) ?? 0)]),
+    ) as Record<string, number>;
+    const sectors = Object.fromEntries(
+      INSPECTION_SECTORS.map((s) => [
+        s.key,
+        { target: num(l.sectors?.[s.key]?.target ?? 0), accomplished: num(l.sectors?.[s.key]?.accomplished ?? 0) },
+      ]),
+    ) as Record<string, { target: number; accomplished: number }>;
+    const reinspection = Object.fromEntries(
+      REINSPECTION_COLS.map((c) => [c.key, num(l.reinspection?.[c.key] ?? 0)]),
+    ) as Record<string, number>;
+    return {
+      key: l.key ?? "unknown",
+      label: l.label ?? "",
+      inspection,
+      sectors,
+      reinspection,
+      manual: { ...(l.manual ?? emptyMode()) },
+      fsis: { ...(l.fsis ?? emptyMode()) },
+      totals: l.totals ?? { inspection: 0, fsec: 0, fsic: 0, notices: 0 },
+    };
+  }, []);
 
-  const totals = React.useMemo(() => calculateLedgerTotals(lines), [lines]);
+  const normLines = React.useMemo(() => lines.map((l) => normalizeLine(l)), [lines, normalizeLine]);
+
+  const totals = React.useMemo(() => calculateLedgerTotals(normLines), [normLines]);
 
   /** Per-line sector metrics, computed once instead of inside every cell. */
   const lineMetrics = React.useMemo(
     () =>
-      lines.map((l) =>
+      normLines.map((l) =>
         Object.fromEntries(
           INSPECTION_SECTORS.map((s) => [
             s.key,
@@ -1621,7 +1650,7 @@ function ComplianceLedgerCard({
           ]),
         ),
       ),
-    [lines],
+    [normLines],
   );
   const totalMetrics = React.useMemo(
     () =>
@@ -1776,7 +1805,7 @@ function ComplianceLedgerCard({
                     </thead>
 
                     <tbody>
-                      {lines.map((l, lineIdx) => {
+                      {normLines.map((l, lineIdx) => {
                         const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
                           ? l.key
                           : l.key.match(/^\d{4}-\d{2}$/)
@@ -1814,10 +1843,10 @@ function ComplianceLedgerCard({
                               <ModeBadge label="MANUAL" />
                             </td>
                             {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
-                              <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                                <N v={l.manual[c.key] ?? 0} />
-                              </td>
-                            ))}
+                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                            <N v={l.manual[c.key] ?? 0} />
+                          </td>
+                        ))}
                             </tr>
                             <tr className="group row-alt transition-colors hover:bg-primary/5">
                               <td className={`${bodyCell} ${strongRight}`}>
@@ -1873,7 +1902,7 @@ function ComplianceLedgerCard({
                 </div>
 
                 <div className="space-y-3 md:hidden">
-                  {lines.map((l, lineIdx) => {
+                  {normLines.map((l, lineIdx) => {
                     const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
                       ? l.key
                       : l.key.match(/^\d{4}-\d{2}$/)
@@ -2045,7 +2074,7 @@ function ComplianceLedgerCard({
             onToggle={() => setReinspectionExpanded((v) => !v)}
           />
           {reinspectionExpanded &&
-            (lines.length === 0 ? (
+            (normLines.length === 0 ? (
               <div className="rounded-xl border border-border/40 p-6 text-center text-xs text-muted-foreground">
                 {emptyMessage}
               </div>
@@ -2096,7 +2125,7 @@ function ComplianceLedgerCard({
                     </thead>
 
                     <tbody>
-                      {lines.map((l) => {
+                      {normLines.map((l) => {
                         const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
                           ? l.key
                           : l.key.match(/^\d{4}-\d{2}$/)
@@ -2177,7 +2206,7 @@ function ComplianceLedgerCard({
                 </div>
 
                 <div className="space-y-3 md:hidden">
-                  {lines.map((l) => {
+                  {normLines.map((l) => {
                     const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
                       ? l.key
                       : l.key.match(/^\d{4}-\d{2}$/)
