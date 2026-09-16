@@ -505,6 +505,16 @@ function InspectionsNewBody({
   const [reloadNonce, setReloadNonce] = React.useState(0);
 
   const selectedDateKey = format(reportingDate, "yyyy-MM-dd");
+  /** Blanks every input back to its zero/default state. */
+  const clearFormValues = React.useCallback(() => {
+    setNumeric({ ...defaultNumeric });
+    setManualIssuance({ ...defaultIssuance });
+    setFsisIssuance({ ...defaultIssuance });
+    setReinspection({ ...defaultReinspectionPanel });
+    setManualReinspection({ ...defaultReinspection });
+    setFsisReinspection({ ...defaultReinspection });
+    setErrors({});
+  }, []);
 
   /** Every fresh open starts on the current date so the duplicate check runs for today. */
   React.useEffect(() => {
@@ -525,7 +535,7 @@ function InspectionsNewBody({
     promptedDateKeyRef.current = null;
     clearFormValues();
     setInitializedForOpen(true);
-  }, [open, initializedForOpen, clearFormValues]);
+  }, [open, initializedForOpen]);
 
   /** Plots an existing record into the form and switches Save into update mode. */
   const plotExistingRecord = React.useCallback((rec: ComplianceRow) => {
@@ -601,16 +611,7 @@ function InspectionsNewBody({
     setErrors({});
   }, []);
 
-  /** Blanks every input back to its zero/default state. */
-  const clearFormValues = React.useCallback(() => {
-    setNumeric({ ...defaultNumeric });
-    setManualIssuance({ ...defaultIssuance });
-    setFsisIssuance({ ...defaultIssuance });
-    setReinspection({ ...defaultReinspectionPanel });
-    setManualReinspection({ ...defaultReinspection });
-    setFsisReinspection({ ...defaultReinspection });
-    setErrors({});
-  }, []);
+  
 
   const resetExistingRecord = React.useCallback(() => {
     setExistingFsisno(null);
@@ -643,7 +644,7 @@ function InspectionsNewBody({
           // The API expects the non-padded US format, e.g. 8/1/2026.
           dateinspected: format(reportingDate, "M/d/yyyy"),
         },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       if (cancelled) return;
       const { ok, data } = unwrap<unknown>(resp);

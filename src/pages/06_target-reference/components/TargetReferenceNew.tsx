@@ -457,7 +457,7 @@ export default function TargetReferenceForm({
           reportyear: Number(year),
           reportmonth: Number(month),
         },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       if (cancelled) return;
       const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);
@@ -547,7 +547,7 @@ export default function TargetReferenceForm({
 
       const resp = await targetreferenceAPI.getDetailByTargetdate(
         { Stationno: activeStationNo, Targetdate: targetdate },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       if (cancelled) return;
       const { ok, data } = unwrap<TargetReferenceByDateModel[]>(resp);

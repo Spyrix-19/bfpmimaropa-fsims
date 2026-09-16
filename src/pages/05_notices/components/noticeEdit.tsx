@@ -564,7 +564,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
     (async () => {
       const resp = await noticeAPI.getDetail(
         { stationno, reportyear: Number(year), reportmonth: Number(month) },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       if (cancelled) return;
       const { ok, data } = unwrap<

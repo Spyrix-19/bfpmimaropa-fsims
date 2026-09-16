@@ -142,7 +142,7 @@ export default function TargetReferenceDetails({
           reportyear: selectedYear,
           reportmonth: selectedMonth,
         },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);
       if (cancelled) return;

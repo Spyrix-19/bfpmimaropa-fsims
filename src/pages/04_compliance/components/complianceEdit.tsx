@@ -625,7 +625,7 @@ function ComplianceEditBody({
           reportyear: year,
           reportmonth: month,
         },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       if (cancelled) return;
 

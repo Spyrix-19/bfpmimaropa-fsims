@@ -456,7 +456,7 @@ function ComplianceViewBody({
           reportyear: selectedYear,
           reportmonth: selectedMonth,
         },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       if (cancelled) return;
 

@@ -133,7 +133,7 @@ export default function TargetAccomplishmentPanel({
       setError(null);
       const resp = await complianceAPI.getDetail(
         { stationno, reportyear: year, reportmonth: month },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       const {
         ok,

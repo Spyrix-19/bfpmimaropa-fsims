@@ -592,7 +592,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           // The API expects the non-padded US format, e.g. 8/1/2026.
           dateaccomplish: format(reportingDate, "M/d/yyyy"),
         },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
+        { suppressGlobalLoading: true, suppressErrorToast: true, noDedupe: true },
       );
       if (cancelled) return;
       setCheckingExisting(false);

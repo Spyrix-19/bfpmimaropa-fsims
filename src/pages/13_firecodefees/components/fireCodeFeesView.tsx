@@ -221,7 +221,7 @@ export function FireCodeFeesYearViewBody({
       setLoading(true);
       const resp = await firecodefeesAPI.getDetail(
         { Stationno: station.stationno, Reportyear: year, Feeparentno: selectedFeeParentNos },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
+        { suppressGlobalLoading: true, suppressErrorToast: true, noDedupe: true },
       );
       if (cancelled) return;
       const { ok, data, error } = unwrap<unknown>(resp);

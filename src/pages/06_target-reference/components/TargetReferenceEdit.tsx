@@ -287,7 +287,7 @@ export default function TargetReferenceForm({
       if (isEdit) {
         const resp = await targetreferenceAPI.getDetail(
           { stationno: stationNo, reportyear: Number(year) },
-          { suppressGlobalLoading: true },
+          { suppressGlobalLoading: true, noDedupe: true },
         );
         const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);
         if (cancelled) return;
@@ -482,7 +482,7 @@ export default function TargetReferenceForm({
       setExistingLoading(true);
       const resp = await targetreferenceAPI.getDetail(
         { stationno: stationNo, reportyear: Number(year), reportmonth: Number(month) },
-        { suppressGlobalLoading: true },
+        { suppressGlobalLoading: true, noDedupe: true },
       );
       const { ok, data } = unwrap<TargetReferenceDetailModel>(resp);
       if (cancelled) return;
@@ -633,7 +633,7 @@ export default function TargetReferenceForm({
   const fetchExistingTargetData = async (stationNumber: string, reportYear: number) => {
     const resp = await targetreferenceAPI.getDetail(
       { stationno: stationNumber, reportyear: reportYear, reportmonth: Number(month) },
-      { suppressGlobalLoading: true },
+      { suppressGlobalLoading: true, noDedupe: true },
     );
 
     const { ok, data, error } = unwrap<TargetReferenceDetailModel>(resp);

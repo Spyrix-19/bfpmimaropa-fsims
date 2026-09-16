@@ -740,7 +740,7 @@ export function FireCodeFeesFormBody({
             Reportmonth: month,
             Feeparentno: [],
           },
-          { suppressGlobalLoading: true, suppressErrorToast: true },
+          { suppressGlobalLoading: true, suppressErrorToast: true, noDedupe: true },
         );
         if (cancelled) return;
         const { ok, data } = unwrap<unknown>(resp);
