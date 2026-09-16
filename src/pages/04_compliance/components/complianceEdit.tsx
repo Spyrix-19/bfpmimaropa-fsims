@@ -284,6 +284,19 @@ function normalizeDateKey(v: string | Date | null | undefined): string | null {
   return null;
 }
 
+const normalizeApiGuid = (value: unknown): string => {
+  const text = String(value ?? "").trim();
+  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+    return EMPTY_GUID;
+  }
+  return text;
+};
+
+const maybeApiGuid = (value: unknown): string | null => {
+  const normalized = normalizeApiGuid(value);
+  return normalized === EMPTY_GUID ? null : normalized;
+};
+
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
@@ -367,7 +380,7 @@ function buildEditableDays(
     let fsis = emptyIssuance(FSIC_MODE_FSIS);
 
     if (rec) {
-      inspection.fsisno = String(rec.fsisno ?? EMPTY_GUID);
+      inspection.fsisno = maybeApiGuid(rec.fsisno) ?? EMPTY_GUID;
       inspection.dateinspected = String(rec.dateinspected ?? key);
       inspection.remarks = String(rec.remarks ?? "");
       inspection.dailytargetbplo = num(rec.dailytargetbplo);
@@ -382,7 +395,7 @@ function buildEditableDays(
         const mode = num(iss?.fsicmode);
         if (mode !== FSIC_MODE_MANUAL && mode !== FSIC_MODE_FSIS) continue;
         const target = emptyIssuance(mode);
-        target.issuanceno = String(iss?.issuanceno ?? EMPTY_GUID);
+        target.issuanceno = maybeApiGuid(iss?.issuanceno) ?? EMPTY_GUID;
         for (const f of ALL_ISSUANCE_FIELDS) {
           target[f] = num((iss as unknown as Record<string, unknown>)[f]);
         }

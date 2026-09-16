@@ -82,6 +82,19 @@ import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 /** Row shape returned by the compliance "detail by date" endpoint. */
 type ComplianceRow = FSISComplianceDetailClassModel & { isdeleted?: boolean };
 
+const normalizeApiGuid = (value: unknown): string => {
+  const text = String(value ?? "").trim();
+  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+    return EMPTY_GUID;
+  }
+  return text;
+};
+
+const maybeApiGuid = (value: unknown): string | null => {
+  const normalized = normalizeApiGuid(value);
+  return normalized === EMPTY_GUID ? null : normalized;
+};
+
 /**
  * The endpoint may answer with either a flat array of compliance rows or the
  * wrapper model carrying `compliancelist`. Normalise both into a single row.
@@ -555,12 +568,14 @@ function InspectionsNewBody({
     setManualReinspection(fromReinspection(manualRow as unknown as Record<string, unknown>));
     setFsisReinspection(fromReinspection(fsisRow as unknown as Record<string, unknown>));
 
-    // Keep the DATABASE identifiers — never regenerate them.
+    // Keep the database identifiers from the API when present. A blank value
+    // means the backend has not assigned an id yet, so it must stay null to
+    // trigger a create on save rather than a fabricated GUID.
     setExistingIssuanceNos({
-      [FSIC_MODE.MANUAL]: manualRow?.issuanceno ? String(manualRow.issuanceno) : EMPTY_GUID,
-      [FSIC_MODE.FSIS]: fsisRow?.issuanceno ? String(fsisRow.issuanceno) : EMPTY_GUID,
+      [FSIC_MODE.MANUAL]: maybeApiGuid(manualRow?.issuanceno) ?? EMPTY_GUID,
+      [FSIC_MODE.FSIS]: maybeApiGuid(fsisRow?.issuanceno) ?? EMPTY_GUID,
     });
-    setExistingFsisno(String(rec.fsisno));
+    setExistingFsisno(maybeApiGuid(rec.fsisno));
     setErrors({});
   }, []);
 
