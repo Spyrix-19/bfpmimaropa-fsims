@@ -498,6 +498,7 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
   const { user, systemAccess } = useAuth();
   const [reportingDate, setReportingDate] = React.useState<Date>(new Date());
   const [dateOpen, setDateOpen] = React.useState(false);
+  const [initializedForOpen, setInitializedForOpen] = React.useState(false);
   const [manualValues, setManualValues] = React.useState<NoticeCounts>(emptyCounts());
   const [fsisValues, setFsisValues] = React.useState<NoticeCounts>(emptyCounts());
   const [saving, setSaving] = React.useState(false);
@@ -534,9 +535,14 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     enabled: open,
   });
 
-  /** Reset the form whenever the modal opens — the period defaults to today. */
+  /** Every fresh open starts on the current date so the duplicate check runs for today. */
   React.useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setInitializedForOpen(false);
+      return;
+    }
+    if (initializedForOpen) return;
+
     setReportingDate(new Date());
     setManualValues(emptyCounts());
     setFsisValues(emptyCounts());
@@ -547,7 +553,8 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
     setIssuedFromApi(null);
     promptedDateKeyRef.current = null;
-  }, [open, record?.key]);
+    setInitializedForOpen(true);
+  }, [open, initializedForOpen, record?.key]);
 
   /** Plots an existing notice record into the MANUAL / FSIS matrix. */
   const plotExistingRecord = React.useCallback((entry: NoticeDetailClassModel) => {

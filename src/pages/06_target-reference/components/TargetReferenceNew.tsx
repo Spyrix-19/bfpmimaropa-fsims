@@ -288,14 +288,7 @@ export default function TargetReferenceForm({
     }
     if (initializedForOpen) return;
 
-    const previousStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
-    const previousDate =
-      selectedDate && /^\d{4}-\d{2}-\d{2}$/.test(selectedDate)
-        ? selectedDate
-        : formatDateInputValue(new Date());
-
-    let nextStationNo = previousStation;
-    let nextStationLabel = selectedStationLabel || "";
+    const today = formatDateInputValue(new Date());
     const nextProvinceNo = scope.provinceLocked
       ? scope.provinceno || user?.provinceno || ""
       : EMPTY_GUID;
@@ -303,21 +296,24 @@ export default function TargetReferenceForm({
       ? scope.provincename || user?.provincename || ""
       : "ALL";
 
+    let nextStationNo = "";
+    let nextStationLabel = "";
+
     if (scope.stationLocked) {
-      nextStationNo = scope.stationno || user?.stationno || previousStation || "";
+      nextStationNo = scope.stationno || user?.stationno || "";
       nextStationLabel = user?.stationname
         ? `${user.stationname}${user.provincename ? ` — ${user.provincename}` : ""}`
-        : nextStationLabel;
+        : "";
     } else if (editing?.stationno) {
       nextStationNo = editing.stationno;
-    } else if (!previousStation) {
+    } else {
       nextStationNo = EMPTY_GUID;
       nextStationLabel = "ALL";
     }
 
     setStationNo(nextStationNo);
     setStation(null);
-    setSelectedDate(previousDate);
+    setSelectedDate(today);
     setSelectedStationLabel(nextStationLabel);
     setProvinceno(nextProvinceNo);
     setProvincename(nextProvinceName);
@@ -331,9 +327,6 @@ export default function TargetReferenceForm({
     user?.provincename,
     user?.stationname,
     user?.stationno,
-    stationNo,
-    selectedDate,
-    selectedStationLabel,
   ]);
 
   // Station code / city / province / logo for the Station Information card.
@@ -419,10 +412,7 @@ export default function TargetReferenceForm({
     promptedDateKeyRef.current = null;
     setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
 
-    if (!selectedDate || !/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
-      setSelectedDate(formatDateInputValue(new Date()));
-    }
-
+    setSelectedDate(formatDateInputValue(new Date()));
     setYear(editing?.year ?? initialYear ?? currentYear);
     setMonth(editing?.month ?? initialMonth ?? currentMonth);
     setProvinceno(scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID);
@@ -442,7 +432,6 @@ export default function TargetReferenceForm({
     scope.provinceLocked,
     scope.provinceno,
     user?.provinceno,
-    selectedDate,
   ]);
 
   /**

@@ -490,12 +490,14 @@ export function FeeCategoryMatrix({
 /* -------------------------------------------------------------------------- */
 
 export function FireCodeFeesFormBody({
+  open,
   onSaved,
   onCancel,
   initialYear,
   initialMonth,
   initialStation,
 }: {
+  open?: boolean;
   onSaved?: () => void;
   onCancel?: () => void;
   initialYear?: number;
@@ -572,6 +574,7 @@ export function FireCodeFeesFormBody({
 
   /* Reporting period (monthly basis — the record is keyed on the 1st) ------ */
   const YEARS = React.useMemo(buildYears, []);
+  const [initializedForOpen, setInitializedForOpen] = React.useState(false);
   const [year, setYear] = React.useState<number>(() => {
     const now = new Date();
     return initialYear && initialYear > 1900 ? initialYear : now.getFullYear();
@@ -582,6 +585,27 @@ export function FireCodeFeesFormBody({
       ? initialMonth
       : now.getMonth() + 1;
   });
+
+  React.useEffect(() => {
+    if (!open) {
+      setInitializedForOpen(false);
+      return;
+    }
+    if (initializedForOpen) return;
+
+    const now = new Date();
+    setYear(initialYear && initialYear > 1900 ? initialYear : now.getFullYear());
+    setMonth(initialMonth && initialMonth >= 1 && initialMonth <= 12 ? initialMonth : now.getMonth() + 1);
+    setValues(emptyValues());
+    setErrors({});
+    setExistingFeeno(null);
+    setExistingAccomplishNos({});
+    setPendingRecord(null);
+    setConfirmExistingOpen(false);
+    setLoadedExisting(false);
+    setInitializedForOpen(true);
+  }, [open, initializedForOpen, initialYear, initialMonth]);
+
   const lockedPeriod = !!initialStation?.stationno && !!initialYear && !!initialMonth;
   const collectedDate = React.useMemo(() => new Date(year, month - 1, 1), [year, month]);
   const monthName = MONTHS.find((m) => m.value === month)?.name ?? "";
@@ -1299,6 +1323,7 @@ export default function FireCodeFeesFormModal({
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {open ? (
               <FireCodeFeesFormBody
+                open={open}
                 initialYear={initialYear}
                 initialMonth={initialMonth}
                 initialStation={initialStation}

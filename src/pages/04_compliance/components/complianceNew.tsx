@@ -465,6 +465,7 @@ function InspectionsNewBody({
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = React.useState(false);
+  const [initializedForOpen, setInitializedForOpen] = React.useState(false);
 
   const year = reportingDate.getFullYear();
   const month = reportingDate.getMonth() + 1;
@@ -504,6 +505,27 @@ function InspectionsNewBody({
   const [reloadNonce, setReloadNonce] = React.useState(0);
 
   const selectedDateKey = format(reportingDate, "yyyy-MM-dd");
+
+  /** Every fresh open starts on the current date so the duplicate check runs for today. */
+  React.useEffect(() => {
+    if (!open) {
+      setInitializedForOpen(false);
+      return;
+    }
+    if (initializedForOpen) return;
+
+    setReportingDate(new Date());
+    setDuplicateDialogOpen(false);
+    setPendingExistingRecord(null);
+    setExistingFsisno(null);
+    setExistingIssuanceNos({});
+    setExistingLocked(false);
+    setExistingMeta({ isrevisionrequest: false, editablestatus: 0 });
+    setDateSummary(null);
+    promptedDateKeyRef.current = null;
+    clearFormValues();
+    setInitializedForOpen(true);
+  }, [open, initializedForOpen, clearFormValues]);
 
   /** Plots an existing record into the form and switches Save into update mode. */
   const plotExistingRecord = React.useCallback((rec: ComplianceRow) => {
