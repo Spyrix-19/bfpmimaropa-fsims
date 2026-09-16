@@ -32,6 +32,7 @@ export type AppModule =
   | "inspections"
   | "monitoring"
   | "collection"
+  | "duplicate-data"
   | "reports"
   | "settings"
   | "users"
@@ -53,12 +54,14 @@ const ALLOWED_MODULES: ReadonlySet<AppModule> = new Set<AppModule>([
 
 /** Admin-only modules: only SUPER (1) and ADMIN (2) may access. */
 const ADMIN_MODULES: ReadonlySet<AppModule> = new Set<AppModule>(["users"]);
+const SUPER_ADMIN_MODULES: ReadonlySet<AppModule> = new Set<AppModule>(["duplicate-data"]);
 
 const ROUTE_MODULE: { prefix: string; module: AppModule }[] = [
   { prefix: "/profile", module: "profile" },
   { prefix: "/inspections", module: "inspections" },
   { prefix: "/monitoring", module: "monitoring" },
   { prefix: "/collection", module: "collection" },
+  { prefix: "/duplicate-data", module: "duplicate-data" },
   { prefix: "/reports", module: "reports" },
   { prefix: "/logistics", module: "logistics" },
   { prefix: "/settings", module: "settings" },
@@ -653,6 +656,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const rn = sa?.roleno ?? 0;
         const st = Number(session.user.stationtype ?? 0);
         return (rn === 1 || rn === 2) && (st === 25 || st === 26);
+      }
+      if (SUPER_ADMIN_MODULES.has(module)) {
+        return (sa?.roleno ?? 0) === 1;
       }
       if (ADMIN_MODULES.has(module)) {
         const rn = sa?.roleno ?? 0;

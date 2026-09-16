@@ -14,6 +14,7 @@ import {
   Coins,
   Radio,
   ShieldCheck,
+  DatabaseZap
 } from "lucide-react";
 
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -134,6 +135,17 @@ const GROUPS: NavGroup[] = [
         label: "Fire Safety Inspector",
         icon: <ShieldCheck className="h-4 w-4" />,
         module: "logistics",
+      },
+    ],
+  },
+  {
+    label: "Duplicate Data",
+    items: [
+      {
+        to: "/duplicate-data",
+        label: "Duplicate Data",
+        icon: <DatabaseZap className="h-4 w-4" />,
+        module: "duplicate-data",
       },
     ],
   },

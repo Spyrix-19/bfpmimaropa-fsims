@@ -22,6 +22,7 @@ const ComplianceEditPage = lazy(
 const TargetReference = lazy(() => import("@/pages/06_target-reference/targetreference"));
 const AccomplishedNotice = lazy(() => import("@/pages/05_notices/Notice.tsx"));
 
+const DuplicateData = lazy(() => import("@/pages/14_duplicatedata/DuplicateData.tsx"));
 const Reports = lazy(() => import("@/pages/10_reports/MatrixReports.tsx"));
 const FireCodeFees = lazy(() => import("@/pages/13_firecodefees/FireCodeFees.tsx"));
 const IssuedBwc = lazy(() => import("@/pages/08_bwc/IssuedBwc.tsx"));
@@ -204,6 +205,14 @@ function AppContent({
         }
       />
 
+      <Route
+        path="/duplicate-data"
+        element={
+          <RequireAccess module="duplicate-data">
+            <DuplicateData />
+          </RequireAccess>
+        }
+      />
       <Route
         path="/reports"
         element={
