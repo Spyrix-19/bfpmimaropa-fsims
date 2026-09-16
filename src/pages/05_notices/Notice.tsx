@@ -1044,6 +1044,17 @@ function NoticeLedgerCard({
     (sum, category) => sum + totals.manual[category] + totals.fsis[category],
     0,
   );
+  const combinedTotals = React.useMemo(
+    () =>
+      NOTICE_CATEGORIES.reduce(
+        (acc, category) => {
+          acc[category] = (totals.manual[category] ?? 0) + (totals.fsis[category] ?? 0);
+          return acc;
+        },
+        {} as Record<NoticeCategory, number>,
+      ),
+    [totals],
+  );
 
   return (
     <Card className="relative isolate z-0 flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
@@ -1090,19 +1101,19 @@ function NoticeLedgerCard({
               : "No entries for this period."}
           </div>
         ) : (
-          <div className="max-h-[24rem] overflow-auto rounded-xl border border-border/40">
-            <table className="w-full min-w-[900px] border-separate border-spacing-0 text-xs">
+          <div className="hidden max-h-[24rem] overflow-x-auto overflow-y-auto rounded-xl border border-border/40 bg-card shadow-inner md:block">
+            <table className="w-full min-w-[1200px] border-separate border-spacing-0 text-xs">
               <thead>
                 <tr>
                   <th
                     rowSpan={2}
-                    className={`${headCell} sticky left-0 top-0 z-40 min-w-[11rem] border-r-2 border-r-border/60 text-left`}
+                    className={`${headCell} sticky left-0 top-0 z-40 min-w-[11rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                   >
                     {groupBy === "day" ? "Date" : groupBy === "month" ? "Month" : "Period"}
                   </th>
                   <th
                     rowSpan={2}
-                    className={`${headCell} sticky left-[11rem] top-0 z-40 min-w-[9rem] border-r-2 border-r-border/60`}
+                    className={`${headCell} sticky left-[11rem] top-0 z-40 min-w-[9rem] border-r border-r-border/50 shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                   >
                     Mode of Complied Notices
                   </th>
@@ -1139,7 +1150,7 @@ function NoticeLedgerCard({
                         <th
                           scope="row"
                           rowSpan={2}
-                          className="sticky left-0 z-10 border border-border/40 border-r-2 border-r-border/60 bg-inherit px-2 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap"
+                          className="sticky left-0 z-10 border border-border/40 border-r border-r-border/50 bg-card px-2 py-1.5 text-left text-xs font-semibold text-foreground whitespace-nowrap shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]"
                         >
                           <span className="flex items-center gap-2 whitespace-nowrap">
                             {labelDate && (
@@ -1149,19 +1160,19 @@ function NoticeLedgerCard({
                           </span>
                         </th>
                         <td
-                          className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-primary`}
+                          className={`${bodyCell} sticky left-[11rem] z-10 bg-card border-r border-r-border/50 font-semibold text-primary shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                         >
                           MANUAL
                         </td>
-                      {NOTICE_CATEGORIES.map((category) => (
-                        <td key={category} className={bodyCell}>
-                          {(line.manual[category] ?? 0).toLocaleString()}
-                        </td>
-                      ))}
-                    </tr>
+                        {NOTICE_CATEGORIES.map((category) => (
+                          <td key={category} className={bodyCell}>
+                            {(line.manual[category] ?? 0).toLocaleString()}
+                          </td>
+                        ))}
+                      </tr>
                       <tr className="row-alt">
                         <td
-                          className={`${bodyCell} sticky left-[11rem] z-10 bg-inherit border-r-2 border-r-border/60 font-semibold text-primary`}
+                          className={`${bodyCell} sticky left-[11rem] z-10 bg-card border-r border-r-border/50 font-semibold text-primary shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                         >
                           FSIS
                         </td>
@@ -1180,31 +1191,16 @@ function NoticeLedgerCard({
                 <tr>
                   <th
                     scope="row"
-                    rowSpan={2}
-                    className={`${footCell} sticky left-0 z-20 border-r-2 border-r-border/60 text-left uppercase`}
+                    className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                   >
                     Total
                   </th>
-                  <td
-                    className={`${footCell} sticky left-[11rem] z-20 border-r-2 border-r-border/60`}
-                  >
-                    MANUAL
-                  </td>
                   {NOTICE_CATEGORIES.map((category) => (
-                    <td key={category} className={footCell}>
-                      {totals.manual[category].toLocaleString()}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <td
-                    className={`${footCell} sticky left-[11rem] z-20 border-r-2 border-r-border/60`}
-                  >
-                    FSIS
-                  </td>
-                  {NOTICE_CATEGORIES.map((category) => (
-                    <td key={category} className={footCell}>
-                      {totals.fsis[category].toLocaleString()}
+                    <td
+                      key={`combined-${category}`}
+                      className={`${footCell} sticky bottom-0 z-30 border-r border-r-border/50`}
+                    >
+                      {combinedTotals[category].toLocaleString()}
                     </td>
                   ))}
                 </tr>

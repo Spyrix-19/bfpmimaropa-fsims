@@ -712,10 +712,11 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       // (e.g. future dates with no values) are skipped entirely.
       const editable = days.filter((entry) => {
         const baseline = baselineRows.get(entry.date);
-        const changed =
-          baseline === undefined ? rowTotal(entry) > 0 : rowSignature(entry) !== baseline;
+        // Zero is a valid persisted value. Do not reject an all-zero edit just
+        // because the total is 0; only skip rows that are truly unchanged.
+        const changed = baseline === undefined ? true : rowSignature(entry) !== baseline;
         if (!changed) return false;
-        return !entry.isLocked || rowTotal(entry) > 0;
+        return !entry.isLocked;
       });
       if (editable.length === 0) {
         toast.info("No changes to save.");
