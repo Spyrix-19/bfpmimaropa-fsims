@@ -1551,6 +1551,21 @@ function SectorMetricCells({
   );
 }
 
+function sumMobileNumbers(...values: Array<number | undefined | null>) {
+  return values.reduce((total, value) => total + (Number(value) || 0), 0);
+}
+
+function MobileStat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-xl border border-border/50 bg-muted/25 p-2">
+      <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-bold tabular-nums text-foreground">{value}</div>
+    </div>
+  );
+}
+
 function ComplianceLedgerCard({
   row,
   locked,
@@ -1681,180 +1696,344 @@ function ComplianceLedgerCard({
                 {emptyMessage}
               </div>
             ) : (
-              <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
-                <table className="w-full min-w-[1800px] border-separate border-spacing-0 text-xs">
-                  <thead>
-                    <tr>
-                      <th
-                        rowSpan={3}
-                        className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
-                      >
-                        {periodHeading}
-                      </th>
-                      <th
-                        colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_SECTORS.length * 5}
-                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                      >
-                        Inspection
-                      </th>
-                      <th rowSpan={3} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
-                        Mode of Issuance
-                      </th>
-                      <th
-                        colSpan={FSEC_COLS.length}
-                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                      >
-                        FSEC
-                      </th>
-                      <th
-                        colSpan={FSIC_COLS.length}
-                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                      >
-                        FSIC
-                      </th>
-                      <th colSpan={NOTICE_COLS.length} className={`${headCell} sticky top-0 z-30`}>
-                        Issued Notices
-                      </th>
-                    </tr>
-                    <tr>
-                      {INSPECTION_PLAIN_COLS.map((c) => (
+              <>
+                <div className="hidden max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner md:block">
+                  <table className="w-full min-w-[1800px] border-separate border-spacing-0 text-xs">
+                    <thead>
+                      <tr>
                         <th
-                          key={c.key}
-                          rowSpan={2}
-                          className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${strongRight}`}
+                          rowSpan={3}
+                          className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
                         >
-                          {c.label}
+                          {periodHeading}
                         </th>
-                      ))}
-                      {INSPECTION_SECTORS.map((s) => (
                         <th
-                          key={s.key}
-                          colSpan={5}
-                          className={`${headCell} sticky top-[30px] z-30 min-w-[16rem] ${strongRight}`}
+                          colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_SECTORS.length * 5}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
                         >
-                          {s.label}
+                          Inspection
                         </th>
-                      ))}
-                      {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                        <th rowSpan={3} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
+                          Mode of Issuance
+                        </th>
                         <th
-                          key={c.key}
-                          rowSpan={2}
-                          className={`${headCell} sticky top-[30px] z-30 min-w-[5.5rem] ${strongRight}`}
+                          colSpan={FSEC_COLS.length}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
                         >
-                          {c.label}
+                          FSEC
                         </th>
-                      ))}
-                    </tr>
-                    <tr>
-                      {INSPECTION_SECTORS.map((s) =>
-                        SECTOR_METRIC_LABELS.map((label, idx) => (
+                        <th
+                          colSpan={FSIC_COLS.length}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                        >
+                          FSIC
+                        </th>
+                        <th colSpan={NOTICE_COLS.length} className={`${headCell} sticky top-0 z-30`}>
+                          Issued Notices
+                        </th>
+                      </tr>
+                      <tr>
+                        {INSPECTION_PLAIN_COLS.map((c) => (
                           <th
-                            key={`${s.key}-${label}`}
-                            className={`${subHeadCell} sticky top-[60px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
+                            key={c.key}
+                            rowSpan={2}
+                            className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${strongRight}`}
                           >
-                            <span className="block uppercase leading-[1.1]">{label}</span>
+                            {c.label}
                           </th>
-                        )),
-                      )}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {lines.map((l, lineIdx) => {
-                      const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
-                        ? l.key
-                        : l.key.match(/^\d{4}-\d{2}$/)
-                          ? `${l.key}-01`
-                          : null;
-                      return (
-                        <React.Fragment key={l.key}>
-                          <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
-                            <th scope="row" rowSpan={2} className={rowHeadCell}>
-                              <span className="flex items-center gap-2 whitespace-nowrap">
-                                {labelDate && (
-                                  <DayLockIcon
-                                    date={labelDate}
-                                    module="monitoring"
-                                    className="h-3 w-3"
-                                  />
-                                )}
-                                {l.label}
-                              </span>
+                        ))}
+                        {INSPECTION_SECTORS.map((s) => (
+                          <th
+                            key={s.key}
+                            colSpan={5}
+                            className={`${headCell} sticky top-[30px] z-30 min-w-[16rem] ${strongRight}`}
+                          >
+                            {s.label}
+                          </th>
+                        ))}
+                        {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                          <th
+                            key={c.key}
+                            rowSpan={2}
+                            className={`${headCell} sticky top-[30px] z-30 min-w-[5.5rem] ${strongRight}`}
+                          >
+                            {c.label}
+                          </th>
+                        ))}
+                      </tr>
+                      <tr>
+                        {INSPECTION_SECTORS.map((s) =>
+                          SECTOR_METRIC_LABELS.map((label, idx) => (
+                            <th
+                              key={`${s.key}-${label}`}
+                              className={`${subHeadCell} sticky top-[60px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
+                            >
+                              <span className="block uppercase leading-[1.1]">{label}</span>
                             </th>
-                            {INSPECTION_PLAIN_COLS.map((c) => (
-                              <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
-                                <N v={l.inspection[c.key] ?? 0} />
-                              </td>
+                          )),
+                        )}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {lines.map((l, lineIdx) => {
+                        const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                          ? l.key
+                          : l.key.match(/^\d{4}-\d{2}$/)
+                            ? `${l.key}-01`
+                            : null;
+                        return (
+                          <React.Fragment key={l.key}>
+                            <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
+                              <th scope="row" rowSpan={2} className={rowHeadCell}>
+                                <span className="flex items-center gap-2 whitespace-nowrap">
+                                  {labelDate && (
+                                    <DayLockIcon
+                                      date={labelDate}
+                                      module="monitoring"
+                                      className="h-3 w-3"
+                                    />
+                                  )}
+                                  {l.label}
+                                </span>
+                              </th>
+                              {INSPECTION_PLAIN_COLS.map((c) => (
+                                <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.inspection[c.key] ?? 0} />
+                                </td>
+                              ))}
+                            {INSPECTION_SECTORS.map((s) => (
+                              <SectorMetricCells
+                                key={s.key}
+                                metrics={lineMetrics[lineIdx][s.key]}
+                                cellClass={bodyCell}
+                                rowSpan={2}
+                              />
                             ))}
-                          {INSPECTION_SECTORS.map((s) => (
-                            <SectorMetricCells
-                              key={s.key}
-                              metrics={lineMetrics[lineIdx][s.key]}
-                              cellClass={bodyCell}
-                              rowSpan={2}
-                            />
-                          ))}
-                          <td className={`${bodyCell} ${strongRight}`}>
-                            <ModeBadge label="MANUAL" />
-                          </td>
-                          {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
-                            <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                              <N v={l.manual[c.key] ?? 0} />
-                            </td>
-                          ))}
-                          </tr>
-                          <tr className="group row-alt transition-colors hover:bg-primary/5">
                             <td className={`${bodyCell} ${strongRight}`}>
-                              <ModeBadge label="FSIS" />
+                              <ModeBadge label="MANUAL" />
                             </td>
                             {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
                               <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                                <N v={l.fsis[c.key] ?? 0} />
+                                <N v={l.manual[c.key] ?? 0} />
                               </td>
                             ))}
-                          </tr>
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
+                            </tr>
+                            <tr className="group row-alt transition-colors hover:bg-primary/5">
+                              <td className={`${bodyCell} ${strongRight}`}>
+                                <ModeBadge label="FSIS" />
+                              </td>
+                              {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                                <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.fsis[c.key] ?? 0} />
+                                </td>
+                              ))}
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
 
-                  <tfoot>
-                    {/* One combined total — MANUAL + FSIS are never split here. */}
-                    <tr>
-                      <th
-                        scope="row"
-                        className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
-                      >
-                        Total
-                      </th>
-                      {INSPECTION_PLAIN_COLS.map((c) => (
-                        <td
-                          key={c.key}
-                          className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                    <tfoot>
+                      {/* One combined total — MANUAL + FSIS are never split here. */}
+                      <tr>
+                        <th
+                          scope="row"
+                          className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
                         >
-                          <N v={totals.inspection[c.key]} />
-                        </td>
-                      ))}
-                      {INSPECTION_SECTORS.map((s) => (
-                        <SectorMetricCells
-                          key={s.key}
-                          metrics={totalMetrics[s.key]}
-                          cellClass={`${footCell} sticky bottom-0 z-30`}
-                        />
-                      ))}
-                      <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
-                      {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
-                        <td
-                          key={c.key}
-                          className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
-                        >
-                          <N v={totals.combined[c.key]} />
-                        </td>
-                      ))}
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                          Total
+                        </th>
+                        {INSPECTION_PLAIN_COLS.map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          >
+                            <N v={totals.inspection[c.key]} />
+                          </td>
+                        ))}
+                        {INSPECTION_SECTORS.map((s) => (
+                          <SectorMetricCells
+                            key={s.key}
+                            metrics={totalMetrics[s.key]}
+                            cellClass={`${footCell} sticky bottom-0 z-30`}
+                          />
+                        ))}
+                        <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
+                        {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          >
+                            <N v={totals.combined[c.key]} />
+                          </td>
+                        ))}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="space-y-3 md:hidden">
+                  {lines.map((l, lineIdx) => {
+                    const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                      ? l.key
+                      : l.key.match(/^\d{4}-\d{2}$/)
+                        ? `${l.key}-01`
+                        : null;
+                    const inspectionValues = [
+                      { label: "During", value: l.inspection.inspectduringcount ?? 0 },
+                      { label: "After", value: l.inspection.inspectaftercount ?? 0 },
+                    ];
+                    const sectorValues = INSPECTION_SECTORS.map((s) => ({
+                      key: s.key,
+                      label: s.label,
+                      value: lineMetrics[lineIdx][s.key],
+                    }));
+
+                    return (
+                      <Card key={l.key} className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              {labelDate && (
+                                <DayLockIcon
+                                  date={labelDate}
+                                  module="monitoring"
+                                  className="h-3 w-3"
+                                />
+                              )}
+                              {l.label}
+                            </div>
+                            <div className="mt-1 text-xs font-bold text-foreground">
+                              Inspection &amp; Issuance
+                            </div>
+                          </div>
+                          <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
+                            <div className="text-[9px] font-semibold uppercase text-primary">Total</div>
+                            <div className="text-sm font-bold text-primary">
+                              {(l.totals.inspection + l.totals.fsec + l.totals.fsic + l.totals.notices).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {inspectionValues.map((item) => (
+                            <MobileStat key={item.label} label={item.label} value={item.value.toLocaleString()} />
+                          ))}
+                        </div>
+
+                        <div className="mt-3 space-y-2 rounded-xl border border-border/50 bg-muted/20 p-2">
+                          <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                            Sector detail
+                          </div>
+                          {sectorValues.map((sector) => (
+                            <div key={sector.key} className="rounded-lg border border-border/40 bg-card p-2">
+                              <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
+                                <span>{sector.label}</span>
+                                <span>{sector.value.pctText}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-[11px] tabular-nums">
+                                <div>
+                                  <div className="text-muted-foreground">Target</div>
+                                  <div className="font-semibold">{sector.value.target.toLocaleString()}</div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">Done</div>
+                                  <div className="font-semibold">{sector.value.accomplished.toLocaleString()}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              Manual
+                            </div>
+                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>FSEC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.fsecbuildingcount,
+                                    l.manual.fsecgovcount,
+                                    l.manual.fsecpezacount,
+                                    l.manual.fsectiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>FSIC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.fsicoccupancycount,
+                                    l.manual.fsicbplonewcount,
+                                    l.manual.fsicbplorenewcount,
+                                    l.manual.fsicgovcount,
+                                    l.manual.fsicpezacount,
+                                    l.manual.fsictiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Notices</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.nodcount,
+                                    l.manual.ntccount,
+                                    l.manual.closedcount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              FSIS
+                            </div>
+                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>FSEC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.fsecbuildingcount,
+                                    l.fsis.fsecgovcount,
+                                    l.fsis.fsecpezacount,
+                                    l.fsis.fsectiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>FSIC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.fsicoccupancycount,
+                                    l.fsis.fsicbplonewcount,
+                                    l.fsis.fsicbplorenewcount,
+                                    l.fsis.fsicgovcount,
+                                    l.fsis.fsicpezacount,
+                                    l.fsis.fsictiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Notices</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.nodcount,
+                                    l.fsis.ntccount,
+                                    l.fsis.closedcount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
             ))}
         </section>
 
@@ -1871,130 +2050,241 @@ function ComplianceLedgerCard({
                 {emptyMessage}
               </div>
             ) : (
-              <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
-                <table className="w-full min-w-[1300px] border-separate border-spacing-0 text-xs">
-                  <thead>
-                    <tr>
-                      <th
-                        rowSpan={2}
-                        className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] text-left border-r border-r-border/50`}
-                      >
-                        {periodHeading}
-                      </th>
-                      <th
-                        colSpan={REINSPECTION_COLS.length}
-                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                      >
-                        Reinspection
-                      </th>
-                      <th rowSpan={2} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
-                        Mode of Issuance
-                      </th>
-                      <th
-                        colSpan={RE_FSIC_COLS.length}
-                        className={`${headCell} sticky top-0 z-30 ${strongRight}`}
-                      >
-                        Re-FSIC
-                      </th>
-                      <th
-                        colSpan={RE_NOTICE_COLS.length}
-                        className={`${headCell} sticky top-0 z-30`}
-                      >
-                        Re-Issued Notices
-                      </th>
-                    </tr>
-                    <tr>
-                      {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c, idx) => (
+              <>
+                <div className="hidden max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner md:block">
+                  <table className="w-full min-w-[1300px] border-separate border-spacing-0 text-xs">
+                    <thead>
+                      <tr>
                         <th
-                          key={`${c.key}-${idx}`}
-                          className={`${headCell} sticky top-[30px] z-30 min-w-[6rem] ${strongRight}`}
+                          rowSpan={2}
+                          className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] text-left border-r border-r-border/50`}
                         >
-                          {c.label}
+                          {periodHeading}
                         </th>
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {lines.map((l) => {
-                      const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
-                        ? l.key
-                        : l.key.match(/^\d{4}-\d{2}$/)
-                          ? `${l.key}-01`
-                          : null;
-                      return (
-                        <React.Fragment key={l.key}>
-                          <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
-                            <th scope="row" rowSpan={2} className={rowHeadCell}>
-                              <span className="flex items-center gap-2 whitespace-nowrap">
-                                {labelDate && (
-                                  <DayLockIcon
-                                    date={labelDate}
-                                    module="monitoring"
-                                    className="h-3 w-3"
-                                  />
-                                )}
-                                {l.label}
-                              </span>
-                            </th>
-                            {REINSPECTION_COLS.map((c) => (
-                              <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
-                                <N v={l.reinspection[c.key] ?? 0} />
-                              </td>
-                            ))}
-                            <td className={`${bodyCell} ${strongRight}`}>
-                              <ModeBadge label="MANUAL" />
-                            </td>
-                            {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
-                              <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                                <N v={l.manual[c.key] ?? 0} />
-                              </td>
-                            ))}
-                          </tr>
-                          <tr className="group row-alt transition-colors hover:bg-primary/5">
-                            <td className={`${bodyCell} ${strongRight}`}>
-                              <ModeBadge label="FSIS" />
-                            </td>
-                            {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
-                              <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                                <N v={l.fsis[c.key] ?? 0} />
-                              </td>
-                            ))}
-                          </tr>
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-
-                  <tfoot>
-                    <tr>
-                      <th
-                        scope="row"
-                        className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
-                      >
-                        Total
-                      </th>
-                      {REINSPECTION_COLS.map((c) => (
-                        <td
-                          key={c.key}
-                          className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                        <th
+                          colSpan={REINSPECTION_COLS.length}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
                         >
-                          <N v={totals.reinspection[c.key]} />
-                        </td>
-                      ))}
-                      <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
-                      {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
-                        <td
-                          key={c.key}
-                          className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          Reinspection
+                        </th>
+                        <th rowSpan={2} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
+                          Mode of Issuance
+                        </th>
+                        <th
+                          colSpan={RE_FSIC_COLS.length}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
                         >
-                          <N v={totals.combined[c.key]} />
-                        </td>
-                      ))}
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                          Re-FSIC
+                        </th>
+                        <th
+                          colSpan={RE_NOTICE_COLS.length}
+                          className={`${headCell} sticky top-0 z-30`}
+                        >
+                          Re-Issued Notices
+                        </th>
+                      </tr>
+                      <tr>
+                        {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c, idx) => (
+                          <th
+                            key={`${c.key}-${idx}`}
+                            className={`${headCell} sticky top-[30px] z-30 min-w-[6rem] ${strongRight}`}
+                          >
+                            {c.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {lines.map((l) => {
+                        const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                          ? l.key
+                          : l.key.match(/^\d{4}-\d{2}$/)
+                            ? `${l.key}-01`
+                            : null;
+                        return (
+                          <React.Fragment key={l.key}>
+                            <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
+                              <th scope="row" rowSpan={2} className={rowHeadCell}>
+                                <span className="flex items-center gap-2 whitespace-nowrap">
+                                  {labelDate && (
+                                    <DayLockIcon
+                                      date={labelDate}
+                                      module="monitoring"
+                                      className="h-3 w-3"
+                                    />
+                                  )}
+                                  {l.label}
+                                </span>
+                              </th>
+                              {REINSPECTION_COLS.map((c) => (
+                                <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.reinspection[c.key] ?? 0} />
+                                </td>
+                              ))}
+                              <td className={`${bodyCell} ${strongRight}`}>
+                                <ModeBadge label="MANUAL" />
+                              </td>
+                              {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                                <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.manual[c.key] ?? 0} />
+                                </td>
+                              ))}
+                            </tr>
+                            <tr className="group row-alt transition-colors hover:bg-primary/5">
+                              <td className={`${bodyCell} ${strongRight}`}>
+                                <ModeBadge label="FSIS" />
+                              </td>
+                              {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                                <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.fsis[c.key] ?? 0} />
+                                </td>
+                              ))}
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+
+                    <tfoot>
+                      <tr>
+                        <th
+                          scope="row"
+                          className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
+                        >
+                          Total
+                        </th>
+                        {REINSPECTION_COLS.map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          >
+                            <N v={totals.reinspection[c.key]} />
+                          </td>
+                        ))}
+                        <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
+                        {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          >
+                            <N v={totals.combined[c.key]} />
+                          </td>
+                        ))}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="space-y-3 md:hidden">
+                  {lines.map((l) => {
+                    const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                      ? l.key
+                      : l.key.match(/^\d{4}-\d{2}$/)
+                        ? `${l.key}-01`
+                        : null;
+                    const reinspectionStats = REINSPECTION_COLS.map((c) => ({
+                      label: c.label,
+                      value: l.reinspection[c.key] ?? 0,
+                    }));
+
+                    return (
+                      <Card key={l.key} className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              {labelDate && (
+                                <DayLockIcon
+                                  date={labelDate}
+                                  module="monitoring"
+                                  className="h-3 w-3"
+                                />
+                              )}
+                              {l.label}
+                            </div>
+                            <div className="mt-1 text-xs font-bold text-foreground">Reinspection</div>
+                          </div>
+                          <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
+                            <div className="text-[9px] font-semibold uppercase text-primary">Total</div>
+                            <div className="text-sm font-bold text-primary">
+                              {(l.totals.inspection + l.totals.fsec + l.totals.fsic + l.totals.notices).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {reinspectionStats.map((item) => (
+                            <MobileStat key={item.label} label={item.label} value={item.value.toLocaleString()} />
+                          ))}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              Manual
+                            </div>
+                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Re-FSIC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.fsicoccupancycount,
+                                    l.manual.fsicbplonewcount,
+                                    l.manual.fsicbplorenewcount,
+                                    l.manual.fsicgovcount,
+                                    l.manual.fsicpezacount,
+                                    l.manual.fsictiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Notices</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.nodcount,
+                                    l.manual.ntccount,
+                                    l.manual.closedcount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              FSIS
+                            </div>
+                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Re-FSIC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.fsicoccupancycount,
+                                    l.fsis.fsicbplonewcount,
+                                    l.fsis.fsicbplorenewcount,
+                                    l.fsis.fsicgovcount,
+                                    l.fsis.fsicpezacount,
+                                    l.fsis.fsictiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Notices</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.nodcount,
+                                    l.fsis.ntccount,
+                                    l.fsis.closedcount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
             ))}
         </section>
 
