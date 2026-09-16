@@ -697,6 +697,7 @@ function InspectionsNewBody({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    open,
     station.no,
     station.name,
     scope.stationLocked,
