@@ -114,6 +114,19 @@ function countsFromAccom(row?: { [k: string]: unknown }): NoticeCounts {
   };
 }
 
+const normalizeApiGuid = (value: unknown): string => {
+  const text = String(value ?? "").trim();
+  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+    return EMPTY_GUID;
+  }
+  return text;
+};
+
+const maybeApiGuid = (value: unknown): string | null => {
+  const normalized = normalizeApiGuid(value);
+  return normalized === EMPTY_GUID ? null : normalized;
+};
+
 /* -------------------------------------------------------------------------- */
 /*  Small presentational helpers                                              */
 /* -------------------------------------------------------------------------- */
@@ -548,10 +561,10 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     setManualValues(countsFromAccom(manualRow as unknown as Record<string, unknown>));
     setFsisValues(countsFromAccom(fsisRow as unknown as Record<string, unknown>));
     setExistingAccomNos({
-      [FSIC_MODE.MANUAL]: manualRow?.accomplishno ? String(manualRow.accomplishno) : EMPTY_GUID,
-      [FSIC_MODE.FSIS]: fsisRow?.accomplishno ? String(fsisRow.accomplishno) : EMPTY_GUID,
+      [FSIC_MODE.MANUAL]: maybeApiGuid(manualRow?.accomplishno) ?? EMPTY_GUID,
+      [FSIC_MODE.FSIS]: maybeApiGuid(fsisRow?.accomplishno) ?? EMPTY_GUID,
     });
-    setExistingNoticeNo(String(entry.noticeno));
+    setExistingNoticeNo(maybeApiGuid(entry.noticeno));
   }, []);
 
   /* Existence check — runs on open and every time the date changes. */

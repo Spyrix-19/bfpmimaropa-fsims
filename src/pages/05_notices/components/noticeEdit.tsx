@@ -133,6 +133,19 @@ interface DaySourceExt extends DaySource {
  * Bind the station detail payload into a `date → MANUAL/FSIS counts` map so
  * every row is plotted on its own accomplishment date.
  */
+const normalizeApiGuid = (value: unknown): string => {
+  const text = String(value ?? "").trim();
+  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+    return EMPTY_GUID;
+  }
+  return text;
+};
+
+const maybeApiGuid = (value: unknown): string | null => {
+  const normalized = normalizeApiGuid(value);
+  return normalized === EMPTY_GUID ? null : normalized;
+};
+
 function parseDetailToDays(
   detail: NoticeDetailModel | null | undefined,
 ): Map<string, DaySourceExt> {
@@ -154,14 +167,14 @@ function parseDetailToDays(
     // Initialize accomNos with the parent noticeno when present so we don't
     // lose parent/child linkage when the API returns only top-level noticeno.
     current.accomNos = current.accomNos ?? {
-      manual: { accomplishno: EMPTY_GUID, noticeno: String(entry?.noticeno ?? EMPTY_GUID) },
-      fsis: { accomplishno: EMPTY_GUID, noticeno: String(entry?.noticeno ?? EMPTY_GUID) },
+      manual: { accomplishno: EMPTY_GUID, noticeno: maybeApiGuid(entry?.noticeno) ?? EMPTY_GUID },
+      fsis: { accomplishno: EMPTY_GUID, noticeno: maybeApiGuid(entry?.noticeno) ?? EMPTY_GUID },
     };
     for (const accom of Array.isArray(entry?.noticeaccomlist) ? entry.noticeaccomlist : []) {
       const key: ModeKey = Number(accom?.fsicmode) === MODE_FSIS ? "fsis" : "manual";
       current.accomNos[key] = {
-        accomplishno: String((accom as any)?.accomplishno ?? EMPTY_GUID),
-        noticeno: String((accom as any)?.noticeno ?? entry?.noticeno ?? EMPTY_GUID),
+        accomplishno: maybeApiGuid((accom as any)?.accomplishno) ?? EMPTY_GUID,
+        noticeno: maybeApiGuid((accom as any)?.noticeno ?? entry?.noticeno) ?? EMPTY_GUID,
       };
       for (const category of NOTICE_CATEGORIES) {
         const raw = (accom as unknown as Record<string, unknown>)[CATEGORY_COUNT_KEY[category]];
@@ -713,7 +726,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       for (const entry of editable) {
         const src = daySourceMap.get(entry.date);
         const parentNoticeno =
-          src?.accomNos?.manual?.noticeno || src?.accomNos?.fsis?.noticeno || EMPTY_GUID;
+          maybeApiGuid(src?.accomNos?.manual?.noticeno ?? src?.accomNos?.fsis?.noticeno) ?? EMPTY_GUID;
 
         const payload = {
           noticeno: parentNoticeno,
@@ -721,8 +734,8 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
           dateaccomplish: `${entry.date}`,
           encodedby: user?.memberno ?? "",
           accomnoticeList: MODE_ROWS.map((mode) => ({
-            accomplishno: src?.accomNos?.[mode.key]?.accomplishno ?? EMPTY_GUID,
-            noticeno: src?.accomNos?.[mode.key]?.noticeno ?? parentNoticeno,
+            accomplishno: maybeApiGuid(src?.accomNos?.[mode.key]?.accomplishno) ?? EMPTY_GUID,
+            noticeno: maybeApiGuid(src?.accomNos?.[mode.key]?.noticeno ?? parentNoticeno) ?? EMPTY_GUID,
             fsicmode: mode.code,
             nodcount: Number(entry.modes[mode.key].NOD ?? 0) || 0,
             ntccount: Number(entry.modes[mode.key].NTC ?? 0) || 0,
