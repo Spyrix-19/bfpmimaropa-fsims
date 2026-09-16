@@ -127,6 +127,65 @@ const maybePrimaryGuid = (value: unknown): string | null => {
   return normalized === EMPTY_GUID ? null : normalized;
 };
 
+const dedupeFeeCollectionChildren = (items: FSISFeeCollectionClassDTO[]): FSISFeeCollectionClassDTO[] => {
+  const seen = new Set<string>();
+  const unique: FSISFeeCollectionClassDTO[] = [];
+
+  for (const item of items) {
+    const key = `${normalizePrimaryGuid(item.accomplishno)}|${String(item.fsicmode)}|${String(item.feecateg)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({
+      ...item,
+      accomplishno: normalizePrimaryGuid(item.accomplishno),
+    });
+  }
+
+  return unique;
+};
+
+const dedupeFeeCollectionParents = (
+  items: Array<{
+    feeno?: string | null;
+    dateaccomplish?: string;
+    isaccomplished?: boolean;
+    remarks?: string;
+    fsisfeecollectionList?: FSISFeeCollectionClassDTO[];
+  }> = [],
+): Array<{
+  feeno: string;
+  dateaccomplish: string;
+  isaccomplished: boolean;
+  remarks: string;
+  fsisfeecollectionList: FSISFeeCollectionClassDTO[];
+}> => {
+  const seen = new Set<string>();
+  const unique: Array<{
+    feeno: string;
+    dateaccomplish: string;
+    isaccomplished: boolean;
+    remarks: string;
+    fsisfeecollectionList: FSISFeeCollectionClassDTO[];
+  }> = [];
+
+  for (const item of items) {
+    const dateKey = String(item.dateaccomplish ?? "").trim();
+    const parentKey = `${normalizePrimaryGuid(item.feeno)}|${dateKey || "no-date"}`;
+    if (seen.has(parentKey)) continue;
+    seen.add(parentKey);
+
+    unique.push({
+      feeno: normalizePrimaryGuid(item.feeno),
+      dateaccomplish: dateKey,
+      isaccomplished: Boolean(item.isaccomplished ?? true),
+      remarks: String(item.remarks ?? ""),
+      fsisfeecollectionList: dedupeFeeCollectionChildren(item.fsisfeecollectionList ?? []),
+    });
+  }
+
+  return unique;
+};
+
 /** Converts a raw collection record into an editable month state. */
 function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthState {
   const values = emptyValues();
@@ -357,31 +416,52 @@ export function FireCodeFeesYearEditorBody({
     }
     setSaving(true);
     try {
-      const fsisfeeList: FSISFeeCollectionClass[] = updates.map((m) => {
-        const fsisfeecollectionList: FSISFeeCollectionClassDTO[] = [];
-        // All four sectors are always saved, exactly like the new-entry screen.
-        for (const s of FEE_SECTORS) {
-          for (const mode of MODES) {
-            const amounts = m.values[s.key][mode.code];
-            for (const c of categories) {
-              const key = `${s.key}|${mode.code}|${c.detno}`;
-              fsisfeecollectionList.push({
-                accomplishno: normalizePrimaryGuid(m.accomplishNos[key]),
-                fsicmode: mode.code,
-                feecateg: c.detno,
-                collectedamount: amounts[c.detno] ?? 0,
-              });
+      const fsisfeeList: FSISFeeCollectionClass[] = dedupeFeeCollectionParents(
+        updates.map((m) => {
+          const fsisfeecollectionList: FSISFeeCollectionClassDTO[] = [];
+          // All four sectors are always saved, exactly like the new-entry screen.
+          for (const s of FEE_SECTORS) {
+            for (const mode of MODES) {
+              const amounts = m.values[s.key][mode.code];
+              for (const c of categories) {
+                const key = `${s.key}|${mode.code}|${c.detno}`;
+                fsisfeecollectionList.push({
+                  accomplishno: normalizePrimaryGuid(m.accomplishNos[key]),
+                  fsicmode: mode.code,
+                  feecateg: c.detno,
+                  collectedamount: amounts[c.detno] ?? 0,
+                });
+              }
             }
           }
+          return {
+            feeno: normalizePrimaryGuid(m.feeno),
+            dateaccomplish: lastDayOfMonthISO(year, m.month),
+            isaccomplished: true,
+            remarks: "",
+            fsisfeecollectionList,
+          };
+        }),
+      );
+
+      const childKeys = new Set<string>();
+      const parentKeys = new Set<string>();
+      for (const item of fsisfeeList) {
+        const parentKey = `${normalizePrimaryGuid(item.feeno)}|${String(item.dateaccomplish ?? "").trim() || "no-date"}`;
+        if (parentKeys.has(parentKey)) {
+          throw new Error("Duplicate Fire Code Fees parent record detected before save.");
         }
-        return {
-          feeno: normalizePrimaryGuid(m.feeno),
-          dateaccomplish: lastDayOfMonthISO(year, m.month),
-          isaccomplished: true,
-          remarks: "",
-          fsisfeecollectionList,
-        };
-      });
+        parentKeys.add(parentKey);
+
+        for (const child of item.fsisfeecollectionList ?? []) {
+          const childKey = `${normalizePrimaryGuid(child.accomplishno)}|${String(child.fsicmode)}|${String(child.feecateg)}`;
+          if (childKeys.has(childKey)) {
+            throw new Error("Duplicate Fire Code Fees child record detected before save.");
+          }
+          childKeys.add(childKey);
+        }
+      }
+
       const resp = await firecodefeesAPI.create({
         stationno: station.stationno,
         encodedby,

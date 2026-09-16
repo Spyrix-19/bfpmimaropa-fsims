@@ -157,6 +157,65 @@ const maybePrimaryGuid = (value: unknown): string | null => {
   return normalized === EMPTY_GUID ? null : normalized;
 };
 
+const dedupeFeeCollectionChildren = (items: FSISFeeCollectionClassDTO[]): FSISFeeCollectionClassDTO[] => {
+  const seen = new Set<string>();
+  const unique: FSISFeeCollectionClassDTO[] = [];
+
+  for (const item of items) {
+    const key = `${normalizePrimaryGuid(item.accomplishno)}|${String(item.fsicmode)}|${String(item.feecateg)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({
+      ...item,
+      accomplishno: normalizePrimaryGuid(item.accomplishno),
+    });
+  }
+
+  return unique;
+};
+
+const dedupeFeeCollectionParents = (
+  items: Array<{
+    feeno?: string | null;
+    dateaccomplish?: string;
+    isaccomplished?: boolean;
+    remarks?: string;
+    fsisfeecollectionList?: FSISFeeCollectionClassDTO[];
+  }> = [],
+): Array<{
+  feeno: string;
+  dateaccomplish: string;
+  isaccomplished: boolean;
+  remarks: string;
+  fsisfeecollectionList: FSISFeeCollectionClassDTO[];
+}> => {
+  const seen = new Set<string>();
+  const unique: Array<{
+    feeno: string;
+    dateaccomplish: string;
+    isaccomplished: boolean;
+    remarks: string;
+    fsisfeecollectionList: FSISFeeCollectionClassDTO[];
+  }> = [];
+
+  for (const item of items) {
+    const dateKey = String(item.dateaccomplish ?? "").trim();
+    const parentKey = `${normalizePrimaryGuid(item.feeno)}|${dateKey || "no-date"}`;
+    if (seen.has(parentKey)) continue;
+    seen.add(parentKey);
+
+    unique.push({
+      feeno: normalizePrimaryGuid(item.feeno),
+      dateaccomplish: dateKey,
+      isaccomplished: Boolean(item.isaccomplished ?? true),
+      remarks: String(item.remarks ?? ""),
+      fsisfeecollectionList: dedupeFeeCollectionChildren(item.fsisfeecollectionList ?? []),
+    });
+  }
+
+  return unique;
+};
+
 /** Pulls the collection record out of whatever shape the detail endpoint returns. */
 export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | null {
   const rows: FSISFeeCollectionDetailModel[] = [];
@@ -756,18 +815,20 @@ export function FireCodeFeesFormBody({
         }
       }
 
+      const fsisfeeList = dedupeFeeCollectionParents([
+        {
+          feeno: normalizePrimaryGuid(existingFeeno),
+          dateaccomplish: lastDayOfMonthISO(year, month),
+          isaccomplished: true,
+          remarks: "",
+          fsisfeecollectionList: dedupeFeeCollectionChildren(fsisfeecollectionList),
+        },
+      ]);
+
       const resp = await firecodefeesAPI.create({
         stationno: submitStationNo,
         encodedby: encodedby,
-        fsisfeeList: [
-          {
-            feeno: normalizePrimaryGuid(existingFeeno),
-            dateaccomplish: lastDayOfMonthISO(year, month),
-            isaccomplished: true,
-            remarks: "",
-            fsisfeecollectionList,
-          },
-        ],
+        fsisfeeList,
       });
 
       const { ok, error } = unwrap(resp);
