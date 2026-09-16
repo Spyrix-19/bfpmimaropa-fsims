@@ -11,10 +11,15 @@
  *
  * Super Administrators (roleno === 1) are exempt from the lock everywhere.
  *
- * Temporary per-module exemptions (comma separated, same keys used to group
- * Revision Requests):
- *   VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES="fire-code-fees"
+ * Per-province module exemptions (comma separated, same keys used to group
+ * Revision Requests; same province suffixes as the lock switches above):
+ *   VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_ORMIN="fire-code-fees"
+ *   VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_OCCMIN=...
+ *   VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_MAR=...
+ *   VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_ROM=...
+ *   VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_PAL=...
  *   valid keys: target-reference | monitoring | notice | fire-code-fees
+ *   or "ALL" / "*" to exempt every module in that province
  *
  * Always call {@link isPastDateLockEnabled} instead of reading env vars
  * directly. The logged-in user's province + role are cached in memory by the
@@ -52,11 +57,14 @@ const PROVINCE_LOCK_FLAGS: Record<string, boolean> = {
 };
 
 /** Source-module keys, matching the Revision Request grouping. */
-export type PastDateLockModule =
-  | "target-reference"
-  | "monitoring"
-  | "notice"
-  | "fire-code-fees";
+export type PastDateLockModule = "target-reference" | "monitoring" | "notice" | "fire-code-fees";
+
+export const PAST_DATE_LOCK_MODULES: readonly PastDateLockModule[] = [
+  "target-reference",
+  "monitoring",
+  "notice",
+  "fire-code-fees",
+];
 
 /** Aliases so friendlier names in .env still resolve to a module key. */
 const MODULE_ALIASES: Record<string, PastDateLockModule> = {
@@ -70,7 +78,7 @@ const MODULE_ALIASES: Record<string, PastDateLockModule> = {
   "fire-code-fees": "fire-code-fees",
   "fire code fees": "fire-code-fees",
   "fire code fee": "fire-code-fees",
-  "firecodefees": "fire-code-fees",
+  firecodefees: "fire-code-fees",
   fees: "fire-code-fees",
 };
 
@@ -79,14 +87,47 @@ function normalizeModule(value: string): PastDateLockModule | null {
   return MODULE_ALIASES[key] ?? MODULE_ALIASES[key.replace(/-/g, " ")] ?? null;
 }
 
-/** Modules temporarily exempted from the past-date lock for everyone. */
-const EXEMPT_MODULES: Set<PastDateLockModule> = new Set(
-  String((import.meta.env?.VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES as string) ?? "")
+/** "ALL" / "*" exempts every module. */
+const ALL_TOKENS = new Set(["ALL", "*", "EVERY", "EVERYTHING"]);
+
+/** Parse a comma-separated module list from an env var into a module set. */
+function parseModuleList(name: string): Set<PastDateLockModule> {
+  const raw = String((import.meta.env?.[name] as string | undefined) ?? "")
     .replace(/^["'[]|["'\]]$/g, "")
-    .split(",")
-    .map(normalizeModule)
-    .filter((m): m is PastDateLockModule => m !== null),
-);
+    .trim();
+  if (!raw) return new Set();
+  const parts = raw.split(",").map((p) => p.trim());
+  if (parts.some((p) => ALL_TOKENS.has(p.toUpperCase()))) {
+    return new Set(PAST_DATE_LOCK_MODULES);
+  }
+  return new Set(parts.map(normalizeModule).filter((m): m is PastDateLockModule => m !== null));
+}
+
+/** provinceno (lowercased) → modules exempted from the lock in that province. */
+const PROVINCE_EXEMPT_MODULES: Record<string, Set<PastDateLockModule>> = {
+  [MIMAROPA_ORIENTAL_MINDORO.toLowerCase()]: parseModuleList(
+    "VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_ORMIN",
+  ),
+  [MIMAROPA_OCCIDENTAL_MINDORO.toLowerCase()]: parseModuleList(
+    "VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_OCCMIN",
+  ),
+  [MIMAROPA_MARINDUQUE.toLowerCase()]: parseModuleList(
+    "VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_MAR",
+  ),
+  [MIMAROPA_ROMBLON.toLowerCase()]: parseModuleList(
+    "VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_ROM",
+  ),
+  [MIMAROPA_PALAWAN.toLowerCase()]: parseModuleList(
+    "VITE_BFP_MIMAROPA_PAST_DATE_LOCK_EXEMPT_MODULES_PAL",
+  ),
+};
+
+/** Whether `module` is exempted from the lock in the given province. */
+export function isModuleExempt(module: PastDateLockModule, provinceno?: string): boolean {
+  const key = (provinceno ?? context.provinceno ?? "").trim().toLowerCase();
+  if (!key) return false;
+  return PROVINCE_EXEMPT_MODULES[key]?.has(module) === true;
+}
 
 type LockContext = { provinceno: string; roleno: number };
 
@@ -101,9 +142,9 @@ export function setPastDateLockContext(next: LockContext | null) {
 export function isPastDateLockEnabled(module?: PastDateLockModule): boolean {
   // Super Administrators bypass every past-date rule.
   if (context.roleno === SUPER_ADMIN_ROLE_NO) return false;
-  // Temporarily disabled modules.
-  if (module && EXEMPT_MODULES.has(module)) return false;
   const provinceno = (context.provinceno || "").trim().toLowerCase();
+  // Per-province module exemptions.
+  if (module && isModuleExempt(module, provinceno)) return false;
   if (!provinceno) return false;
   return PROVINCE_LOCK_FLAGS[provinceno] === true;
 }
@@ -136,7 +177,11 @@ export function isPastMonth(year: number, month: number, now: Date = new Date())
  * to the month-based rule. This ignores the day-of-month of the target date
  * and uses the target's month/year only.
  */
-export function isDateLocked(value: string | Date, module?: PastDateLockModule, now: Date = new Date()): boolean {
+export function isDateLocked(
+  value: string | Date,
+  module?: PastDateLockModule,
+  now: Date = new Date(),
+): boolean {
   if (!isPastDateLockEnabled(module)) return false;
   let d: Date;
   if (typeof value === "string") {
