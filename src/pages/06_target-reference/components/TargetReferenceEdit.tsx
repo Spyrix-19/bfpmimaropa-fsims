@@ -130,6 +130,20 @@ function hasPstLockActivated(
   return isDateLocked(new Date(y, m - 1, d), "target-reference", now);
 }
 
+const normalizeApiGuid = (value: unknown): string => {
+  if (value == null) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+  return raw.replace(/\0/g, "").trim();
+};
+
+const maybeApiGuid = (value: unknown): string | null => {
+  const normalized = normalizeApiGuid(value);
+  if (!normalized) return null;
+  if (normalized === EMPTY_GUID) return null;
+  return normalized;
+};
+
 export default function TargetReferenceForm({
   open,
   onOpenChange,
@@ -488,8 +502,9 @@ export default function TargetReferenceForm({
           nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
           nextEditableStatus[dayKey] = Number(it.editablestatus ?? 0);
           nextIsRevReq[dayKey] = Boolean(it.isrevisionrequest);
-          if (it.targetno && it.targetno !== EMPTY_GUID) {
-            nextIds[dayKey] = it.targetno;
+          const savedTargetNo = maybeApiGuid(it.targetno);
+          if (savedTargetNo) {
+            nextIds[dayKey] = savedTargetNo;
           }
         });
       }
@@ -601,9 +616,9 @@ export default function TargetReferenceForm({
       nextCells[`${day}-${SECTOR_NO.PEZA}`] = String(toWholeNumber(it.pezatotal));
       nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(toWholeNumber(it.tiezatotal));
 
-      const isSaved = Boolean(it.targetno) && it.targetno !== EMPTY_GUID;
-      if (!isSaved) return;
-      nextIds[dayKey] = it.targetno;
+      const savedTargetNo = maybeApiGuid(it.targetno);
+      if (!savedTargetNo) return;
+      nextIds[dayKey] = savedTargetNo;
     });
 
     return {

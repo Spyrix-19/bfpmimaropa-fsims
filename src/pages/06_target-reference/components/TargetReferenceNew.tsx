@@ -167,6 +167,20 @@ function parseDateInputValue(value: string): Date {
   return new Date(Number(year), Number(month) - 1, Number(day));
 }
 
+const normalizeApiGuid = (value: unknown): string => {
+  if (value == null) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+  return raw.replace(/\0/g, "").trim();
+};
+
+const maybeApiGuid = (value: unknown): string | null => {
+  const normalized = normalizeApiGuid(value);
+  if (!normalized) return null;
+  if (normalized === EMPTY_GUID) return null;
+  return normalized;
+};
+
 /** Midnight of the current local day, in ms. */
 function startOfToday(): number {
   const n = new Date();
@@ -462,7 +476,8 @@ export default function TargetReferenceForm({
           nextCells[`${day}-${SECTOR_NO.TIEZA}`] = String(it.tiezatotal ?? 0);
           nextEditableStatus[dayKey] = Number(it.editablestatus ?? 0);
           nextIsRevReq[dayKey] = Boolean(it.isrevisionrequest);
-          if (it.targetno && it.targetno !== EMPTY_GUID) nextIds[dayKey] = it.targetno;
+          const savedTargetNo = maybeApiGuid(it.targetno);
+          if (savedTargetNo) nextIds[dayKey] = savedTargetNo;
         });
       }
 
@@ -536,7 +551,7 @@ export default function TargetReferenceForm({
       const record = ok && Array.isArray(data) ? (data.find((r) => !r.isdeleted) ?? null) : null;
       setCheckingExisting(false);
 
-      if (record && record.targetno && record.targetno !== EMPTY_GUID) {
+      if (maybeApiGuid(record?.targetno)) {
         setPendingExistingRecord(record);
         setExistingMeta({
           isrevisionrequest: Boolean(record.isrevisionrequest),
@@ -602,7 +617,7 @@ export default function TargetReferenceForm({
     };
     setCells((prev) => ({ ...prev, ...loaded }));
     setBaselineCells(loaded);
-    setExistingTargetno(rec.targetno);
+    setExistingTargetno(maybeApiGuid(rec.targetno));
     setErrors({});
   }
 
