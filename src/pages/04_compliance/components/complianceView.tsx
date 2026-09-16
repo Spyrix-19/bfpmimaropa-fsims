@@ -695,7 +695,7 @@ function ActivityTable({
   );
   const issuanceCols = groups.flatMap((g) => g.cols);
 
-  const issuanceCells = (bucket: Record<string, number>) =>
+  const issuanceCells = (bucket: Record<string, unknown>) =>
     issuanceCols.map((col) => (
       <td
         key={col.api}

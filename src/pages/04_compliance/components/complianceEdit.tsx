@@ -1074,10 +1074,17 @@ function ComplianceEditBody({
         </div>
       )}
       <ModalFooterPortal>
-        <Button variant="outline" onClick={requestCancel} className="gap-2" disabled={saving}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={requestCancel}
+          className="gap-2"
+          disabled={saving}
+        >
           <ArrowLeft className="h-4 w-4" /> Cancel
         </Button>
         <Button
+          type="button"
           onClick={handleSave}
           disabled={saving || allLocked || !isDirty}
           className="gap-2 bg-gradient-primary text-primary-foreground shadow-elegant"
@@ -1765,13 +1772,16 @@ export default function ComplianceEditPage() {
         </div>
       </div>
 
-      <ComplianceEditBody
-        stationno={stationno}
-        year={y}
-        month={m}
-        onSaved={() => navigate("/monitoring")}
-        onCancel={() => navigate(-1)}
-      />
+      {/* The footer layout provides the portal target for the Save / Cancel actions. */}
+      <ModalFooterLayout className="rounded-b-xl border border-border/60">
+        <ComplianceEditBody
+          stationno={stationno}
+          year={y}
+          month={m}
+          onSaved={() => navigate("/monitoring")}
+          onCancel={() => navigate(-1)}
+        />
+      </ModalFooterLayout>
     </div>
   );
 }

@@ -508,6 +508,7 @@ export function FireCodeFeesFormBody({
   };
 }) {
   const { user, systemAccess } = useAuth();
+  const formId = React.useId();
   const scope = React.useMemo(
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
@@ -853,7 +854,7 @@ export function FireCodeFeesFormBody({
   /* ----------------------------------------------------------------------- */
 
   return (
-    <form onSubmit={submit} className="space-y-6" noValidate>
+    <form id={formId} onSubmit={submit} className="space-y-6" noValidate>
       {!canManage && (
         <div className="flex items-start gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -1129,6 +1130,7 @@ export function FireCodeFeesFormBody({
             {canManage && (
               <Button
                 type="submit"
+                form={formId}
                 disabled={saving || checkingExisting}
                 className="bg-gradient-primary text-primary-foreground shadow-elegant"
               >

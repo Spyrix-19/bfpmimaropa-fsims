@@ -1275,6 +1275,8 @@ interface DayLine {
   reinspection: Record<string, number>;
   manual: ModeCounts;
   fsis: ModeCounts;
+  /** Category rollups used by the mobile card headers. */
+  totals: { inspection: number; fsec: number; fsic: number; notices: number };
 }
 
 const emptyMode = (): ModeCounts =>
@@ -1290,6 +1292,7 @@ const emptyLine = (key: string, label: string): DayLine => ({
   reinspection: Object.fromEntries(REINSPECTION_COLS.map((c) => [c.key, 0])),
   manual: emptyMode(),
   fsis: emptyMode(),
+  totals: { inspection: 0, fsec: 0, fsic: 0, notices: 0 },
 });
 
 const dayLabel = (iso: string) => {
@@ -1442,6 +1445,36 @@ function buildDayLines(
     }
   }
 
+  // Category rollups per line, mirroring the ledger row totals.
+  for (const line of byKey.values()) {
+    const modeSum = (pred: (k: string) => boolean) =>
+      ISSUANCE_KEYS.filter((k) => pred(String(k))).reduce<number>(
+        (acc, k) => acc + num(line.manual[k]) + num(line.fsis[k]),
+        0,
+      );
+    line.totals = {
+      inspection:
+        Object.values(line.inspection).reduce<number>((a, v) => a + num(v), 0) +
+        Object.values(line.sectors).reduce<number>((a, v) => a + num(v.accomplished), 0) +
+        Object.values(line.reinspection).reduce<number>((a, v) => a + num(v), 0),
+      fsec: modeSum((k) => k.startsWith("fsec")),
+      fsic: modeSum((k) => k.startsWith("fsic") || k.startsWith("refsic")),
+      notices: modeSum((k) =>
+        [
+          "nodcount",
+          "ntccount",
+          "closedcount",
+          "ntcvcount",
+          "abatementcount",
+          "closurecount",
+          "rentcvcount",
+          "reabatementcount",
+          "reclosurecount",
+        ].includes(k),
+      ),
+    };
+  }
+
   return [...byKey.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, l]) => l);
 }
 
@@ -1552,7 +1585,7 @@ function SectorMetricCells({
 }
 
 function sumMobileNumbers(...values: Array<number | undefined | null>) {
-  return values.reduce((total, value) => total + (Number(value) || 0), 0);
+  return values.reduce<number>((total, value) => total + (Number(value) || 0), 0);
 }
 
 function MobileStat({ label, value }: { label: string; value: number | string }) {

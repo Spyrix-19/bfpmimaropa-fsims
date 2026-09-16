@@ -462,6 +462,9 @@ function InspectionsNewBody({
    * date changes we ask the API whether a compliance record already exists.
    * When it does, the user confirms whether to open it for editing.
    */
+  // The footer (with the submit button) is portalled outside this <form>, so the
+  // button must reference the form by id — native submit does not cross portals.
+  const formId = React.useId();
   const [existingFsisno, setExistingFsisno] = React.useState<string | null>(null);
   const [existingIssuanceNos, setExistingIssuanceNos] = React.useState<Record<string, string>>({});
   const [checkingExisting, setCheckingExisting] = React.useState(false);
@@ -927,7 +930,7 @@ function InspectionsNewBody({
   /* ---------------------------------- UI ---------------------------------- */
 
   return (
-    <form onSubmit={submit} className="space-y-6" noValidate>
+    <form id={formId} onSubmit={submit} className="space-y-6" noValidate>
       {fieldsLocked && (
         <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
           <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
@@ -1354,6 +1357,7 @@ function InspectionsNewBody({
             )}
             <Button
               type="submit"
+              form={formId}
               disabled={saving || checkingExisting}
               className="bg-gradient-primary text-primary-foreground shadow-elegant"
             >
@@ -1498,10 +1502,13 @@ export default function InspectionsNew() {
         </div>
       </div>
 
-      <InspectionsNewBody
-        onSaved={() => navigate("/monitoring")}
-        onCancel={() => navigate("/monitoring")}
-      />
+      {/* The footer layout provides the portal target for the Save / Cancel actions. */}
+      <ModalFooterLayout className="rounded-b-xl border border-border/60">
+        <InspectionsNewBody
+          onSaved={() => navigate("/monitoring")}
+          onCancel={() => navigate("/monitoring")}
+        />
+      </ModalFooterLayout>
     </div>
   );
 }
