@@ -783,6 +783,21 @@ function ComplianceEditBody({
           reclosurecount: src.reclosurecount,
         });
 
+        // Build the issuance rows, but skip brand-new rows (placeholder GUID)
+        // that carry no values at all. Sending several placeholder-GUID rows
+        // makes the backend treat them as the same existing record and the
+        // save fails.
+        const issuancelist = [
+          toIssuance(day.manual, FSIC_MODE_MANUAL),
+          toIssuance(day.fsis, FSIC_MODE_FSIS),
+        ].filter((iss) => {
+          if (iss.issuanceno && iss.issuanceno !== EMPTY_GUID) return true;
+          return Object.entries(iss).some(
+            ([k, v]) =>
+              k !== "issuanceno" && k !== "fsicmode" && typeof v === "number" && v !== 0,
+          );
+        });
+
         updates.push({
           fsisno: day.inspection.fsisno || EMPTY_GUID,
           dateinspected: day.key,
@@ -799,10 +814,7 @@ function ComplianceEditBody({
           reinspecttiezacount: day.inspection.reinspecttiezacount,
           isaccomplished: true,
           remarks: (day.inspection.remarks ?? "").trim(),
-          issuancelist: [
-            toIssuance(day.manual, FSIC_MODE_MANUAL),
-            toIssuance(day.fsis, FSIC_MODE_FSIS),
-          ],
+          issuancelist,
         });
       }
 
@@ -812,9 +824,16 @@ function ComplianceEditBody({
         return;
       }
 
+      if (!user?.memberno) {
+        const msg = "Your session is missing your user details. Please sign in again.";
+        setSaveError(msg);
+        toast.error(msg);
+        return;
+      }
+
       const payload: FSISComplianceDTO = {
         stationno,
-        encodedby: user?.memberno ?? "",
+        encodedby: user.memberno,
         compliancelist: updates,
       };
 

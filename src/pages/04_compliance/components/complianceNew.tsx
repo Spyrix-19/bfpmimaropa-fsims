@@ -873,7 +873,16 @@ function InspectionsNewBody({
           // 96 → MANUAL column, 97 → FSIS column.
           buildIssuance(FSIC_MODE.MANUAL, manualIssuance, manualReinspection),
           buildIssuance(FSIC_MODE.FSIS, fsisIssuance, fsisReinspection),
-        ],
+        ].filter((iss) => {
+          // Keep rows that already exist in the database. Brand-new rows still
+          // carrying the placeholder id are only sent when they hold values —
+          // sending two placeholder rows makes the backend treat them as the
+          // same record and the save fails.
+          if (iss.issuanceno && iss.issuanceno !== EMPTY_GUID) return true;
+          return Object.entries(iss).some(
+            ([k, v]) => k !== "issuanceno" && k !== "fsicmode" && typeof v === "number" && v !== 0,
+          );
+        }),
       };
 
       const payload: FSISComplianceDTO = {
