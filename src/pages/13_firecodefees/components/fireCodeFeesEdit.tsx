@@ -116,12 +116,15 @@ const freshMonth = (month: number): MonthState => {
 
 const normalizePrimaryGuid = (value: unknown): string => {
   const text = String(value ?? "").trim();
-  return text && text !== EMPTY_GUID ? text : EMPTY_GUID;
+  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+    return EMPTY_GUID;
+  }
+  return text;
 };
 
 const maybePrimaryGuid = (value: unknown): string | null => {
-  const text = String(value ?? "").trim();
-  return text && text !== EMPTY_GUID ? text : null;
+  const normalized = normalizePrimaryGuid(value);
+  return normalized === EMPTY_GUID ? null : normalized;
 };
 
 /** Converts a raw collection record into an editable month state. */
@@ -137,8 +140,7 @@ function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthStat
       Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : MODES[0].code;
     const feecateg = Number(item.feecateg) || 0;
     values[sector][mode][feecateg] = Number(item.collectedamount ?? 0) || 0;
-    if (item.accomplishno && String(item.accomplishno) !== EMPTY_GUID)
-      accomplishNos[`${sector}|${mode}|${feecateg}`] = String(item.accomplishno);
+    accomplishNos[`${sector}|${mode}|${feecateg}`] = normalizePrimaryGuid(item.accomplishno);
   }
   return {
     month,

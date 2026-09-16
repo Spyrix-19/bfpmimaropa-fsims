@@ -146,12 +146,15 @@ export const toAmount = (raw: string) => {
 
 const normalizePrimaryGuid = (value: unknown): string => {
   const text = String(value ?? "").trim();
-  return text && text !== EMPTY_GUID ? text : EMPTY_GUID;
+  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+    return EMPTY_GUID;
+  }
+  return text;
 };
 
 const maybePrimaryGuid = (value: unknown): string | null => {
-  const text = String(value ?? "").trim();
-  return text && text !== EMPTY_GUID ? text : null;
+  const normalized = normalizePrimaryGuid(value);
+  return normalized === EMPTY_GUID ? null : normalized;
 };
 
 /** Pulls the collection record out of whatever shape the detail endpoint returns. */
@@ -161,13 +164,14 @@ export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | nul
     if (!value || typeof value !== "object") return;
     if (Array.isArray(value)) return value.forEach(walk);
     const obj = value as Record<string, unknown>;
-    // A collection record carries a feeno AND the accomplishment payload.
+    const recordFeeno = normalizePrimaryGuid(obj.feeno);
+    // A collection record carries a real feeno key and the accomplishment payload.
     // Individual accomfeelist rows also carry a feeno, so they must not be
     // mistaken for the record itself.
     const isRecord =
-      !!obj.feeno && (Array.isArray(obj.accomfeelist) || obj.dateaccomplish !== undefined);
+      recordFeeno !== EMPTY_GUID && (Array.isArray(obj.accomfeelist) || obj.dateaccomplish !== undefined);
     if (isRecord) {
-      rows.push(obj as unknown as FSISFeeCollectionDetailModel);
+      rows.push({ ...obj, feeno: recordFeeno } as FSISFeeCollectionDetailModel);
       return;
     }
     if (Array.isArray(obj.feedetaillist)) (obj.feedetaillist as unknown[]).forEach(walk);
@@ -610,8 +614,7 @@ export function FireCodeFeesFormBody({
         Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : FIRE_CODE_MODE_MANUAL;
       const feecateg = Number(item.feecateg) || 0;
       next[mode][feecateg] = Number(item.collectedamount ?? 0) || 0;
-      if (item.accomplishno && String(item.accomplishno) !== EMPTY_GUID)
-        accomplishNos[`${mode}|${feecateg}`] = String(item.accomplishno);
+      accomplishNos[`${mode}|${feecateg}`] = normalizePrimaryGuid(item.accomplishno);
     }
     setValues(next);
     setExistingAccomplishNos(accomplishNos);
