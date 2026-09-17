@@ -403,6 +403,12 @@ export function FireCodeFeesYearEditorBody({
     [months],
   );
 
+  const resolveExistingParentFeeno = React.useCallback((m: MonthState) => {
+    const value = m.feeno;
+    const normalized = normalizePrimaryGuid(value);
+    return normalized === EMPTY_GUID ? EMPTY_GUID : normalized;
+  }, []);
+
   const resolveExistingAccomplishNo = React.useCallback((m: MonthState, key: string) => {
     const value = m.accomplishNos[key];
     const normalized = normalizePrimaryGuid(value);
@@ -447,7 +453,9 @@ export function FireCodeFeesYearEditorBody({
             }
           }
           return {
-            feeno: normalizePrimaryGuid(m.feeno),
+            // Preserve the actual parent GUID if the Detail API already assigned one.
+            // Only use EMPTY_GUID when there is no real existing parent row for this month.
+            feeno: resolveExistingParentFeeno(m),
             dateaccomplish: lastDayOfMonthISO(year, m.month),
             isaccomplished: true,
             remarks: "",
@@ -459,14 +467,16 @@ export function FireCodeFeesYearEditorBody({
       const childKeys = new Set<string>();
       const parentKeys = new Set<string>();
       for (const item of fsisfeeList) {
-        const parentKey = `${normalizePrimaryGuid(item.feeno)}|${String(item.dateaccomplish ?? "").trim() || "no-date"}`;
+        const parentFeeno = normalizePrimaryGuid(item.feeno);
+        const parentKey = `${parentFeeno === EMPTY_GUID ? "new-parent" : parentFeeno}|${String(item.dateaccomplish ?? "").trim() || "no-date"}`;
         if (parentKeys.has(parentKey)) {
           throw new Error("Duplicate Fire Code Fees parent record detected before save.");
         }
         parentKeys.add(parentKey);
 
         for (const child of item.fsisfeecollectionList ?? []) {
-          const childKey = `${normalizePrimaryGuid(child.accomplishno)}|${String(child.fsicmode)}|${String(child.feecateg)}`;
+          const childAccomplishNo = normalizePrimaryGuid(child.accomplishno);
+          const childKey = `${childAccomplishNo === EMPTY_GUID ? "new-child" : childAccomplishNo}|${String(child.fsicmode)}|${String(child.feecateg)}`;
           if (childKeys.has(childKey)) {
             throw new Error("Duplicate Fire Code Fees child record detected before save.");
           }
