@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import {
   Plus,
   Eye,
   Construction,
+  AlertTriangle,
 } from "lucide-react";
 
 import { toast } from "@/lib/toast";
@@ -265,7 +267,7 @@ function totalsForSector(lines: FeeLine[], sector: FireCodeSectorKey) {
  * ------------------------------------------------------------------ */
 
 export default function FireCodeFeesPage() {
-  const { user, systemAccess } = useAuth();
+  const { user, systemAccess, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const { categories } = useFeeCategories();
   const { options: feeTypeOptions, loading: feeTypesLoading } = useFeeTypes();
@@ -396,6 +398,7 @@ export default function FireCodeFeesPage() {
   const [exporting, setExporting] = React.useState(false);
   const [matrixOpen, setMatrixOpen] = React.useState(false);
   const [matrixRow, setMatrixRow] = React.useState<FireCodeFeeLedgerRow | null>(null);
+  const [editOnHoldOpen, setEditOnHoldOpen] = React.useState(false);
   const [formOpen, setFormOpen] = React.useState(false);
   const [formTarget, setFormTarget] = React.useState<FeeFormTarget>({});
   const [reloadKey, setReloadKey] = React.useState(0);
@@ -436,6 +439,17 @@ export default function FireCodeFeesPage() {
     setEditorReadOnly(readOnly);
     setEditorOpen(true);
   }, []);
+
+  const handleEditAction = React.useCallback(
+    (row: FireCodeFeeLedgerRow) => {
+      if (!isSuperAdmin()) {
+        setEditOnHoldOpen(true);
+        return;
+      }
+      openEditor(row, false);
+    },
+    [isSuperAdmin, openEditor],
+  );
 
   const openViewer = React.useCallback((row: FireCodeFeeLedgerRow) => {
     setViewStation(toEditorStation(row));
@@ -926,7 +940,7 @@ export default function FireCodeFeesPage() {
               globalShowAllFeeDetails={showAllFeeDetailsForAllCards}
               onFeeTypesChange={setFeeTypes}
               onView={() => openViewer(r)}
-              onEdit={() => openEditor(r, false)}
+              onEdit={() => handleEditAction(r)}
               onDelete={() => askDelete(r)}
               onMatrix={() => openStationMatrix(r)}
             />
@@ -1024,6 +1038,20 @@ export default function FireCodeFeesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={editOnHoldOpen}
+        onOpenChange={setEditOnHoldOpen}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-danger-soft"
+        contentIconColorClass="text-destructive"
+        title="Feature under development"
+        description="This feature is currently under development. Please use the Add Record button to update the record."
+        confirmLabel="OK"
+        cancelClassName="hidden"
+        showCancel={false}
+        onConfirm={() => {}}
+      />
 
       <FireCodeFeesFormModal
         open={formOpen}
