@@ -1,6 +1,7 @@
 import * as React from "react";
-import { ChevronDown, Coins, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Coins, Construction, Loader2 } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -193,6 +194,7 @@ export default function FireCodeFeesSection() {
   const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(true);
   const [data, setData] = React.useState<{ year: number; values: SectorValues }[]>([]);
   const [apiCategories, setApiCategories] = React.useState<FeeCategory[]>([]);
   const { options: feeTypeOptions, loading: feeTypesLoading } = useFeeTypes();
@@ -362,79 +364,110 @@ export default function FireCodeFeesSection() {
     <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
       <div className="border-b border-border/60 p-3 sm:p-4">
         <div className="space-y-3">
-          <div className="min-w-0 border-b border-border/60 pb-2.5">
-            <div className="mb-1 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
-                <Coins className="h-4 w-4" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 border-b border-border/60 pb-2.5">
+              <div className="mb-1 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
+                  <Coins className="h-4 w-4" />
+                </div>
+                <h3 className="text-base font-semibold leading-tight tracking-tight">
+                  Fire Code Fees Yearly Collection Comparison
+                </h3>
               </div>
-              <h3 className="text-base font-semibold leading-tight tracking-tight">
-                Fire Code Fees Collection
-              </h3>
+              <p className="pl-10 text-sm text-muted-foreground">Year to Year Data Comparison</p>
             </div>
-            <p className="pl-10 text-sm text-muted-foreground">Year to Year Data Comparison</p>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setCollapsed((v) => !v)}
+              className="h-8 w-8 shrink-0 rounded-md border border-border/60 bg-background/60 p-0 text-muted-foreground hover:bg-accent"
+              aria-label={
+                collapsed
+                  ? "Show Fire Code Fees Yearly Collection Comparison"
+                  : "Hide Fire Code Fees Yearly Collection Comparison"
+              }
+            >
+              {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </Button>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-slate-900/20 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-xl sm:bg-muted/20 sm:p-2">
-            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[176px_minmax(220px,1fr)_minmax(200px,1fr)_minmax(200px,1fr)]">
-              <YearMultiSelect value={years} onChange={setYears} />
+          {!collapsed && (
+            <>
+              <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100">
+                <Construction className="h-4 w-4" />
+                <AlertTitle className="font-semibold">Note</AlertTitle>
+                <AlertDescription>
+                  This feature is under development. The matrix output may still change.
+                </AlertDescription>
+              </Alert>
 
-              <FeeTypeMultiSelect
-                options={feeTypeOptions}
-                loading={feeTypesLoading}
-                value={feeTypes}
-                onChange={setFeeTypes}
-                className="h-12 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:rounded-lg"
-              />
+              <div className="rounded-2xl border border-border/70 bg-slate-900/20 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-xl sm:bg-muted/20 sm:p-2">
+                <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[176px_minmax(220px,1fr)_minmax(200px,1fr)_minmax(200px,1fr)]">
+                  <YearMultiSelect value={years} onChange={setYears} />
 
-              {scope.provinceLocked ? (
-                <ReadOnlyField
-                  value={scope.provincename}
-                  placeholder="All provinces"
-                  title="Restricted to your assigned province"
-                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
-                />
-              ) : (
-                <LocationMultiSelect
-                  mode="location"
-                  value={provinces}
-                  locationtype="PROVINCE"
-                  parentcode={MIMAROPA_REGION_CODE}
-                  onChange={handleProvincesChange}
-                  placeholder="All provinces"
-                  hideCode
-                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
-                />
-              )}
+                  <FeeTypeMultiSelect
+                    options={feeTypeOptions}
+                    loading={feeTypesLoading}
+                    value={feeTypes}
+                    onChange={setFeeTypes}
+                    className="h-12 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:rounded-lg"
+                  />
 
-              {scope.stationLocked ? (
-                <ReadOnlyField
-                  value={scope.stationname}
-                  placeholder="All stations"
-                  title="Restricted to your assigned station"
-                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
-                />
-              ) : (
-                <StationMultiSelect
-                  mode="station"
-                  value={stations}
-                  provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
-                  reportyear={sortedYears[sortedYears.length - 1]}
-                  onChange={handleStationsChange}
-                  placeholder="All stations"
-                  alwaysEnabled
-                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
-                />
-              )}
-            </div>
-          </div>
+                  {scope.provinceLocked ? (
+                    <ReadOnlyField
+                      value={scope.provincename}
+                      placeholder="All provinces"
+                      title="Restricted to your assigned province"
+                      className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
+                    />
+                  ) : (
+                    <LocationMultiSelect
+                      mode="location"
+                      value={provinces}
+                      locationtype="PROVINCE"
+                      parentcode={MIMAROPA_REGION_CODE}
+                      onChange={handleProvincesChange}
+                      placeholder="All provinces"
+                      hideCode
+                      className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
+                    />
+                  )}
+
+                  {scope.stationLocked ? (
+                    <ReadOnlyField
+                      value={scope.stationname}
+                      placeholder="All stations"
+                      title="Restricted to your assigned station"
+                      className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
+                    />
+                  ) : (
+                    <StationMultiSelect
+                      mode="station"
+                      value={stations}
+                      provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+                      reportyear={sortedYears[sortedYears.length - 1]}
+                      onChange={handleStationsChange}
+                      placeholder="All stations"
+                      alwaysEnabled
+                      className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
+                    />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {loading ? (
+      {!collapsed && loading ? (
         <div className="m-4 flex items-center justify-center gap-2 rounded-xl border border-border/60 p-10 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading collection records…
         </div>
-      ) : (
+      ) : null}
+
+      {!collapsed && !loading ? (
         <>
           <div className="hidden p-3 md:block">
             <div className="overflow-x-auto rounded-xl border border-border/60 md:overflow-hidden">
@@ -627,7 +660,7 @@ export default function FireCodeFeesSection() {
             ))}
           </div>
         </>
-      )}
+      ) : null}
     </Card>
   );
 }

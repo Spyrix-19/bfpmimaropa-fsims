@@ -1,6 +1,7 @@
 import * as React from "react";
-import { ChevronDown, Coins, Loader2 } from "lucide-react";
+import { ChevronDown, Coins, Construction, Loader2 } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -378,6 +379,14 @@ export default function FireCodeFeesVarianceSection() {
               Combination of Manual Collection and Online Collection
             </p>
           </div>
+
+          <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100">
+            <Construction className="h-4 w-4" />
+            <AlertTitle className="font-semibold">Note</AlertTitle>
+            <AlertDescription>
+              This feature is under development. The matrix output may still change.
+            </AlertDescription>
+          </Alert>
 
           <div className="rounded-2xl border border-border/70 bg-slate-900/20 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-xl sm:bg-muted/20 sm:p-2">
             <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[176px_150px_160px_minmax(200px,1fr)_minmax(200px,1fr)]">
