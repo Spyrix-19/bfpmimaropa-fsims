@@ -127,6 +127,16 @@ const maybePrimaryGuid = (value: unknown): string | null => {
   return normalized === EMPTY_GUID ? null : normalized;
 };
 
+const effectiveParentFeeno = (rec: FSISFeeCollectionDetailModel | null | undefined): string => {
+  const direct = normalizePrimaryGuid(rec?.feeno);
+  if (direct !== EMPTY_GUID) return direct;
+  for (const item of flattenFeeAccomItems(rec)) {
+    const candidate = normalizePrimaryGuid(item.feeno);
+    if (candidate !== EMPTY_GUID) return candidate;
+  }
+  return EMPTY_GUID;
+};
+
 const dedupeFeeCollectionChildren = (items: FSISFeeCollectionClassDTO[]): FSISFeeCollectionClassDTO[] => {
   const seen = new Set<string>();
   const unique: FSISFeeCollectionClassDTO[] = [];
@@ -203,10 +213,43 @@ function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthStat
   }
   return {
     month,
-    feeno: maybePrimaryGuid(rec.feeno),
+    feeno: maybePrimaryGuid(effectiveParentFeeno(rec)),
     accomplishNos,
     values,
     baseline: snapshot(values),
+  };
+}
+
+function mergeMonthState(base: MonthState, incoming: MonthState): MonthState {
+  const mergedValues = emptyValues();
+  const mergedAccomplishNos: Record<string, string> = { ...base.accomplishNos };
+
+  for (const sector of FEE_SECTORS) {
+    for (const mode of MODES) {
+      const baseAmounts = base.values[sector.key][mode.code];
+      const incomingAmounts = incoming.values[sector.key][mode.code];
+      for (const category of Object.keys(baseAmounts)) {
+        const key = Number(category);
+        mergedValues[sector.key][mode.code][key] = Number(baseAmounts[key] ?? 0) || 0;
+      }
+      for (const category of Object.keys(incomingAmounts)) {
+        const key = Number(category);
+        const incomingValue = Number(incomingAmounts[key] ?? 0) || 0;
+        mergedValues[sector.key][mode.code][key] = incomingValue || mergedValues[sector.key][mode.code][key] || 0;
+      }
+    }
+  }
+
+  for (const [key, value] of Object.entries(incoming.accomplishNos)) {
+    if (value && value !== EMPTY_GUID) mergedAccomplishNos[key] = value;
+  }
+
+  return {
+    month: incoming.month,
+    feeno: incoming.feeno ?? base.feeno,
+    accomplishNos: mergedAccomplishNos,
+    values: mergedValues,
+    baseline: snapshot(mergedValues),
   };
 }
 
@@ -327,7 +370,7 @@ export function FireCodeFeesYearEditorBody({
             const key = `${sector}|${mode}|${feecateg}`;
             monthState.accomplishNos[key] = normalizePrimaryGuid(item.accomplishno);
           }
-          next[m - 1] = monthState;
+          next[m - 1] = mergeMonthState(next[m - 1], monthState);
         }
       }
 
@@ -404,7 +447,7 @@ export function FireCodeFeesYearEditorBody({
   );
 
   const resolveExistingParentFeeno = React.useCallback((m: MonthState) => {
-    const value = m.feeno;
+    const value = m.feeno ?? EMPTY_GUID;
     const normalized = normalizePrimaryGuid(value);
     return normalized === EMPTY_GUID ? EMPTY_GUID : normalized;
   }, []);
