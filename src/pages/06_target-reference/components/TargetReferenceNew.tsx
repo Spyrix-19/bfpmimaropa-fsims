@@ -267,7 +267,7 @@ export default function TargetReferenceForm({
   };
 
   const [stationNo, setStationNo] = React.useState<string>(
-    scope.stationLocked ? scope.stationno || user?.stationno || "" : EMPTY_GUID,
+    scope.stationLocked ? scope.stationno || user?.stationno || "" : user?.stationno || EMPTY_GUID,
   );
   const [provinceno, setProvinceno] = React.useState<string>(
     scope.provinceLocked ? scope.provinceno || user?.provinceno || "" : EMPTY_GUID,
@@ -307,8 +307,10 @@ export default function TargetReferenceForm({
     } else if (editing?.stationno) {
       nextStationNo = editing.stationno;
     } else {
-      nextStationNo = EMPTY_GUID;
-      nextStationLabel = "ALL";
+      nextStationNo = user?.stationno || EMPTY_GUID;
+      nextStationLabel = user?.stationname
+        ? `${user.stationname}${user.provincename ? ` — ${user.provincename}` : ""}`
+        : "ALL";
     }
 
     setStationNo(nextStationNo);

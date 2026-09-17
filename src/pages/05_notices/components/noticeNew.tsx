@@ -713,11 +713,6 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
       toast.error("Your account could not be identified. Please sign in again.");
       return;
     }
-    const grandTotal = NOTICE_FIELDS.reduce((sum, f) => sum + (issuedTotals[f.key] ?? 0), 0);
-    if (grandTotal <= 0) {
-      toast.error("Encode at least one accomplished notice before saving.");
-      return;
-    }
 
     setSaving(true);
     try {
