@@ -296,39 +296,41 @@ export function FireCodeFeesYearEditorBody({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const resp = await firecodefeesAPI.getLedger(
+      const resp = await firecodefeesAPI.getDetail(
         {
-          parameters: {
-            Searchkey: "",
-            Reportyear: year,
-            Reportmonth: MONTHS.map((m) => m.value),
-            Interval: 2,
-            Feeparentno: [],
-            Provinces: [
-              { Provinceno: station.provinceno || EMPTY_GUID, Stationnos: [station.stationno] },
-            ],
-          },
-          pagenumber: 1,
-          pagesize: 5,
+          Stationno: station.stationno,
+          Reportyear: year,
+          Feeparentno: [],
         },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
+        { suppressGlobalLoading: true, suppressErrorToast: true, noDedupe: true },
       );
       if (cancelled) return;
-      const { ok, data, error } = unwrap<FSISStationFeeDetailModel[]>(resp);
+
+      const { ok, data, error } = unwrap<FSISFeeCollectionDetailModel[]>(resp);
       const next = MONTHS.map((m) => freshMonth(m.value));
+
       if (!ok) {
         toast.error(error || "Unable to load the Fire Code Fees collection for this year.");
       } else {
-        const st = (Array.isArray(data) ? data : []).find(
-          (s) => String(s.stationno) === String(station.stationno),
-        );
-        for (const rec of Array.isArray(st?.feedetaillist) ? st!.feedetaillist : []) {
+        for (const rec of Array.isArray(data) ? data : []) {
           const iso = String(rec?.dateaccomplish ?? "").slice(0, 10);
           if (!iso || iso.startsWith("1900") || Number(iso.slice(0, 4)) !== year) continue;
           const m = Number(iso.slice(5, 7)) || 0;
-          if (m >= 1 && m <= 12) next[m - 1] = fromRecord(m, rec);
+          if (m < 1 || m > 12) continue;
+
+          const monthState = fromRecord(m, rec);
+          for (const item of flattenFeeAccomItems(rec)) {
+            const sector = SECTOR_BY_CODE.get(Number(item.sectorno)) ?? "bplo";
+            const mode: ModeCode =
+              Number(item.fsicmode) === FIRE_CODE_MODE_FSIS ? FIRE_CODE_MODE_FSIS : MODES[0].code;
+            const feecateg = Number(item.feecateg) || 0;
+            const key = `${sector}|${mode}|${feecateg}`;
+            monthState.accomplishNos[key] = normalizePrimaryGuid(item.accomplishno);
+          }
+          next[m - 1] = monthState;
         }
       }
+
       setMonths(next);
       setLoading(false);
     })();
@@ -401,6 +403,12 @@ export function FireCodeFeesYearEditorBody({
     [months],
   );
 
+  const resolveExistingAccomplishNo = React.useCallback((m: MonthState, key: string) => {
+    const value = m.accomplishNos[key];
+    const normalized = normalizePrimaryGuid(value);
+    return normalized === EMPTY_GUID ? EMPTY_GUID : normalized;
+  }, []);
+
   /* Save — same payload and locked-month rules as the new-entry screen ----- */
   const save = async () => {
     if (readOnly) return;
@@ -425,8 +433,12 @@ export function FireCodeFeesYearEditorBody({
               const amounts = m.values[s.key][mode.code];
               for (const c of categories) {
                 const key = `${s.key}|${mode.code}|${c.detno}`;
+                const existingAccomplishNo = resolveExistingAccomplishNo(m, key);
                 fsisfeecollectionList.push({
-                  accomplishno: normalizePrimaryGuid(m.accomplishNos[key]),
+                  // Strict precedence: use the detail-derived existing accomplishment
+                  // GUID for the edited item. Only use EMPTY_GUID when the item truly
+                  // does not exist in the detail response for this month/category.
+                  accomplishno: existingAccomplishNo,
                   fsicmode: mode.code,
                   feecateg: c.detno,
                   collectedamount: amounts[c.detno] ?? 0,
