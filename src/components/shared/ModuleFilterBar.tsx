@@ -638,6 +638,7 @@ export function ModuleFilterBar({
   children,
   intervals,
   allowAllDays = true,
+  className,
 }: {
   title?: string;
   years: number[];
@@ -652,6 +653,8 @@ export function ModuleFilterBar({
   intervals?: ModuleInterval[];
   /** DAILY only: when false, the "All (whole month)" shortcut is hidden. */
   allowAllDays?: boolean;
+  /** Optional wrapper classes (useful for embedding inside popovers/drawers). */
+  className?: string;
 }) {
   const subFilterLabel: Record<string, string> = {
     DAILY: "Date",
@@ -663,7 +666,7 @@ export function ModuleFilterBar({
   const subLabel = subFilterLabel[state.interval];
 
   return (
-    <div className="glass-panel rounded-2xl p-3 sm:p-4">
+    <div className={cn("glass-panel rounded-2xl p-3 sm:p-4", className)}>
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {leading}

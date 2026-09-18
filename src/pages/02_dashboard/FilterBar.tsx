@@ -6,6 +6,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Filter, ChevronDown } from "lucide-react";
 import { useFilters, toISODate } from "@/lib/filters";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
@@ -14,7 +17,11 @@ import { StationMultiSelect, type SelectedStation } from "@/components/station-m
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
 import FilterField from "@/components/filter-field";
-import { ModuleFilterBar, type ModuleFilterState } from "@/components/shared/ModuleFilterBar";
+import {
+  ModuleFilterBar,
+  type ModuleFilterState,
+  type ModuleInterval,
+} from "@/components/shared/ModuleFilterBar";
 
 /**
  * Dashboard filter bar. Uses the shared `ModuleFilterBar` so the Dashboard
@@ -190,15 +197,19 @@ export function FilterBar() {
   // Public (not logged in): the full filter bar is exposed. Role-based
   // province/station locking below still applies once signed in.
 
-  return (
-    <ModuleFilterBar
-      title="Dashboard Filters"
-      years={YEARS}
-      state={filterState}
-      onChange={handleFilterChange}
-      onReset={reset}
-      intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-    >
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+
+  const sharedProps = {
+    title: "Dashboard Filters",
+    years: YEARS,
+    state: filterState,
+    onChange: handleFilterChange,
+    onReset: reset,
+    intervals: ["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"] as ModuleInterval[],
+  };
+
+  const locationFilters = (
+    <>
       <FilterField label="Provinces">
         {scope.provinceLocked ? (
           <ReadOnlyField
@@ -239,6 +250,35 @@ export function FilterBar() {
           />
         )}
       </FilterField>
-    </ModuleFilterBar>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop: unchanged filter bar */}
+      <div className="hidden md:block">
+        <ModuleFilterBar {...sharedProps}>{locationFilters}</ModuleFilterBar>
+      </div>
+
+      {/* Mobile: full-width filter button that opens a popover */}
+      <div className="block md:hidden">
+        <Popover open={mobileOpen} onOpenChange={setMobileOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <Filter className="h-4 w-4 shrink-0" />
+                Dashboard Filters
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[calc(100vw-2rem)] p-0" align="start">
+            <ModuleFilterBar {...sharedProps} className="border-0 bg-transparent shadow-none">
+              {locationFilters}
+            </ModuleFilterBar>
+          </PopoverContent>
+        </Popover>
+      </div>
+    </>
   );
 }

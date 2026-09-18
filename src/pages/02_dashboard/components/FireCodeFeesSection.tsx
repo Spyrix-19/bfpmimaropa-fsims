@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown, ChevronUp, Coins, Construction, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Coins, Construction, Filter, Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
@@ -366,6 +366,60 @@ export default function FireCodeFeesSection() {
     [groups, sortedYears, valuesOf],
   );
 
+  const filterControls = (
+    <>
+      <YearMultiSelect value={years} onChange={setYears} />
+
+      <FeeTypeMultiSelect
+        options={feeTypeOptions}
+        loading={feeTypesLoading}
+        value={feeTypes}
+        onChange={setFeeTypes}
+        className="h-11 w-full rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+      />
+
+      {scope.provinceLocked ? (
+        <ReadOnlyField
+          value={scope.provincename}
+          placeholder="All provinces"
+          title="Restricted to your assigned province"
+          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+        />
+      ) : (
+        <LocationMultiSelect
+          mode="location"
+          value={provinces}
+          locationtype="PROVINCE"
+          parentcode={MIMAROPA_REGION_CODE}
+          onChange={handleProvincesChange}
+          placeholder="All provinces"
+          hideCode
+          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+        />
+      )}
+
+      {scope.stationLocked ? (
+        <ReadOnlyField
+          value={scope.stationname}
+          placeholder="All stations"
+          title="Restricted to your assigned station"
+          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+        />
+      ) : (
+        <StationMultiSelect
+          mode="station"
+          value={stations}
+          provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+          reportyear={sortedYears[sortedYears.length - 1]}
+          onChange={handleStationsChange}
+          placeholder="All stations"
+          alwaysEnabled
+          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+        />
+      )}
+    </>
+  );
+
   return (
     <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
       <div className="border-b border-border/60 p-3 sm:p-4">
@@ -429,58 +483,31 @@ export default function FireCodeFeesSection() {
                 </AlertDescription>
               </Alert>
 
-              <div className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:bg-muted/20 md:p-2">
-                <div className="grid w-full grid-cols-1 gap-2 md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
-                  <YearMultiSelect value={years} onChange={setYears} />
-
-                  <FeeTypeMultiSelect
-                    options={feeTypeOptions}
-                    loading={feeTypesLoading}
-                    value={feeTypes}
-                    onChange={setFeeTypes}
-                    className="h-11 w-full rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                  />
-
-                  {scope.provinceLocked ? (
-                    <ReadOnlyField
-                      value={scope.provincename}
-                      placeholder="All provinces"
-                      title="Restricted to your assigned province"
-                      className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                    />
-                  ) : (
-                    <LocationMultiSelect
-                      mode="location"
-                      value={provinces}
-                      locationtype="PROVINCE"
-                      parentcode={MIMAROPA_REGION_CODE}
-                      onChange={handleProvincesChange}
-                      placeholder="All provinces"
-                      hideCode
-                      className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                    />
-                  )}
-
-                  {scope.stationLocked ? (
-                    <ReadOnlyField
-                      value={scope.stationname}
-                      placeholder="All stations"
-                      title="Restricted to your assigned station"
-                      className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                    />
-                  ) : (
-                    <StationMultiSelect
-                      mode="station"
-                      value={stations}
-                      provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
-                      reportyear={sortedYears[sortedYears.length - 1]}
-                      onChange={handleStationsChange}
-                      placeholder="All stations"
-                      alwaysEnabled
-                      className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                    />
-                  )}
+              {/* Desktop: inline filters (unchanged on large screens) */}
+              <div className="hidden rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:block md:bg-muted/20 md:p-2">
+                <div className="flex w-full flex-wrap items-center justify-end gap-2">
+                  {filterControls}
                 </div>
+              </div>
+
+              {/* Mobile: all filters inside a popover */}
+              <div className="md:hidden">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between gap-2">
+                      <span className="flex items-center gap-2">
+                        <Filter className="h-4 w-4 shrink-0" />
+                        Filters
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[calc(100vw-2rem)] p-3" align="start">
+                    <div className="grid grid-cols-1 gap-2">
+                      {filterControls}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </>
           )}

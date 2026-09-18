@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown, Coins, Loader2 } from "lucide-react";
+import { ChevronDown, Coins, Filter, Loader2 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -372,6 +372,80 @@ export default function FireCodeFeesVarianceSection() {
     };
   });
 
+  const filterControls = (
+    <>
+      <TwoYearSelect value={years} onChange={setYears} />
+
+      <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
+        <SelectTrigger className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[140px] md:w-[150px] md:rounded-md">
+          <SelectValue placeholder="Period" />
+        </SelectTrigger>
+        <SelectContent>
+          {INTERVALS.map((i) => (
+            <SelectItem key={i.value} value={i.value}>
+              {i.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {interval !== "ANNUAL" && (
+        <Select value={subPeriod} onValueChange={setSubPeriod}>
+          <SelectTrigger className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[150px] md:w-[160px] md:rounded-md">
+            <SelectValue placeholder="Select period" />
+          </SelectTrigger>
+          <SelectContent>
+            {SUB_OPTIONS[interval].map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {scope.provinceLocked ? (
+        <ReadOnlyField
+          value={scope.provincename}
+          placeholder="All provinces"
+          title="Restricted to your assigned province"
+          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+        />
+      ) : (
+        <LocationMultiSelect
+          mode="location"
+          value={provinces}
+          locationtype="PROVINCE"
+          parentcode={MIMAROPA_REGION_CODE}
+          onChange={handleProvincesChange}
+          placeholder="All provinces"
+          hideCode
+          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+        />
+      )}
+
+      {scope.stationLocked ? (
+        <ReadOnlyField
+          value={scope.stationname}
+          placeholder="All stations"
+          title="Restricted to your assigned station"
+          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+        />
+      ) : (
+        <StationMultiSelect
+          mode="station"
+          value={stations}
+          provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+          reportyear={compareYear}
+          onChange={handleStationsChange}
+          placeholder="All stations"
+          alwaysEnabled
+          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
+        />
+      )}
+    </>
+  );
+
   return (
     <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
       <div className="border-b border-border/60 p-3 sm:p-4">
@@ -390,78 +464,31 @@ export default function FireCodeFeesVarianceSection() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:bg-muted/20 md:p-2">
-            <div className="grid w-full grid-cols-1 gap-2 md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
-              <TwoYearSelect value={years} onChange={setYears} />
-
-              <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
-                <SelectTrigger className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[140px] md:w-[150px] md:rounded-md">
-                  <SelectValue placeholder="Period" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INTERVALS.map((i) => (
-                    <SelectItem key={i.value} value={i.value}>
-                      {i.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {interval !== "ANNUAL" && (
-                <Select value={subPeriod} onValueChange={setSubPeriod}>
-                  <SelectTrigger className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[150px] md:w-[160px] md:rounded-md">
-                    <SelectValue placeholder="Select period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUB_OPTIONS[interval].map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {scope.provinceLocked ? (
-                <ReadOnlyField
-                  value={scope.provincename}
-                  placeholder="All provinces"
-                  title="Restricted to your assigned province"
-                  className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                />
-              ) : (
-                <LocationMultiSelect
-                  mode="location"
-                  value={provinces}
-                  locationtype="PROVINCE"
-                  parentcode={MIMAROPA_REGION_CODE}
-                  onChange={handleProvincesChange}
-                  placeholder="All provinces"
-                  hideCode
-                  className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                />
-              )}
-
-              {scope.stationLocked ? (
-                <ReadOnlyField
-                  value={scope.stationname}
-                  placeholder="All stations"
-                  title="Restricted to your assigned station"
-                  className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                />
-              ) : (
-                <StationMultiSelect
-                  mode="station"
-                  value={stations}
-                  provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
-                  reportyear={compareYear}
-                  onChange={handleStationsChange}
-                  placeholder="All stations"
-                  alwaysEnabled
-                  className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-                />
-              )}
+          {/* Desktop: inline filters (unchanged on large screens) */}
+          <div className="hidden rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:block md:bg-muted/20 md:p-2">
+            <div className="flex w-full flex-wrap items-center justify-end gap-2">
+              {filterControls}
             </div>
+          </div>
+
+          {/* Mobile: all filters inside a popover */}
+          <div className="md:hidden">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 shrink-0" />
+                    Filters
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[calc(100vw-2rem)] p-3" align="start">
+                <div className="grid grid-cols-1 gap-2">
+                  {filterControls}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>

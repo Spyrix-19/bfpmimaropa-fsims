@@ -1136,27 +1136,27 @@ function GapChartCard({ rows, loading }: { rows: GapRow[]; loading: boolean }) {
       }
       height="h-72"
       actions={
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
+        <div className="flex flex-row flex-wrap gap-2">
+          <div className="flex items-center rounded-md border border-border/60 p-0.5">
             {(["province", "sector"] as const).map((g) => (
               <Button
                 key={g}
                 variant={groupBy === g ? "secondary" : "ghost"}
                 size="sm"
-                className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
+                className="h-6 px-2 text-[11px] capitalize"
                 onClick={() => setGroupBy(g)}
               >
                 By {g}
               </Button>
             ))}
           </div>
-          <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
+          <div className="flex items-center rounded-md border border-border/60 p-0.5">
             {(["line", "bar"] as const).map((type) => (
               <Button
                 key={type}
                 variant={chartType === type ? "secondary" : "ghost"}
                 size="sm"
-                className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
+                className="h-6 px-2 text-[11px] capitalize"
                 onClick={() => setChartType(type)}
               >
                 {type}
@@ -1254,27 +1254,27 @@ function InspectionSummaryChartCard({ rows, loading }: { rows: GapRow[]; loading
       }
       height="h-72"
       actions={
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
+        <div className="flex flex-row flex-wrap gap-2">
+          <div className="flex items-center rounded-md border border-border/60 p-0.5">
             {(["province", "sector"] as const).map((g) => (
               <Button
                 key={g}
                 variant={groupBy === g ? "secondary" : "ghost"}
                 size="sm"
-                className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
+                className="h-6 px-2 text-[11px] capitalize"
                 onClick={() => setGroupBy(g)}
               >
                 By {g}
               </Button>
             ))}
           </div>
-          <div className="flex w-full items-center rounded-md border border-border/60 p-0.5 sm:w-auto">
+          <div className="flex items-center rounded-md border border-border/60 p-0.5">
             {(["line", "bar"] as const).map((type) => (
               <Button
                 key={type}
                 variant={chartType === type ? "secondary" : "ghost"}
                 size="sm"
-                className="h-6 flex-1 px-2 text-[11px] capitalize sm:flex-none"
+                className="h-6 px-2 text-[11px] capitalize"
                 onClick={() => setChartType(type)}
               >
                 {type}
@@ -1652,12 +1652,7 @@ export function DashboardBody({ top }: { top?: React.ReactNode }) {
 
   return (
     <div className="space-y-6">
-      {/*
-        Everything above "Target vs Actual by Province" is grouped in its own
-        wrapper. The sticky page-top band is a child of this wrapper, so CSS
-        sticky releases it (it scrolls away) exactly where that section — which
-        has its own filter — begins.
-      */}
+
       <div className="space-y-6">
         {top}
 
