@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -8,15 +8,13 @@ import { cn } from "@/lib/utils";
  * The negative horizontal margins let the sticky band's background span the
  * full width of the main content padding so scrolled rows never show through.
  */
-export function StickyPageTop({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+export const StickyPageTop = forwardRef<
+  HTMLDivElement,
+  { children: ReactNode; className?: string }
+>(function StickyPageTop({ children, className }, ref) {
   return (
     <div
+      ref={ref}
       className={cn(
         "sticky z-50 -mx-4 -mt-4 space-y-3 border-b border-border/60 bg-background px-4 pb-3 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pb-4 sm:pt-6",
         className,
@@ -26,6 +24,6 @@ export function StickyPageTop({
       {children}
     </div>
   );
-}
+});
 
 export default StickyPageTop;

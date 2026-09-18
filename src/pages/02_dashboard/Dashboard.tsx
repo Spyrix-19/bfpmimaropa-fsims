@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { StickyPageTop } from "@/components/shared/StickyPageTop";
 
@@ -29,6 +29,26 @@ function DashboardBodyFallback() {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const titleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const title = titleRef.current;
+    if (!title) return;
+
+    const updateTitleHeight = () => {
+      document.documentElement.style.setProperty(
+        "--dashboard-title-h",
+        `${Math.ceil(title.getBoundingClientRect().height)}px`,
+      );
+    };
+    updateTitleHeight();
+    const observer = new ResizeObserver(updateTitleHeight);
+    observer.observe(title);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--dashboard-title-h");
+    };
+  }, []);
 
   const rank = user?.rankcode ?? "";
   const lastName =
@@ -37,12 +57,8 @@ export default function Dashboard() {
     ? `Welcome, ${rank ? rank + " " : ""}${lastName} 👋`
     : "Fire Safety Inspection Monitoring";
 
-  // The sticky title + filter band is passed into the body so it can be
-  // grouped with the content above "Target vs Actual by Province". That lets
-  // CSS sticky release the band exactly where that section — which has its own
-  // filter — begins.
-  const top = (
-    <StickyPageTop>
+  const stickyTitle = (
+    <StickyPageTop ref={titleRef} className="space-y-0">
       <div>
         <div className="mb-1 flex items-center gap-2">
           <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
@@ -55,23 +71,26 @@ export default function Dashboard() {
           Real-time fire safety inspection accomplishments across MIMAROPA Region.
         </p>
       </div>
-
-      <Suspense fallback={<FilterBarFallback />}>
-        <FilterBar />
-      </Suspense>
     </StickyPageTop>
+  );
+
+  const stickyFilter = (
+    <Suspense fallback={<FilterBarFallback />}>
+      <FilterBar />
+    </Suspense>
   );
 
   return (
     <Suspense
       fallback={
         <div className="space-y-6">
-          {top}
+          {stickyTitle}
+          {stickyFilter}
           <DashboardBodyFallback />
         </div>
       }
     >
-      <DashboardBody top={top} />
+      <DashboardBody stickyTitle={stickyTitle} stickyFilter={stickyFilter} />
     </Suspense>
   );
 }

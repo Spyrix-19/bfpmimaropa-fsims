@@ -14,6 +14,7 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
+  SlidersHorizontal,
 } from "lucide-react";
 import * as React from "react";
 import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
@@ -954,6 +955,82 @@ function ChartCard({
   );
 }
 
+/**
+ * Shared actions row for the four supplementary chart cards.
+ *
+ * Desktop (`sm` and up): renders the Line/Bar toggle and the per-chart
+ * filter selects inline, exactly like the original layout.
+ *
+ * Mobile (below `sm`): renders the Line/Bar toggle and a single
+ * "Filters" popover button on one horizontal line (no wrapping). The
+ * per-chart filter selects (year + province/station scope) live inside
+ * the popover so the card header stays compact on small screens.
+ */
+function ChartActionsBar({
+  chartType,
+  setChartType,
+  filters,
+}: {
+  chartType: "line" | "bar";
+  setChartType: (t: "line" | "bar") => void;
+  filters: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const Toggle = (
+    <div className="flex shrink-0 items-center rounded-md border border-border/60 p-0.5">
+      {(["line", "bar"] as const).map((type) => (
+        <Button
+          key={type}
+          variant={chartType === type ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 px-2 text-[11px] capitalize"
+          onClick={() => setChartType(type)}
+        >
+          {type}
+        </Button>
+      ))}
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile: toggle + Filters popover on one line */}
+      <div className="flex w-full items-center gap-2 sm:hidden">
+        {Toggle}
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto h-9 gap-1.5 px-3 text-xs"
+              aria-expanded={open}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[288px] p-3" align="end">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Filters
+              </div>
+              {filters}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Desktop: toggle + filters inline (unchanged behaviour) */}
+      <div className="hidden w-full items-center justify-end gap-2 sm:flex">
+        {Toggle}
+        {filters}
+      </div>
+    </>
+  );
+}
+
 const ACTION_BADGE_COLORS: Record<string, string> = {
   CREATE: "bg-success/10 text-success",
   INSERT: "bg-success/10 text-success",
@@ -1421,7 +1498,13 @@ function ChartScopeFilters({
   );
 }
 
-export function DashboardBody({ top }: { top?: React.ReactNode }) {
+export function DashboardBody({
+  stickyTitle,
+  stickyFilter,
+}: {
+  stickyTitle?: React.ReactNode;
+  stickyFilter?: React.ReactNode;
+}) {
   const { user, systemAccess, isAuthenticated } = useAuth();
   const { filters } = useFilters();
   const scope = useMemo(
@@ -1652,10 +1735,17 @@ export function DashboardBody({ top }: { top?: React.ReactNode }) {
 
   return (
     <div className="space-y-6">
+      {stickyTitle}
 
       <div className="space-y-6">
-        {top}
+        <div
+          className="sticky z-40 -mx-4 border-b border-border/60 bg-background px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 sm:pb-4 sm:pt-4"
+          style={{ top: "calc(var(--app-header-h, 3.5rem) + var(--dashboard-title-h, 7rem))" }}
+        >
+          {stickyFilter}
+        </div>
 
+        <div className="space-y-6">
         {/* KPIs — sector progress full width */}
         <SectorProgressCard compliance={compliance} />
 
@@ -1733,6 +1823,9 @@ export function DashboardBody({ top }: { top?: React.ReactNode }) {
 
           <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
         </div>
+        </div>
+
+        {/* The sticky dashboard controls release at the end of this wrapper. */}
       </div>
 
       {/* Supplementary row: Target vs Actual by Province */}
@@ -1742,45 +1835,38 @@ export function DashboardBody({ top }: { top?: React.ReactNode }) {
           subtitle="Provincial accomplishment"
           height="h-72"
           actions={
-            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-              <div className="flex items-center rounded-md border border-border/60 p-0.5">
-                {(["line", "bar"] as const).map((type) => (
-                  <Button
-                    key={type}
-                    variant={targetVsActualChartType === type ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 px-2 text-[11px] capitalize"
-                    onClick={() => setTargetVsActualChartType(type)}
+            <ChartActionsBar
+              chartType={targetVsActualChartType}
+              setChartType={setTargetVsActualChartType}
+              filters={
+                <>
+                  <Select
+                    value={String(targetVsActualYear)}
+                    onValueChange={(v) => setTargetVsActualYear(Number(v))}
                   >
-                    {type}
-                  </Button>
-                ))}
-              </div>
-              <Select
-                value={String(targetVsActualYear)}
-                onValueChange={(v) => setTargetVsActualYear(Number(v))}
-              >
-                <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {yoYYearOptions.map((year) => (
-                    <SelectItem key={year} value={String(year)}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <ChartScopeFilters
-                isAuthenticated={isAuthenticated}
-                scope={scope}
-                value={targetVsActualScope}
-                onChange={setTargetVsActualScope}
-                reportyear={targetVsActualYear}
-                provinceOnly
-                forceProvinceLock={targetProvinceLocked}
-              />
-            </div>
+                    <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {yoYYearOptions.map((year) => (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <ChartScopeFilters
+                    isAuthenticated={isAuthenticated}
+                    scope={scope}
+                    value={targetVsActualScope}
+                    onChange={setTargetVsActualScope}
+                    reportyear={targetVsActualYear}
+                    provinceOnly
+                    forceProvinceLock={targetProvinceLocked}
+                  />
+                </>
+              }
+            />
           }
         >
           {targetVsActualLoading ? (
@@ -1845,43 +1931,36 @@ export function DashboardBody({ top }: { top?: React.ReactNode }) {
         subtitle="Target vs Actual per month"
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-            <div className="flex items-center rounded-md border border-border/60 p-0.5">
-              {(["line", "bar"] as const).map((type) => (
-                <Button
-                  key={type}
-                  variant={monthlyTrendChartType === type ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-[11px] capitalize"
-                  onClick={() => setMonthlyTrendChartType(type)}
+          <ChartActionsBar
+            chartType={monthlyTrendChartType}
+            setChartType={setMonthlyTrendChartType}
+            filters={
+              <>
+                <Select
+                  value={String(monthlyTrendYear)}
+                  onValueChange={(v) => setMonthlyTrendYear(Number(v))}
                 >
-                  {type}
-                </Button>
-              ))}
-            </div>
-            <Select
-              value={String(monthlyTrendYear)}
-              onValueChange={(v) => setMonthlyTrendYear(Number(v))}
-            >
-              <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                {yoYYearOptions.map((year) => (
-                  <SelectItem key={year} value={String(year)}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <ChartScopeFilters
-              isAuthenticated={isAuthenticated}
-              scope={scope}
-              value={monthlyTrendScope}
-              onChange={setMonthlyTrendScope}
-              reportyear={monthlyTrendYear}
-            />
-          </div>
+                  <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yoYYearOptions.map((year) => (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <ChartScopeFilters
+                  isAuthenticated={isAuthenticated}
+                  scope={scope}
+                  value={monthlyTrendScope}
+                  onChange={setMonthlyTrendScope}
+                  reportyear={monthlyTrendYear}
+                />
+              </>
+            }
+          />
         }
       >
         {monthlyTrendLoading ? (
@@ -1939,43 +2018,36 @@ export function DashboardBody({ top }: { top?: React.ReactNode }) {
         subtitle="Actual inspections per sector"
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-            <div className="flex items-center rounded-md border border-border/60 p-0.5">
-              {(["line", "bar"] as const).map((type) => (
-                <Button
-                  key={type}
-                  variant={monthlySectorChartType === type ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-[11px] capitalize"
-                  onClick={() => setMonthlySectorChartType(type)}
+          <ChartActionsBar
+            chartType={monthlySectorChartType}
+            setChartType={setMonthlySectorChartType}
+            filters={
+              <>
+                <Select
+                  value={String(monthlySectorYear)}
+                  onValueChange={(v) => setMonthlySectorYear(Number(v))}
                 >
-                  {type}
-                </Button>
-              ))}
-            </div>
-            <Select
-              value={String(monthlySectorYear)}
-              onValueChange={(v) => setMonthlySectorYear(Number(v))}
-            >
-              <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                {yoYYearOptions.map((year) => (
-                  <SelectItem key={year} value={String(year)}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <ChartScopeFilters
-              isAuthenticated={isAuthenticated}
-              scope={scope}
-              value={monthlySectorScope}
-              onChange={setMonthlySectorScope}
-              reportyear={monthlySectorYear}
-            />
-          </div>
+                  <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yoYYearOptions.map((year) => (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <ChartScopeFilters
+                  isAuthenticated={isAuthenticated}
+                  scope={scope}
+                  value={monthlySectorScope}
+                  onChange={setMonthlySectorScope}
+                  reportyear={monthlySectorYear}
+                />
+              </>
+            }
+          />
         }
       >
         {monthlySectorLoading ? (
@@ -2032,36 +2104,26 @@ export function DashboardBody({ top }: { top?: React.ReactNode }) {
         }
         height="h-[420px] xl:h-[500px]"
         actions={
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-            <div className="flex items-center rounded-md border border-border/60 p-0.5">
-              {(["line", "bar"] as const).map((type) => (
-                <Button
-                  key={type}
-                  variant={yoYChartType === type ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-[11px] capitalize"
-                  onClick={() => setYoYChartType(type)}
-                >
-                  {type}
-                </Button>
-              ))}
-            </div>
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <YoYYearMultiSelect
-                selectedYears={yoYSelectedYears}
-                onChange={setYoYSelectedYears}
-                options={yoYYearOptions}
-              />
-            </div>
-
-            <ChartScopeFilters
-              isAuthenticated={isAuthenticated}
-              scope={scope}
-              value={yoYScope}
-              onChange={setYoYScope}
-              reportyear={yoYSelectedYears[yoYSelectedYears.length - 1] ?? currentYear}
-            />
-          </div>
+          <ChartActionsBar
+            chartType={yoYChartType}
+            setChartType={setYoYChartType}
+            filters={
+              <>
+                <YoYYearMultiSelect
+                  selectedYears={yoYSelectedYears}
+                  onChange={setYoYSelectedYears}
+                  options={yoYYearOptions}
+                />
+                <ChartScopeFilters
+                  isAuthenticated={isAuthenticated}
+                  scope={scope}
+                  value={yoYScope}
+                  onChange={setYoYScope}
+                  reportyear={yoYSelectedYears[yoYSelectedYears.length - 1] ?? currentYear}
+                />
+              </>
+            }
+          />
         }
       >
         {yoYLoading ? (
