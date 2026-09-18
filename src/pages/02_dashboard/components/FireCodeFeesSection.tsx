@@ -274,10 +274,16 @@ export default function FireCodeFeesSection() {
       setLoading(true);
       const yearList = yearsKey.split(",").map(Number).filter(Boolean);
 
+      const feeParentNos = feeTypeOptions
+        .filter((o) => feeTypes.includes(o.code))
+        .map((o) => Number(o.detno || 0))
+        .filter(Boolean);
+
       const resp = await dashboardAPI.getYearlyFireCodeFees(
         {
           reportyear: yearList,
-          Provinces: provincesPayload,
+          feeparentno: feeParentNos,
+          provinces: provincesPayload,
         },
         { suppressGlobalLoading: true, suppressErrorToast: true },
       );
@@ -293,7 +299,7 @@ export default function FireCodeFeesSection() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearsKey, scopeKey]);
+  }, [yearsKey, scopeKey, feeTypes, feeTypeOptions]);
 
   const displayCategories = React.useMemo(
     () => (apiCategories.length ? apiCategories : categories),
