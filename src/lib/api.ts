@@ -31,6 +31,47 @@ const getApiBaseUrlCandidates = () => {
 
 const API_BASE_URL_CANDIDATES = getApiBaseUrlCandidates();
 const EXTERNAL_API_BASE_URL = API_BASE_URL_CANDIDATES[0];
+const HOST_SWITCH_COOLDOWN_MS = 60_000;
+let activeApiBaseUrl = EXTERNAL_API_BASE_URL;
+const apiHostCooldowns = new Map<string, number>();
+
+const getNextFallbackHost = (host: string) =>
+  API_BASE_URL_CANDIDATES.find((candidate) => candidate !== host) ?? host;
+
+const isHostCoolingDown = (host: string) => {
+  const coolUntil = apiHostCooldowns.get(host) ?? 0;
+  return Date.now() < coolUntil;
+};
+
+const selectApiBaseUrl = (preferredHost?: string) => {
+  const host = preferredHost ?? activeApiBaseUrl;
+  if (host && !isHostCoolingDown(host)) return host;
+
+  const fallback = getNextFallbackHost(host);
+  if (fallback && fallback !== host) {
+    activeApiBaseUrl = fallback;
+    return fallback;
+  }
+
+  return host;
+};
+
+const markApiHostFailure = (host: string) => {
+  apiHostCooldowns.set(host, Date.now() + HOST_SWITCH_COOLDOWN_MS);
+
+  const nextHost = getNextFallbackHost(host);
+  if (nextHost && nextHost !== host) {
+    activeApiBaseUrl = nextHost;
+  }
+};
+
+const markApiHostRecovered = (host: string) => {
+  apiHostCooldowns.delete(host);
+  if (activeApiBaseUrl !== host) {
+    activeApiBaseUrl = host;
+  }
+};
+
 const PROXY_ONLY_PATHS: string[] = [];
 const API_BASE_URL = "/";
 
@@ -127,7 +168,8 @@ api.interceptors.request.use((config) => {
     const useProxy = PROXY_ONLY_PATHS.some(
       (p) => path === p || path.startsWith(`${p}/`) || path.startsWith(`${p}?`),
     );
-    const selectedBaseUrl = (config as TrackedConfig).__apiBaseUrl ?? EXTERNAL_API_BASE_URL;
+    const selectedBaseUrl =
+      (config as TrackedConfig).__apiBaseUrl ?? selectApiBaseUrl(activeApiBaseUrl);
     if (!useProxy) {
       config.baseURL = selectedBaseUrl;
       config.url = path;
@@ -262,9 +304,8 @@ const withRetry = async <T>(
   throw lastError;
 };
 
-const withRetryAndFallback = async <T>(
-  hosts: string[],
-  fn: (host: string) => Promise<T>,
+const withRetryOnCurrentHost = async <T>(
+  fn: () => Promise<T>,
   retries = 2,
   delay = 400,
   rid?: string,
@@ -274,32 +315,21 @@ const withRetryAndFallback = async <T>(
   for (let i = 0; i <= retries; i++) {
     if (rid) attemptsLeftByRid.set(rid, retries - i);
 
-    for (const host of hosts) {
-      try {
-        return await fn(host);
-      } catch (err) {
-        lastError = err;
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
 
-        const axiosError = err as AxiosError;
-        if (!shouldRetry(axiosError)) {
-          throw err;
-        }
-
-        if (host !== hosts[hosts.length - 1]) {
-          continue;
-        }
+      const axiosError = err as AxiosError;
+      if (i < retries && shouldRetry(axiosError)) {
+        const base = isTimeoutError(axiosError) ? Math.max(delay, 1000) : delay;
+        const backoff = Math.min(base * Math.pow(2, i), MAX_RETRY_DELAY_MS);
+        await sleep(backoff + Math.random() * 250);
+        continue;
       }
-    }
 
-    const axiosError = lastError as AxiosError;
-    if (i < retries && shouldRetry(axiosError)) {
-      const base = isTimeoutError(axiosError) ? Math.max(delay, 1000) : delay;
-      const backoff = Math.min(base * Math.pow(2, i), MAX_RETRY_DELAY_MS);
-      await sleep(backoff + Math.random() * 250);
-      continue;
+      throw lastError;
     }
-
-    throw lastError;
   }
 
   throw lastError;
@@ -639,18 +669,24 @@ const doRequest = async <T>(
   const showLoading = !options?.suppressGlobalLoading;
   if (showLoading) loadingBus.start();
   try {
-    const response = await withRetryAndFallback(
-      API_BASE_URL_CANDIDATES,
-      async (host) => api.request<T>({ ...config, __apiBaseUrl: host }),
+    const host = selectApiBaseUrl(activeApiBaseUrl);
+    const response = await withRetryOnCurrentHost(
+      () => api.request<T>({ ...config, __apiBaseUrl: host }),
       retries,
       retryDelay,
       rid,
     );
 
+    markApiHostRecovered(host);
     return normalizeResponse<T>(response);
   } catch (error) {
-    // Silently return a canceled envelope on abort so callers don't toast.
     const ax = error as AxiosError;
+    const hostUsed = (ax?.config as TrackedConfig | undefined)?.__apiBaseUrl ?? activeApiBaseUrl;
+    if (shouldRetry(ax)) {
+      markApiHostFailure(hostUsed);
+    }
+
+    // Silently return a canceled envelope on abort so callers don't toast.
     if (ax?.code === "ERR_CANCELED" || (ax as any)?.name === "CanceledError") {
       return canceledResponse<T>();
     }
