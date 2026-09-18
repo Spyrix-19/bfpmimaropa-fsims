@@ -10,8 +10,10 @@ const MANAGE_STATION_TYPES = new Set([28, 29, 30, 31]);
  * Permission gate for the Add / Edit / Delete actions on the Target Reference
  * and Fire Safety Compliance modules.
  *
- * Rule: `roleno === 3` (Personnel) AND `stationtype ∈ {28, 29, 30, 31}`.
- * Every other user must see View-only, without Add / Edit / Delete controls.
+ * Super Administrator (roleno 1) always has access.
+ * Administrator (roleno 2) may manage only when stationtype ∈ {28, 29, 30, 31};
+ * station types 25, 26 and 27 remain hidden.
+ * Personnel (roleno 3) keep the existing management behavior.
  */
 export function canManageTargetAndCompliance(
   user: AuthUser | null | undefined,
@@ -19,8 +21,9 @@ export function canManageTargetAndCompliance(
 ): boolean {
   const roleno = Number(systemAccess?.roleno ?? 0) || 0;
   const stationtype = Number(user?.stationtype ?? 0) || 0;
-  // Super Administrator (roleno === 1) may always manage.
+
   if (roleno === 1) return true;
+  if (roleno === 2) return MANAGE_STATION_TYPES.has(stationtype);
   return roleno === 3 && MANAGE_STATION_TYPES.has(stationtype);
 }
 
