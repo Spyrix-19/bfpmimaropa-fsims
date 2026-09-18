@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosError, AxiosResponse } from "axios";
 import { toast } from "@/lib/toast";
 import { loadingBus } from "@/lib/loading-bus";
 import { getAccessToken } from "@/lib/auth-token";
@@ -398,7 +398,7 @@ const withRetryOnCurrentHost = async <T>(
    RESPONSE NORMALIZER
 ========================= */
 
-const normalizeResponse = <T>(res: { status: number; data?: T }): ApiResponse<T> => ({
+const normalizeResponse = <T>(res: Pick<AxiosResponse<T>, "status" | "data">): ApiResponse<T> => ({
   statusCode: res.status,
   isSuccess: true,
   errorMessages: "",
@@ -730,7 +730,7 @@ const doRequest = async <T>(
   try {
     const host = selectApiBaseUrl(activeApiBaseUrl);
     const response = await withRetryOnCurrentHost(
-      () => api.request<T>({ ...config, __apiBaseUrl: host }),
+      () => api.request<T>({ ...config, __apiBaseUrl: host } as TrackedConfig),
       retries,
       retryDelay,
       rid,
