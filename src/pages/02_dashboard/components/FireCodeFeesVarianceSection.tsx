@@ -470,7 +470,7 @@ export default function FireCodeFeesVarianceSection() {
         </div>
       ) : null}
 
-      <div className="space-y-3 p-3 md:hidden">
+      <div className="mt-3 space-y-3 p-3 md:hidden">
         {varianceRows.map((row) => (
           <article
             key={row.code}
@@ -540,7 +540,7 @@ export default function FireCodeFeesVarianceSection() {
         </div>
       </div>
 
-      <div className="hidden px-3 pb-3 md:block">
+      <div className="mt-3 hidden px-3 pb-3 md:block">
         <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] border-separate border-spacing-0 text-xs">

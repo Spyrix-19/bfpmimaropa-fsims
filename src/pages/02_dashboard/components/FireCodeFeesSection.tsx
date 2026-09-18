@@ -543,7 +543,7 @@ export default function FireCodeFeesSection() {
                   <tbody className="bg-card">
                     {groups.map((g) => (
                       <React.Fragment key={g.parentno || g.code || g.name}>
-                        <tr className="group-row">
+                        <tr className="group-row bg-primary/5">
                           <td className="sticky left-0 z-20 border-r border-grid bg-transparent px-2 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-transparent before:content-['']">
                             <span className="relative text-[10px] font-bold uppercase tracking-wider">
                               {g.code || g.name}
