@@ -135,7 +135,7 @@ export const dashboardAPI = {
   },
 
    async getYearlyFireCodeVariance(body: DashboardFCFYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
-    return await apiPost<DashboardFireCodeFeeVarianceModel>(
+    return await apiPost<DashboardFireCodeFeeVarianceModel[]>(
       "/api/v1/Dashboard/FSIMS/FireCodeFee/Variance",
       body,
       {

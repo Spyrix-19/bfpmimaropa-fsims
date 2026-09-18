@@ -199,16 +199,15 @@ export interface DashboardFeeItemModel {
 
 export interface DashboardFireCodeFeeVarianceModel {
   reportyear: number;
-  feecateg: number;
-  feecategcode: string;
-  feecategname: string;
-  collectionamount: number;
+  Feecateg: number;
+  Feecategcode: string;
+  Feecategname: string;
+  Collectionamount: number;
 }
 
 export interface DashboardFCFYearToYearDTO {
   reportyear: number[];
   interval: number; // 3 = Monthly, 4 = Quarterly, 5 = Semester, 6 = Annual
-  feeparentno: number[];
   startdate: string;
   enddate: string;
   provinces: DashboardClass[];

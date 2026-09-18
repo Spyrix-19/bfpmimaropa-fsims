@@ -1,7 +1,6 @@
 import * as React from "react";
-import { ChevronDown, Coins, Construction, Loader2 } from "lucide-react";
+import { ChevronDown, Coins, Loader2 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,7 +26,8 @@ import {
   provincesPayloadKey,
 } from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
-import type { DashboardFeeCollectionModel } from "@/types/dashboardType";
+import type { DashboardFireCodeFeeVarianceModel } from "@/types/dashboardType";
+import { resolveDateRange } from "@/lib/filters";
 
 import { peso } from "./fees/feeColumns";
 
@@ -97,7 +97,7 @@ const VARIANCE_GROUPS = [
 ] as const;
 
 function buildVarianceTotals(
-  payload: DashboardFeeCollectionModel[] | null,
+  payload: DashboardFireCodeFeeVarianceModel[] | null,
   years: number[],
 ): Record<number, Record<string, number>> {
   const totals: Record<number, Record<string, number>> = {};
@@ -105,18 +105,16 @@ function buildVarianceTotals(
     totals[year] = Object.fromEntries(VARIANCE_GROUPS.map((group) => [group.code, 0]));
   }
 
-  for (const yearEntry of payload ?? []) {
-    const year = Number(yearEntry?.reportyear) || 0;
+  for (const row of payload ?? []) {
+    const year = Number(row?.reportyear) || 0;
     if (!totals[year]) continue;
 
-    for (const rawFee of yearEntry?.feeList ?? []) {
-      const categoryNo = Number(rawFee?.feecateg) || 0;
-      const group = VARIANCE_GROUPS.find((item) =>
-        (item.categoryNos as readonly number[]).includes(categoryNo),
-      );
-      if (!group) continue;
-      totals[year][group.code] += Number(rawFee?.collectionamount ?? 0) || 0;
-    }
+    const categoryNo = Number(row?.Feecateg) || 0;
+    const group = VARIANCE_GROUPS.find((item) =>
+      (item.categoryNos as readonly number[]).includes(categoryNo),
+    );
+    if (!group) continue;
+    totals[year][group.code] += Number(row?.Collectionamount ?? 0) || 0;
   }
 
   return totals;
@@ -291,33 +289,43 @@ export default function FireCodeFeesVarianceSection() {
   );
   const scopeKey = provincesPayloadKey(provincesPayload);
   const yearsKey = sortedYears.join(",");
+  const periodKey = `${interval}|${subPeriod}`;
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       const yearList = sortedYears.filter(Boolean);
-      const resp = await dashboardAPI.getYearlyFireCodeFees(
-        {
-          reportyear: yearList,
-          Provinces: provincesPayload,
-        },
-        { suppressGlobalLoading: true, suppressErrorToast: true },
-      );
-      const { ok, data: payload } = unwrap<DashboardFeeCollectionModel[]>(resp);
+      const range = resolveDateRange(compareYear ?? yearList[0] ?? new Date().getFullYear(), interval, subPeriod);
+      try {
+        const resp = await dashboardAPI.getYearlyFireCodeVariance(
+          {
+            reportyear: yearList,
+            interval: range.interval,
+            startdate: range.startdate,
+            enddate: range.enddate,
+            provinces: provincesPayload,
+          },
+          { suppressGlobalLoading: true, suppressErrorToast: true },
+        );
+        const { ok, data: payload } = unwrap<DashboardFireCodeFeeVarianceModel[]>(resp);
 
-      if (cancelled) return;
-      setGroupTotals(
-        ok ? buildVarianceTotals(payload, yearList) : buildVarianceTotals(null, yearList),
-      );
-      setLoading(false);
+        if (cancelled) return;
+        setGroupTotals(
+          ok ? buildVarianceTotals(payload, yearList) : buildVarianceTotals(null, yearList),
+        );
+      } catch {
+        if (!cancelled) setGroupTotals(buildVarianceTotals(null, yearList));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearsKey, scopeKey]);
+  }, [yearsKey, scopeKey, periodKey]);
 
   const baseTotals =
     groupTotals[baseYear] ?? Object.fromEntries(VARIANCE_GROUPS.map((g) => [g.code, 0]));
@@ -379,14 +387,6 @@ export default function FireCodeFeesVarianceSection() {
               Combination of Manual Collection and Online Collection
             </p>
           </div>
-
-          <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100">
-            <Construction className="h-4 w-4" />
-            <AlertTitle className="font-semibold">Note</AlertTitle>
-            <AlertDescription>
-              This feature is under development. The matrix output may still change.
-            </AlertDescription>
-          </Alert>
 
           <div className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:bg-muted/20 md:p-2">
             <div className="grid w-full grid-cols-1 gap-2 md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">

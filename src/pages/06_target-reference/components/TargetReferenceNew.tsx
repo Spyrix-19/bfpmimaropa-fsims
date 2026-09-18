@@ -556,7 +556,7 @@ export default function TargetReferenceForm({
       const record = ok && Array.isArray(data) ? (data.find((r) => !r.isdeleted) ?? null) : null;
       setCheckingExisting(false);
 
-      if (maybeApiGuid(record?.targetno)) {
+      if (record && maybeApiGuid(record.targetno)) {
         setPendingExistingRecord(record);
         setExistingMeta({
           isrevisionrequest: Boolean(record.isrevisionrequest),
