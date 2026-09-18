@@ -118,13 +118,20 @@ const markApiHostFailure = (host: string) => {
     return;
   }
 
-  activeApiBaseUrl = PRIMARY_API_BASE_URL;
+  activeApiBaseUrl = BACKUP_API_BASE_URL;
+  scheduleRenderRecoveryCheck();
 };
 
 const markApiHostRecovered = (host: string) => {
   apiHostCooldowns.delete(host);
+
   if (host === PRIMARY_API_BASE_URL) {
     activeApiBaseUrl = PRIMARY_API_BASE_URL;
+    return;
+  }
+
+  if (host === BACKUP_API_BASE_URL) {
+    activeApiBaseUrl = BACKUP_API_BASE_URL;
     return;
   }
 
@@ -392,6 +399,36 @@ const withRetryOnCurrentHost = async <T>(
   }
 
   throw lastError;
+};
+
+const switchToBackupHostIfNeeded = (host: string, error: AxiosError) => {
+  if (host === PRIMARY_API_BASE_URL && shouldRetry(error)) {
+    markApiHostFailure(host);
+    return true;
+  }
+
+  return false;
+};
+
+const requestOnHost = async <T>(
+  host: string,
+  config: TrackedConfig,
+): Promise<AxiosResponse<T>> => {
+  try {
+    const result = await api.request<T>({ ...config, __apiBaseUrl: host } as TrackedConfig);
+    markApiHostRecovered(host);
+    return result;
+  } catch (error) {
+    const ax = error as AxiosError;
+    const hostUsed = (ax?.config as TrackedConfig | undefined)?.__apiBaseUrl ?? host;
+
+    if (hostUsed === PRIMARY_API_BASE_URL && shouldRetry(ax)) {
+      markApiHostFailure(hostUsed);
+      return requestOnHost(BACKUP_API_BASE_URL, config);
+    }
+
+    throw error;
+  }
 };
 
 /* =========================
@@ -730,22 +767,21 @@ const doRequest = async <T>(
   try {
     const host = selectApiBaseUrl(activeApiBaseUrl);
     const response = await withRetryOnCurrentHost(
-      () => api.request<T>({ ...config, __apiBaseUrl: host } as TrackedConfig),
+      async () => requestOnHost(host, config),
       retries,
       retryDelay,
       rid,
     );
 
-    markApiHostRecovered(host);
     return normalizeResponse<T>(response);
   } catch (error) {
     const ax = error as AxiosError;
     const hostUsed = (ax?.config as TrackedConfig | undefined)?.__apiBaseUrl ?? activeApiBaseUrl;
+
     if (shouldRetry(ax)) {
       markApiHostFailure(hostUsed);
     }
 
-    // Silently return a canceled envelope on abort so callers don't toast.
     if (ax?.code === "ERR_CANCELED" || (ax as any)?.name === "CanceledError") {
       return canceledResponse<T>();
     }
