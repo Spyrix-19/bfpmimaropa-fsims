@@ -88,7 +88,7 @@ const VARIANCE_GROUPS = [
     label: "Fire Code Tax & Clearances",
     categoryNos: [542, 543, 544, 545, 548, 549, 550, 551, 552, 553, 554, 555, 556],
   },
-  { code: "AF", label: "Admin Fees", categoryNos: [557] },
+  { code: "AF", label: "Admin Fine", categoryNos: [557] },
   {
     code: "OF",
     label: "Other Fees",
