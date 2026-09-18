@@ -109,12 +109,13 @@ function buildVarianceTotals(
     const year = Number(row?.reportyear) || 0;
     if (!totals[year]) continue;
 
-    const categoryNo = Number(row?.Feecateg) || 0;
+    const categoryNo = Number(row?.feecateg ?? 0) || 0;
+    const amount = Number(row?.collectionamount ?? 0) || 0;
     const group = VARIANCE_GROUPS.find((item) =>
       (item.categoryNos as readonly number[]).includes(categoryNo),
     );
     if (!group) continue;
-    totals[year][group.code] += Number(row?.Collectionamount ?? 0) || 0;
+    totals[year][group.code] += amount;
   }
 
   return totals;
@@ -465,181 +466,183 @@ export default function FireCodeFeesVarianceSection() {
       </div>
 
       {loading ? (
-        <div className="m-4 flex items-center justify-center gap-2 rounded-lg border border-border/60 p-8 text-sm text-muted-foreground">
+        <div className="m-4 flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-card p-8 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading variance comparison…
         </div>
-      ) : null}
-
-      <div className="mt-3 space-y-3 p-3 md:hidden">
-        {varianceRows.map((row) => (
-          <article
-            key={row.code}
-            className="overflow-hidden rounded-lg border border-border/60 bg-card"
-          >
-            <div className="border-b border-border/60 bg-muted/40 px-3 py-2.5 text-sm font-semibold">
-              {row.label}
-            </div>
-            <dl className="grid grid-cols-2 gap-px bg-border/60 text-xs">
-              <div className="bg-card p-3">
-                <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
-                  {periodLabel(interval, subPeriod, baseYear)}
-                </dt>
-                <dd className="mt-1 font-semibold tabular-nums">{peso(row.baseAmt)}</dd>
-              </div>
-              <div className="bg-card p-3 text-right">
-                <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
-                  {periodLabel(interval, subPeriod, compareYear)}
-                </dt>
-                <dd className="mt-1 font-semibold tabular-nums">{peso(row.compareAmt)}</dd>
-              </div>
-              <div className="bg-card p-3">
-                <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
-                  Variance
-                </dt>
-                <dd className="mt-1 tabular-nums text-muted-foreground">{peso(row.variance)}</dd>
-              </div>
-              <div className="bg-card p-3 text-right">
-                <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
-                  Positive listing
-                </dt>
-                <dd className="mt-1 tabular-nums text-muted-foreground">{peso(row.positive)}</dd>
-              </div>
-            </dl>
-            <div className="flex items-center justify-between border-t border-border/60 px-3 py-2.5 text-xs">
-              <span className="font-semibold uppercase text-muted-foreground">Performance</span>
-              <span className={cn("font-bold tabular-nums", percentClass(row.percentage))}>
-                {percentText(row.percentage)}
-              </span>
-            </div>
-          </article>
-        ))}
-        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-          <div className="mb-2 text-xs font-bold uppercase text-primary">Total</div>
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div>
-              <span className="block text-muted-foreground">{baseYear}</span>
-              <strong className="tabular-nums">{peso(totalBase)}</strong>
-            </div>
-            <div className="text-right">
-              <span className="block text-muted-foreground">{compareYear}</span>
-              <strong className="tabular-nums">{peso(totalCompare)}</strong>
-            </div>
-            <div>
-              <span className="block text-muted-foreground">Variance</span>
-              <strong className="tabular-nums">{peso(varianceOf(totalBase, totalCompare))}</strong>
-            </div>
-            <div className="text-right">
-              <span className="block text-muted-foreground">Performance</span>
-              <strong
-                className={cn("tabular-nums", percentClass(percentOf(totalBase, totalCompare)))}
+      ) : (
+        <>
+          <div className="mt-3 space-y-3 p-3 md:hidden">
+            {varianceRows.map((row) => (
+              <article
+                key={row.code}
+                className="overflow-hidden rounded-lg border border-border/60 bg-card"
               >
-                {percentText(percentOf(totalBase, totalCompare))}
-              </strong>
+                <div className="border-b border-border/60 bg-muted/40 px-3 py-2.5 text-sm font-semibold">
+                  {row.label}
+                </div>
+                <dl className="grid grid-cols-2 gap-px bg-border/60 text-xs">
+                  <div className="bg-card p-3">
+                    <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
+                      {periodLabel(interval, subPeriod, baseYear)}
+                    </dt>
+                    <dd className="mt-1 font-semibold tabular-nums">{peso(row.baseAmt)}</dd>
+                  </div>
+                  <div className="bg-card p-3 text-right">
+                    <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
+                      {periodLabel(interval, subPeriod, compareYear)}
+                    </dt>
+                    <dd className="mt-1 font-semibold tabular-nums">{peso(row.compareAmt)}</dd>
+                  </div>
+                  <div className="bg-card p-3">
+                    <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
+                      Variance
+                    </dt>
+                    <dd className="mt-1 tabular-nums text-muted-foreground">{peso(row.variance)}</dd>
+                  </div>
+                  <div className="bg-card p-3 text-right">
+                    <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
+                      Positive listing
+                    </dt>
+                    <dd className="mt-1 tabular-nums text-muted-foreground">{peso(row.positive)}</dd>
+                  </div>
+                </dl>
+                <div className="flex items-center justify-between border-t border-border/60 px-3 py-2.5 text-xs">
+                  <span className="font-semibold uppercase text-muted-foreground">Performance</span>
+                  <span className={cn("font-bold tabular-nums", percentClass(row.percentage))}>
+                    {percentText(row.percentage)}
+                  </span>
+                </div>
+              </article>
+            ))}
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <div className="mb-2 text-xs font-bold uppercase text-primary">Total</div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="block text-muted-foreground">{baseYear}</span>
+                  <strong className="tabular-nums">{peso(totalBase)}</strong>
+                </div>
+                <div className="text-right">
+                  <span className="block text-muted-foreground">{compareYear}</span>
+                  <strong className="tabular-nums">{peso(totalCompare)}</strong>
+                </div>
+                <div>
+                  <span className="block text-muted-foreground">Variance</span>
+                  <strong className="tabular-nums">{peso(varianceOf(totalBase, totalCompare))}</strong>
+                </div>
+                <div className="text-right">
+                  <span className="block text-muted-foreground">Performance</span>
+                  <strong
+                    className={cn("tabular-nums", percentClass(percentOf(totalBase, totalCompare)))}
+                  >
+                    {percentText(percentOf(totalBase, totalCompare))}
+                  </strong>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="mt-3 hidden px-3 pb-3 md:block">
-        <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] border-separate border-spacing-0 text-xs">
-              <thead className="bg-[var(--head-soft)] text-[var(--head-soft-foreground)]">
-                <tr>
-                  <th
-                    rowSpan={2}
-                    className="sticky left-0 z-30 w-52 min-w-52 border-r border-grid bg-[var(--head-soft)] px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-4"
-                  >
-                    Fire Code Fee Collection
-                  </th>
-                  <th
-                    colSpan={5}
-                    className="border-l border-grid bg-[var(--head-soft)] px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] sm:px-4"
-                  >
-                    Combination of Manual Collection and Online Collection
-                  </th>
-                </tr>
-                <tr>
-                  <th className="w-28 min-w-28 border-l border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
-                    {periodLabel(interval, subPeriod, baseYear)}
-                  </th>
-                  <th className="w-28 min-w-28 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
-                    {periodLabel(interval, subPeriod, compareYear)}
-                  </th>
-                  <th className="w-24 min-w-24 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
-                    Variance
-                  </th>
-                  <th className="w-24 min-w-24 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
-                    Positive Listing
-                  </th>
-                  <th className="w-20 min-w-20 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-24 sm:min-w-24 sm:px-3">
-                    %
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-card">
-                {varianceRows.map((row) => {
-                  const { baseAmt, compareAmt, percentage: pct } = row;
-                  return (
-                    <tr key={row.code} className="border-b border-grid transition-colors hover:bg-muted/20">
-                      <td className="sticky left-0 z-20 w-52 min-w-52 border-r border-grid bg-card px-3 py-2.5 align-middle font-medium text-foreground/90 sm:w-64 sm:min-w-64 sm:px-4">
-                        {row.label}
+          <div className="mt-3 hidden px-3 pb-3 md:block">
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[920px] border-separate border-spacing-0 text-xs">
+                  <thead className="bg-[var(--head-soft)] text-[var(--head-soft-foreground)]">
+                    <tr>
+                      <th
+                        rowSpan={2}
+                        className="sticky left-0 z-30 w-52 min-w-52 border-r border-grid bg-[var(--head-soft)] px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-4"
+                      >
+                        Fire Code Fee Collection
+                      </th>
+                      <th
+                        colSpan={5}
+                        className="border-l border-grid bg-[var(--head-soft)] px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] sm:px-4"
+                      >
+                        Combination of Manual Collection and Online Collection
+                      </th>
+                    </tr>
+                    <tr>
+                      <th className="w-28 min-w-28 border-l border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
+                        {periodLabel(interval, subPeriod, baseYear)}
+                      </th>
+                      <th className="w-28 min-w-28 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
+                        {periodLabel(interval, subPeriod, compareYear)}
+                      </th>
+                      <th className="w-24 min-w-24 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
+                        Variance
+                      </th>
+                      <th className="w-24 min-w-24 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
+                        Positive Listing
+                      </th>
+                      <th className="w-20 min-w-20 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-24 sm:min-w-24 sm:px-3">
+                        %
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-card">
+                    {varianceRows.map((row) => {
+                      const { baseAmt, compareAmt, percentage: pct } = row;
+                      return (
+                        <tr key={row.code} className="border-b border-grid transition-colors hover:bg-muted/20">
+                          <td className="sticky left-0 z-20 w-52 min-w-52 border-r border-grid bg-card px-3 py-2.5 align-middle font-medium text-foreground/90 sm:w-64 sm:min-w-64 sm:px-4">
+                            {row.label}
+                          </td>
+                          <td className={cn("border-r border-grid bg-card", valueCellClass)}>
+                            {peso(baseAmt)}
+                          </td>
+                          <td className={cn("border-r border-grid bg-card", valueCellClass)}>
+                            {peso(compareAmt)}
+                          </td>
+                          <td className="w-24 min-w-24 border-r border-grid bg-card px-2 py-2 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
+                            {peso(varianceOf(baseAmt, compareAmt))}
+                          </td>
+                          <td className="w-24 min-w-24 border-r border-grid bg-card px-2 py-2 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
+                            {peso(positiveOf(baseAmt, compareAmt))}
+                          </td>
+                          <td
+                            className={cn(
+                              "w-20 min-w-20 border-r border-grid bg-card px-2 py-2 text-right font-semibold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
+                              percentClass(pct),
+                            )}
+                          >
+                            {percentText(pct)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-[var(--total-row)] text-[var(--total-row-foreground)]">
+                      <td className="sticky left-0 z-30 w-52 min-w-52 border-r border-grid bg-[var(--total-row)] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-4">
+                        Total
                       </td>
-                      <td className={cn("border-r border-grid bg-card", valueCellClass)}>
-                        {peso(baseAmt)}
+                      <td className="w-28 min-w-28 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
+                        {peso(totalBase)}
                       </td>
-                      <td className={cn("border-r border-grid bg-card", valueCellClass)}>
-                        {peso(compareAmt)}
+                      <td className="w-28 min-w-28 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
+                        {peso(totalCompare)}
                       </td>
-                      <td className="w-24 min-w-24 border-r border-grid bg-card px-2 py-2 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
-                        {peso(varianceOf(baseAmt, compareAmt))}
+                      <td className="w-24 min-w-24 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
+                        {peso(varianceOf(totalBase, totalCompare))}
                       </td>
-                      <td className="w-24 min-w-24 border-r border-grid bg-card px-2 py-2 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
-                        {peso(positiveOf(baseAmt, compareAmt))}
+                      <td className="w-24 min-w-24 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
+                        {peso(positiveOf(totalBase, totalCompare))}
                       </td>
                       <td
                         className={cn(
-                          "w-20 min-w-20 border-r border-grid bg-card px-2 py-2 text-right font-semibold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
-                          percentClass(pct),
+                          "w-20 min-w-20 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
+                          percentClass(percentOf(totalBase, totalCompare)),
                         )}
                       >
-                        {percentText(pct)}
+                        {percentText(percentOf(totalBase, totalCompare))}
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="bg-[var(--total-row)] text-[var(--total-row-foreground)]">
-                  <td className="sticky left-0 z-30 w-52 min-w-52 border-r border-grid bg-[var(--total-row)] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-4">
-                    Total
-                  </td>
-                  <td className="w-28 min-w-28 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
-                    {peso(totalBase)}
-                  </td>
-                  <td className="w-28 min-w-28 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
-                    {peso(totalCompare)}
-                  </td>
-                  <td className="w-24 min-w-24 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
-                    {peso(varianceOf(totalBase, totalCompare))}
-                  </td>
-                  <td className="w-24 min-w-24 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
-                    {peso(positiveOf(totalBase, totalCompare))}
-                  </td>
-                  <td
-                    className={cn(
-                      "w-20 min-w-20 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
-                      percentClass(percentOf(totalBase, totalCompare)),
-                    )}
-                  >
-                    {percentText(percentOf(totalBase, totalCompare))}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </Card>
   );
 }

@@ -199,10 +199,10 @@ export interface DashboardFeeItemModel {
 
 export interface DashboardFireCodeFeeVarianceModel {
   reportyear: number;
-  Feecateg: number;
-  Feecategcode: string;
-  Feecategname: string;
-  Collectionamount: number;
+  feecateg?: number;
+  feecategcode?: string;
+  feecategname?: string;
+  collectionamount?: number;
 }
 
 export interface DashboardFCFYearToYearDTO {
