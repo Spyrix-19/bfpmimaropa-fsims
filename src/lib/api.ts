@@ -12,10 +12,25 @@ import { ApiMessages, fallbackMessageForStatus, sanitizeEnvelopeMessage } from "
 // The same-origin proxy under api/ is intentionally kept in the repo so that
 // re-enabling proxied endpoints (e.g. to hide credentials server-side) is a
 // one-line change: add the path to PROXY_ONLY_PATHS. Empty by default.
-const EXTERNAL_API_BASE_URL = (
-  (import.meta.env?.VITE_BFP_MIMAROPA_API_BASE_URL as string | undefined) ??
-  "https://bfpr4bv3-api.onrender.com"
-).replace(/\/$/, "");
+const DEFAULT_API_BASE_URLS = [
+  "https://bfpr4bv3-api.onrender.com",
+  "https://bfpr4bv3-api.up.railway.app",
+];
+
+const normalizeApiBaseUrl = (value: string) => value.trim().replace(/\/$/, "");
+
+const getApiBaseUrlCandidates = () => {
+  const raw = (import.meta.env?.VITE_BFP_MIMAROPA_API_BASE_URL as string | undefined) ?? "";
+  const candidates = raw
+    .split(/[\s,]+/)
+    .map((entry) => normalizeApiBaseUrl(entry))
+    .filter(Boolean);
+
+  return candidates.length > 0 ? [...new Set(candidates)] : [...DEFAULT_API_BASE_URLS];
+};
+
+const API_BASE_URL_CANDIDATES = getApiBaseUrlCandidates();
+const EXTERNAL_API_BASE_URL = API_BASE_URL_CANDIDATES[0];
 const PROXY_ONLY_PATHS: string[] = [];
 const API_BASE_URL = "/";
 
@@ -112,8 +127,9 @@ api.interceptors.request.use((config) => {
     const useProxy = PROXY_ONLY_PATHS.some(
       (p) => path === p || path.startsWith(`${p}/`) || path.startsWith(`${p}?`),
     );
+    const selectedBaseUrl = (config as TrackedConfig).__apiBaseUrl ?? EXTERNAL_API_BASE_URL;
     if (!useProxy) {
-      config.baseURL = EXTERNAL_API_BASE_URL;
+      config.baseURL = selectedBaseUrl;
       config.url = path;
     } else {
       config.baseURL = "/";
@@ -175,6 +191,8 @@ type TrackedConfig = AxiosRequestConfig & {
   __suppressErrorToast?: boolean;
   /** Correlates an axios error back to its live retry state. */
   __rid?: string;
+  /** Host to use for this request attempt. */
+  __apiBaseUrl?: string;
 };
 
 /** rid -> retry attempts still available. Axios clones config per attempt, so
@@ -239,6 +257,49 @@ const withRetry = async <T>(
 
       throw lastError;
     }
+  }
+
+  throw lastError;
+};
+
+const withRetryAndFallback = async <T>(
+  hosts: string[],
+  fn: (host: string) => Promise<T>,
+  retries = 2,
+  delay = 400,
+  rid?: string,
+): Promise<T> => {
+  let lastError: unknown;
+
+  for (let i = 0; i <= retries; i++) {
+    if (rid) attemptsLeftByRid.set(rid, retries - i);
+
+    for (const host of hosts) {
+      try {
+        return await fn(host);
+      } catch (err) {
+        lastError = err;
+
+        const axiosError = err as AxiosError;
+        if (!shouldRetry(axiosError)) {
+          throw err;
+        }
+
+        if (host !== hosts[hosts.length - 1]) {
+          continue;
+        }
+      }
+    }
+
+    const axiosError = lastError as AxiosError;
+    if (i < retries && shouldRetry(axiosError)) {
+      const base = isTimeoutError(axiosError) ? Math.max(delay, 1000) : delay;
+      const backoff = Math.min(base * Math.pow(2, i), MAX_RETRY_DELAY_MS);
+      await sleep(backoff + Math.random() * 250);
+      continue;
+    }
+
+    throw lastError;
   }
 
   throw lastError;
@@ -557,6 +618,7 @@ const doRequest = async <T>(
     // Read by the transport-error interceptor so exactly one place decides
     // whether a toast is shown.
     __suppressErrorToast: options?.suppressErrorToast,
+    __apiBaseUrl: EXTERNAL_API_BASE_URL,
     onUploadProgress: (ev: any) => {
       try {
         const cb = options?.progressCallback;
@@ -577,7 +639,13 @@ const doRequest = async <T>(
   const showLoading = !options?.suppressGlobalLoading;
   if (showLoading) loadingBus.start();
   try {
-    const response = await withRetry(() => api.request<T>(config), retries, retryDelay, rid);
+    const response = await withRetryAndFallback(
+      API_BASE_URL_CANDIDATES,
+      async (host) => api.request<T>({ ...config, __apiBaseUrl: host }),
+      retries,
+      retryDelay,
+      rid,
+    );
 
     return normalizeResponse<T>(response);
   } catch (error) {
