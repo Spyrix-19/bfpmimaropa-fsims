@@ -137,7 +137,7 @@ function YearMultiSelect({
         <Button
           variant="outline"
           size="sm"
-          className="h-12 w-full shrink-0 justify-between rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm font-medium text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[176px] sm:rounded-lg"
+          className="h-11 w-full shrink-0 justify-between rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm font-medium text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:w-[180px] md:rounded-md"
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="h-4 w-4 text-primary" />
@@ -364,7 +364,24 @@ export default function FireCodeFeesSection() {
     <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
       <div className="border-b border-border/60 p-3 sm:p-4">
         <div className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
+          <div
+            className="flex cursor-pointer items-start justify-between gap-3 rounded-lg transition-colors hover:bg-muted/20"
+            onClick={() => setCollapsed((v) => !v)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setCollapsed((v) => !v);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-expanded={!collapsed}
+            aria-label={
+              collapsed
+                ? "Show Fire Code Fees Yearly Collection Comparison"
+                : "Hide Fire Code Fees Yearly Collection Comparison"
+            }
+          >
             <div className="min-w-0 border-b border-border/60 pb-2.5">
               <div className="mb-1 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
@@ -381,7 +398,10 @@ export default function FireCodeFeesSection() {
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setCollapsed((v) => !v)}
+              onClick={(event) => {
+                event.stopPropagation();
+                setCollapsed((v) => !v);
+              }}
               className="h-8 w-8 shrink-0 rounded-md border border-border/60 bg-background/60 p-0 text-muted-foreground hover:bg-accent"
               aria-label={
                 collapsed
@@ -403,7 +423,7 @@ export default function FireCodeFeesSection() {
                 </AlertDescription>
               </Alert>
 
-              <div className="rounded-2xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-xl sm:bg-muted/20 sm:p-2">
+              <div className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:bg-muted/20 md:p-2">
                 <div className="grid w-full grid-cols-1 gap-2 md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
                   <YearMultiSelect value={years} onChange={setYears} />
 
@@ -412,7 +432,7 @@ export default function FireCodeFeesSection() {
                     loading={feeTypesLoading}
                     value={feeTypes}
                     onChange={setFeeTypes}
-                    className="h-12 w-full min-w-[180px] rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[220px] sm:rounded-lg"
+                    className="h-11 w-full rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                   />
 
                   {scope.provinceLocked ? (
@@ -420,7 +440,7 @@ export default function FireCodeFeesSection() {
                       value={scope.provincename}
                       placeholder="All provinces"
                       title="Restricted to your assigned province"
-                      className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
+                      className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                     />
                   ) : (
                     <LocationMultiSelect
@@ -431,7 +451,7 @@ export default function FireCodeFeesSection() {
                       onChange={handleProvincesChange}
                       placeholder="All provinces"
                       hideCode
-                      className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
+                      className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                     />
                   )}
 
@@ -440,7 +460,7 @@ export default function FireCodeFeesSection() {
                       value={scope.stationname}
                       placeholder="All stations"
                       title="Restricted to your assigned station"
-                      className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
+                      className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                     />
                   ) : (
                     <StationMultiSelect
@@ -451,7 +471,7 @@ export default function FireCodeFeesSection() {
                       onChange={handleStationsChange}
                       placeholder="All stations"
                       alwaysEnabled
-                      className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
+                      className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                     />
                   )}
                 </div>
@@ -470,163 +490,124 @@ export default function FireCodeFeesSection() {
       {!collapsed && !loading ? (
         <>
           <div className="hidden p-3 md:block">
-            <div className="overflow-x-auto rounded-xl border border-border/60 md:overflow-hidden">
-              <table className="w-full table-fixed border-separate border-spacing-0 text-[10px] sm:text-[11px]">
-                <colgroup>
-                  <col className="w-[38%]" />
-                  {DASHBOARD_FEE_SECTORS.map((s) => (
-                    <React.Fragment key={`${s.key}-colgroup`}>
-                      {sortedYears.map((y) => (
-                        <col key={`${s.key}-${y}-col`} className="w-[12%]" />
-                      ))}
-                    </React.Fragment>
-                  ))}
-                  <col className="w-[14%]" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th
-                      rowSpan={2}
-                      className="head-soft sticky left-0 z-30 px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
-                    >
-                      Fee Category
-                    </th>
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[780px] table-fixed border-separate border-spacing-0 text-[10px] sm:text-[11px]">
+                  <colgroup>
+                    <col className="w-[34%]" />
                     {DASHBOARD_FEE_SECTORS.map((s) => (
-                      <th
-                        key={s.key}
-                        colSpan={sortedYears.length}
-                        className="head-soft border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
-                      >
-                        {s.label}
-                      </th>
-                    ))}
-                    <th
-                      rowSpan={2}
-                      className="head-soft border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5"
-                    >
-                      Total
-                    </th>
-                  </tr>
-                  <tr>
-                    {DASHBOARD_FEE_SECTORS.map((s) => (
-                      <React.Fragment key={`${s.key}-years`}>
-                        {sortedYears.map((y, yi) => (
-                          <th
-                            key={`${s.key}-${y}`}
-                            className={cn(
-                              "head-soft px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:px-2.5",
-                              yearColClass,
-                              yi === 0 && "border-l border-grid",
-                            )}
-                          >
-                            {y}
-                          </th>
+                      <React.Fragment key={`${s.key}-colgroup`}>
+                        {sortedYears.map((y) => (
+                          <col key={`${s.key}-${y}-col`} className="w-[12%]" />
                         ))}
                       </React.Fragment>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {groups.map((g) => (
-                    <React.Fragment key={g.parentno || g.code || g.name}>
-                      <tr className="bg-primary/5">
-                        <td className="sticky left-0 z-20 bg-card px-2 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']">
-                          <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
-                            {g.code || g.name}
-                          </span>
-                          {g.items.length > 1 && g.name && g.name !== g.code ? (
-                            <span className="relative ml-1.5 text-[10px] font-normal normal-case text-muted-foreground">
-                              {g.name}
-                            </span>
-                          ) : null}
-                        </td>
-                        {DASHBOARD_FEE_SECTORS.map((s) => (
-                          <td
-                            key={`${s.key}-g`}
-                            colSpan={sortedYears.length}
-                            className="border-l border-grid px-3 py-1.5"
-                          />
-                        ))}
-                        <td className="border-l border-grid px-3 py-1.5" />
-                      </tr>
-                      {g.items.map((c) => {
-                        const rowTotal = sortedYears.reduce((yearAcc, y) => {
-                          const v = valuesOf(y);
-                          if (!v) return yearAcc;
-                          return (
-                            yearAcc +
-                            DASHBOARD_FEE_SECTORS.reduce(
-                              (a, s) => a + categoryTotal(v, s.key, c.detno),
-                              0,
-                            )
-                          );
-                        }, 0);
-                        return (
-                          <tr key={c.key} className="border-t border-grid">
-                            <td className="sticky left-0 z-20 border-t border-grid bg-card px-2 py-1 align-middle text-foreground/90 sm:px-2.5">
-                              {c.label}
-                            </td>
-                            {DASHBOARD_FEE_SECTORS.map((s) => (
-                              <React.Fragment key={`${s.key}-${c.key}`}>
-                                {sortedYears.map((y, yi) => {
-                                  const v = valuesOf(y);
-                                  const amount = v ? categoryTotal(v, s.key, c.detno) : 0;
-                                  return (
-                                    <td
-                                      key={`${s.key}-${c.key}-${y}`}
-                                      className={cn(
-                                        "border-t border-grid px-2 py-1 text-right tabular-nums sm:px-2.5",
-                                        yearColClass,
-                                        yi === 0 && "border-l",
-                                        !amount && "text-muted-foreground",
-                                      )}
-                                    >
-                                      {peso(amount)}
-                                    </td>
-                                  );
-                                })}
-                              </React.Fragment>
-                            ))}
-                            <td className="border-l border-t border-grid px-2 py-1 text-right font-semibold tabular-nums sm:px-2.5">
-                              {peso(rowTotal)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-grid bg-muted/60">
-                    <td className="sticky left-0 z-30 bg-muted px-2 py-2 text-[10px] font-bold uppercase tracking-wider sm:px-2.5">
-                      TOTAL
-                    </td>
-                    {DASHBOARD_FEE_SECTORS.map((s) => (
-                      <React.Fragment key={`${s.key}-total`}>
-                        {sortedYears.map((y, yi) => {
-                          const v = valuesOf(y);
-                          const total = v ? sectorGrand(v, s.key) : 0;
-                          return (
-                            <td
-                              key={`${s.key}-${y}-total`}
+                  </colgroup>
+                  <thead className="bg-[var(--head-soft)] text-[var(--head-soft-foreground)]">
+                    <tr>
+                      <th
+                        rowSpan={2}
+                        className="sticky left-0 z-30 border-r border-grid bg-[var(--head-soft)] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--head-soft-foreground)] sm:px-2.5"
+                      >
+                        Fee Category
+                      </th>
+                      {DASHBOARD_FEE_SECTORS.map((s) => (
+                        <th
+                          key={s.key}
+                          colSpan={sortedYears.length}
+                          className="border-l border-grid bg-[var(--head-soft)] px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--head-soft-foreground)] sm:px-2.5"
+                        >
+                          {s.label}
+                        </th>
+                      ))}
+                    </tr>
+                    <tr>
+                      {DASHBOARD_FEE_SECTORS.map((s) => (
+                        <React.Fragment key={`${s.key}-years`}>
+                          {sortedYears.map((y, yi) => (
+                            <th
+                              key={`${s.key}-${y}`}
                               className={cn(
-                                "px-2 py-2 text-right font-bold tabular-nums sm:px-2.5",
+                                "border-l border-grid bg-[var(--head-soft)] px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[var(--head-soft-foreground)] sm:px-2.5",
                                 yearColClass,
                                 yi === 0 && "border-l border-grid",
                               )}
                             >
-                              {peso(total)}
-                            </td>
+                              {y}
+                            </th>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-card">
+                    {groups.map((g) => (
+                      <React.Fragment key={g.parentno || g.code || g.name}>
+                        <tr className="group-row">
+                          <td className="sticky left-0 z-20 border-r border-grid bg-transparent px-2 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-transparent before:content-['']">
+                            <span className="relative text-[10px] font-bold uppercase tracking-wider">
+                              {g.code || g.name}
+                            </span>
+                            {g.items.length > 1 && g.name && g.name !== g.code ? (
+                              <span className="relative ml-1.5 text-[10px] font-normal normal-case text-muted-foreground">
+                                {g.name}
+                              </span>
+                            ) : null}
+                          </td>
+                          {DASHBOARD_FEE_SECTORS.map((s) => (
+                            <td
+                              key={`${s.key}-g`}
+                              colSpan={sortedYears.length}
+                              className="border-l border-grid px-3 py-1.5"
+                            />
+                          ))}
+                        </tr>
+                        {g.items.map((c) => {
+                          const rowTotal = sortedYears.reduce((yearAcc, y) => {
+                            const v = valuesOf(y);
+                            if (!v) return yearAcc;
+                            return (
+                              yearAcc +
+                              DASHBOARD_FEE_SECTORS.reduce(
+                                (a, s) => a + categoryTotal(v, s.key, c.detno),
+                                0,
+                              )
+                            );
+                          }, 0);
+                          return (
+                            <tr key={c.key} className="border-b border-grid transition-colors hover:bg-muted/20">
+                              <td className="sticky left-0 z-20 border-r border-grid bg-card px-2 py-2 align-middle text-foreground/90 sm:px-2.5">
+                                {c.label}
+                              </td>
+                              {DASHBOARD_FEE_SECTORS.map((s) => (
+                                <React.Fragment key={`${s.key}-${c.key}`}>
+                                  {sortedYears.map((y, yi) => {
+                                    const v = valuesOf(y);
+                                    const amount = v ? categoryTotal(v, s.key, c.detno) : 0;
+                                    return (
+                                      <td
+                                        key={`${s.key}-${c.key}-${y}`}
+                                        className={cn(
+                                          "border-l border-grid bg-card px-2 py-2 text-right tabular-nums sm:px-2.5",
+                                          yearColClass,
+                                          yi === 0 && "border-l border-grid",
+                                          !amount && "text-muted-foreground",
+                                        )}
+                                      >
+                                        {peso(amount)}
+                                      </td>
+                                    );
+                                  })}
+                                </React.Fragment>
+                              ))}
+                            </tr>
                           );
                         })}
                       </React.Fragment>
                     ))}
-                    <td className="border-l border-grid px-2 py-2 text-right font-bold tabular-nums text-primary sm:px-2.5">
-                      {peso(sortedYears.reduce((a, y) => a + yearTotal(y), 0))}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -650,12 +631,6 @@ export default function FireCodeFeesSection() {
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between border-t border-border/60 px-3 py-2.5 text-xs">
-                  <span className="font-semibold uppercase text-muted-foreground">Collection</span>
-                  <span className="font-bold tabular-nums text-foreground">
-                    {peso(row.collectionTotal)}
-                  </span>
-                </div>
               </article>
             ))}
           </div>

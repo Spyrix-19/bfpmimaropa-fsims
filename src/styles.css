@@ -239,9 +239,9 @@
   --row-selected: oklch(0.92 0.05 248);
   --group-row: oklch(0.91 0.025 246);
   --group-row-foreground: oklch(0.24 0.05 250);
-  --total-row: oklch(0.95 0.055 90);
-  --total-row-foreground: oklch(0.3 0.06 80);
-  --total-row-strong: oklch(0.9 0.09 88);
+  --total-row: oklch(0.94 0.035 86);
+  --total-row-foreground: oklch(0.3 0.06 78);
+  --total-row-strong: oklch(0.89 0.055 84);
 
   /* Category tones for compliance matrices (Inspection / FSEC / FSIC / Notices) */
   --tone-info: var(--info);

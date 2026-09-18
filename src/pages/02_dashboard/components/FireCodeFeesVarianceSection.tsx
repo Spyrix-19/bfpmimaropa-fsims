@@ -163,7 +163,7 @@ function TwoYearSelect({
         <Button
           variant="outline"
           size="sm"
-          className="h-12 w-full shrink-0 justify-between rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm font-medium text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[176px] sm:rounded-lg"
+          className="h-11 w-full shrink-0 justify-between rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm font-medium text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:w-[180px] md:rounded-md"
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="h-4 w-4 text-primary" />
@@ -388,12 +388,12 @@ export default function FireCodeFeesVarianceSection() {
             </AlertDescription>
           </Alert>
 
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-xl sm:bg-muted/20 sm:p-2">
+          <div className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:bg-muted/20 md:p-2">
             <div className="grid w-full grid-cols-1 gap-2 md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
               <TwoYearSelect value={years} onChange={setYears} />
 
               <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
-                <SelectTrigger className="h-12 w-full min-w-[150px] shrink-0 rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[150px] sm:rounded-lg">
+                <SelectTrigger className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[140px] md:w-[150px] md:rounded-md">
                   <SelectValue placeholder="Period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -407,7 +407,7 @@ export default function FireCodeFeesVarianceSection() {
 
               {interval !== "ANNUAL" && (
                 <Select value={subPeriod} onValueChange={setSubPeriod}>
-                  <SelectTrigger className="h-12 w-full min-w-[160px] shrink-0 rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[160px] sm:rounded-lg">
+                  <SelectTrigger className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[150px] md:w-[160px] md:rounded-md">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
@@ -425,7 +425,7 @@ export default function FireCodeFeesVarianceSection() {
                   value={scope.provincename}
                   placeholder="All provinces"
                   title="Restricted to your assigned province"
-                  className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
+                  className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                 />
               ) : (
                 <LocationMultiSelect
@@ -436,7 +436,7 @@ export default function FireCodeFeesVarianceSection() {
                   onChange={handleProvincesChange}
                   placeholder="All provinces"
                   hideCode
-                  className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
+                  className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                 />
               )}
 
@@ -445,7 +445,7 @@ export default function FireCodeFeesVarianceSection() {
                   value={scope.stationname}
                   placeholder="All stations"
                   title="Restricted to your assigned station"
-                  className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
+                  className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                 />
               ) : (
                 <StationMultiSelect
@@ -456,7 +456,7 @@ export default function FireCodeFeesVarianceSection() {
                   onChange={handleStationsChange}
                   placeholder="All stations"
                   alwaysEnabled
-                  className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
+                  className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
                 />
               )}
             </div>
@@ -540,101 +540,105 @@ export default function FireCodeFeesVarianceSection() {
         </div>
       </div>
 
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[920px] border-separate border-spacing-0 text-xs">
-          <thead>
-            <tr>
-              <th
-                rowSpan={2}
-                className="head-soft sticky left-0 z-30 w-52 min-w-52 px-2 py-2 text-center align-middle text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-3"
-              >
-                Fire Code Fee Collection
-              </th>
-              <th
-                colSpan={5}
-                className="head-soft border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
-              >
-                Combination of Manual Collection and Online Collection
-              </th>
-            </tr>
-            <tr>
-              <th className="head-soft w-28 min-w-28 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
-                {periodLabel(interval, subPeriod, baseYear)}
-              </th>
-              <th className="head-soft w-28 min-w-28 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
-                {periodLabel(interval, subPeriod, compareYear)}
-              </th>
-              <th className="head-soft w-24 min-w-24 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
-                Variance
-              </th>
-              <th className="head-soft w-24 min-w-24 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
-                Positive Listing
-              </th>
-              <th className="head-soft w-20 min-w-20 border-l border-grid px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider sm:w-24 sm:min-w-24 sm:px-3">
-                %
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {varianceRows.map((row) => {
-              const { baseAmt, compareAmt, percentage: pct } = row;
-              return (
-                <tr key={row.code} className="border-t border-grid">
-                  <td className="sticky left-0 z-20 w-52 min-w-52 border-t border-grid bg-card px-3 py-2.5 align-middle font-medium text-foreground/90 sm:w-64 sm:min-w-64 sm:px-4">
-                    {row.label}
+      <div className="hidden px-3 pb-3 md:block">
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[920px] border-separate border-spacing-0 text-xs">
+              <thead className="bg-[var(--head-soft)] text-[var(--head-soft-foreground)]">
+                <tr>
+                  <th
+                    rowSpan={2}
+                    className="sticky left-0 z-30 w-52 min-w-52 border-r border-grid bg-[var(--head-soft)] px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-4"
+                  >
+                    Fire Code Fee Collection
+                  </th>
+                  <th
+                    colSpan={5}
+                    className="border-l border-grid bg-[var(--head-soft)] px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] sm:px-4"
+                  >
+                    Combination of Manual Collection and Online Collection
+                  </th>
+                </tr>
+                <tr>
+                  <th className="w-28 min-w-28 border-l border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
+                    {periodLabel(interval, subPeriod, baseYear)}
+                  </th>
+                  <th className="w-28 min-w-28 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-40 sm:min-w-40 sm:px-3">
+                    {periodLabel(interval, subPeriod, compareYear)}
+                  </th>
+                  <th className="w-24 min-w-24 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
+                    Variance
+                  </th>
+                  <th className="w-24 min-w-24 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-32 sm:min-w-32 sm:px-3">
+                    Positive Listing
+                  </th>
+                  <th className="w-20 min-w-20 border-r border-grid bg-[var(--head-soft)] px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider sm:w-24 sm:min-w-24 sm:px-3">
+                    %
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-card">
+                {varianceRows.map((row) => {
+                  const { baseAmt, compareAmt, percentage: pct } = row;
+                  return (
+                    <tr key={row.code} className="border-b border-grid transition-colors hover:bg-muted/20">
+                      <td className="sticky left-0 z-20 w-52 min-w-52 border-r border-grid bg-card px-3 py-2.5 align-middle font-medium text-foreground/90 sm:w-64 sm:min-w-64 sm:px-4">
+                        {row.label}
+                      </td>
+                      <td className={cn("border-r border-grid bg-card", valueCellClass)}>
+                        {peso(baseAmt)}
+                      </td>
+                      <td className={cn("border-r border-grid bg-card", valueCellClass)}>
+                        {peso(compareAmt)}
+                      </td>
+                      <td className="w-24 min-w-24 border-r border-grid bg-card px-2 py-2 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
+                        {peso(varianceOf(baseAmt, compareAmt))}
+                      </td>
+                      <td className="w-24 min-w-24 border-r border-grid bg-card px-2 py-2 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
+                        {peso(positiveOf(baseAmt, compareAmt))}
+                      </td>
+                      <td
+                        className={cn(
+                          "w-20 min-w-20 border-r border-grid bg-card px-2 py-2 text-right font-semibold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
+                          percentClass(pct),
+                        )}
+                      >
+                        {percentText(pct)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="bg-[var(--total-row)] text-[var(--total-row-foreground)]">
+                  <td className="sticky left-0 z-30 w-52 min-w-52 border-r border-grid bg-[var(--total-row)] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-4">
+                    Total
                   </td>
-                  <td className={cn("border-l border-t border-grid", valueCellClass)}>
-                    {peso(baseAmt)}
+                  <td className="w-28 min-w-28 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
+                    {peso(totalBase)}
                   </td>
-                  <td className={cn("border-l border-t border-grid", valueCellClass)}>
-                    {peso(compareAmt)}
+                  <td className="w-28 min-w-28 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
+                    {peso(totalCompare)}
                   </td>
-                  <td className="w-24 min-w-24 border-l border-t border-grid px-2 py-1.5 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
-                    {peso(varianceOf(baseAmt, compareAmt))}
+                  <td className="w-24 min-w-24 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
+                    {peso(varianceOf(totalBase, totalCompare))}
                   </td>
-                  <td className="w-24 min-w-24 border-l border-t border-grid px-2 py-1.5 text-right tabular-nums text-muted-foreground sm:w-32 sm:min-w-32 sm:px-3">
-                    {peso(positiveOf(baseAmt, compareAmt))}
+                  <td className="w-24 min-w-24 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
+                    {peso(positiveOf(totalBase, totalCompare))}
                   </td>
                   <td
                     className={cn(
-                      "w-20 min-w-20 border-l border-t border-grid px-2 py-1.5 text-right font-semibold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
-                      percentClass(pct),
+                      "w-20 min-w-20 border-r border-grid bg-[var(--total-row)] px-2 py-2.5 text-right font-bold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
+                      percentClass(percentOf(totalBase, totalCompare)),
                     )}
                   >
-                    {percentText(pct)}
+                    {percentText(percentOf(totalBase, totalCompare))}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-grid bg-muted/60">
-              <td className="sticky left-0 z-30 w-52 min-w-52 bg-muted px-2 py-2 text-[10px] font-bold uppercase tracking-wider sm:w-64 sm:min-w-64 sm:px-3">
-                Total
-              </td>
-              <td className="w-28 min-w-28 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
-                {peso(totalBase)}
-              </td>
-              <td className="w-28 min-w-28 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-40 sm:min-w-40 sm:px-3">
-                {peso(totalCompare)}
-              </td>
-              <td className="w-24 min-w-24 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
-                {peso(varianceOf(totalBase, totalCompare))}
-              </td>
-              <td className="w-24 min-w-24 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-32 sm:min-w-32 sm:px-3">
-                {peso(positiveOf(totalBase, totalCompare))}
-              </td>
-              <td
-                className={cn(
-                  "w-20 min-w-20 border-l border-grid px-2 py-2 text-right font-bold tabular-nums sm:w-24 sm:min-w-24 sm:px-3",
-                  percentClass(percentOf(totalBase, totalCompare)),
-                )}
-              >
-                {percentText(percentOf(totalBase, totalCompare))}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+              </tfoot>
+            </table>
+          </div>
+        </div>
       </div>
     </Card>
   );
