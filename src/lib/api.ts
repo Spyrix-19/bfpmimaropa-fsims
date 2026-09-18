@@ -766,8 +766,8 @@ const doRequest = async <T>(
   if (showLoading) loadingBus.start();
   try {
     const host = selectApiBaseUrl(activeApiBaseUrl);
-    const response = await withRetryOnCurrentHost(
-      async () => requestOnHost(host, config),
+    const response = await withRetryOnCurrentHost<AxiosResponse<T>>(
+      async () => requestOnHost<T>(host, config),
       retries,
       retryDelay,
       rid,
