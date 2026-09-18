@@ -1,7 +1,6 @@
 import * as React from "react";
-import { ChevronDown, ChevronUp, Coins, Construction, Filter, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Coins, Filter, Loader2 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -475,14 +474,6 @@ export default function FireCodeFeesSection() {
 
           {!collapsed && (
             <>
-              <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100">
-                <Construction className="h-4 w-4" />
-                <AlertTitle className="font-semibold">Note</AlertTitle>
-                <AlertDescription>
-                  This feature is under development. The matrix output may still change.
-                </AlertDescription>
-              </Alert>
-
               {/* Desktop: inline filters (unchanged on large screens) */}
               <div className="hidden rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:block md:bg-muted/20 md:p-2">
                 <div className="flex w-full flex-wrap items-center justify-end gap-2">
