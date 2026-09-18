@@ -388,12 +388,12 @@ export default function FireCodeFeesVarianceSection() {
             </AlertDescription>
           </Alert>
 
-          <div className="rounded-2xl border border-border/70 bg-slate-900/20 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-xl sm:bg-muted/20 sm:p-2">
-            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[176px_150px_160px_minmax(200px,1fr)_minmax(200px,1fr)]">
+          <div className="rounded-2xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-xl sm:bg-muted/20 sm:p-2">
+            <div className="grid w-full grid-cols-1 gap-2 md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
               <TwoYearSelect value={years} onChange={setYears} />
 
               <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
-                <SelectTrigger className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[150px] sm:rounded-lg">
+                <SelectTrigger className="h-12 w-full min-w-[150px] shrink-0 rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[150px] sm:rounded-lg">
                   <SelectValue placeholder="Period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -407,7 +407,7 @@ export default function FireCodeFeesVarianceSection() {
 
               {interval !== "ANNUAL" && (
                 <Select value={subPeriod} onValueChange={setSubPeriod}>
-                  <SelectTrigger className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[160px] sm:rounded-lg">
+                  <SelectTrigger className="h-12 w-full min-w-[160px] shrink-0 rounded-xl border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-10 sm:w-[160px] sm:rounded-lg">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
@@ -425,7 +425,7 @@ export default function FireCodeFeesVarianceSection() {
                   value={scope.provincename}
                   placeholder="All provinces"
                   title="Restricted to your assigned province"
-                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
+                  className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
                 />
               ) : (
                 <LocationMultiSelect
@@ -436,7 +436,7 @@ export default function FireCodeFeesVarianceSection() {
                   onChange={handleProvincesChange}
                   placeholder="All provinces"
                   hideCode
-                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
+                  className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
                 />
               )}
 
@@ -445,7 +445,7 @@ export default function FireCodeFeesVarianceSection() {
                   value={scope.stationname}
                   placeholder="All stations"
                   title="Restricted to your assigned station"
-                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
+                  className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
                 />
               ) : (
                 <StationMultiSelect
@@ -456,7 +456,7 @@ export default function FireCodeFeesVarianceSection() {
                   onChange={handleStationsChange}
                   placeholder="All stations"
                   alwaysEnabled
-                  className="h-12 w-full shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[240px] sm:rounded-lg"
+                  className="h-12 w-full min-w-[200px] shrink-0 rounded-xl border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-10 sm:w-[220px] sm:rounded-lg"
                 />
               )}
             </div>
