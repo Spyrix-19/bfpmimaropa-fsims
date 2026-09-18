@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { StickyPageTop } from "@/components/shared/StickyPageTop";
 
@@ -29,23 +29,31 @@ function DashboardBodyFallback() {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const titleRef = useRef<HTMLDivElement>(null);
+  const titleObserverRef = useRef<ResizeObserver | null>(null);
 
-  useEffect(() => {
-    const title = titleRef.current;
-    if (!title) return;
-
+  // The title element remounts when Suspense swaps the loading fallback for
+  // the dashboard body, so measure via a callback ref: a one-shot effect
+  // keeps observing the detached fallback node and reports height 0, which
+  // parks the sticky filter behind the title band.
+  const attachTitle = useCallback((node: HTMLDivElement | null) => {
+    titleObserverRef.current?.disconnect();
+    titleObserverRef.current = null;
+    if (!node) return;
     const updateTitleHeight = () => {
       document.documentElement.style.setProperty(
         "--dashboard-title-h",
-        `${Math.ceil(title.getBoundingClientRect().height)}px`,
+        `${Math.ceil(node.getBoundingClientRect().height)}px`,
       );
     };
     updateTitleHeight();
     const observer = new ResizeObserver(updateTitleHeight);
-    observer.observe(title);
+    observer.observe(node);
+    titleObserverRef.current = observer;
+  }, []);
+
+  useEffect(() => {
     return () => {
-      observer.disconnect();
+      titleObserverRef.current?.disconnect();
       document.documentElement.style.removeProperty("--dashboard-title-h");
     };
   }, []);
@@ -58,7 +66,7 @@ export default function Dashboard() {
     : "Fire Safety Inspection Monitoring";
 
   const stickyTitle = (
-    <StickyPageTop ref={titleRef} className="space-y-0">
+    <StickyPageTop ref={attachTitle} className="space-y-0">
       <div>
         <div className="mb-1 flex items-center gap-2">
           <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-success" />

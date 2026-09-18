@@ -1512,6 +1512,23 @@ export function DashboardBody({
     [user, systemAccess?.roleno],
   );
   const currentYear = new Date().getFullYear();
+  // Release the sticky dashboard filter as soon as "Target vs Actual by
+  // Province" scrolls into view, instead of waiting for it to reach the very
+  // top. An IntersectionObserver on the province chart section toggles the
+  // filter between sticky (pinned) and relative (scrolls away) so the chart
+  // gets the full viewport height.
+  const targetVsActualSectionRef = useRef<HTMLDivElement>(null);
+  const [filterReleased, setFilterReleased] = useState(false);
+  useEffect(() => {
+    const el = targetVsActualSectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setFilterReleased(entry.isIntersecting),
+      { rootMargin: "0px 0px -90% 0px", threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const { compliance } = useComplianceSummary();
   const { gapRows, loading: gapLoading } = useIssuanceGap();
   const { rows: inspectionRows, loading: inspectionLoading } = useInspectionSummary();
@@ -1739,8 +1756,14 @@ export function DashboardBody({
 
       <div className="space-y-6">
         <div
-          className="sticky z-40 -mx-4 border-b border-border/60 bg-background px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 sm:pb-4 sm:pt-4"
-          style={{ top: "calc(var(--app-header-h, 3.5rem) + var(--dashboard-title-h, 7rem))" }}
+          className={`-mx-4 border-b border-border/60 bg-background px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 sm:pb-4 sm:pt-4 ${
+            filterReleased ? "relative" : "sticky z-40"
+          }`}
+          style={
+            filterReleased
+              ? undefined
+              : { top: "calc(var(--app-header-h, 3.5rem) + var(--dashboard-title-h, 7rem))" }
+          }
         >
           {stickyFilter}
         </div>
@@ -1824,12 +1847,10 @@ export function DashboardBody({
           <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
         </div>
         </div>
-
-        {/* The sticky dashboard controls release at the end of this wrapper. */}
       </div>
 
       {/* Supplementary row: Target vs Actual by Province */}
-      <div className="grid grid-cols-1 gap-6">
+      <div ref={targetVsActualSectionRef} className="grid grid-cols-1 gap-6">
         <ChartCard
           title="Target vs Actual by Province"
           subtitle="Provincial accomplishment"
