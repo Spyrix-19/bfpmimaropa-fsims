@@ -14,6 +14,7 @@ import {
   DashboardFeeCollectionModel,
   DashboardFCFYearToYearDTO,
   DashboardFireCodeFeeVarianceModel,
+  DashboardYearToYearFCFDTO,
 } from "@/types/dashboardType";
 
 export const dashboardAPI = {
@@ -121,7 +122,7 @@ export const dashboardAPI = {
 
 
   async getYearlyFireCodeFees(
-    body: DashboardYearToYearDTO,
+    body: DashboardYearToYearFCFDTO  ,
     options?: import("@/lib/api").ApiOptions,
   ) {
     return await apiPost<DashboardFeeCollectionModel[]>(

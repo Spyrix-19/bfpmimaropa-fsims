@@ -16,7 +16,6 @@ export interface DashboardDTO {
 
 export interface DashboardYearToYearDTO {
   reportyear: number[];
-  Feecateg?: number[];
   Provinces: DashboardClass[];
 }
 
@@ -179,6 +178,11 @@ export interface StationMonthlyPerformanceClass {
 
 
 
+export interface DashboardYearToYearFCFDTO  {
+  reportyear: number[];
+  feeparentno: number[];
+  provinces: DashboardClass[];
+}
 
 export interface DashboardFeeCollectionModel {
   reportyear: number;
@@ -207,8 +211,7 @@ export interface DashboardFireCodeFeeVarianceModel {
 
 export interface DashboardFCFYearToYearDTO {
   reportyear: number[];
+  reportmonth: number[];
   interval: number; // 3 = Monthly, 4 = Quarterly, 5 = Semester, 6 = Annual
-  startdate: string;
-  enddate: string;
   provinces: DashboardClass[];
 }

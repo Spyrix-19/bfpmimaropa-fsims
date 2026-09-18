@@ -27,7 +27,8 @@ import {
 } from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import type { DashboardFireCodeFeeVarianceModel } from "@/types/dashboardType";
-import { resolveDateRange } from "@/lib/filters";
+import { resolveReportMonths, INTERVAL_CODE } from "@/lib/filters";
+import type { DashInterval } from "@/lib/filters";
 
 import { peso } from "./fees/feeColumns";
 
@@ -35,7 +36,7 @@ import { peso } from "./fees/feeColumns";
 /*  Period filters                                                             */
 /* -------------------------------------------------------------------------- */
 
-type Interval = "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL";
+type Interval = Extract<DashInterval, "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL">;
 
 const INTERVALS: { value: Interval; label: string }[] = [
   { value: "MONTHLY", label: "Monthly" },
@@ -297,18 +298,18 @@ export default function FireCodeFeesVarianceSection() {
     (async () => {
       setLoading(true);
       const yearList = sortedYears.filter(Boolean);
-      const range = resolveDateRange(compareYear ?? yearList[0] ?? new Date().getFullYear(), interval, subPeriod);
-      try {
-        const resp = await dashboardAPI.getYearlyFireCodeVariance(
-          {
-            reportyear: yearList,
-            interval: range.interval,
-            startdate: range.startdate,
-            enddate: range.enddate,
-            provinces: provincesPayload,
-          },
-          { suppressGlobalLoading: true, suppressErrorToast: true },
-        );
+        const months = resolveReportMonths(interval as DashInterval, subPeriod);
+        const intervalCode = INTERVAL_CODE[interval] ?? 6;
+        try {
+          const resp = await dashboardAPI.getYearlyFireCodeVariance(
+            {
+              reportyear: yearList,
+              reportmonth: months,
+              interval: intervalCode,
+              provinces: provincesPayload,
+            },
+            { suppressGlobalLoading: true, suppressErrorToast: true },
+          );
         const { ok, data: payload } = unwrap<DashboardFireCodeFeeVarianceModel[]>(resp);
 
         if (cancelled) return;
