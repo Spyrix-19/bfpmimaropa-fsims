@@ -30,13 +30,19 @@ const getApiBaseUrlCandidates = () => {
 };
 
 const API_BASE_URL_CANDIDATES = getApiBaseUrlCandidates();
-const EXTERNAL_API_BASE_URL = API_BASE_URL_CANDIDATES[0];
+const PRIMARY_API_BASE_URL = API_BASE_URL_CANDIDATES[0] ?? "https://bfpr4bv3-api.onrender.com";
+const BACKUP_API_BASE_URL =
+  API_BASE_URL_CANDIDATES.find((candidate) => candidate !== PRIMARY_API_BASE_URL) ??
+  PRIMARY_API_BASE_URL;
+const EXTERNAL_API_BASE_URL = PRIMARY_API_BASE_URL;
 const HOST_SWITCH_COOLDOWN_MS = 60_000;
-let activeApiBaseUrl = EXTERNAL_API_BASE_URL;
+const RENDER_HEALTH_CHECK_INTERVAL_MS = 30_000;
+let activeApiBaseUrl = PRIMARY_API_BASE_URL;
+let renderProbeTimer: ReturnType<typeof setTimeout> | null = null;
 const apiHostCooldowns = new Map<string, number>();
 
 const getNextFallbackHost = (host: string) =>
-  API_BASE_URL_CANDIDATES.find((candidate) => candidate !== host) ?? host;
+  host === PRIMARY_API_BASE_URL ? BACKUP_API_BASE_URL : PRIMARY_API_BASE_URL;
 
 const isHostCoolingDown = (host: string) => {
   const coolUntil = apiHostCooldowns.get(host) ?? 0;
@@ -45,7 +51,14 @@ const isHostCoolingDown = (host: string) => {
 
 const selectApiBaseUrl = (preferredHost?: string) => {
   const host = preferredHost ?? activeApiBaseUrl;
-  if (host && !isHostCoolingDown(host)) return host;
+
+  if (host === PRIMARY_API_BASE_URL && !isHostCoolingDown(PRIMARY_API_BASE_URL)) {
+    return PRIMARY_API_BASE_URL;
+  }
+
+  if (host === BACKUP_API_BASE_URL && !isHostCoolingDown(BACKUP_API_BASE_URL)) {
+    return BACKUP_API_BASE_URL;
+  }
 
   const fallback = getNextFallbackHost(host);
   if (fallback && fallback !== host) {
@@ -56,20 +69,66 @@ const selectApiBaseUrl = (preferredHost?: string) => {
   return host;
 };
 
+const probeHostAvailability = async (host: string) => {
+  try {
+    const response = await axios.get(host, {
+      timeout: 7000,
+      validateStatus: () => true,
+    });
+    return response.status >= 200 && response.status < 500;
+  } catch {
+    return false;
+  }
+};
+
+const scheduleRenderRecoveryCheck = () => {
+  if (activeApiBaseUrl !== BACKUP_API_BASE_URL) {
+    if (renderProbeTimer) {
+      clearTimeout(renderProbeTimer);
+      renderProbeTimer = null;
+    }
+    return;
+  }
+
+  if (renderProbeTimer) return;
+
+  renderProbeTimer = setTimeout(async () => {
+    renderProbeTimer = null;
+
+    if (activeApiBaseUrl !== BACKUP_API_BASE_URL) return;
+
+    const isRenderHealthy = await probeHostAvailability(PRIMARY_API_BASE_URL);
+    if (isRenderHealthy) {
+      activeApiBaseUrl = PRIMARY_API_BASE_URL;
+      apiHostCooldowns.delete(PRIMARY_API_BASE_URL);
+      apiHostCooldowns.delete(BACKUP_API_BASE_URL);
+      return;
+    }
+
+    scheduleRenderRecoveryCheck();
+  }, RENDER_HEALTH_CHECK_INTERVAL_MS);
+};
+
 const markApiHostFailure = (host: string) => {
   apiHostCooldowns.set(host, Date.now() + HOST_SWITCH_COOLDOWN_MS);
 
-  const nextHost = getNextFallbackHost(host);
-  if (nextHost && nextHost !== host) {
-    activeApiBaseUrl = nextHost;
+  if (host === PRIMARY_API_BASE_URL) {
+    activeApiBaseUrl = BACKUP_API_BASE_URL;
+    scheduleRenderRecoveryCheck();
+    return;
   }
+
+  activeApiBaseUrl = PRIMARY_API_BASE_URL;
 };
 
 const markApiHostRecovered = (host: string) => {
   apiHostCooldowns.delete(host);
-  if (activeApiBaseUrl !== host) {
-    activeApiBaseUrl = host;
+  if (host === PRIMARY_API_BASE_URL) {
+    activeApiBaseUrl = PRIMARY_API_BASE_URL;
+    return;
   }
+
+  activeApiBaseUrl = PRIMARY_API_BASE_URL;
 };
 
 const PROXY_ONLY_PATHS: string[] = [];
