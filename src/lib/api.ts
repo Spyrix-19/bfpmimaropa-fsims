@@ -3,6 +3,7 @@ import { toast } from "@/lib/toast";
 import { loadingBus } from "@/lib/loading-bus";
 import { getAccessToken } from "@/lib/auth-token";
 import { ApiMessages, fallbackMessageForStatus, sanitizeEnvelopeMessage } from "@/lib/api-messages";
+import { isMutationMethod, withIdempotencyKey } from "@/lib/idempotency";
 
 /* =========================
    BASE CONFIG
@@ -225,6 +226,12 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  const idempotencyKey = (config as TrackedConfig).__idempotencyKey;
+  if (idempotencyKey && isMutationMethod(config.method ?? "")) {
+    config.headers = config.headers ?? {};
+    config.headers["Idempotency-Key"] = idempotencyKey;
+  }
+
   // Route every request directly to the external API, EXCEPT for endpoints
   // that must stay on the same-origin proxy (e.g. /api/auth/login).
   const rawUrl = config.url ?? "";
@@ -301,6 +308,8 @@ type TrackedConfig = AxiosRequestConfig & {
   __rid?: string;
   /** Host to use for this request attempt. */
   __apiBaseUrl?: string;
+  /** One UUID per logical mutation operation; reused for retries of the same request. */
+  __idempotencyKey?: string;
 };
 
 /** rid -> retry attempts still available. Axios clones config per attempt, so
@@ -725,10 +734,15 @@ const doRequest = async <T>(
   options?: ApiOptions,
 ): Promise<ApiResponse<T>> => {
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
-  const headers: Record<string, unknown> = { ...(options?.headers ?? {}) };
+  const baseHeaders: Record<string, unknown> = { ...(options?.headers ?? {}) };
   if (isFormData) {
-    headers["Content-Type"] = undefined;
+    baseHeaders["Content-Type"] = undefined;
   }
+
+  const { headers, idempotencyKey } = withIdempotencyKey(
+    method,
+    baseHeaders as Record<string, string | number | boolean | null | undefined>,
+  );
 
   const rid = nextRid();
   const config: TrackedConfig = {
@@ -745,6 +759,7 @@ const doRequest = async <T>(
     // whether a toast is shown.
     __suppressErrorToast: options?.suppressErrorToast,
     __apiBaseUrl: EXTERNAL_API_BASE_URL,
+    __idempotencyKey: idempotencyKey ?? undefined,
     onUploadProgress: (ev: any) => {
       try {
         const cb = options?.progressCallback;
