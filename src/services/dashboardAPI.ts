@@ -12,6 +12,8 @@ import {
   StationMonthlyPerformanceModel,
   DashboardNTCVStationModel,
   DashboardFeeCollectionModel,
+  DashboardFCFYearToYearDTO,
+  DashboardFireCodeFeeVarianceModel,
 } from "@/types/dashboardType";
 
 export const dashboardAPI = {
@@ -124,6 +126,17 @@ export const dashboardAPI = {
   ) {
     return await apiPost<DashboardFeeCollectionModel[]>(
       "/api/v1/Dashboard/FSIMS/FireCodeFee/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
+  },
+
+   async getYearlyFireCodeVariance(body: DashboardFCFYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
+    return await apiPost<DashboardFireCodeFeeVarianceModel>(
+      "/api/v1/Dashboard/FSIMS/FireCodeFee/Variance",
       body,
       {
         ...MUTATION_RETRY_LIGHT,
