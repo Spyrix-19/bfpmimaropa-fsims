@@ -939,7 +939,7 @@ export default function TargetReferenceForm({
                       ) : null}
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 font-medium">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-0">
                         <DayLockIcon
                           date={rowDateKey}
                           module="target-reference"
@@ -1031,7 +1031,7 @@ export default function TargetReferenceForm({
             </span>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-0">
             {days.map((d) => {
               const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
               const rowDateKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -1061,13 +1061,13 @@ export default function TargetReferenceForm({
                       />
                     </div>
 
-                    <span className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
+                    <span className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight text-foreground">
                       {formatDayLabel(year, month, d)}
                     </span>
 
                     <div className="flex shrink-0 items-center gap-2">
                       {!hasRecord && (
-                        <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
                           NO RECORD
                         </span>
                       )}
@@ -1080,9 +1080,9 @@ export default function TargetReferenceForm({
                       </span>
 
                       {expanded ? (
-                        <span className="text-muted-foreground">▾</span>
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <span className="text-muted-foreground">▸</span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
                   </button>

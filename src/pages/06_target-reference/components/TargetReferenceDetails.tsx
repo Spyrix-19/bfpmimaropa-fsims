@@ -79,7 +79,7 @@ function Row({
     <tr className={emphasize ? "bg-primary/10 font-semibold" : ""}>
       <td className="border-b px-3 py-2">
         {lockDate ? (
-          <span className="flex items-center gap-2 whitespace-nowrap">
+          <span className="flex items-center gap-0 whitespace-nowrap">
             <DayLockIcon date={lockDate} module="target-reference" className="h-3 w-3" />
             {label}
           </span>
@@ -590,7 +590,7 @@ export default function TargetReferenceDetails({
                         })()}
                       </span>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-0">
                       {mobileRows.map((row) => {
                         const expanded = Boolean(mobileExpandedRows[row.key]);
                         const hasRecord = row.total > 0;
