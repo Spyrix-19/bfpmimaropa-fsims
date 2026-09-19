@@ -19,6 +19,8 @@ import {
 import {
   Building2,
   Calendar as CalendarIcon,
+  ChevronDown,
+  ChevronUp,
   Loader2,
   Lock,
   Pencil,
@@ -121,6 +123,128 @@ export default function TargetReferenceDetails({
   const [selectedMonth, setSelectedMonth] = React.useState<number>(
     month || new Date().getMonth() + 1,
   );
+  const [mobileExpandedRows, setMobileExpandedRows] = React.useState<Record<string, boolean>>({});
+
+  const dailyDerived = React.useMemo(
+    () =>
+      detail ? computeDailyFromList(detail.targetreferencelist, selectedYear, selectedMonth) : null,
+    [detail, selectedYear, selectedMonth],
+  );
+
+  const derived = React.useMemo(
+    () => (detail ? computeDerivedFromList(detail.targetreferencelist) : null),
+    [detail],
+  );
+
+  const mobileRows = React.useMemo(() => {
+    if (period === "DAILY" && dailyDerived) {
+      return dailyDerived.days.map((d) => {
+        const bucket = dailyDerived.daily[d];
+        const total =
+          displayNumber(bucket?.bplo) +
+          displayNumber(bucket?.gov) +
+          displayNumber(bucket?.peza) +
+          displayNumber(bucket?.tieza);
+        return {
+          key: String(d),
+          label: formatDayLabel(selectedYear, selectedMonth, d),
+          total,
+          values: [
+            ["BPLO", bucket?.bplo],
+            ["Government", bucket?.gov],
+            ["PEZA", bucket?.peza],
+            ["TIEZA", bucket?.tieza],
+          ] as const,
+          lockDate: dayKey(selectedYear, selectedMonth, d),
+        };
+      });
+    }
+
+    if (period === "MONTHLY") {
+      return MONTHS.map((m) => {
+        const bucket = derived?.monthly[m.value];
+        const total =
+          displayNumber(bucket?.bplo) +
+          displayNumber(bucket?.gov) +
+          displayNumber(bucket?.peza) +
+          displayNumber(bucket?.tieza);
+        return {
+          key: `month-${m.value}`,
+          label: m.name,
+          total,
+          values: [
+            ["BPLO", bucket?.bplo],
+            ["Government", bucket?.gov],
+            ["PEZA", bucket?.peza],
+            ["TIEZA", bucket?.tieza],
+          ] as const,
+        };
+      });
+    }
+
+    if (period === "QUARTERLY") {
+      return QUARTERS.map((q, i) => {
+        const bucket = derived?.quarters[i];
+        const total =
+          displayNumber(bucket?.bplo) +
+          displayNumber(bucket?.gov) +
+          displayNumber(bucket?.peza) +
+          displayNumber(bucket?.tieza);
+        return {
+          key: `quarter-${q}`,
+          label: q,
+          total,
+          values: [
+            ["BPLO", bucket?.bplo],
+            ["Government", bucket?.gov],
+            ["PEZA", bucket?.peza],
+            ["TIEZA", bucket?.tieza],
+          ] as const,
+        };
+      });
+    }
+
+    if (period === "SEMI-ANNUAL") {
+      return HALVES.map((h, i) => {
+        const bucket = derived?.halves[i];
+        const total =
+          displayNumber(bucket?.bplo) +
+          displayNumber(bucket?.gov) +
+          displayNumber(bucket?.peza) +
+          displayNumber(bucket?.tieza);
+        return {
+          key: `half-${h}`,
+          label: h,
+          total,
+          values: [
+            ["BPLO", bucket?.bplo],
+            ["Government", bucket?.gov],
+            ["PEZA", bucket?.peza],
+            ["TIEZA", bucket?.tieza],
+          ] as const,
+        };
+      });
+    }
+
+    const annualTotal =
+      displayNumber(derived?.annual?.bplo) +
+      displayNumber(derived?.annual?.gov) +
+      displayNumber(derived?.annual?.peza) +
+      displayNumber(derived?.annual?.tieza);
+    return [
+      {
+        key: "annual-total",
+        label: "Annual Total",
+        total: annualTotal,
+        values: [
+          ["BPLO", derived?.annual?.bplo],
+          ["Government", derived?.annual?.gov],
+          ["PEZA", derived?.annual?.peza],
+          ["TIEZA", derived?.annual?.tieza],
+        ] as const,
+      },
+    ];
+  }, [dailyDerived, derived, period, selectedMonth, selectedYear]);
 
   React.useEffect(() => {
     if (!target) return;
@@ -157,17 +281,6 @@ export default function TargetReferenceDetails({
   const baseYear = target?.reportyear ?? new Date().getFullYear();
   const baseMonth = month || new Date().getMonth() + 1;
   const isPeriodChanged = selectedMonth !== baseMonth || selectedYear !== baseYear;
-
-  const dailyDerived = React.useMemo(
-    () =>
-      detail ? computeDailyFromList(detail.targetreferencelist, selectedYear, selectedMonth) : null,
-    [detail, selectedYear, selectedMonth],
-  );
-
-  const derived = React.useMemo(
-    () => (detail ? computeDerivedFromList(detail.targetreferencelist) : null),
-    [detail],
-  );
 
   const overallTotals = derived
     ? {
@@ -288,15 +401,55 @@ export default function TargetReferenceDetails({
                   ]}
                 />
 
-                <div className="flex h-[360px] min-h-[360px] flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
-                  <div className="border-b bg-card px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] text-primary">
-                    {period === "DAILY" && "Daily Targets"}
-                    {period === "MONTHLY" && "Monthly Targets"}
-                    {period === "QUARTERLY" && "Quarterly Targets"}
-                    {period === "SEMI-ANNUAL" && "Semi-Annual Targets"}
-                    {period === "ANNUAL" && "Annual Targets"}
+                <div className="flex min-h-0 flex-col rounded-xl border border-border/60 bg-card shadow-soft">
+                  <div className="flex items-center justify-between gap-3 border-b bg-card px-4 py-2">
+                    <div className="text-sm font-semibold uppercase tracking-[0.15em] text-primary">
+                      {period === "DAILY" && "Daily Targets"}
+                      {period === "MONTHLY" && "Monthly Targets"}
+                      {period === "QUARTERLY" && "Quarterly Targets"}
+                      {period === "SEMI-ANNUAL" && "Semi-Annual Targets"}
+                      {period === "ANNUAL" && "Annual Targets"}
+                    </div>
+                    <div className="hidden md:block">
+                      <span className="inline-flex min-w-[88px] items-center justify-end rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm font-bold tabular-nums text-primary">
+                        {(() => {
+                          if (period === "DAILY" && dailyDerived) {
+                            return (dailyDerived.total.bplo + dailyDerived.total.gov + dailyDerived.total.peza + dailyDerived.total.tieza).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          if (period === "MONTHLY" && overallTotals) {
+                            return (overallTotals.bplo + overallTotals.gov + overallTotals.peza + overallTotals.tieza).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          if (period === "QUARTERLY" && derived) {
+                            return (derived.quarters.reduce((sum, q) => sum + (q?.bplo ?? 0) + (q?.gov ?? 0) + (q?.peza ?? 0) + (q?.tieza ?? 0), 0)).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          if (period === "SEMI-ANNUAL" && derived) {
+                            return (derived.halves.reduce((sum, h) => sum + (h?.bplo ?? 0) + (h?.gov ?? 0) + (h?.peza ?? 0) + (h?.tieza ?? 0), 0)).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          if (period === "ANNUAL" && derived) {
+                            return ((derived.annual?.bplo ?? 0) + (derived.annual?.gov ?? 0) + (derived.annual?.peza ?? 0) + (derived.annual?.tieza ?? 0)).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          return "0.00";
+                        })()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-h-0 flex-1 overflow-auto">
+
+                  <div className="hidden min-h-0 flex-1 overflow-auto md:block">
                     <table className="min-w-full text-sm">
                       <thead className="sticky top-0 z-10 bg-card">
                         <tr className="bg-card text-left text-xs uppercase tracking-[0.15em] text-primary">
@@ -395,6 +548,125 @@ export default function TargetReferenceDetails({
                       ) : null}
                     </table>
                   </div>
+
+                  <div className="block md:hidden">
+                    <div className="mb-3 flex items-center justify-between gap-3 border-b border-border/60 bg-card px-3 py-2">
+                      <div className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+                        {MONTHS[selectedMonth - 1]?.name ?? ""} {selectedYear}
+                      </div>
+                      <span className="inline-flex min-w-[88px] items-center justify-end rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm font-bold tabular-nums text-primary">
+                        {(() => {
+                          if (period === "DAILY" && dailyDerived) {
+                            return (dailyDerived.total.bplo + dailyDerived.total.gov + dailyDerived.total.peza + dailyDerived.total.tieza).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          if (period === "MONTHLY" && overallTotals) {
+                            return (overallTotals.bplo + overallTotals.gov + overallTotals.peza + overallTotals.tieza).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          if (period === "QUARTERLY" && derived) {
+                            return (derived.quarters.reduce((sum, q) => sum + (q?.bplo ?? 0) + (q?.gov ?? 0) + (q?.peza ?? 0) + (q?.tieza ?? 0), 0)).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          if (period === "SEMI-ANNUAL" && derived) {
+                            return (derived.halves.reduce((sum, h) => sum + (h?.bplo ?? 0) + (h?.gov ?? 0) + (h?.peza ?? 0) + (h?.tieza ?? 0), 0)).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          if (period === "ANNUAL" && derived) {
+                            return ((derived.annual?.bplo ?? 0) + (derived.annual?.gov ?? 0) + (derived.annual?.peza ?? 0) + (derived.annual?.tieza ?? 0)).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          }
+                          return "0.00";
+                        })()}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {mobileRows.map((row) => {
+                        const expanded = Boolean(mobileExpandedRows[row.key]);
+                        const hasRecord = row.total > 0;
+
+                        return (
+                          <div key={row.key} className="border-b border-border/60 bg-card">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMobileExpandedRows((prev) => ({
+                                  ...prev,
+                                  [row.key]: !prev[row.key],
+                                }))
+                              }
+                              className="flex w-full items-center gap-3 px-3 py-3 text-left"
+                            >
+                              <div className="shrink-0">
+                                {row.lockDate ? (
+                                  <DayLockIcon
+                                    date={row.lockDate}
+                                    module="target-reference"
+                                    className="h-4 w-4"
+                                  />
+                                ) : null}
+                              </div>
+
+                              <span className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
+                                {row.label}
+                              </span>
+
+                              <div className="flex shrink-0 items-center gap-2">
+                                {!hasRecord && (
+                                  <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    NO RECORD
+                                  </span>
+                                )}
+
+                                <span className="text-base font-bold tabular-nums text-primary">
+                                  {displayNumber(row.total).toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+
+                                {expanded ? (
+                                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </button>
+
+                            {expanded && (
+                              <div className="border-t border-border/50 bg-muted/10 p-3">
+                                <div className="grid grid-cols-2 gap-2">
+                                  {row.values.map(([label, value]) => (
+                                    <div
+                                      key={`${row.key}-${label}`}
+                                      className="flex items-center justify-between gap-2 rounded-md border border-border/50 bg-card px-2.5 py-2"
+                                    >
+                                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        {label}
+                                      </span>
+                                      <span className="text-right text-sm font-semibold tabular-nums text-foreground">
+                                        {displayNumber(value).toLocaleString()}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (
@@ -405,22 +677,24 @@ export default function TargetReferenceDetails({
           </div>
         </div>
 
-        <DialogFooter className="border-t bg-background px-5 py-3">
-          {onEdit && canEdit && (
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                onOpenChange(false);
-                onEdit(selectedYear, selectedMonth);
-              }}
-            >
-              <Pencil className="h-4 w-4" /> Edit
+        <DialogFooter className="flex w-full flex-row items-center justify-end gap-2 border-t border-border/60 bg-background px-5 py-3">
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+            {onEdit && canEdit && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  onOpenChange(false);
+                  onEdit(selectedYear, selectedMonth);
+                }}
+              >
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <Button onClick={() => onOpenChange(false)} className="gap-2">
+              <X className="h-4 w-4" /> Close
             </Button>
-          )}
-          <Button onClick={() => onOpenChange(false)} className="gap-2">
-            <X className="h-4 w-4" /> Close
-          </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

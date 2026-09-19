@@ -564,7 +564,7 @@ export function FireCodeFeesYearEditorBody({
 
       {/* 3. Months */}
       <Card className="border-border/60 bg-card shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
+        <div className="hidden md:flex md:flex-wrap md:items-center md:justify-between md:gap-3 md:border-b md:border-border/60 md:px-5 md:py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <Coins className="h-4 w-4" /> Monthly Collection · {year}{" "}
             <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-extrabold tabular-nums text-primary">
@@ -604,6 +604,49 @@ export function FireCodeFeesYearEditorBody({
           </div>
         </div>
 
+        <div className="space-y-3 p-3 md:hidden">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <Coins className="h-3.5 w-3.5 text-primary" />
+              Monthly Collection · {year}
+            </div>
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-extrabold tabular-nums text-primary">
+              {peso(yearTotal)}
+            </span>
+          </div>
+
+          <FeeTypeMultiSelect
+            options={feeTypeOptions}
+            loading={feeTypesLoading}
+            value={feeTypes}
+            onChange={setFeeTypes}
+            className="w-full !sm:w-full !md:w-full !xl:w-full"
+          />
+
+          <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {showAllMonthFees ? "Show" : "Hide"}
+            </span>
+            <Switch
+              checked={showAllMonthFees}
+              onCheckedChange={(checked) => {
+                const next = Boolean(checked);
+                setShowAllMonthFees(next);
+                setExpanded((prev) => {
+                  const updated: Record<number, boolean> = { ...prev };
+                  months.forEach((m) => {
+                    updated[m.month] = next;
+                  });
+                  return updated;
+                });
+              }}
+              aria-label="Show or hide all monthly fee details"
+            />
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {showAllMonthFees ? "On" : "Off"}
+            </span>
+          </div>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
@@ -613,6 +656,7 @@ export function FireCodeFeesYearEditorBody({
           <div className="divide-y divide-border/50">
             {months.map((m) => {
               const info = lockInfo(m);
+              const showRevisionAction = !readOnly && (info.pending || info.needsRequest);
               const open = !!expanded[m.month];
               const dirty = snapshot(m.values) !== m.baseline;
               const name = MONTHS.find((x) => x.value === m.month)?.name ?? String(m.month);
@@ -632,9 +676,8 @@ export function FireCodeFeesYearEditorBody({
                     }}
                     className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
                   >
-                    {/* Revision action — shown before the month, mirroring the
-                        Compliance / Notice / Target Reference editors. */}
-                    {!readOnly && (info.pending || info.needsRequest) ? (
+                    {/* Revision action — reserve space only when it is actually visible. */}
+                    {showRevisionAction ? (
                       <div
                         className="flex min-w-[5.5rem] items-center gap-1.5"
                         onClick={(e) => e.stopPropagation()}
@@ -683,10 +726,8 @@ export function FireCodeFeesYearEditorBody({
                           />
                         )}
                       </div>
-                    ) : (
-                      <div className="min-w-[5.5rem]" aria-hidden="true" />
-                    )}
-                    <div className="flex min-w-[9rem] items-center gap-2">
+                    ) : null}
+                    <div className={cn("flex min-w-[9rem] items-center gap-2", showRevisionAction && "pl-0")}>
                       <DayLockIcon
                         locked={isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, m.month)}
                         className="h-3.5 w-3.5"

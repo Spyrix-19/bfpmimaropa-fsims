@@ -4,10 +4,11 @@ import {
   Eye,
   LayoutGrid,
   Loader2,
-  CalendarDays,
   Plus,
   Download,
   ClipboardCheck,
+  Filter,
+  ChevronDown,
 } from "lucide-react";
 
 import { toast } from "@/lib/toast";
@@ -68,6 +69,7 @@ import { NoticeEditModal } from "./components/noticeEdit";
 import { NoticeViewModal } from "./components/noticeView";
 import { NoticeMatrixModal } from "./noticeMatrix";
 import { DayLockIcon } from "@/components/day-lock-icon";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 /* -------------------------------------------------------------------------
  * Constants
@@ -454,21 +456,6 @@ export function computeCategoryRows(
   });
 }
 
-function DaysRecordedBadge({ encoded, total }: { encoded: number; total: number }) {
-  const ratio = total ? encoded / total : 0;
-  const tone =
-    ratio >= 1 ? "tone-success-soft" : ratio >= 0.25 ? "tone-warning-soft" : "tone-danger-soft";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${tone}`}
-      title="Days with notice entries / calendar days"
-    >
-      <CalendarDays className="h-3 w-3" />
-      {encoded} / {total}
-    </span>
-  );
-}
-
 /* -------------------------------------------------------------------------
  * Page
  * ---------------------------------------------------------------------- */
@@ -832,56 +819,124 @@ export default function AccomplishedNotice() {
               Complied Notices grouped by station, month, and year.
             </p>
           </div>
-          <div
-            className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
-          >
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              disabled={exporting || paged.length === 0}
-              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+
+          <div className="hidden md:block">
+            <div
+              className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
             >
-              {exporting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              Export
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setMatrixTarget(paged[0] ?? null);
-                setMatrixOpen(true);
-              }}
-              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-            >
-              <LayoutGrid className="h-4 w-4" /> Complied Notices Matrix
-            </Button>
-            {canManage && (
-              <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
-                <Plus className="h-4 w-4" /> Add Complied Notice
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                disabled={exporting || paged.length === 0}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Export
               </Button>
-            )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMatrixTarget(paged[0] ?? null);
+                  setMatrixOpen(true);
+                }}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+              >
+                <LayoutGrid className="h-4 w-4" /> Complied Notices Matrix
+              </Button>
+              {canManage && (
+                <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
+                  <Plus className="h-4 w-4" /> Add Complied Notice
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="block w-full md:hidden">
+            <div className="grid w-full grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                disabled={exporting || paged.length === 0}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMatrixTarget(paged[0] ?? null);
+                  setMatrixOpen(true);
+                }}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white"
+              >
+                <LayoutGrid className="h-4 w-4" /> Matrix
+              </Button>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 shrink-0" />
+                      Filter
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[calc(100vw-2rem)] p-0" align="start">
+                  <ModuleFilterBar
+                    years={YEARS}
+                    state={filterState}
+                    onChange={setFilterState}
+                    onReset={handleResetFilters}
+                    intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+                    allowAllDays
+                    className="border-0 bg-transparent shadow-none"
+                  >
+                    <ScopedLocationMultiFilterPair
+                      scope={scope}
+                      selection={locationSel}
+                      reportyear={Number(year)}
+                    />
+                  </ModuleFilterBar>
+                </PopoverContent>
+              </Popover>
+
+              {canManage && (
+                <Button onClick={openAdd} className="w-full justify-center gap-2">
+                  <Plus className="h-4 w-4" /> Add
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
         <CurrentMonthNote canManage={canManage} />
 
-        <ModuleFilterBar
-          years={YEARS}
-          state={filterState}
-          onChange={setFilterState}
-          onReset={handleResetFilters}
-          intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-          allowAllDays
-        >
-          <ScopedLocationMultiFilterPair
-            scope={scope}
-            selection={locationSel}
-            reportyear={Number(year)}
-          />
-        </ModuleFilterBar>
+        <div className="hidden md:block">
+          <ModuleFilterBar
+            years={YEARS}
+            state={filterState}
+            onChange={setFilterState}
+            onReset={handleResetFilters}
+            intervals={["DAILY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+            allowAllDays
+          >
+            <ScopedLocationMultiFilterPair
+              scope={scope}
+              selection={locationSel}
+              reportyear={Number(year)}
+            />
+          </ModuleFilterBar>
+        </div>
       </StickyPageTop>
 
       {loading ? (
@@ -1027,6 +1082,7 @@ function NoticeLedgerCard({
   const monthName =
     MONTHS.find((month) => month.value === record.reportMonth)?.name ?? String(record.reportMonth);
   const lines = record.lines;
+  const [expandedKeys, setExpandedKeys] = React.useState<Record<string, boolean>>({});
 
   const totals = React.useMemo(() => {
     const manual = emptyMode();
@@ -1074,7 +1130,6 @@ function NoticeLedgerCard({
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
               {periodLabel ?? `${monthName} ${record.reportYear}`}
             </span>
-            <DaysRecordedBadge encoded={record.daysRecorded} total={record.daysInPeriod} />
           </div>
           <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
             {record.stationname}
@@ -1101,10 +1156,128 @@ function NoticeLedgerCard({
               : "No entries for this period."}
           </div>
         ) : (
-          <div className="hidden max-h-[24rem] overflow-x-auto overflow-y-auto rounded-xl border border-border/40 bg-card shadow-inner md:block">
-            <table className="w-full min-w-[1200px] border-separate border-spacing-0 text-xs">
-              <thead>
-                <tr>
+          <>
+            <div className="block space-y-3 md:hidden">
+              {lines.map((line) => {
+                const totalManual = NOTICE_CATEGORIES.reduce(
+                  (sum, category) => sum + (line.manual[category] ?? 0),
+                  0,
+                );
+                const totalFsis = NOTICE_CATEGORIES.reduce(
+                  (sum, category) => sum + (line.fsis[category] ?? 0),
+                  0,
+                );
+                const total = totalManual + totalFsis;
+                const isExpanded = !!expandedKeys[line.key];
+
+                return (
+                  <div key={line.key} className="overflow-hidden rounded-xl border border-border/40 bg-card shadow-soft">
+                    <div className="border-b border-border/40 bg-muted/10">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedKeys((prev) => ({
+                            ...prev,
+                            [line.key]: !prev[line.key],
+                          }))
+                        }
+                        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          {line.key.match(/^\d{4}-\d{2}-\d{2}$/) && (
+                            <DayLockIcon date={line.key} module="notice" className="h-4 w-4" />
+                          )}
+                          <div className="min-w-0 truncate text-[15px] font-semibold text-foreground">
+                            {line.label}
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                          {total === 0 && (
+                            <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                              NO RECORD
+                            </span>
+                          )}
+
+                          <span className="text-[13px] font-bold tabular-nums text-primary">
+                            {Number(total).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+
+                          <ChevronDown
+                            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                          />
+                        </div>
+                      </button>
+                    </div>
+
+                    {!isExpanded ? (
+                      <div className="grid grid-cols-2 gap-2 border-b border-border/40 bg-card p-2 text-[11px] md:hidden">
+                        <div className="flex items-center justify-between rounded-md border border-border/40 bg-muted/20 px-2.5 py-2">
+                          <span className="font-bold uppercase tracking-wider text-muted-foreground">Manual</span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {totalManual.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-md border border-border/40 bg-muted/20 px-2.5 py-2">
+                          <span className="font-bold uppercase tracking-wider text-muted-foreground">FSIS</span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {totalFsis.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border/40 bg-card text-[11px]">
+                        {NOTICE_CATEGORIES.map((category) => {
+                          const categoryManual = line.manual[category] ?? 0;
+                          const categoryFsis = line.fsis[category] ?? 0;
+                          const categoryTotal = categoryManual + categoryFsis;
+
+                          return (
+                            <div key={`${line.key}-${category}`} className="px-3 py-2.5">
+                              <div className="mb-1.5 flex items-center justify-between gap-2">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+                                  {CATEGORY_LABEL[category]}
+                                </div>
+                                <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8.5px] font-bold text-primary">
+                                  {categoryTotal.toLocaleString()}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center justify-between rounded-md border border-border/40 bg-card px-2 py-1.5">
+                                  <span className="text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Manual
+                                  </span>
+                                  <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                                    {categoryManual.toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between rounded-md border border-border/40 bg-card px-2 py-1.5">
+                                  <span className="text-[7px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    FSIS
+                                  </span>
+                                  <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                                    {categoryFsis.toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden max-h-[24rem] overflow-x-auto overflow-y-auto rounded-xl border border-border/40 bg-card shadow-inner md:block">
+              <table className="w-full min-w-[1200px] border-separate border-spacing-0 text-xs">
+                <thead>
+                  <tr>
                   <th
                     rowSpan={2}
                     className={`${headCell} sticky left-0 top-0 z-40 min-w-[11rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
@@ -1207,6 +1380,7 @@ function NoticeLedgerCard({
               </tfoot>
             </table>
           </div>
+          </>
         )}
         <div className="mt-2 text-[10px] text-muted-foreground dark:text-slate-400">
           Last updated:{" "}

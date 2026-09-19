@@ -26,6 +26,7 @@ import {
 import { tooltipStyle, axisProps } from "@/pages/02_dashboard/charts/shared";
 
 import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
+import { AutoFitText } from "@/components/auto-fit-text";
 import { isDateLocked } from "@/lib/past-date-lock";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -141,7 +142,7 @@ function SectionTitle({
   subtitle?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
       <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         {icon}
         <span>{title}</span>
@@ -238,63 +239,135 @@ function NoticesTable({
 
   return (
     <div className="w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft">
-      <div className="overflow-auto">
-        <table className="min-w-max border-separate border-spacing-0 text-[11px]">
-          <thead className="sticky top-0 z-30">
-            <tr>
-              <th
-                rowSpan={2}
-                className={cn(
-                  "sticky left-0 top-0 z-40 min-w-[110px] border-b border-r px-3 py-2 text-center align-middle uppercase tracking-wider",
-                  MONITORING_THEME.headerPrimary,
-                )}
-              >
-                Mode
-              </th>
-              <th
-                colSpan={NOTICE_FIELDS.length}
-                className={cn(
-                  "border-b border-r px-2 py-2 text-center uppercase tracking-wider",
-                  MONITORING_THEME.headerGroup,
-                )}
-              >
-                Complied Notices
-              </th>
-            </tr>
-            <tr>
-              {NOTICE_FIELDS.map((f) => (
+      <div className="hidden md:block">
+        <div className="overflow-auto">
+          <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+            <thead className="sticky top-0 z-30">
+              <tr>
                 <th
-                  key={f.key}
+                  rowSpan={2}
                   className={cn(
-                    "border-b border-r px-2 py-1.5 text-center uppercase tracking-wider",
-                    MONITORING_THEME.headerSoft,
+                    "sticky left-0 top-0 z-40 min-w-[110px] border-b border-r px-3 py-2 text-center align-middle uppercase tracking-wider",
+                    MONITORING_THEME.headerPrimary,
                   )}
                 >
-                  {f.label}
+                  Mode
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {renderRow("Manual", manualValues, onManualChange, true)}
-            {renderRow("FSIS", fsisValues, onFsisChange, false)}
-            <tr className={MONITORING_THEME.totalRow}>
-              <td
-                className={cn(
-                  "sticky left-0 z-20 border-r px-3 py-2 text-center font-bold uppercase tracking-wider",
-                  MONITORING_THEME.totalRow,
-                )}
-              >
-                Total
-              </td>
-              {NOTICE_FIELDS.map((f) => (
-                <td key={f.key} className="border-r px-3 py-2 text-center font-bold tabular-nums">
-                  {colTotal(f.key).toLocaleString()}
+                <th
+                  colSpan={NOTICE_FIELDS.length}
+                  className={cn(
+                    "border-b border-r px-2 py-2 text-center uppercase tracking-wider",
+                    MONITORING_THEME.headerGroup,
+                  )}
+                >
+                  Complied Notices
+                </th>
+              </tr>
+              <tr>
+                {NOTICE_FIELDS.map((f) => (
+                  <th
+                    key={f.key}
+                    className={cn(
+                      "border-b border-r px-2 py-1.5 text-center uppercase tracking-wider",
+                      MONITORING_THEME.headerSoft,
+                    )}
+                  >
+                    {f.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {renderRow("Manual", manualValues, onManualChange, true)}
+              {renderRow("FSIS", fsisValues, onFsisChange, false)}
+              <tr className={MONITORING_THEME.totalRow}>
+                <td
+                  className={cn(
+                    "sticky left-0 z-20 border-r px-3 py-2 text-center font-bold uppercase tracking-wider",
+                    MONITORING_THEME.totalRow,
+                  )}
+                >
+                  Total
                 </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
+                {NOTICE_FIELDS.map((f) => (
+                  <td key={f.key} className="border-r px-3 py-2 text-center font-bold tabular-nums">
+                    {colTotal(f.key).toLocaleString()}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="space-y-3 p-3 md:hidden">
+        {NOTICE_FIELDS.map((field) => {
+          const manualValue = manualValues[field.key] ?? 0;
+          const fsisValue = fsisValues[field.key] ?? 0;
+          const totalValue = manualValue + fsisValue;
+
+          return (
+            <div key={field.key} className="rounded-xl border border-border/60 bg-card p-3 shadow-soft">
+              <div className="mb-3 flex items-center justify-between gap-2 border-b border-border/50 pb-2">
+                <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                  {field.label}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Total {totalValue.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-2">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Manual
+                  </div>
+                  <NumericInput
+                    readOnly={locked}
+                    disabled={locked}
+                    value={manualValue}
+                    onValueChange={(raw) => {
+                      if (locked) return;
+                      onManualChange(field.key, raw);
+                    }}
+                    className={cn(
+                      "h-9 w-full rounded-md border-border/70 px-2 py-1 text-center tabular-nums",
+                      locked && "cursor-not-allowed bg-muted/60",
+                    )}
+                  />
+                </div>
+
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-2">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    FSIS
+                  </div>
+                  <NumericInput
+                    readOnly={locked}
+                    disabled={locked}
+                    value={fsisValue}
+                    onValueChange={(raw) => {
+                      if (locked) return;
+                      onFsisChange(field.key, raw);
+                    }}
+                    className={cn(
+                      "h-9 w-full rounded-md border-border/70 px-2 py-1 text-center tabular-nums",
+                      locked && "cursor-not-allowed bg-muted/60",
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Overall Total</span>
+            <span className="text-sm font-bold tabular-nums text-primary">
+              {NOTICE_FIELDS.reduce((sum, f) => sum + colTotal(f.key), 0).toLocaleString()}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -384,7 +457,7 @@ function NoticeAccomplishmentPanel({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -478,6 +551,65 @@ function NoticeAccomplishmentPanel({
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div className="block space-y-3 px-3 pb-3 md:hidden">
+        {rows.map((r, i) => (
+          <div
+            key={r.key}
+            className={cn(
+              "rounded-xl border border-border/60 bg-card p-3 shadow-soft",
+              i % 2 === 1 && "bg-muted/20",
+            )}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
+              <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                {r.label}
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {r.percentage.toFixed(2)}%
+              </span>
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-border/50 bg-card/60 p-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Issuance
+                </div>
+                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.issued }}>
+                  {r.issued.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/60 p-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Accomplished
+                </div>
+                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.accomplished }}>
+                  {r.accomplished.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/60 p-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Pending
+                </div>
+                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.pending }}>
+                  {r.pending.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/60 p-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Positive
+                </div>
+                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.positive }}>
+                  {r.positive.toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </Card>
   );

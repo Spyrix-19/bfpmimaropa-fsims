@@ -18,6 +18,7 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
+  Filter,
 } from "lucide-react";
 
 import ComplianceMatrixTable from "./complianceMatrix.tsx";
@@ -49,6 +50,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
@@ -94,21 +96,6 @@ function getComplianceList(station: unknown): FSISComplianceModel["compliancelis
   };
   if (Array.isArray(value.compliancelist)) return value.compliancelist;
   return Array.isArray(value.complianceList) ? value.complianceList : [];
-}
-
-function DaysEncodedBadge({ encoded, total }: { encoded: number; total: number }) {
-  const ratio = total ? encoded / total : 0;
-  const tone =
-    ratio >= 1 ? "tone-success-soft" : ratio >= 0.25 ? "tone-warning-soft" : "tone-danger-soft";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${tone}`}
-      title="Days encoded / calendar days"
-    >
-      <CalendarDays className="h-3 w-3" />
-      {encoded} / {total}
-    </span>
-  );
 }
 
 /* -------------------------------------------------------------------------
@@ -882,82 +869,172 @@ export default function FireSafetyCompliancePage() {
               Fire safety compliance accomplishments grouped by station, month, and year.
             </p>
           </div>
-          <div
-            className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
-          >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  disabled={!!exporting || rows.length === 0}
-                  className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
-                >
-                  {exporting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  Export
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    void handleExport("inspection");
-                  }}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Inspection &amp; Issuance
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    void handleExport("reinspection");
-                  }}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Reinspection
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
 
-            <Button
-              variant="outline"
-              onClick={openMatrixGlobal}
-              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+          <div className="hidden md:block">
+            <div
+              className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center ${canManage ? "grid-cols-3" : "grid-cols-2"}`}
             >
-              <LayoutGrid className="h-4 w-4" /> Compliance Matrix
-            </Button>
-            {canManage && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={!!exporting || rows.length === 0}
+                    className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+                  >
+                    {exporting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    Export
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      void handleExport("inspection");
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Inspection &amp; Issuance
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      void handleExport("reinspection");
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Reinspection
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button
-                onClick={() => setAddOpen(true)}
-                className="w-full justify-center gap-2 sm:w-auto"
+                variant="outline"
+                onClick={openMatrixGlobal}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
               >
-                <Plus className="h-4 w-4" /> Add Record
+                <LayoutGrid className="h-4 w-4" /> Compliance Matrix
               </Button>
-            )}
+              {canManage && (
+                <Button
+                  onClick={() => setAddOpen(true)}
+                  className="w-full justify-center gap-2 sm:w-auto"
+                >
+                  <Plus className="h-4 w-4" /> Add Record
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="block w-full md:hidden">
+            <div className="grid w-full grid-cols-2 gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={!!exporting || rows.length === 0}
+                    className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white"
+                  >
+                    {exporting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    Export
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      void handleExport("inspection");
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Inspection &amp; Issuance
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      void handleExport("reinspection");
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Reinspection
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                variant="outline"
+                onClick={openMatrixGlobal}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white"
+              >
+                <LayoutGrid className="h-4 w-4" /> Matrix
+              </Button>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 shrink-0" />
+                      Filter
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[calc(100vw-2rem)] p-0" align="start">
+                  <ModuleFilterBar
+                    years={YEARS}
+                    state={filterState}
+                    onChange={setFilterState}
+                    onReset={handleResetFilters}
+                    intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+                    allowAllDays
+                    className="border-0 bg-transparent shadow-none"
+                  >
+                    <ScopedLocationMultiFilterPair
+                      scope={scope}
+                      selection={locationSel}
+                      reportyear={Number(year)}
+                    />
+                  </ModuleFilterBar>
+                </PopoverContent>
+              </Popover>
+
+              {canManage && (
+                <Button onClick={() => setAddOpen(true)} className="w-full justify-center gap-2">
+                  <Plus className="h-4 w-4" /> Add
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
         <CurrentMonthNote canManage={canManage} />
 
         {/* Filters */}
-        <ModuleFilterBar
-          years={YEARS}
-          state={filterState}
-          onChange={setFilterState}
-          onReset={handleResetFilters}
-          intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-          allowAllDays
-        >
-          <ScopedLocationMultiFilterPair
-            scope={scope}
-            selection={locationSel}
-            reportyear={Number(year)}
-          />
-        </ModuleFilterBar>
+        <div className="hidden md:block">
+          <ModuleFilterBar
+            years={YEARS}
+            state={filterState}
+            onChange={setFilterState}
+            onReset={handleResetFilters}
+            intervals={["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+            allowAllDays
+          >
+            <ScopedLocationMultiFilterPair
+              scope={scope}
+              selection={locationSel}
+              reportyear={Number(year)}
+            />
+          </ModuleFilterBar>
+        </div>
       </StickyPageTop>
 
       {/* Target vs. Accomplishment — specific day + single station + Personnel only */}
@@ -1704,8 +1781,8 @@ function ComplianceLedgerCard({
     groupBy === "day" ? "No daily entries for this period." : "No entries for this period.";
 
   // Collapsible state for the two activity tables (display only — data is kept).
-  const [inspectionExpanded, setInspectionExpanded] = React.useState(false);
-  const [reinspectionExpanded, setReinspectionExpanded] = React.useState(false);
+  const [inspectionExpanded, setInspectionExpanded] = React.useState(true);
+  const [reinspectionExpanded, setReinspectionExpanded] = React.useState(true);
 
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
@@ -1725,7 +1802,6 @@ function ComplianceLedgerCard({
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
               {periodLabel ?? `${monthName} ${row.year}`}
             </span>
-            <DaysEncodedBadge encoded={row.daysEncoded} total={row.daysInMonth} />
           </div>
           <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
             {row.stationname}

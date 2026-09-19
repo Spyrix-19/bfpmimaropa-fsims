@@ -234,138 +234,229 @@ export function FeeMatrixTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border/60">
-      <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
-        <colgroup>
-          <col className="w-64" />
-          <col className="w-28" />
-          {visibleSectors.map((s) => (
-            <React.Fragment key={`${s.key}-cols`}>
-              <col className="w-36" />
-              <col className="w-36" />
-            </React.Fragment>
-          ))}
-        </colgroup>
-        <thead>
-          <tr>
-            <th
-              rowSpan={2}
-              className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider"
-            >
-              Fee Category
-            </th>
-            <th
-              rowSpan={2}
-              className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
-            >
-              Total
-            </th>
+    <>
+      <div className="hidden overflow-x-auto rounded-xl border border-border/60 md:block">
+        <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
+          <colgroup>
+            <col className="w-64" />
+            <col className="w-28" />
             {visibleSectors.map((s) => (
-              <th
-                key={s.key}
-                colSpan={2}
-                className="head-soft border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
-              >
-                {s.label}
-              </th>
-            ))}
-          </tr>
-          <tr>
-            {visibleSectors.map((s) => (
-              <React.Fragment key={`${s.key}-sub`}>
-                {MODES.map((m, mi) => (
-                  <th
-                    key={`${s.key}-${m.code}`}
-                    className={cn(
-                      "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
-                      mi === 0 && "border-l border-grid",
-                    )}
-                  >
-                    {m.label}
-                  </th>
-                ))}
+              <React.Fragment key={`${s.key}-cols`}>
+                <col className="w-36" />
+                <col className="w-36" />
               </React.Fragment>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => (
-            <React.Fragment key={g.parentno || g.code || g.name}>
-              <tr className="bg-primary/5">
-                <td
+          </colgroup>
+          <thead>
+            <tr>
+              <th
+                rowSpan={2}
+                className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider"
+              >
+                Fee Category
+              </th>
+              <th
+                rowSpan={2}
+                className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
+              >
+                Total
+              </th>
+              {visibleSectors.map((s) => (
+                <th
+                  key={s.key}
                   colSpan={2}
-                  className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
+                  className="head-soft border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider"
                 >
-                  <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {g.code || g.name}
-                  </span>
-                  {g.items.length > 1 && g.name && g.name !== g.code ? (
-                    <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
-                      {g.name}
+                  {s.label}
+                </th>
+              ))}
+            </tr>
+            <tr>
+              {visibleSectors.map((s) => (
+                <React.Fragment key={`${s.key}-sub`}>
+                  {MODES.map((m, mi) => (
+                    <th
+                      key={`${s.key}-${m.code}`}
+                      className={cn(
+                        "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
+                        mi === 0 && "border-l border-grid",
+                      )}
+                    >
+                      {m.label}
+                    </th>
+                  ))}
+                </React.Fragment>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g) => (
+              <React.Fragment key={g.parentno || g.code || g.name}>
+                <tr className="bg-primary/5">
+                  <td
+                    colSpan={2}
+                    className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
+                  >
+                    <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
+                      {g.code || g.name}
                     </span>
-                  ) : null}
-                </td>
-                {visibleSectors.map((s) => (
-                  <td key={`${s.key}-g`} colSpan={2} className="border-l border-grid px-3 py-1.5" />
-                ))}
-              </tr>
+                    {g.items.length > 1 && g.name && g.name !== g.code ? (
+                      <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
+                        {g.name}
+                      </span>
+                    ) : null}
+                  </td>
+                  {visibleSectors.map((s) => (
+                    <td key={`${s.key}-g`} colSpan={2} className="border-l border-grid px-3 py-1.5" />
+                  ))}
+                </tr>
+                {showSubItems &&
+                  g.items.map((c) => {
+                    const rowTotal = visibleSectors.reduce(
+                      (a, s) =>
+                        a + MODES.reduce((b, m) => b + (values[s.key][m.code][c.detno] ?? 0), 0),
+                      0,
+                    );
+                    return (
+                      <tr key={c.key} className="border-t border-grid">
+                        <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
+                          {c.label}
+                        </td>
+                        <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-t border-grid bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
+                          {peso(rowTotal)}
+                        </td>
+                        {visibleSectors.map((s) => (
+                          <React.Fragment key={`${s.key}-${c.key}`}>
+                            <td className="w-36 min-w-36 border-l border-t border-grid px-2 py-1.5">
+                              {cell(s.key, FIRE_CODE_MODE_MANUAL, c.detno)}
+                            </td>
+                            <td className="w-36 min-w-36 border-t border-grid px-2 py-1.5">
+                              {cell(s.key, FIRE_CODE_MODE_FSIS, c.detno)}
+                            </td>
+                          </React.Fragment>
+                        ))}
+                      </tr>
+                    );
+                  })}
+              </React.Fragment>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-grid bg-muted/60">
+              <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+                Total
+              </td>
+              <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-grid bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
+                {peso(grand)}
+              </td>
+              {columnTotals.map((s) => (
+                <React.Fragment key={`${s.key}-total`}>
+                  {s.byMode.map((m, mi) => (
+                    <td
+                      key={`${s.key}-${m.code}-total`}
+                      className={cn(
+                        "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
+                        mi === 0 && "border-l border-grid",
+                      )}
+                    >
+                      {peso(m.total)}
+                    </td>
+                  ))}
+                </React.Fragment>
+              ))}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div className="block space-y-3 rounded-xl border border-border/60 bg-card p-3 md:hidden">
+        <div className="flex items-center justify-between border-b border-border/60 pb-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Fee categories
+          </span>
+          <span className="text-xs font-bold text-primary">{peso(grand)}</span>
+        </div>
+
+        {groups.map((g) => {
+          const hasMultipleItems = g.items.length > 1;
+          const showGroupDescription = hasMultipleItems && g.name && g.name !== g.code;
+
+          return (
+            <div key={g.parentno || g.code || g.name} className="overflow-hidden rounded-lg border border-border/60 bg-muted/20">
+              <div className="bg-primary/5 px-3 py-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  {g.code || g.name}
+                </div>
+                {showGroupDescription && (
+                  <div className="mt-0.5 text-[11px] font-medium text-foreground/90">
+                    {g.name}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 p-2">
               {showSubItems &&
                 g.items.map((c) => {
-                  const rowTotal = visibleSectors.reduce(
-                    (a, s) =>
-                      a + MODES.reduce((b, m) => b + (values[s.key][m.code][c.detno] ?? 0), 0),
-                    0,
-                  );
+                  const manual = values["bplo"][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0;
+                  const fsis = values["bplo"][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
+                  const total = manual + fsis;
+                  const renderAmount = (mode: ModeCode, label: string, amount: number) => {
+                    if (!editable) {
+                      return (
+                        <div className="rounded-md bg-muted/30 px-2 py-1.5">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                            {label}
+                          </div>
+                          <div className="mt-1 text-xs font-semibold tabular-nums text-foreground">
+                            {peso(amount)}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="rounded-md bg-muted/30 px-2 py-1.5">
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {label}
+                        </div>
+                        <div className="mt-1">
+                          <AmountInput
+                            value={amount}
+                            disabled={locked}
+                            onValueChange={(raw) => onChange?.("bplo", mode, c.detno, raw)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  };
+
                   return (
-                    <tr key={c.key} className="border-t border-grid">
-                      <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
-                        {c.label}
-                      </td>
-                      <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-t border-grid bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
-                        {peso(rowTotal)}
-                      </td>
-                      {visibleSectors.map((s) => (
-                        <React.Fragment key={`${s.key}-${c.key}`}>
-                          <td className="w-36 min-w-36 border-l border-t border-grid px-2 py-1.5">
-                            {cell(s.key, FIRE_CODE_MODE_MANUAL, c.detno)}
-                          </td>
-                          <td className="w-36 min-w-36 border-t border-grid px-2 py-1.5">
-                            {cell(s.key, FIRE_CODE_MODE_FSIS, c.detno)}
-                          </td>
-                        </React.Fragment>
-                      ))}
-                    </tr>
+                    <div key={c.key} className="rounded-md border border-border/60 bg-card p-2.5">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-xs font-medium text-foreground/90">
+                          {c.label}
+                          {c.parentname && c.parentname !== g.name && (
+                            <span className="mt-0.5 block text-[9px] font-normal text-muted-foreground">
+                              {c.parentname}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs font-bold tabular-nums text-primary">
+                          {peso(total)}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {renderAmount(FIRE_CODE_MODE_MANUAL, "Manual", manual)}
+                        {renderAmount(FIRE_CODE_MODE_FSIS, "FSIS", fsis)}
+                      </div>
+                    </div>
                   );
                 })}
-            </React.Fragment>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="border-t border-grid bg-muted/60">
-            <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
-              Total
-            </td>
-            <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-grid bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
-              {peso(grand)}
-            </td>
-            {columnTotals.map((s) => (
-              <React.Fragment key={`${s.key}-total`}>
-                {s.byMode.map((m, mi) => (
-                  <td
-                    key={`${s.key}-${m.code}-total`}
-                    className={cn(
-                      "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
-                      mi === 0 && "border-l border-grid",
-                    )}
-                  >
-                    {peso(m.total)}
-                  </td>
-                ))}
-              </React.Fragment>
-            ))}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }

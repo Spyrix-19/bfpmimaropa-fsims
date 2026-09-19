@@ -97,7 +97,7 @@ export function FeeTypeMultiSelect({
         <Button
           variant="outline"
           size="sm"
-          className={cn("w-full shrink-0 justify-between sm:w-[280px]", className)}
+          className={cn("w-full min-w-0 justify-between sm:w-[280px]", className)}
           title={selectedLabels.join(", ")}
         >
           <span className="truncate">{label}</span>

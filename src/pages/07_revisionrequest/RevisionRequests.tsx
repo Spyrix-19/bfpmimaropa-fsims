@@ -1,12 +1,20 @@
 import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import * as React from "react";
-import { ShieldCheck, Check, X as XIcon, Loader2 } from "lucide-react";
+import {
+  ShieldCheck,
+  Check,
+  X as XIcon,
+  Loader2,
+  Filter,
+  ChevronDown,
+} from "lucide-react";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import FilterField from "@/components/filter-field";
 import {
   Select,
@@ -27,6 +35,7 @@ import { formatDate, formatDateTime } from "@/lib/date-format";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
 import {
@@ -196,6 +205,156 @@ export default function TargetRevisionRequests({
     }
   };
 
+  const renderRequestCard = (r: FSISEditRequestModel) => {
+    const isPending = String(r.statuscode ?? "").toUpperCase() === "PENDING";
+    const statusText = r.statusname || r.statuscode || "—";
+    const requestDate =
+      String(r.requesttype ?? "").toUpperCase() !== "FIRE CODE FEES" && r.dateinspected
+        ? formatDate(r.dateinspected, "—")
+        : monthYearLabel(r.reportyear, r.reportmonth);
+
+    return (
+      <Card key={r.requestno} className="border-border/60 p-3 shadow-soft">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <AvatarWithFallback
+              src={r.logourl || undefined}
+              name={r.stationname}
+              className="h-9 w-9 shrink-0"
+            />
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-foreground">{r.stationname || "—"}</div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {r.stationcode || "—"}
+              </div>
+            </div>
+          </div>
+          <span className={cn(STATUS_PILL_BASE, statusTone(r.statuscode || r.statusname))}>
+            {statusText}
+          </span>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-2">
+            <div className="font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              {dateColumnHeader}
+            </div>
+            <div className="mt-1 font-medium text-foreground">{requestDate}</div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-2">
+            <div className="font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Requested
+            </div>
+            <div className="mt-1 font-medium text-foreground">
+              {r.requestedbyname || r.fullname || "—"}
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              {formatDateTime(r.daterequested, "—")}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 p-2 text-[11px]">
+          <div className="font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Remarks
+          </div>
+          <div className="mt-1 whitespace-pre-wrap break-words text-foreground">
+            {r.remarks || "—"}
+          </div>
+        </div>
+
+        {isAuthorizedAdmin && isPending && (
+          <div className="mt-3 flex gap-2">
+            <EditButton
+              variant="square"
+              tooltip="Approve Request"
+              ariaLabel="Approve Request"
+              icon={<Check className="h-4 w-4" />}
+              onClick={() => setApproveTarget(r)}
+              className="flex-1 justify-center"
+            />
+            <DeleteButton
+              variant="square"
+              tooltip="Reject Request"
+              ariaLabel="Reject Request"
+              icon={<XIcon className="h-4 w-4" />}
+              onClick={() => setRejectTarget(r)}
+              className="flex-1 justify-center"
+            />
+          </div>
+        )}
+      </Card>
+    );
+  };
+
+  const filterControls = (
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <FilterField label="Year">
+        <Select value={year} onValueChange={setYear}>
+          <SelectTrigger className="h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All years</SelectItem>
+            {YEARS.map((y) => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FilterField>
+      <FilterField label="Month">
+        <Select value={month} onValueChange={setMonth}>
+          <SelectTrigger className="h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All months</SelectItem>
+            {MONTHS_CONST.map((m) => (
+              <SelectItem key={m.value} value={String(m.value)}>
+                {m.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FilterField>
+      <FilterField label="Provinces">
+        <LocationMultiSelect
+          mode="location"
+          value={provinces}
+          locationtype="PROVINCE"
+          parentcode={MIMAROPA_REGION_CODE}
+          onChange={(sel) => {
+            setProvinces(sel);
+            if (sel.length > 0) {
+              const allowed = new Set(sel.map((p) => p.locationno));
+              setStations((prev) => prev.filter((s) => allowed.has(s.provinceno)));
+            }
+          }}
+          placeholder="All provinces"
+          hideCode
+          className="h-9"
+        />
+      </FilterField>
+      <FilterField label="Stations">
+        <StationMultiSelect
+          mode="station"
+          value={stations}
+          provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
+          reportyear={year !== "all" ? Number(year) : 0}
+          onChange={setStations}
+          placeholder="All stations"
+          alwaysEnabled
+          className="h-9"
+        />
+      </FilterField>
+      <div className="flex items-end justify-end">
+        <ResetFiltersButton onReset={handleResetFilters} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <StickyPageTop>
@@ -241,187 +400,163 @@ export default function TargetRevisionRequests({
           </div>
         )}
 
-        <div className="rounded-lg border border-border/60 bg-card/40 p-3">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            <FilterField label="Year">
-              <Select value={year} onValueChange={setYear}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All years</SelectItem>
-                  {YEARS.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FilterField>
-            <FilterField label="Month">
-              <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All months</SelectItem>
-                  {MONTHS_CONST.map((m) => (
-                    <SelectItem key={m.value} value={String(m.value)}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FilterField>
-            <FilterField label="Provinces">
-              <LocationMultiSelect
-                mode="location"
-                value={provinces}
-                locationtype="PROVINCE"
-                parentcode={MIMAROPA_REGION_CODE}
-                onChange={(sel) => {
-                  setProvinces(sel);
-                  if (sel.length > 0) {
-                    const allowed = new Set(sel.map((p) => p.locationno));
-                    setStations((prev) => prev.filter((s) => allowed.has(s.provinceno)));
-                  }
-                }}
-                placeholder="All provinces"
-                hideCode
-                className="h-9"
-              />
-            </FilterField>
-            <FilterField label="Stations">
-              <StationMultiSelect
-                mode="station"
-                value={stations}
-                provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
-                reportyear={year !== "all" ? Number(year) : 0}
-                onChange={setStations}
-                placeholder="All stations"
-                alwaysEnabled
-                className="h-9"
-              />
-            </FilterField>
-            <div className="flex items-end justify-end">
-              <ResetFiltersButton onReset={handleResetFilters} />
-            </div>
+        <div className="hidden md:block">
+          <div className="rounded-lg border border-border/60 bg-card/40 p-3">{filterControls}</div>
+        </div>
+
+        <div className="block md:hidden">
+          <div className="flex items-center justify-end">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 shrink-0" />
+                    Filter
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[calc(100vw-2rem)] p-3" align="start">
+                <div className="space-y-3">{filterControls}</div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </StickyPageTop>
 
-      {/* Table */}
-      <div className="overflow-auto rounded-lg border border-border/60">
-        <table className="min-w-full border-collapse text-xs">
-          <thead className="bg-muted/50 uppercase tracking-wider text-[10px] text-primary">
-            <tr>
-              {["Action", "Station", dateColumnHeader, "Status", "Requested", "Remarks"].map(
-                (h) => (
+      <div className="hidden md:block">
+        <div className="overflow-auto rounded-lg border border-border/60">
+          <table className="min-w-full border-collapse text-xs">
+            <thead className="bg-muted/50 uppercase tracking-wider text-[10px] text-primary">
+              <tr>
+                {[
+                  "Action",
+                  "Station",
+                  dateColumnHeader,
+                  "Status",
+                  "Requested",
+                  "Remarks",
+                ].map((h) => (
                   <th
                     key={h}
                     className="whitespace-nowrap border-b border-border/60 px-3 py-2 text-left font-semibold"
                   >
                     {h}
                   </th>
-                ),
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                    </span>
+                  </td>
+                </tr>
               )}
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={6} className="py-10 text-center text-muted-foreground">
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-                  </span>
-                </td>
-              </tr>
-            )}
-            {!loading && rows.length === 0 && (
-              <tr>
-                <td colSpan={6} className="py-10 text-center text-muted-foreground">
-                  No revision requests match the current filters.
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              rows.map((r) => {
-                const isPending = String(r.statuscode ?? "").toUpperCase() === "PENDING";
-                const isApproved = String(r.statuscode ?? "").toUpperCase() === "APPROVED";
-                return (
-                  <tr
-                    key={r.requestno}
-                    className="border-b border-border/40 hover:bg-muted/30 align-top"
-                  >
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        {isAuthorizedAdmin && isPending && (
-                          <>
-                            <EditButton
-                              variant="square"
-                              tooltip="Approve Request"
-                              ariaLabel="Approve Request"
-                              icon={<Check className="h-4 w-4" />}
-                              onClick={() => setApproveTarget(r)}
-                            />
-                            <DeleteButton
-                              variant="square"
-                              tooltip="Reject Request"
-                              ariaLabel="Reject Request"
-                              icon={<XIcon className="h-4 w-4" />}
-                              onClick={() => setRejectTarget(r)}
-                            />
-                          </>
-                        )}
-                      </div>
-                    </td>
+              {!loading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                    No revision requests match the current filters.
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                rows.map((r) => {
+                  const isPending = String(r.statuscode ?? "").toUpperCase() === "PENDING";
+                  return (
+                    <tr
+                      key={r.requestno}
+                      className="border-b border-border/40 hover:bg-muted/30 align-top"
+                    >
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {isAuthorizedAdmin && isPending && (
+                            <>
+                              <EditButton
+                                variant="square"
+                                tooltip="Approve Request"
+                                ariaLabel="Approve Request"
+                                icon={<Check className="h-4 w-4" />}
+                                onClick={() => setApproveTarget(r)}
+                              />
+                              <DeleteButton
+                                variant="square"
+                                tooltip="Reject Request"
+                                ariaLabel="Reject Request"
+                                icon={<XIcon className="h-4 w-4" />}
+                                onClick={() => setRejectTarget(r)}
+                              />
+                            </>
+                          )}
+                        </div>
+                      </td>
 
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <AvatarWithFallback
-                          src={r.logourl || undefined}
-                          name={r.stationname}
-                          className="h-8 w-8 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <div className="truncate">{r.stationname || "—"}</div>
-                          <div className="truncate text-[11px] text-muted-foreground">
-                            {r.stationcode || "—"}
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <AvatarWithFallback
+                            src={r.logourl || undefined}
+                            name={r.stationname}
+                            className="h-8 w-8 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="truncate">{r.stationname || "—"}</div>
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              {r.stationcode || "—"}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
-                      {String(r.requesttype ?? "").toUpperCase() !== "FIRE CODE FEES" &&
-                      r.dateinspected
-                        ? formatDate(r.dateinspected, "—")
-                        : monthYearLabel(r.reportyear, r.reportmonth)}
-                    </td>
+                      <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums">
+                        {String(r.requesttype ?? "").toUpperCase() !== "FIRE CODE FEES" &&
+                        r.dateinspected
+                          ? formatDate(r.dateinspected, "—")
+                          : monthYearLabel(r.reportyear, r.reportmonth)}
+                      </td>
 
-                    <td className="px-3 py-2">
-                      <span
-                        className={cn(STATUS_PILL_BASE, statusTone(r.statuscode || r.statusname))}
-                      >
-                        {r.statusname || r.statuscode || "—"}
-                      </span>
-                    </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={cn(STATUS_PILL_BASE, statusTone(r.statuscode || r.statusname))}
+                        >
+                          {r.statusname || r.statuscode || "—"}
+                        </span>
+                      </td>
 
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{r.requestedbyname || r.fullname || "—"}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {formatDateTime(r.daterequested, "—")}
-                      </div>
-                    </td>
+                      <td className="px-3 py-2">
+                        <div className="font-medium">{r.requestedbyname || r.fullname || "—"}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {formatDateTime(r.daterequested, "—")}
+                        </div>
+                      </td>
 
-                    <td className="px-3 py-2 whitespace-pre-wrap break-words max-w-[320px]">
-                      {r.remarks || "—"}
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
+                      <td className="px-3 py-2 whitespace-pre-wrap break-words max-w-[320px]">
+                        {r.remarks || "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="block space-y-3 md:hidden">
+        {loading && (
+          <Card className="border-border/60 p-10 text-center text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </span>
+          </Card>
+        )}
+        {!loading && rows.length === 0 && (
+          <Card className="border-border/60 p-8 text-center text-sm text-muted-foreground">
+            No revision requests match the current filters.
+          </Card>
+        )}
+        {!loading && rows.map((r) => renderRequestCard(r))}
       </div>
 
       <div className="border-t border-border/60 pt-3">

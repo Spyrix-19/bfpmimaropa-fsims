@@ -3,6 +3,8 @@ import * as React from "react";
 import {
   Building2,
   CalendarIcon,
+  ChevronDown,
+  ChevronUp,
   ChevronsDown,
   ChevronsUp,
   Lock,
@@ -115,7 +117,7 @@ function SectionTitle({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         {icon}
         {title}
@@ -334,6 +336,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
   const [viewYear, setViewYear] = React.useState<number>(
     record?.reportYear ?? new Date().getFullYear(),
   );
+  const [mobileExpandedDates, setMobileExpandedDates] = React.useState<Record<number, boolean>>({});
 
   // Reset to the record's period whenever a new record is opened.
   React.useEffect(() => {
@@ -514,18 +517,28 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
 
             {/* Daily Complied Notices Details ------------------------------------------- */}
             <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <SectionTitle
                   title="Daily Complied Notices Details"
                   subtitle="Complied Notices per day"
                 />
-                <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="hidden rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:block">
                   {monthName} {year}
                 </div>
               </div>
 
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                <span>{monthName} {year}</span>
+                <span className="text-sm font-bold tabular-nums text-primary">
+                  {displayNumber(grandTotal).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+
               <div
-                className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
+                className="hidden w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft md:block"
                 style={{ maxHeight: "70vh" }}
               >
                 <table className="w-full min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
@@ -662,6 +675,107 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                   </tfoot>
                 </table>
               </div>
+
+              <div className="block space-y-3 md:hidden">
+                {days.map((entry, index) => {
+                  const expanded = Boolean(mobileExpandedDates[entry.day]);
+                  const hasValues = rowTotal(entry) > 0;
+                  return (
+                    <div
+                      key={entry.day}
+                      className={cn(
+                        "border-b border-border/60 bg-card",
+                        index % 2 === 1 && "bg-muted/5",
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setMobileExpandedDates((prev) => ({
+                            ...prev,
+                            [entry.day]: !prev[entry.day],
+                          }))
+                        }
+                        className="flex w-full items-center gap-3 px-3 py-3 text-left"
+                      >
+                        <div className="shrink-0">
+                          <DayLockIcon date={dayKey(year, month, entry.day)} module="notice" className="h-4 w-4" />
+                        </div>
+
+                        <span className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
+                          {entry.label}
+                        </span>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!hasValues && (
+                            <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              NO RECORD
+                            </span>
+                          )}
+
+                          <span className="text-base font-bold tabular-nums text-primary">
+                            {displayNumber(rowTotal(entry)).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+
+                          {expanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                      </button>
+
+                      {expanded && (
+                        <div className="border-t border-border/50 bg-muted/10 p-3">
+                          <div className="space-y-3">
+                            {NOTICE_CATEGORIES.map((category) => {
+                              const total =
+                                (entry.modes.manual[category] ?? 0) + (entry.modes.fsis[category] ?? 0);
+                              return (
+                                <div
+                                  key={`${entry.day}-${category}`}
+                                  className="rounded-md border border-border/50 bg-card p-2"
+                                >
+                                  <div className="mb-2 flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                      {CATEGORY_LABEL[category]}
+                                    </span>
+                                    <span className="text-xs font-bold tabular-nums text-primary">
+                                      {displayNumber(total).toLocaleString()}
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {MODE_ROWS.map((mode) => {
+                                      const value = entry.modes[mode.key][category] ?? 0;
+                                      return (
+                                        <div
+                                          key={`${entry.day}-${category}-${mode.key}`}
+                                          className="flex items-center justify-between rounded-md border border-border/50 bg-muted/20 px-2 py-1.5"
+                                        >
+                                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                                            {mode.label}
+                                          </span>
+                                          <span className="text-sm font-semibold tabular-nums text-foreground">
+                                            {displayNumber(value).toLocaleString()}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </Card>
           </div>
 
@@ -691,7 +805,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
           )}
         </div>
 
-        <DialogFooter className="border-t bg-background px-5 py-3">
+        <DialogFooter className="flex w-full flex-row justify-end gap-2 border-t bg-background px-5 py-3">
           {onEdit && canEdit && (
             <Button
               variant="outline"

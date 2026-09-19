@@ -98,7 +98,7 @@ export function FeeTypeMultiSelect({
           variant="outline"
           size="sm"
           className={cn(
-            "w-full shrink-0 justify-between sm:w-[320px] md:w-[420px] xl:w-[520px]",
+            "w-full min-w-0 justify-between sm:w-[320px] md:w-[420px] xl:w-[520px]",
             className,
           )}
           title={selected.map((o) => o.label).join(", ")}

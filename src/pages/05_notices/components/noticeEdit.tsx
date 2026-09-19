@@ -6,6 +6,8 @@ import {
   Ban,
   Building2,
   CalendarIcon,
+  ChevronDown,
+  ChevronUp,
   FilePen,
   Loader2,
   Lock,
@@ -236,7 +238,7 @@ function SectionTitle({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         {icon}
         {title}
@@ -346,7 +348,7 @@ function NoticeAccomplishmentPanel({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -441,6 +443,65 @@ function NoticeAccomplishmentPanel({
           </tbody>
         </table>
       </div>
+
+      <div className="block space-y-3 px-3 pb-3 md:hidden">
+        {rows.map((r, i) => (
+          <div
+            key={r.category}
+            className={cn(
+              "rounded-xl border border-border/60 bg-card p-3 shadow-soft",
+              i % 2 === 1 && "bg-muted/20",
+            )}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
+              <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                {CATEGORY_LABEL[r.category]}
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {r.percentage.toFixed(2)}%
+              </span>
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-border/50 bg-card/60 p-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Issuance
+                </div>
+                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.issued }}>
+                  {r.issued.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/60 p-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Accomplished
+                </div>
+                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.accomplished }}>
+                  {r.accomplished.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/60 p-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Pending
+                </div>
+                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.pending }}>
+                  {r.pending.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/60 p-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Positive
+                </div>
+                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.positive }}>
+                  {r.positive.toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
@@ -466,6 +527,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [daySourceMap, setDaySourceMap] = React.useState<Map<string, DaySourceExt>>(new Map());
+  const [mobileExpandedDates, setMobileExpandedDates] = React.useState<Record<number, boolean>>({});
 
   /* --------------------------- Revision requests -------------------------- */
   const [revisionOpen, setRevisionOpen] = React.useState(false);
@@ -875,20 +937,27 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
 
             {/* Daily Complied Notices Details ------------------------------------------- */}
             <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft sm:p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <SectionTitle
                   title="Daily Complied Notices Details"
                   subtitle="Complied Notices per day"
                 />
-                <div className="rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="hidden rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:block">
                   {monthName} {year}
                 </div>
               </div>
 
-              <div
-                className="w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft"
-                style={{ maxHeight: "70vh" }}
-              >
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                <span>{monthName} {year}</span>
+                <span className="text-sm font-bold tabular-nums text-primary">
+                  {Number(grandTotal).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+
+              <div className="hidden w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft md:block" style={{ maxHeight: "70vh" }}>
                 <table className="w-full min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
                   <thead className="sticky top-0 z-30">
                     <tr>
@@ -1109,6 +1178,177 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                     </tr>
                   </tfoot>
                 </table>
+              </div>
+
+              <div className="block space-y-3 md:hidden">
+                {rows.map((entry, index) => {
+                  const rev = entry.rev;
+                  const showRevisionAction = rev.pending || rev.needsRequest;
+                  const expanded = Boolean(mobileExpandedDates[entry.day]);
+                  const hasValues = rowTotal(entry) > 0;
+
+                  return (
+                    <div
+                      key={entry.day}
+                      className={cn(
+                        "border-b border-border/60 bg-card",
+                        index % 2 === 1 && "bg-muted/5",
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setMobileExpandedDates((prev) => ({
+                            ...prev,
+                            [entry.day]: !prev[entry.day],
+                          }))
+                        }
+                        className="flex w-full items-center gap-3 px-3 py-3 text-left"
+                      >
+                        {showRevisionAction ? (
+                          rev.pending ? (
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <EditButton
+                                variant="square"
+                                tooltip="Cancel Revision Request"
+                                ariaLabel="Cancel Revision Request"
+                                icon={<Ban className="h-4 w-4" />}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (rev.req) setCancelRequestId(rev.req.requestno);
+                                  else toast.info("No active revision request to cancel.");
+                                }}
+                              />
+                              <DeleteButton
+                                variant="square"
+                                tooltip="Delete Revision Request"
+                                ariaLabel="Delete Revision Request"
+                                icon={<Trash2 className="h-4 w-4" />}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (rev.req) setDeleteRequestId(rev.req.requestno);
+                                  else toast.info("No revision request to delete.");
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="shrink-0">
+                              <EditButton
+                                variant="square"
+                                tooltip={!stationno ? "Select a station to request a revision" : "Request Revision"}
+                                ariaLabel={!stationno ? "Select a station to request a revision" : "Request Revision"}
+                                disabled={!stationno}
+                                icon={<FilePen className="h-4 w-4" />}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setRevisionReferenceKey(EMPTY_GUID);
+                                  setRevisionDate(entry.date);
+                                  setRevisionOpen(true);
+                                }}
+                              />
+                            </div>
+                          )
+                        ) : null}
+
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="shrink-0">
+                            <DayLockIcon date={entry.date} module="notice" className="h-4 w-4" />
+                          </div>
+
+                          <span className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
+                            {entry.label}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!hasValues && (
+                            <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              NO RECORD
+                            </span>
+                          )}
+
+                          <span className="text-base font-bold tabular-nums text-primary">
+                            {rowTotal(entry).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                          {expanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                      </button>
+
+                      {expanded && (
+                        <div className="border-t border-border/50 bg-muted/10 p-3">
+                          <div className="space-y-3">
+                            {NOTICE_CATEGORIES.map((category) => {
+                              const total =
+                                (entry.modes.manual[category] ?? 0) + (entry.modes.fsis[category] ?? 0);
+
+                              return (
+                                <div
+                                  key={`${entry.day}-${category}`}
+                                  className="rounded-lg border border-border/50 bg-card/60 p-2"
+                                >
+                                  <div className="mb-2 flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                      {CATEGORY_LABEL[category]}
+                                    </span>
+                                    <span className="text-xs font-bold tabular-nums text-primary">
+                                      {total.toLocaleString()}
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {MODE_ROWS.map((mode) => {
+                                      const value = entry.modes[mode.key][category] ?? 0;
+                                      return (
+                                        <div
+                                          key={`${entry.day}-${category}-${mode.key}`}
+                                          className="rounded-md border border-border/50 bg-card p-2"
+                                        >
+                                          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                                            {mode.label}
+                                          </div>
+                                          {entry.isLocked ? (
+                                            <div className="mt-1 text-sm font-semibold tabular-nums text-muted-foreground">
+                                              {value.toLocaleString()}
+                                            </div>
+                                          ) : (
+                                            <NumericInput
+                                              aria-label={`${CATEGORY_LABEL[category]} ${mode.label} for ${entry.label}`}
+                                              value={value}
+                                              onValueChange={(raw) =>
+                                                updateField(entry.day, category, mode.key, raw)
+                                              }
+                                              className="mt-1 h-8 w-full rounded-md border-border/70 px-2 py-1 text-center tabular-nums"
+                                            />
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-primary/5 px-3 py-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              Day Total
+                            </span>
+                            <span className="text-sm font-bold tabular-nums text-primary">
+                              {rowTotal(entry).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </Card>
 

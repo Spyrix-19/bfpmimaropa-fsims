@@ -204,6 +204,7 @@ export default function TargetReferenceForm({
   const [cells, setCells] = React.useState<CellMap>({});
   const [baselineCells, setBaselineCells] = React.useState<CellMap>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [mobileExpandedDates, setMobileExpandedDates] = React.useState<Record<number, boolean>>({});
   const [saving, setSaving] = React.useState(false);
   const [duplicatePrompted, setDuplicatePrompted] = React.useState(false);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = React.useState(false);
@@ -854,30 +855,184 @@ export default function TargetReferenceForm({
         No government sectors available.
       </div>
     ) : (
-      <div className="w-full max-w-full overflow-auto" style={{ maxHeight: "70vh" }}>
-        <table className="min-w-full border-collapse text-xs">
-          <thead className="sticky top-0 z-10 bg-card">
-            <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
-              <th className="min-w-[96px] border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">
-                ACTION
-              </th>
-              <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Date</th>
-              {sectors.map((s) => (
-                <th
-                  key={s.detno}
-                  className="border-b border-border/60 bg-card px-3 py-2 text-center font-semibold"
-                  title={s.description}
-                >
-                  {s.recordcode || s.description}
+      <>
+        <div className="hidden w-full max-w-full overflow-auto md:block" style={{ maxHeight: "70vh" }}>
+          <table className="min-w-full border-collapse text-xs">
+            <thead className="sticky top-0 z-10 bg-card">
+              <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
+                <th className="min-w-[96px] border-b border-r border-border/60 bg-card px-3 py-2 text-center font-semibold">
+                  ACTION
                 </th>
-              ))}
-              <th className="border-b border-l border-border/60 bg-card px-3 py-2 text-center font-semibold">
-                TOTAL
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {days.map((d, i) => {
+                <th className="border-b border-border/60 px-3 py-2 font-semibold bg-card">Date</th>
+                {sectors.map((s) => (
+                  <th
+                    key={s.detno}
+                    className="border-b border-border/60 bg-card px-3 py-2 text-center font-semibold"
+                    title={s.description}
+                  >
+                    {s.recordcode || s.description}
+                  </th>
+                ))}
+                <th className="border-b border-l border-border/60 bg-card px-3 py-2 text-center font-semibold">
+                  TOTAL
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {days.map((d, i) => {
+                const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
+                const rowDateKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                const lock = rowRevisionLock(d);
+                const activeReq =
+                  lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
+                const rowLocked =
+                  lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(d));
+                const isEditable = !rowLocked;
+                const rowReferenceKey = existingTargetNos?.[String(d)] || "";
+                return (
+                  <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                    <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
+                      {!isEditable && !lock.unlockedByApproval ? (
+                        lock.hasPendingRevision ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <EditButton
+                              variant="square"
+                              tooltip="Cancel Revision Request"
+                              ariaLabel="Cancel Revision Request"
+                              icon={<Ban className="h-4 w-4" />}
+                              onClick={() => {
+                                if (activeReq) setCancelRequestId(activeReq.requestno);
+                                else toast.info("No active revision request to cancel.");
+                              }}
+                            />
+                            <DeleteButton
+                              variant="square"
+                              tooltip="Delete Revision Request"
+                              ariaLabel="Delete Revision Request"
+                              icon={<Trash2 className="h-4 w-4" />}
+                              onClick={() => {
+                                if (activeReq) setDeleteRequestId(activeReq.requestno);
+                                else toast.info("No revision request to delete.");
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <EditButton
+                              variant="square"
+                              tooltip={
+                                !revStation
+                                  ? "Select a station to request a revision"
+                                  : "Request Revision"
+                              }
+                              ariaLabel={
+                                !revStation
+                                  ? "Select a station to request a revision"
+                                  : "Request Revision"
+                              }
+                              disabled={!revStation}
+                              icon={<FilePen className="h-4 w-4" />}
+                              onClick={() => setRevisionDay(Number(d))}
+                            />
+                          </div>
+                        )
+                      ) : null}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-1.5 font-medium">
+                      <div className="flex items-center gap-2">
+                        <DayLockIcon
+                          date={rowDateKey}
+                          module="target-reference"
+                          locked={rowLocked}
+                          className="h-3 w-3"
+                        />
+                        <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
+                        {activeReq ? (
+                          <RevisionStatusBadge
+                            status={
+                              activeReq.statuscode?.toUpperCase() === "PENDING"
+                                ? "PENDING"
+                                : activeReq.statuscode?.toUpperCase() === "APPROVED"
+                                  ? "APPROVED"
+                                  : "CANCELLED"
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    </td>
+                    {sectors.map((s) => {
+                      const key = `${d}-${s.detno}`;
+                      const hasErr = Boolean(errors[key]);
+                      const val = cells[key] ?? "";
+                      const locked = !isEditable;
+                      return (
+                        <td key={s.detno} className="px-2 py-1">
+                          <input
+                            {...numericFieldProps({
+                              value: val,
+                              onValueChange: (raw) => setCell(d, Number(s.detno), raw),
+                              disabled: locked,
+                            })}
+                            readOnly={locked}
+                            tabIndex={locked ? -1 : 0}
+                            aria-invalid={hasErr}
+                            aria-readonly={locked}
+                            title={locked ? "This row is not editable." : undefined}
+                            className={cn(
+                              "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-center text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                              hasErr &&
+                                "border-destructive focus:border-destructive focus:ring-destructive",
+                              locked &&
+                                "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
+                            )}
+                          />
+                        </td>
+                      );
+                    })}
+                    <td className="border-l border-border/60 bg-card px-3 py-1.5 text-center font-semibold tabular-nums text-primary">
+                      {dayTotal(d).toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot className="sticky bottom-0 bg-card">
+              <tr className="text-primary bg-card">
+                <td className="border-r border-t border-border/60 bg-card px-3 py-2" />
+                <td className="border-t border-border/60 px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] bg-card">
+                  TOTAL
+                </td>
+                {sectors.map((s) => (
+                  <td
+                    key={s.detno}
+                    className="border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums"
+                  >
+                    {sectorTotal(Number(s.detno)).toLocaleString()}
+                  </td>
+                ))}
+                <td className="border-l border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">
+                  {grandTotal.toLocaleString()}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div className="block md:hidden">
+          <div className="mb-3 flex items-center justify-between gap-3 border-b border-border/60 bg-card px-3 py-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+              {MONTHS[month - 1]?.name ?? ""} {year}
+            </div>
+            <span className="inline-flex min-w-[88px] items-center justify-end rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm font-bold tabular-nums text-primary">
+              {days.reduce((sum, d) => sum + dayTotal(d), 0).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {days.map((d) => {
               const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
               const rowDateKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
               const lock = rowRevisionLock(d);
@@ -886,135 +1041,164 @@ export default function TargetReferenceForm({
               const rowLocked =
                 lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(d));
               const isEditable = !rowLocked;
-              const rowReferenceKey = existingTargetNos?.[String(d)] || "";
+              const showRevisionAction = !isEditable && !lock.unlockedByApproval;
+              const expanded = Boolean(mobileExpandedDates[d]);
+              const hasRecord = sectors.some((s) => Number(cells[`${d}-${s.detno}`] ?? 0) > 0);
+
               return (
-                <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-                  <td className="min-w-[96px] border-r border-border/60 bg-card px-2 py-1.5 text-center">
-                    {!isEditable && !lock.unlockedByApproval ? (
-                      lock.hasPendingRevision ? (
-                        <div className="flex items-center justify-center gap-1.5">
-                          <EditButton
-                            variant="square"
-                            tooltip="Cancel Revision Request"
-                            ariaLabel="Cancel Revision Request"
-                            icon={<Ban className="h-4 w-4" />}
-                            onClick={() => {
-                              if (activeReq) setCancelRequestId(activeReq.requestno);
-                              else toast.info("No active revision request to cancel.");
-                            }}
-                          />
-                          <DeleteButton
-                            variant="square"
-                            tooltip="Delete Revision Request"
-                            ariaLabel="Delete Revision Request"
-                            icon={<Trash2 className="h-4 w-4" />}
-                            onClick={() => {
-                              if (activeReq) setDeleteRequestId(activeReq.requestno);
-                              else toast.info("No revision request to delete.");
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1.5">
-                          <EditButton
-                            variant="square"
-                            tooltip={
-                              !revStation
-                                ? "Select a station to request a revision"
-                                : "Request Revision"
-                            }
-                            ariaLabel={
-                              !revStation
-                                ? "Select a station to request a revision"
-                                : "Request Revision"
-                            }
-                            disabled={!revStation}
-                            icon={<FilePen className="h-4 w-4" />}
-                            onClick={() => setRevisionDay(Number(d))}
-                          />
-                        </div>
-                      )
-                    ) : null}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-1.5 font-medium">
-                    <div className="flex items-center gap-2">
+                <div key={d} className="border-b border-border/60 bg-card">
+                  <button
+                    type="button"
+                    onClick={() => setMobileExpandedDates((prev) => ({ ...prev, [d]: !prev[d] }))}
+                    className="flex w-full items-center gap-3 px-3 py-3 text-left"
+                  >
+                    <div className="shrink-0">
                       <DayLockIcon
                         date={rowDateKey}
                         module="target-reference"
                         locked={rowLocked}
-                        className="h-3 w-3"
+                        className="h-4 w-4"
                       />
-                      <span className="whitespace-nowrap">{formatDayLabel(year, month, d)}</span>
-                      {activeReq ? (
-                        <RevisionStatusBadge
-                          status={
-                            activeReq.statuscode?.toUpperCase() === "PENDING"
-                              ? "PENDING"
-                              : activeReq.statuscode?.toUpperCase() === "APPROVED"
-                                ? "APPROVED"
-                                : "CANCELLED"
-                          }
-                        />
-                      ) : null}
                     </div>
-                  </td>
-                  {sectors.map((s) => {
-                    const key = `${d}-${s.detno}`;
-                    const hasErr = Boolean(errors[key]);
-                    const val = cells[key] ?? "";
-                    const locked = !isEditable;
-                    return (
-                      <td key={s.detno} className="px-2 py-1">
-                        <input
-                          {...numericFieldProps({
-                            value: val,
-                            onValueChange: (raw) => setCell(d, Number(s.detno), raw),
-                            disabled: locked,
-                          })}
-                          readOnly={locked}
-                          tabIndex={locked ? -1 : 0}
-                          aria-invalid={hasErr}
-                          aria-readonly={locked}
-                          title={locked ? "This row is not editable." : undefined}
-                          className={cn(
-                            "h-8 w-full min-w-[80px] rounded-md border bg-background px-2 text-center text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                            hasErr &&
-                              "border-destructive focus:border-destructive focus:ring-destructive",
-                            locked &&
-                              "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
-                          )}
-                        />
-                      </td>
-                    );
-                  })}
-                  <td className="border-l border-border/60 bg-card px-3 py-1.5 text-center font-semibold tabular-nums text-primary">
-                    {dayTotal(d).toLocaleString()}
-                  </td>
-                </tr>
+
+                    <span className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
+                      {formatDayLabel(year, month, d)}
+                    </span>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      {!hasRecord && (
+                        <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          NO RECORD
+                        </span>
+                      )}
+
+                      <span className="text-base font-bold tabular-nums text-primary">
+                        {dayTotal(d).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+
+                      {expanded ? (
+                        <span className="text-muted-foreground">▾</span>
+                      ) : (
+                        <span className="text-muted-foreground">▸</span>
+                      )}
+                    </div>
+                  </button>
+
+                  {expanded && (
+                    <div className="border-t border-border/60 bg-muted/10 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {activeReq ? "Revision" : rowLocked ? "Locked" : "Editable"}
+                        </span>
+                        {activeReq ? (
+                          <RevisionStatusBadge
+                            status={
+                              activeReq.statuscode?.toUpperCase() === "PENDING"
+                                ? "PENDING"
+                                : activeReq.statuscode?.toUpperCase() === "APPROVED"
+                                  ? "APPROVED"
+                                  : "CANCELLED"
+                            }
+                          />
+                        ) : null}
+                      </div>
+
+                      {showRevisionAction ? (
+                        lock.hasPendingRevision ? (
+                          <div className="mb-3 flex items-center gap-2">
+                            <EditButton
+                              variant="square"
+                              tooltip="Cancel Revision Request"
+                              ariaLabel="Cancel Revision Request"
+                              icon={<Ban className="h-4 w-4" />}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (activeReq) setCancelRequestId(activeReq.requestno);
+                                else toast.info("No active revision request to cancel.");
+                              }}
+                            />
+                            <DeleteButton
+                              variant="square"
+                              tooltip="Delete Revision Request"
+                              ariaLabel="Delete Revision Request"
+                              icon={<Trash2 className="h-4 w-4" />}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (activeReq) setDeleteRequestId(activeReq.requestno);
+                                else toast.info("No revision request to delete.");
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="mb-3">
+                            <EditButton
+                              variant="square"
+                              tooltip={
+                                !revStation ? "Select a station to request a revision" : "Request Revision"
+                              }
+                              ariaLabel={
+                                !revStation ? "Select a station to request a revision" : "Request Revision"
+                              }
+                              disabled={!revStation}
+                              icon={<FilePen className="h-4 w-4" />}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setRevisionDay(Number(d));
+                              }}
+                            />
+                          </div>
+                        )
+                      ) : null}
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {sectors.map((s) => {
+                          const key = `${d}-${s.detno}`;
+                          const hasErr = Boolean(errors[key]);
+                          const val = cells[key] ?? "";
+                          const locked = !isEditable;
+
+                          return (
+                            <div
+                              key={key}
+                              className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-card px-2.5 py-2"
+                            >
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                {s.recordcode || s.description}
+                              </span>
+                              <input
+                                {...numericFieldProps({
+                                  value: val,
+                                  onValueChange: (raw) => setCell(d, Number(s.detno), raw),
+                                  disabled: locked,
+                                })}
+                                readOnly={locked}
+                                tabIndex={locked ? -1 : 0}
+                                aria-invalid={hasErr}
+                                aria-readonly={locked}
+                                title={locked ? "This row is not editable." : undefined}
+                                className={cn(
+                                  "h-8 w-20 rounded-md border bg-background px-2 text-right text-sm tabular-nums outline-none focus:border-primary focus:ring-1 focus:ring-primary",
+                                  hasErr &&
+                                    "border-destructive focus:border-destructive focus:ring-destructive",
+                                  locked &&
+                                    "cursor-not-allowed bg-muted/50 text-muted-foreground focus:border-border focus:ring-0",
+                                )}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </tbody>
-          <tfoot className="sticky bottom-0 bg-card">
-            <tr className="text-primary bg-card">
-              <td className="border-r border-t border-border/60 bg-card px-3 py-2" />
-              <td className="border-t border-border/60 px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] bg-card">
-                TOTAL
-              </td>
-              {sectors.map((s) => (
-                <td
-                  key={s.detno}
-                  className="border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums"
-                >
-                  {sectorTotal(Number(s.detno)).toLocaleString()}
-                </td>
-              ))}
-              <td className="border-l border-t border-border/60 bg-card px-3 py-2 text-center font-bold tabular-nums">
-                {grandTotal.toLocaleString()}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+          </div>
+        </div>
+      </>
     );
 
   return (
@@ -1025,7 +1209,7 @@ export default function TargetReferenceForm({
           onInteractOutside={(e) => e.preventDefault()}
           className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[980px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
         >
-          <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+          <DialogHeader className="hidden md:block shrink-0 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
             <DialogTitle className="text-base font-bold">
               {isEdit ? "Edit Target Reference" : "Target Reference Entry"}
             </DialogTitle>
@@ -1044,7 +1228,7 @@ export default function TargetReferenceForm({
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-5 py-4">
             {/* Reporting Period card */}
-            <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+            <Card className="hidden md:block space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   <Calendar className="h-4 w-4" />
@@ -1106,6 +1290,7 @@ export default function TargetReferenceForm({
 
             {/* Station Information card */}
             <StationInfoCard
+              className="hidden md:block"
               stationName={stationName || (stationLoading ? "Loading…" : "")}
               unitCode={stationCode || ""}
               logoUrl={logoUrl || null}
@@ -1147,21 +1332,27 @@ export default function TargetReferenceForm({
             </StationInfoCard>
 
             {/* Monthly Target Reference table */}
-            <div className="flex flex-col rounded-lg border border-border/60 overflow-hidden">
-              <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
-                <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
-                  <Calendar className="h-3.5 w-3.5" />
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
-                  Daily Target Reference
-                </span>
-              </div>
+            <div className="hidden md:block">
+              <div className="flex flex-col overflow-hidden rounded-lg border border-border/60">
+                <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+                  <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
+                    <Calendar className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
+                    Daily Target Reference
+                  </span>
+                </div>
 
+                {tableBody}
+              </div>
+            </div>
+
+            <div className="block md:hidden">
               {tableBody}
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 border-t bg-muted/30 px-5 py-3">
+          <DialogFooter className="flex w-full flex-row items-center justify-end gap-2 border-t border-border/60 bg-muted/30 px-5 py-3">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}

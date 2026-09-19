@@ -332,7 +332,7 @@ export function FireCodeFeesYearViewBody({
               {peso(yearTotal)}
             </span>
           </div>
-          <div className="ml-auto flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+          <div className="hidden w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end md:flex">
             <FeeTypeMultiSelect
               options={feeTypeOptions}
               loading={feeTypesLoading}
@@ -361,6 +361,39 @@ export function FireCodeFeesYearViewBody({
               <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 {showAllMonthFees ? "On" : "Off"}
               </span>
+            </div>
+          </div>
+
+          <div className="flex w-full items-center gap-2 md:hidden">
+            <div className="min-w-0 flex-1 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+              <FeeTypeMultiSelect
+                options={feeTypeOptions}
+                loading={feeTypesLoading}
+                value={feeTypes}
+                onChange={setFeeTypes}
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {showAllMonthFees ? "SHOW" : "HIDE"}
+              </span>
+              <Switch
+                checked={showAllMonthFees}
+                onCheckedChange={(checked) => {
+                  const next = Boolean(checked);
+                  setShowAllMonthFees(next);
+                  setExpanded((prev) => {
+                    const updated: Record<number, boolean> = { ...prev };
+                    months.forEach((m) => {
+                      updated[m.month] = next;
+                    });
+                    return updated;
+                  });
+                }}
+                aria-label="Show or hide all monthly fee details"
+              />
             </div>
           </div>
         </div>
@@ -452,10 +485,50 @@ export function FireCodeFeesYearViewBody({
                           </div>
                         </div>
                       </div>
-                      <span className="text-sm font-bold tabular-nums text-primary md:hidden">
-                        {peso(monthTotal(m.values))}
-                      </span>
-                      <ToggleIcon className="h-4 w-4 text-muted-foreground" />
+
+                      <div className="flex items-center gap-2 md:hidden">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="min-w-[4.5rem] rounded-md bg-muted/25 px-2 py-1.5 text-left">
+                            <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Manual
+                            </div>
+                            <div className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {peso(
+                                EDITABLE_FEE_SECTORS.reduce(
+                                  (sum, s) => sum + sectorModeTotal(m.values, s.key, FIRE_CODE_MODE_MANUAL),
+                                  0,
+                                ),
+                              )}
+                            </div>
+                          </div>
+                          <div className="min-w-[4.5rem] rounded-md bg-muted/25 px-2 py-1.5 text-left">
+                            <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              FSIS
+                            </div>
+                            <div className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {peso(
+                                EDITABLE_FEE_SECTORS.reduce(
+                                  (sum, s) => sum + sectorModeTotal(m.values, s.key, FIRE_CODE_MODE_FSIS),
+                                  0,
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-right">
+                          <div>
+                            <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Total
+                            </div>
+                            <div className="text-sm font-bold tabular-nums text-primary">
+                              {peso(monthTotal(m.values))}
+                            </div>
+                          </div>
+                          <ToggleIcon className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+
+                      <ToggleIcon className="hidden h-4 w-4 text-muted-foreground md:block" />
                     </div>
                   </div>
 

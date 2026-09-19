@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AddButton from "@/components/add-button";
 import {
   Coins,
@@ -23,6 +24,7 @@ import {
   Eye,
   Construction,
   AlertTriangle,
+  Filter,
 } from "lucide-react";
 
 import { toast } from "@/lib/toast";
@@ -826,6 +828,49 @@ export default function FireCodeFeesPage() {
 
   if (!user) return null;
 
+  const mobileFilterContent = (
+    <div className="space-y-3">
+      <ModuleFilterBar
+        years={YEARS}
+        state={filterState}
+        onChange={setFilterState}
+        onReset={handleResetFilters}
+        intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+        className="border-0 bg-transparent shadow-none"
+      >
+        <ScopedLocationMultiFilterPair
+          scope={scope}
+          selection={locationSel}
+          reportyear={Number(year)}
+        />
+      </ModuleFilterBar>
+
+      {isRestrictedStationType && (
+        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <FeeTypeMultiSelect
+            options={feeTypeOptions}
+            loading={feeTypesLoading}
+            value={feeTypes}
+            onChange={setFeeTypes}
+          />
+          <div className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-2.5 py-1.5">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {showAllFeeDetailsForAllCards ? "Show" : "Hide"}
+            </span>
+            <Switch
+              checked={showAllFeeDetailsForAllCards}
+              onCheckedChange={(checked) => setShowAllFeeDetailsForAllCards(Boolean(checked))}
+              aria-label="Show or hide all fee details for the ledger"
+            />
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {showAllFeeDetailsForAllCards ? "On" : "Off"}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <StickyPageTop>
@@ -839,7 +884,8 @@ export default function FireCodeFeesPage() {
               Summary accomplishment report on Fire Code Fees collection.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+
+          <div className="hidden md:flex md:flex-wrap md:items-center md:gap-2">
             <Button
               variant="outline"
               onClick={() => void handleExport()}
@@ -871,24 +917,76 @@ export default function FireCodeFeesPage() {
               </AddButton>
             )}
           </div>
+
+          <div className="block w-full md:hidden">
+            <div className="grid w-full grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => void handleExport()}
+                disabled={exporting}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Export
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMatrixRow(null);
+                  setMatrixOpen(true);
+                }}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white"
+              >
+                <LayoutGrid className="h-4 w-4" /> Matrix
+              </Button>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 shrink-0" />
+                      Filter
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[calc(100vw-2rem)] p-3" align="start">
+                  {mobileFilterContent}
+                </PopoverContent>
+              </Popover>
+
+              {canManage && (
+                <AddButton onClick={openAddForm} className="w-full justify-center">
+                  <Plus className="h-4 w-4" /> Add
+                </AddButton>
+              )}
+            </div>
+          </div>
         </div>
 
-        <ModuleFilterBar
-          years={YEARS}
-          state={filterState}
-          onChange={setFilterState}
-          onReset={handleResetFilters}
-          intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-        >
-          <ScopedLocationMultiFilterPair
-            scope={scope}
-            selection={locationSel}
-            reportyear={Number(year)}
-          />
-        </ModuleFilterBar>
+        <div className="hidden md:block">
+          <ModuleFilterBar
+            years={YEARS}
+            state={filterState}
+            onChange={setFilterState}
+            onReset={handleResetFilters}
+            intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
+          >
+            <ScopedLocationMultiFilterPair
+              scope={scope}
+              selection={locationSel}
+              reportyear={Number(year)}
+            />
+          </ModuleFilterBar>
+        </div>
 
         {isRestrictedStationType && (
-          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             <FeeTypeMultiSelect
               options={feeTypeOptions}
               loading={feeTypesLoading}
@@ -1297,63 +1395,100 @@ function FireCodeFeesLedgerCard({
   );
 
   const monthName = MONTHS.find((m) => m.value === row.month)?.name ?? String(row.month);
+  const showMobileFeeControls = Boolean(
+    (showFeeFilter || (feeTypeOptions && feeTypeOptions.length > 0)) &&
+      feeTypes !== undefined &&
+      onFeeTypesChange &&
+      feeTypeOptions,
+  );
 
   return (
     <Card className="relative isolate z-0 flex flex-col overflow-hidden border-border/50 shadow-soft transition-shadow hover:shadow-elegant dark:border-border/40">
-      <div className="flex items-start gap-3 border-b border-border/40 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-4 dark:border-border/50">
-        <AvatarWithFallback
-          entity={{ name: row.stationname }}
-          name={row.stationname}
-          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-primary/20"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-              {row.stationcode}
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
-              {periodLabel ?? `${monthName} ${row.year}`}
-            </span>
-          </div>
-          <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
-            {row.stationname}
-          </div>
-          <div className="text-[11px] text-muted-foreground dark:text-slate-400">
-            {row.provincename}
-          </div>
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <div
-            className="grid h-10 min-w-[6rem] place-items-center rounded-lg bg-primary/10 px-2 text-center text-primary"
-            title="Total collection"
-          >
-            <div className="text-[8px] font-bold uppercase leading-none">Total</div>
-            <div className="text-xs font-bold leading-none">{peso(row.grandTotal)}</div>
-          </div>
-          {showFeeFilter && feeTypes !== undefined && onFeeTypesChange && feeTypeOptions && (
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <FeeTypeMultiSelect
-                options={feeTypeOptions}
-                loading={feeTypesLoading}
-                value={feeTypes}
-                onChange={onFeeTypesChange}
-                className="w-[220px] sm:w-[240px] xl:w-[280px]"
-              />
-              <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {showAllFeeDetails ? "Show" : "Hide"}
+      <div className="border-b border-border/40 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-3 sm:p-4 dark:border-border/50">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <AvatarWithFallback
+              entity={{ name: row.stationname }}
+              name={row.stationname}
+              className="h-12 w-12 shrink-0 rounded-full ring-2 ring-primary/20 sm:h-14 sm:w-14"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                  {row.stationcode}
                 </span>
-                <Switch
-                  checked={showAllFeeDetails}
-                  onCheckedChange={(checked) => setAllFeeDetails(Boolean(checked))}
-                  aria-label="Show or hide all fee details for this station period"
-                />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {showAllFeeDetails ? "On" : "Off"}
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-400">
+                  {periodLabel ?? `${monthName} ${row.year}`}
                 </span>
               </div>
+              <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
+                {row.stationname}
+              </div>
+              <div className="text-[11px] text-muted-foreground dark:text-slate-400">
+                {row.provincename}
+              </div>
             </div>
-          )}
+          </div>
+
+          <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:items-center">
+            <div
+              className="grid h-10 min-w-[6rem] place-items-center rounded-lg bg-primary/10 px-2 text-center text-primary"
+              title="Total collection"
+            >
+              <div className="text-[8px] font-bold uppercase leading-none">Total</div>
+              <div className="text-xs font-bold leading-none">{peso(row.grandTotal)}</div>
+            </div>
+
+            {showFeeFilter && feeTypes !== undefined && onFeeTypesChange && feeTypeOptions && (
+              <div className="hidden w-full flex-col gap-2 sm:ml-auto sm:flex sm:w-auto sm:flex-row sm:items-center">
+                <FeeTypeMultiSelect
+                  options={feeTypeOptions}
+                  loading={feeTypesLoading}
+                  value={feeTypes}
+                  onChange={onFeeTypesChange}
+                  className="w-full sm:w-[220px] xl:w-[280px]"
+                />
+                <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 sm:justify-start">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {showAllFeeDetails ? "Show" : "Hide"}
+                  </span>
+                  <Switch
+                    checked={showAllFeeDetails}
+                    onCheckedChange={(checked) => setAllFeeDetails(Boolean(checked))}
+                    aria-label="Show or hide all fee details for this station period"
+                  />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {showAllFeeDetails ? "On" : "Off"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {showMobileFeeControls && (
+              <div className="flex w-full items-center gap-2 sm:hidden">
+                <div className="min-w-0 flex-1 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+                  <FeeTypeMultiSelect
+                    options={feeTypeOptions}
+                    loading={feeTypesLoading}
+                    value={feeTypes}
+                    onChange={onFeeTypesChange}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {showAllFeeDetails ? "SHOW" : "HIDE"}
+                  </span>
+                  <Switch
+                    checked={showAllFeeDetails}
+                    onCheckedChange={(checked) => setAllFeeDetails(Boolean(checked))}
+                    aria-label="Show or hide all fee details for this station period"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1388,10 +1523,10 @@ function FireCodeFeesLedgerCard({
                         toggle(line.key);
                       }
                     }}
-                    className="flex cursor-pointer select-none items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
+                    className="flex cursor-pointer select-none flex-col gap-2 px-3 py-3 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:gap-3 sm:px-4"
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                      <span className="flex items-center gap-2 whitespace-nowrap">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
+                      <span className="flex min-w-0 items-center gap-2 whitespace-nowrap">
                         {/^\d{4}-\d{2}$/.test(line.key) && (() => {
                           const [yearText, monthText] = line.key.split("-");
                           const monthYear = Number(yearText);
@@ -1405,16 +1540,30 @@ function FireCodeFeesLedgerCard({
                             />
                           );
                         })()}
-                        <span className="text-sm font-semibold">{line.label}</span>
+                        <span className="truncate text-sm font-semibold">{line.label}</span>
                       </span>
                       {!hasRecord && (
-                        <span className="rounded-md bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                           No Record
                         </span>
                       )}
                     </div>
-                    <div className="ml-auto flex items-center justify-end gap-2 md:gap-3">
-                      <div className="hidden md:flex md:items-end md:justify-end md:gap-3">
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto sm:justify-end sm:gap-3">
+                      <div className="grid grid-cols-2 gap-2 sm:hidden">
+                        {perSector.map((s) => (
+                          <div key={s.key} className="min-w-[4.5rem] rounded-md bg-muted/25 px-2 py-1.5 text-left">
+                            <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {s.title}
+                            </div>
+                            <div className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {peso(s.value)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="hidden sm:flex sm:items-end sm:justify-end sm:gap-3">
                         {perSector.map((s) => (
                           <div key={s.key} className="min-w-[5.5rem] shrink-0 text-right">
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1434,12 +1583,15 @@ function FireCodeFeesLedgerCard({
                           </div>
                         </div>
                       </div>
-                      <span className="text-sm font-bold tabular-nums text-primary md:hidden">
-                        {peso(total)}
-                      </span>
-                      <ChevronDown
-                        className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
-                      />
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold tabular-nums text-primary sm:hidden">
+                          {peso(total)}
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        />
+                      </div>
                     </div>
                   </div>
                   {isOpen && (

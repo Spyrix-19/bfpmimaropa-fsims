@@ -374,114 +374,181 @@ export function FeeCategoryMatrix({
   );
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border/60">
-      <table className="w-full min-w-[42rem] border-separate border-spacing-0 text-xs">
-        <colgroup>
-          <col className="w-64" />
-          <col className="w-28" />
-          {MODES.map((m) => (
-            <col key={`${m.code}-col`} className="w-36" />
-          ))}
-        </colgroup>
-        <thead>
-          <tr>
-            <th className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider">
-              Fee Category
-            </th>
-            <th className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
-              Total
-            </th>
-            {MODES.map((m, mi) => (
-              <th
-                key={m.code}
-                className={cn(
-                  "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
-                  mi === 0 && "border-l border-grid",
-                )}
-              >
-                {m.label}
-              </th>
+    <>
+      <div className="hidden overflow-x-auto rounded-xl border border-border/60 md:block">
+        <table className="w-full min-w-[42rem] border-separate border-spacing-0 text-xs">
+          <colgroup>
+            <col className="w-64" />
+            <col className="w-28" />
+            {MODES.map((m) => (
+              <col key={`${m.code}-col`} className="w-36" />
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => (
-            <React.Fragment key={g.label}>
-              <tr className="bg-primary/5">
-                <td
-                  colSpan={2}
-                  className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="head-soft sticky left-0 z-30 w-64 min-w-64 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider">
+                Fee Category
+              </th>
+              <th className="head-soft sticky left-64 z-30 w-28 min-w-28 border-l border-grid px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider">
+                Total
+              </th>
+              {MODES.map((m, mi) => (
+                <th
+                  key={m.code}
+                  className={cn(
+                    "head-soft w-36 min-w-36 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider",
+                    mi === 0 && "border-l border-grid",
+                  )}
                 >
-                  <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {g.code || g.label}
-                  </span>
-                  {g.items.length > 1 && g.label ? (
-                    <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
-                      {g.label}
-                    </span>
-                  ) : null}
-                </td>
-                {MODES.map((m, mi) => (
+                  {m.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g) => (
+              <React.Fragment key={g.label}>
+                <tr className="bg-primary/5">
                   <td
-                    key={`${g.label}-${m.code}`}
-                    className={cn("px-3 py-1.5", mi === 0 && "border-l border-grid")}
-                  />
-                ))}
-              </tr>
+                    colSpan={2}
+                    className="sticky left-0 z-20 bg-card px-3 py-1.5 before:pointer-events-none before:absolute before:inset-0 before:bg-primary/5 before:content-['']"
+                  >
+                    <span className="relative text-[10px] font-bold uppercase tracking-wider text-primary">
+                      {g.code || g.label}
+                    </span>
+                    {g.items.length > 1 && g.label ? (
+                      <span className="relative ml-2 text-[10px] font-normal normal-case text-muted-foreground">
+                        {g.label}
+                      </span>
+                    ) : null}
+                  </td>
+                  {MODES.map((m, mi) => (
+                    <td
+                      key={`${g.label}-${m.code}`}
+                      className={cn("px-3 py-1.5", mi === 0 && "border-l border-grid")}
+                    />
+                  ))}
+                </tr>
+                {g.items.map((c) => {
+                  const rowTotal = MODES.reduce((a, m) => a + (values[m.code][c.detno] ?? 0), 0);
+                  return (
+                    <tr key={c.key} className="border-t border-grid">
+                      <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
+                        {c.label}
+                      </td>
+                      <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-t border-grid bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
+                        {peso(rowTotal)}
+                      </td>
+                      {MODES.map((m, mi) => (
+                        <td
+                          key={`${c.key}-${m.code}`}
+                          className={cn(
+                            "w-36 min-w-36 border-t border-grid px-2 py-1.5",
+                            mi === 0 && "border-l border-grid",
+                          )}
+                        >
+                          <AmountInput
+                            value={values[m.code][c.detno] ?? 0}
+                            disabled={locked}
+                            onValueChange={(raw) => onChange(m.code, c.detno, raw)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-grid bg-muted/60">
+              <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+                Total
+              </td>
+              <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-grid bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
+                {peso(grand)}
+              </td>
+              {modeTotals.map((m, mi) => (
+                <td
+                  key={`${m.code}-total`}
+                  className={cn(
+                    "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
+                    mi === 0 && "border-l border-grid",
+                  )}
+                >
+                  {peso(m.total)}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {groups.map((g) => (
+          <div key={g.label} className="overflow-hidden rounded-xl border border-border/60 bg-card">
+            <div className="flex items-center justify-between gap-2 border-b border-border/40 bg-primary/5 px-3 py-2">
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  {g.code || g.label}
+                </div>
+                {g.items.length > 1 && g.label ? (
+                  <div className="truncate text-[10px] text-muted-foreground">{g.label}</div>
+                ) : null}
+              </div>
+              <div className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Total
+                <div className="text-[11px] font-bold tabular-nums text-foreground">
+                  {peso(
+                    g.items.reduce(
+                      (sum, c) =>
+                        sum + MODES.reduce((a, m) => a + (values[m.code][c.detno] ?? 0), 0),
+                      0,
+                    ),
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-border/40">
               {g.items.map((c) => {
                 const rowTotal = MODES.reduce((a, m) => a + (values[m.code][c.detno] ?? 0), 0);
                 return (
-                  <tr key={c.key} className="border-t border-grid">
-                    <td className="sticky left-0 z-20 w-64 min-w-64 border-t border-grid bg-card px-3 py-1.5 align-middle text-foreground/90">
-                      {c.label}
-                    </td>
-                    <td className="sticky left-64 z-20 w-28 min-w-28 border-l border-t border-grid bg-card px-3 py-1.5 text-right font-semibold tabular-nums">
-                      {peso(rowTotal)}
-                    </td>
-                    {MODES.map((m, mi) => (
-                      <td
-                        key={`${c.key}-${m.code}`}
-                        className={cn(
-                          "w-36 min-w-36 border-t border-grid px-2 py-1.5",
-                          mi === 0 && "border-l border-grid",
-                        )}
-                      >
-                        <AmountInput
-                          value={values[m.code][c.detno] ?? 0}
-                          disabled={locked}
-                          onValueChange={(raw) => onChange(m.code, c.detno, raw)}
-                        />
-                      </td>
-                    ))}
-                  </tr>
+                  <div key={c.key} className="p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="min-w-0 text-sm font-medium text-foreground/90">{c.label}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {MODES.map((m) => (
+                        <div key={`${c.key}-${m.code}`} className="space-y-1">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                            {m.label}
+                          </div>
+                          <AmountInput
+                            value={values[m.code][c.detno] ?? 0}
+                            disabled={locked}
+                            onValueChange={(raw) => onChange(m.code, c.detno, raw)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 );
               })}
-            </React.Fragment>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="border-t border-grid bg-muted/60">
-            <td className="sticky left-0 z-30 w-64 min-w-64 bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+            </div>
+          </div>
+        ))}
+
+        <div className="rounded-xl border border-border/60 bg-muted/40 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Total
-            </td>
-            <td className="sticky left-64 z-30 w-28 min-w-28 border-l border-grid bg-muted px-3 py-2 text-right font-bold tabular-nums text-primary">
-              {peso(grand)}
-            </td>
-            {modeTotals.map((m, mi) => (
-              <td
-                key={`${m.code}-total`}
-                className={cn(
-                  "w-36 min-w-36 px-3 py-2 text-right font-bold tabular-nums",
-                  mi === 0 && "border-l border-grid",
-                )}
-              >
-                {peso(m.total)}
-              </td>
-            ))}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+            </span>
+            <span className="text-sm font-bold tabular-nums text-primary">{peso(grand)}</span>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1302,16 +1369,16 @@ export default function FireCodeFeesFormModal({
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl xl:w-[calc(100vw-4rem)] xl:max-w-[120rem]"
+        className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 max-sm:items-start max-sm:justify-start sm:rounded-xl xl:w-[calc(100vw-4rem)] xl:max-w-[120rem]"
       >
-        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
-          <div className="flex items-start gap-3">
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 max-sm:text-left">
+          <div className="flex items-start gap-3 max-sm:justify-start">
             <div className="rounded-full bg-primary/10 p-2">
               <Coins className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <DialogTitle className="text-base font-bold">Fire Code Fees Collection</DialogTitle>
-              <DialogDescription>
+            <div className="text-left">
+              <DialogTitle className="text-left text-base font-bold">Fire Code Fees Collection</DialogTitle>
+              <DialogDescription className="text-left">
                 Select a collection date and station, then encode the amounts collected per fee
                 category.
               </DialogDescription>
@@ -1319,7 +1386,7 @@ export default function FireCodeFeesFormModal({
           </div>
         </DialogHeader>
 
-        <ModalFooterLayout>
+        <ModalFooterLayout className="max-sm:w-full">
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {open ? (
               <FireCodeFeesFormBody
