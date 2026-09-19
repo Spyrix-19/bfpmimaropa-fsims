@@ -321,7 +321,7 @@ export default function TargetReferenceIndexPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [filterState, locationParamsKey, pageSize]);
+  }, [filterState, locationParamsKey, pageSize, setPage]);
 
   const handleAdd = () => {
     setEditingGroup(null);

@@ -344,7 +344,7 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
       setViewMonth(record.reportMonth);
       setViewYear(record.reportYear);
     }
-  }, [record?.key]);
+  }, [record]);
 
   const days = React.useMemo<DayRow[]>(() => {
     if (!record) return [];

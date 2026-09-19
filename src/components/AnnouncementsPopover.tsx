@@ -258,7 +258,7 @@ export function AnnouncementsPopover() {
     void loadLedger();
   }, [open, loadLedger]);
 
-  const source = ledger ?? [];
+  const source = useMemo(() => ledger ?? [], [ledger]);
 
   const unreadCount = useMemo(
     () => source.filter((a) => !readIds.has(a.announcementno)).length,

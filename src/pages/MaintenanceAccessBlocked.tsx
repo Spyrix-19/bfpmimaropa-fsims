@@ -10,7 +10,7 @@ export default function MaintenanceAccessBlocked() {
   const { user } = useAuth();
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10 sm:px-6 lg:py-16">
+    <main className="min-h-dvh bg-background px-4 py-10 sm:px-6 lg:py-16">
       <div className="mx-auto w-full max-w-3xl">
         {/* Branding */}
         <header className="flex flex-col items-center gap-3 text-center">

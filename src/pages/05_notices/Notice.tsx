@@ -665,6 +665,7 @@ export default function AccomplishedNotice() {
     intervalCode,
     ledgerGranularity,
     selectedDateISO,
+    selectedMonths,
     allDates,
     locationParamsKey,
     page,

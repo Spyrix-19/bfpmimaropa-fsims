@@ -121,7 +121,7 @@ export function StationMultiSelect(props: StationMultiSelectProps) {
     return () => {
       cancelled = true;
     };
-  }, [open, debounced, page, provincesKey, reportyear, noProvince, alwaysEnabled]);
+  }, [open, debounced, page, provinces, provincesKey, reportyear, noProvince, alwaysEnabled]);
 
   const isSelected = (no: string) => value.some((v) => v.stationno === no);
 

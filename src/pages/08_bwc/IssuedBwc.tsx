@@ -41,9 +41,12 @@ export interface StationInfo {
   logourl?: string | null;
 }
 
+/** Numeric metric keys available on a BWC ledger row. */
+export type BwcMetricKey = "operationalcount" | "nonoperationalcount";
+
 /** A numeric metric column shared by the ledger, modal and view. */
 export interface BwcField {
-  key: string;
+  key: BwcMetricKey;
   label: string;
   tone?: "muted" | "success" | "destructive" | "primary";
   /** Helper hint rendered under the input inside the add/edit modal. */
@@ -51,8 +54,12 @@ export interface BwcField {
 }
 
 /** A BWC row: station identity + record key + numeric metrics. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type BwcRow = StationInfo & Record<string, any> & { recordno: string; remarks?: string };
+export interface BwcRow extends StationInfo {
+  recordno: string;
+  remarks?: string;
+  operationalcount?: number;
+  nonoperationalcount?: number;
+}
 
 interface BwcProvinceParam {
   provinceno: string;
@@ -61,18 +68,32 @@ interface BwcProvinceParam {
 
 /** Maps an API ledger/detail model into the flat row shape used by the UI. */
 function toBwcRow(model: unknown): BwcRow {
-  const m = (model ?? {}) as Record<string, unknown>;
+  const m = (model ?? {}) as Partial<{
+    bwcno: string;
+    stationno: string;
+    stationname: string;
+    stationcode: string;
+    unitcode: string;
+    cityname: string;
+    provincename: string;
+    logourl: string | null;
+    remarks: string;
+    operationalcount: number;
+    nonoperationalcount: number;
+  }>;
   return {
-    ...(m as object),
     recordno: String(m.bwcno ?? ""),
     stationno: String(m.stationno ?? ""),
     stationname: String(m.stationname ?? ""),
     unitcode: String(m.stationcode ?? m.unitcode ?? ""),
     cityname: String(m.cityname ?? ""),
     provincename: String(m.provincename ?? ""),
-    logourl: (m.logourl as string) ?? null,
+    logourl: m.logourl ?? null,
     remarks: String(m.remarks ?? ""),
-  } as BwcRow;
+    operationalcount: typeof m.operationalcount === "number" ? m.operationalcount : undefined,
+    nonoperationalcount:
+      typeof m.nonoperationalcount === "number" ? m.nonoperationalcount : undefined,
+  };
 }
 
 /* ------------------------------------------------------------- constants -- */

@@ -48,9 +48,9 @@ export function PwaStatus() {
       aria-live="polite"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
     >
-      <span className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/95 px-3 py-1 text-xs font-medium text-muted-foreground shadow-elegant backdrop-blur">
-        <WifiOff className="h-3.5 w-3.5 text-destructive" />
-        Offline — showing last loaded screen
+      <span className="pointer-events-auto inline-flex max-w-[92vw] items-center gap-1.5 rounded-full border border-border/60 bg-background/95 px-3 py-1 text-center text-xs font-medium text-muted-foreground shadow-elegant backdrop-blur">
+        <WifiOff className="h-3.5 w-3.5 shrink-0 text-destructive" aria-hidden="true" />
+        <span>Offline — you can browse loaded screens, but saving needs a connection</span>
       </span>
     </div>
   );

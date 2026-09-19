@@ -1,9 +1,9 @@
 import { toast } from "@/lib/toast";
 import { exportStationLedgerWorkbook, type LedgerExcelSignatory } from "@/lib/ledger-excel";
-import type { BwcField, BwcRow } from "./IssuedBwc";
+import type { BwcField, BwcMetricKey, BwcRow } from "./IssuedBwc";
 
 /** Reads a numeric metric off a ledger row. */
-export const num = (row: BwcRow, key: string) => Number(row[key] ?? 0) || 0;
+export const num = (row: BwcRow, key: BwcMetricKey) => Number(row[key] ?? 0) || 0;
 
 /** Sum of every metric column on a row. */
 export const rowTotal = (row: BwcRow, fields: BwcField[]) =>

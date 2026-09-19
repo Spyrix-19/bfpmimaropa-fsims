@@ -540,7 +540,11 @@ function InspectionsNewBody({
     promptedDateKeyRef.current = null;
     clearFormValues();
     setInitializedForOpen(true);
-  }, [open, initializedForOpen]);
+    // `open` is intentionally listed: the modal must re-initialize whenever it
+    // opens, and reset its flag whenever it closes. ESLint flags this as
+    // "unnecessary" because the value is only read in the early guard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initializedForOpen, clearFormValues]);
 
   /** Plots an existing record into the form and switches Save into update mode. */
   const plotExistingRecord = React.useCallback((rec: ComplianceRow) => {

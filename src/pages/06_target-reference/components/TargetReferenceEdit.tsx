@@ -270,9 +270,13 @@ export default function TargetReferenceForm({
   }, [
     open,
     initializedForOpen,
+    scope.provinceLocked,
+    scope.provinceno,
+    scope.provincename,
     scope.stationLocked,
     scope.stationno,
     editing?.stationno,
+    user?.provinceno,
     user?.provincename,
     user?.stationname,
     user?.stationno,

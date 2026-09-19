@@ -49,6 +49,26 @@ export default defineConfig({
             },
           },
           {
+            // Read-only reference lookups (stations, locations, offices and
+            // gentable code lists). Cached so forms still open and their
+            // dropdowns still fill in when a field inspector has no signal.
+            // Network is always tried first, so online users never see stale
+            // lists. Record data, authentication and every write stay
+            // uncached — nothing that carries a session token is stored.
+            urlPattern: ({ url, request }) =>
+              request.method === "GET" &&
+              /\/api\/v1\/(Station\/Search|Location\/Search|Office\/Search|Gentable\/(Code|Search))$/i.test(
+                url.pathname,
+              ),
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "fsims-reference-data",
+              networkTimeoutSeconds: 6,
+              expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Same-origin hashed build assets, images and fonts only.
             urlPattern: ({ url, request, sameOrigin }) =>
               sameOrigin &&

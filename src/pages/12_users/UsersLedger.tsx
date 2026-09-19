@@ -273,7 +273,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
 
   React.useEffect(() => {
     setPage(1);
-  }, [search, provinceno, stationno, pageSize]);
+  }, [search, provinceno, stationno, pageSize, setPage]);
 
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 

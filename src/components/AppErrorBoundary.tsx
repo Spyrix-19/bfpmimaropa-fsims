@@ -45,7 +45,7 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-background px-4">
         <div className="max-w-md rounded-xl border border-border bg-card p-6 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-foreground">Something went wrong</h1>
           <p className="mt-2 text-sm text-muted-foreground">

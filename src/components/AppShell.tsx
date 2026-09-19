@@ -232,7 +232,7 @@ export function AppShell({
   if (!user) {
     return (
       <>
-        <div className="flex min-h-screen w-full flex-col">
+        <div className="flex min-h-dvh w-full flex-col">
           {header}
           {main}
           <Footer />
@@ -265,7 +265,7 @@ export function AppShell({
   if (hideSidebar) {
     return (
       <>
-        <div className="flex min-h-screen w-full flex-col">
+        <div className="flex min-h-dvh w-full flex-col">
           {header}
           {main}
           <Footer />
@@ -297,7 +297,7 @@ export function AppShell({
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-dvh w-full">
         <Suspense fallback={null}>
           <AppSidebar />
         </Suspense>

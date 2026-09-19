@@ -511,10 +511,14 @@ export function SubFilterControl({
   );
   const selectedDate = allDays ? null : refDate;
   const [viewMonth, setViewMonth] = React.useState<Date>(refDate ?? new Date());
+  const refDateKey = React.useMemo(
+    () => (refDate ? `${refDate.getFullYear()}-${refDate.getMonth()}` : null),
+    [refDate],
+  );
 
   React.useEffect(() => {
     if (refDate) setViewMonth(refDate);
-  }, [refDate?.getFullYear(), refDate?.getMonth()]);
+  }, [refDate, refDateKey]);
 
   const handleDateChange = (d?: Date) => {
     if (!d) return;

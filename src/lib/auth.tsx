@@ -695,7 +695,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {initialized ? children : <div aria-hidden className="min-h-screen bg-background" />}
+      {initialized ? children : <div aria-hidden className="min-h-dvh bg-background" />}
     </AuthContext.Provider>
   );
 }

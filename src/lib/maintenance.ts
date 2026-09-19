@@ -47,8 +47,7 @@ declare global {
 }
 
 if (typeof window !== "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).setMaintenanceMode = setMaintenanceMode;
+  window.setMaintenanceMode = setMaintenanceMode;
 }
 
 export default isMaintenanceMode;

@@ -8,6 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PastDatesLockedNote } from "@/components/past-dates-locked-note";
+import { DayLockIcon, dayKey } from "@/components/day-lock-icon";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,8 @@ import {
   Calendar,
   Loader2,
   Lock,
+  ChevronDown,
+  ChevronUp,
   FilePen,
   Save,
   X,
@@ -324,9 +327,13 @@ export default function TargetReferenceForm({
   }, [
     open,
     initializedForOpen,
+    scope.provinceLocked,
+    scope.provinceno,
+    scope.provincename,
     scope.stationLocked,
     scope.stationno,
     editing?.stationno,
+    user?.provinceno,
     user?.provincename,
     user?.stationname,
     user?.stationno,
@@ -895,19 +902,43 @@ export default function TargetReferenceForm({
     }
   };
 
-  // Totals (whole-number sums)
-  const dayTotal = React.useCallback(
-    (d: number) => sectors.reduce((sum, s) => sum + (Number(cells[`${d}-${s.detno}`]) || 0), 0),
-    [sectors, cells],
+  // Totals (whole-number sums). Every per-day and per-sector sum is computed
+  // once per change of `cells`/`sectors`/`days` and then read from a map, so
+  // rendering one row no longer re-reduces the whole grid. The arithmetic is
+  // identical to the previous per-call reduce.
+  const totals = React.useMemo(() => {
+    const perDay = new Map<number, number>();
+    const perDayHasRecord = new Map<number, boolean>();
+    const perSector = new Map<number, number>();
+    let grand = 0;
+
+    for (const s of sectors) perSector.set(Number(s.detno), 0);
+
+    for (const d of days) {
+      let daySum = 0;
+      let hasRecord = false;
+      for (const s of sectors) {
+        const value = Number(cells[`${d}-${s.detno}`]) || 0;
+        daySum += value;
+        if (value > 0) hasRecord = true;
+        const sn = Number(s.detno);
+        perSector.set(sn, (perSector.get(sn) ?? 0) + value);
+      }
+      perDay.set(d, daySum);
+      perDayHasRecord.set(d, hasRecord);
+      grand += daySum;
+    }
+
+    return { perDay, perDayHasRecord, perSector, grand };
+  }, [cells, days, sectors]);
+
+  const dayTotal = React.useCallback((d: number) => totals.perDay.get(d) ?? 0, [totals]);
+  const dayHasRecord = React.useCallback(
+    (d: number) => totals.perDayHasRecord.get(d) ?? false,
+    [totals],
   );
-  const sectorTotal = React.useCallback(
-    (sn: number) => days.reduce((sum, d) => sum + (Number(cells[`${d}-${sn}`]) || 0), 0),
-    [cells, days],
-  );
-  const grandTotal = React.useMemo(
-    () => days.reduce((sum, d) => sum + dayTotal(d), 0),
-    [dayTotal, days],
-  );
+  const sectorTotal = React.useCallback((sn: number) => totals.perSector.get(sn) ?? 0, [totals]);
+  const grandTotal = totals.grand;
 
   const loadingGrid = sectorsLoading || existingLoading;
 
@@ -1252,87 +1283,64 @@ export default function TargetReferenceForm({
         </table>
       </div>
 
-      <div className="space-y-2 md:hidden">
-        {days.map((d) => {
-          const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
-          const activeReq = revisionRequests.find(
-            (req) =>
-              Number(req.reportmonth) === Number(month) &&
-              Number((req as { reportday?: number }).reportday || d) === Number(d) &&
-              req.statuscode?.toUpperCase() === "PENDING",
-          );
-          const editablestatus = existingEditableStatus[String(d)];
-          const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
-          const serverIsEditable = editablestatus === 153;
-          const pstLockActive = hasPstLockActivated(year, Number(month), Number(d));
-          const isEditable = serverIsEditable || !pstLockActive;
-          const row = {
-            isrevisionrequest: serverIsRevisionRequest || Boolean(activeReq),
-          };
-          const expanded = Boolean(mobileExpandedDates[d]);
+      <div className="block md:hidden">
+        <div className="mb-3 flex items-center justify-between gap-3 border-b border-border/60 bg-card px-3 py-2">
+          <div className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+            {MONTHS[Number(month) - 1]?.name ?? ""} {year}
+          </div>
+          <span className="inline-flex min-w-[88px] items-center justify-end rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm font-bold tabular-nums text-primary">
+            {grandTotal.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+        </div>
 
-          return (
-            <div key={d} className="overflow-hidden rounded-lg border border-border/60 bg-card">
-              <button
-                type="button"
-                onClick={() => setMobileExpandedDates((prev) => ({ ...prev, [d]: !prev[d] }))}
-                className="flex w-full items-center gap-3 px-3 py-3 text-left"
-              >
-                {row.isrevisionrequest ? (
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <EditButton
-                      variant="square"
-                      tooltip="Cancel Revision Request"
-                      ariaLabel="Cancel Revision Request"
-                      icon={<Ban className="h-4 w-4" />}
-                      onClick={(event) => {
-                        event?.stopPropagation();
-                        if (activeReq) setCancelRequestId(activeReq.requestno);
-                        else toast.info("No active revision request to cancel.");
-                      }}
-                    />
-                    <DeleteButton
-                      variant="square"
-                      tooltip="Delete Revision Request"
-                      ariaLabel="Delete Revision Request"
-                      icon={<Trash2 className="h-4 w-4" />}
-                      onClick={(event) => {
-                        event?.stopPropagation();
-                        if (activeReq) setDeleteRequestId(activeReq.requestno);
-                        else toast.info("No revision request to delete.");
-                      }}
-                    />
-                  </div>
-                ) : isEditable ? null : (
+        <div className="space-y-0">
+          {days.map((d) => {
+            const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
+            const rowDateKey = dayKey(Number(year), Number(month), Number(d));
+            const activeReq = revisionRequests.find(
+              (req) =>
+                Number(req.reportmonth) === Number(month) &&
+                Number((req as { reportday?: number }).reportday || d) === Number(d) &&
+                req.statuscode?.toUpperCase() === "PENDING",
+            );
+            const editablestatus = existingEditableStatus[String(d)];
+            const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
+            const serverIsEditable = editablestatus === 153;
+            const pstLockActive = hasPstLockActivated(year, Number(month), Number(d));
+            const isEditable = serverIsEditable || !pstLockActive;
+            const row = {
+              isrevisionrequest: serverIsRevisionRequest || Boolean(activeReq),
+            };
+            const expanded = Boolean(mobileExpandedDates[d]);
+            const total = dayTotal(d);
+            const hasRecord = sectors.some((s) => Number(cells[`${d}-${s.detno}`] ?? 0) > 0);
+
+            return (
+              <div key={d} className="border-b border-border/60 bg-card">
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() => setMobileExpandedDates((prev) => ({ ...prev, [d]: !prev[d] }))}
+                  className="flex min-h-11 w-full items-center gap-3 px-3 py-3 text-left"
+                >
                   <div className="shrink-0">
-                    <EditButton
-                      variant="square"
-                      tooltip={
-                        !revStation ? "Select a station to request a revision" : "Request Revision"
-                      }
-                      ariaLabel={
-                        !revStation ? "Select a station to request a revision" : "Request Revision"
-                      }
-                      disabled={!revStation}
-                      icon={<FilePen className="h-4 w-4" />}
-                      onClick={(event) => {
-                        event?.stopPropagation();
-                        setRevisionDay(Number(d));
-                      }}
+                    <DayLockIcon
+                      date={rowDateKey}
+                      module="target-reference"
+                      locked={!isEditable}
+                      className="h-4 w-4"
                     />
                   </div>
-                )}
 
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  {!isEditable && (
-                    <Lock className="h-3.5 w-3.5 shrink-0 text-warning" aria-label="Locked day" />
-                  )}
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-foreground">
+                    <span className="block truncate text-base font-semibold text-foreground">
                       {formatDayLabel(year, month, d)}
-                    </div>
+                    </span>
                     {activeReq ? (
-                      <div className="mt-0.5">
+                      <span className="mt-0.5 block">
                         <RevisionStatusBadge
                           status={
                             activeReq.statuscode?.toUpperCase() === "PENDING"
@@ -1342,48 +1350,107 @@ export default function TargetReferenceForm({
                                 : "CANCELLED"
                           }
                         />
-                      </div>
+                      </span>
                     ) : null}
                   </div>
-                </div>
 
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-sm font-bold tabular-nums text-primary">
-                    {dayTotal(d).toLocaleString()}
-                  </span>
-                  {expanded ? (
-                    <span className="text-muted-foreground">▾</span>
-                  ) : (
-                    <span className="text-muted-foreground">▸</span>
-                  )}
-                </div>
-              </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {!hasRecord && (
+                      <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        NO RECORD
+                      </span>
+                    )}
 
-              {expanded && (
-                <div className="border-t border-border/60 bg-muted/10 p-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    {sectors.map((s) => {
-                      const key = `${d}-${s.detno}`;
-                      return (
-                        <div
-                          key={key}
-                          className="rounded-md border border-border/60 bg-card px-2 py-2"
-                        >
-                          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                            {s.recordcode || s.description}
-                          </div>
-                          <div className="mt-1 text-sm font-semibold tabular-nums text-foreground">
-                            {(cells[key] ?? "0").toLocaleString()}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <span className="text-base font-bold tabular-nums text-primary">
+                      {total.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+
+                    {expanded ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    )}
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                </button>
+
+                {expanded && (
+                  <div className="border-t border-border/50 bg-muted/10 p-3">
+                    {row.isrevisionrequest ? (
+                      <div className="mb-3 flex items-center gap-2">
+                        <EditButton
+                          variant="square"
+                          tooltip="Cancel Revision Request"
+                          ariaLabel="Cancel Revision Request"
+                          icon={<Ban className="h-4 w-4" />}
+                          onClick={(event) => {
+                            event?.stopPropagation();
+                            if (activeReq) setCancelRequestId(activeReq.requestno);
+                            else toast.info("No active revision request to cancel.");
+                          }}
+                        />
+                        <DeleteButton
+                          variant="square"
+                          tooltip="Delete Revision Request"
+                          ariaLabel="Delete Revision Request"
+                          icon={<Trash2 className="h-4 w-4" />}
+                          onClick={(event) => {
+                            event?.stopPropagation();
+                            if (activeReq) setDeleteRequestId(activeReq.requestno);
+                            else toast.info("No revision request to delete.");
+                          }}
+                        />
+                      </div>
+                    ) : isEditable ? null : (
+                      <div className="mb-3">
+                        <EditButton
+                          variant="square"
+                          tooltip={
+                            !revStation
+                              ? "Select a station to request a revision"
+                              : "Request Revision"
+                          }
+                          ariaLabel={
+                            !revStation
+                              ? "Select a station to request a revision"
+                              : "Request Revision"
+                          }
+                          disabled={!revStation}
+                          icon={<FilePen className="h-4 w-4" />}
+                          onClick={(event) => {
+                            event?.stopPropagation();
+                            setRevisionDay(Number(d));
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {sectors.map((s) => {
+                        const key = `${d}-${s.detno}`;
+                        return (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between gap-2 rounded-md border border-border/50 bg-card px-2.5 py-2"
+                          >
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                              {s.recordcode || s.description}
+                            </span>
+                            <span className="text-right text-sm font-semibold tabular-nums text-foreground">
+                              {(cells[key] ?? "0").toLocaleString()}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </>
   );
