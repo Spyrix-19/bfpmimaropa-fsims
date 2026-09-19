@@ -178,7 +178,11 @@ export function FireCodeFeesYearViewBody({
       .filter((o) => feeTypes.includes(o.code))
       .map((o) => o.name.toUpperCase())
       .filter(Boolean);
-    const norm = (text: string) => String(text ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    const norm = (text: string) =>
+      String(text ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
     const matches = (text: string) => {
       const t = norm(text);
       if (!t) return false;
@@ -453,8 +457,8 @@ export function FireCodeFeesYearViewBody({
                         </span>
                       )}
                     </div>
-                      <div className="ml-auto flex items-center gap-4">
-                        <div className="hidden md:flex md:items-end">
+                    <div className="ml-auto flex items-center gap-4">
+                      <div className="hidden md:flex md:items-end">
                         {EDITABLE_FEE_SECTORS.flatMap((s) => [
                           {
                             key: `${s.key}-manual`,
@@ -476,7 +480,7 @@ export function FireCodeFeesYearViewBody({
                             </div>
                           </div>
                         ))}
-                          <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
+                        <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Total
                           </div>
@@ -495,7 +499,8 @@ export function FireCodeFeesYearViewBody({
                             <div className="text-[11px] font-semibold tabular-nums text-foreground">
                               {peso(
                                 EDITABLE_FEE_SECTORS.reduce(
-                                  (sum, s) => sum + sectorModeTotal(m.values, s.key, FIRE_CODE_MODE_MANUAL),
+                                  (sum, s) =>
+                                    sum + sectorModeTotal(m.values, s.key, FIRE_CODE_MODE_MANUAL),
                                   0,
                                 ),
                               )}
@@ -508,7 +513,8 @@ export function FireCodeFeesYearViewBody({
                             <div className="text-[11px] font-semibold tabular-nums text-foreground">
                               {peso(
                                 EDITABLE_FEE_SECTORS.reduce(
-                                  (sum, s) => sum + sectorModeTotal(m.values, s.key, FIRE_CODE_MODE_FSIS),
+                                  (sum, s) =>
+                                    sum + sectorModeTotal(m.values, s.key, FIRE_CODE_MODE_FSIS),
                                   0,
                                 ),
                               )}

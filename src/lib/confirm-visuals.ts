@@ -7,11 +7,19 @@ import {
   Fingerprint,
   ScanFace,
   Trash2,
+  type LucideIcon,
 } from "lucide-react";
 
-export const getConfirmVisuals = (title?: string) => {
+export type ConfirmVisuals = {
+  ContentIcon?: LucideIcon;
+  contentIconBgClass?: string;
+  contentIconColorClass?: string;
+  confirmVariant?: "default" | "destructive";
+};
+
+export const getConfirmVisuals = (title?: string): ConfirmVisuals => {
   const t = String(title ?? "").toLowerCase();
-  if (!t) return {} as any;
+  if (!t) return {};
   if (t.startsWith("save"))
     return {
       ContentIcon: ShieldCheck,
@@ -67,5 +75,5 @@ export const getConfirmVisuals = (title?: string) => {
       contentIconColorClass: "text-destructive",
       confirmVariant: t.includes("deactivate") ? ("destructive" as const) : undefined,
     };
-  return {} as any;
+  return {};
 };

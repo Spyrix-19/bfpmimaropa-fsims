@@ -8,7 +8,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 // Generic Option type — default value type is string
-export type Option<V = string> = { value: V; label: string; raw?: any };
+/** Backing reference-table row carried alongside an option. */
+export type GentableOptionRaw = {
+  recordcode?: string | number | null;
+  recordname?: string | null;
+};
+
+export type Option<V = string> = { value: V; label: string; raw?: GentableOptionRaw };
 
 export default function GentableSelect<V extends string | number = string>(props: {
   value?: V;
@@ -37,7 +43,8 @@ export default function GentableSelect<V extends string | number = string>(props
   } = props;
   const ariaLabel = props["aria-label"];
 
-  const toStr = (v: any) => (valueToString ? valueToString(v) : String(v ?? ""));
+  const toStr = (v: V | undefined) =>
+    valueToString && v !== undefined ? valueToString(v) : String(v ?? "");
 
   const current = options.find((o) => toStr(o.value) === toStr(value));
   const displayLabel = current ? current.label : (placeholder ?? "-- Select --");

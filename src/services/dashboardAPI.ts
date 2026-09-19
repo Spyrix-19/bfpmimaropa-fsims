@@ -120,9 +120,8 @@ export const dashboardAPI = {
     );
   },
 
-
   async getYearlyFireCodeFees(
-    body: DashboardYearToYearFCFDTO  ,
+    body: DashboardYearToYearFCFDTO,
     options?: import("@/lib/api").ApiOptions,
   ) {
     return await apiPost<DashboardFeeCollectionModel[]>(
@@ -135,7 +134,10 @@ export const dashboardAPI = {
     );
   },
 
-   async getYearlyFireCodeVariance(body: DashboardFCFYearToYearDTO, options?: import("@/lib/api").ApiOptions) {
+  async getYearlyFireCodeVariance(
+    body: DashboardFCFYearToYearDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     return await apiPost<DashboardFireCodeFeeVarianceModel[]>(
       "/api/v1/Dashboard/FSIMS/FireCodeFee/Variance",
       body,
@@ -145,6 +147,4 @@ export const dashboardAPI = {
       },
     );
   },
-
-  
 };

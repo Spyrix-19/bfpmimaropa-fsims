@@ -142,35 +142,28 @@ export default function UsersLedger({ variant, title, description }: Props) {
    * - PERSONNEL (3) → all roles except SUPER and ADMIN
    */
   const makeRoleFilter = React.useCallback(
-    () =>
-      (rows: import("@/types/gentableType").SearchGentableModel[]) =>
-        rows.filter((row) => {
-          const code = String(row.recordcode ?? "")
-            .trim()
-            .toUpperCase();
-          const desc = String(row.description ?? "")
-            .trim()
-            .toUpperCase();
-          const isSuperRow = code === "SUPER" || desc.includes("SUPER ADMIN");
-          const isAdminRow = code === "ADMIN" || desc.includes("ADMIN");
-          const isPersonnelRow = code === "PERSONNEL" || desc.includes("PERSONNEL");
+    () => (rows: import("@/types/gentableType").SearchGentableModel[]) =>
+      rows.filter((row) => {
+        const code = String(row.recordcode ?? "")
+          .trim()
+          .toUpperCase();
+        const desc = String(row.description ?? "")
+          .trim()
+          .toUpperCase();
+        const isSuperRow = code === "SUPER" || desc.includes("SUPER ADMIN");
+        const isAdminRow = code === "ADMIN" || desc.includes("ADMIN");
+        const isPersonnelRow = code === "PERSONNEL" || desc.includes("PERSONNEL");
 
-          if (isLoggedInSuperAdmin) return true;
-          if (currentRoleNo === 2) return !isSuperRow;
-          if (currentRoleNo === 3) return isPersonnelRow;
-          return true;
-        }),
+        if (isLoggedInSuperAdmin) return true;
+        if (currentRoleNo === 2) return !isSuperRow;
+        if (currentRoleNo === 3) return isPersonnelRow;
+        return true;
+      }),
     [currentRoleNo, isLoggedInSuperAdmin],
   );
 
-  const filterAccountRoleRows = React.useMemo(
-    () => makeRoleFilter(),
-    [makeRoleFilter],
-  );
-  const filterUpdateRoleRows = React.useMemo(
-    () => makeRoleFilter(),
-    [makeRoleFilter],
-  );
+  const filterAccountRoleRows = React.useMemo(() => makeRoleFilter(), [makeRoleFilter]);
+  const filterUpdateRoleRows = React.useMemo(() => makeRoleFilter(), [makeRoleFilter]);
 
   const openRoleDialog = (r: UserModel) => {
     setRoleTarget(r);
@@ -478,7 +471,10 @@ export default function UsersLedger({ variant, title, description }: Props) {
           <div className="space-y-4 md:hidden">
             {paged.map((r) => {
               const disabled =
-                variant === "active" && isAdministrator() && !isLoggedInSuperAdmin && r.roleno === 1;
+                variant === "active" &&
+                isAdministrator() &&
+                !isLoggedInSuperAdmin &&
+                r.roleno === 1;
               const displayName = `${r.rankcode ? `${r.rankcode} ` : ""}${r.fullname}`;
               return (
                 <Card
@@ -589,7 +585,10 @@ export default function UsersLedger({ variant, title, description }: Props) {
                     >
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
-                          {variant === "active" && isAdministrator() && !isLoggedInSuperAdmin && r.roleno === 1 ? (
+                          {variant === "active" &&
+                          isAdministrator() &&
+                          !isLoggedInSuperAdmin &&
+                          r.roleno === 1 ? (
                             <Button size="sm" disabled className="gap-1.5">
                               <Slash className="h-4 w-4" />
                               {actionLabel}

@@ -5,32 +5,32 @@
 // PATTERN 1: Lazy Load Data Based on Tab Selection (NO unnecessary refetch)
 // ============================================================================
 
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 export function OptimizedDashboard() {
-  const [activeTab, setActiveTab] = useState<'summary' | 'details' | 'reports'>('summary');
+  const [activeTab, setActiveTab] = useState<"summary" | "details" | "reports">("summary");
 
   // Load summary immediately (lightweight)
   const summaryQuery = useQuery({
-    queryKey: ['dashboard', 'summary'],
-    queryFn: () => api.get('/dashboard/summary'),
+    queryKey: ["dashboard", "summary"],
+    queryFn: () => api.get("/dashboard/summary"),
     staleTime: 5 * 60 * 1000, // 5 min
   });
 
   // Load details ONLY when tab is clicked (saves API call on page load)
   const detailsQuery = useQuery({
-    queryKey: ['dashboard', 'details'],
-    queryFn: () => api.get('/dashboard/details'),
-    enabled: activeTab === 'details', // 👈 KEY: Don't fetch unless needed
+    queryKey: ["dashboard", "details"],
+    queryFn: () => api.get("/dashboard/details"),
+    enabled: activeTab === "details", // 👈 KEY: Don't fetch unless needed
     staleTime: 5 * 60 * 1000,
   });
 
   // Load reports ONLY when tab is clicked
   const reportsQuery = useQuery({
-    queryKey: ['dashboard', 'reports'],
-    queryFn: () => api.get('/dashboard/reports'),
-    enabled: activeTab === 'reports', // 👈 KEY: Don't fetch unless needed
+    queryKey: ["dashboard", "reports"],
+    queryFn: () => api.get("/dashboard/reports"),
+    enabled: activeTab === "reports", // 👈 KEY: Don't fetch unless needed
     staleTime: 5 * 60 * 1000,
   });
 
@@ -66,10 +66,11 @@ export function OptimizedTable() {
 
   // Only fetch current page, previous queries are garbage collected
   const { data, isLoading } = useQuery({
-    queryKey: ['table-data', page, pageSize],
-    queryFn: () => api.get('/table-data', {
-      params: { page, pagesize: pageSize }
-    }),
+    queryKey: ["table-data", page, pageSize],
+    queryFn: () =>
+      api.get("/table-data", {
+        params: { page, pagesize: pageSize },
+      }),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000, // Old pages auto-deleted after 10 min
   });
@@ -78,14 +79,12 @@ export function OptimizedTable() {
     <div>
       <table>
         {/* Render only current page data (50 rows max) */}
-        {data?.data?.map(row => <TableRow key={row.id} {...row} />)}
+        {data?.data?.map((row) => (
+          <TableRow key={row.id} {...row} />
+        ))}
       </table>
-      
-      <Pagination
-        currentPage={page}
-        onPageChange={setPage}
-        totalPages={data?.totalPages}
-      />
+
+      <Pagination currentPage={page} onPageChange={setPage} totalPages={data?.totalPages} />
     </div>
   );
 }
@@ -94,12 +93,12 @@ export function OptimizedTable() {
 // PATTERN 3: Virtualized List (Render Only Visible Rows)
 // ============================================================================
 
-import { FixedSizeList as List } from 'react-window';
+import { FixedSizeList as List } from "react-window";
 
 export function OptimizedLargeList() {
   const { data } = useQuery({
-    queryKey: ['large-list'],
-    queryFn: () => api.get('/large-dataset', { params: { pagesize: 1000 } }),
+    queryKey: ["large-list"],
+    queryFn: () => api.get("/large-dataset", { params: { pagesize: 1000 } }),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -107,12 +106,7 @@ export function OptimizedLargeList() {
 
   // Only renders visible rows + buffer (not all 1000!)
   return (
-    <List
-      height={600}
-      itemCount={items.length}
-      itemSize={35}
-      width="100%"
-    >
+    <List height={600} itemCount={items.length} itemSize={35} width="100%">
       {({ index, style }) => (
         <div style={style} className="row">
           {/* Render item at index */}
@@ -127,7 +121,7 @@ export function OptimizedLargeList() {
 // PATTERN 4: Stop Polling When Tab is Inactive
 // ============================================================================
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 export function OptimizedPolling() {
   const isActiveTab = useRef(true);
@@ -135,17 +129,17 @@ export function OptimizedPolling() {
   // Track if tab is visible
   useEffect(() => {
     const handleVisibility = () => {
-      isActiveTab.current = document.visibilityState === 'visible';
+      isActiveTab.current = document.visibilityState === "visible";
     };
 
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   // Polling: 30s if active, disabled if inactive
   const { data } = useQuery({
-    queryKey: ['real-time-data'],
-    queryFn: () => api.get('/real-time-data'),
+    queryKey: ["real-time-data"],
+    queryFn: () => api.get("/real-time-data"),
     refetchInterval: isActiveTab.current ? 30000 : false, // 👈 KEY: Stop when inactive
   });
 
@@ -169,10 +163,11 @@ export function OptimizedComponent() {
   }, []);
 
   const { data } = useQuery({
-    queryKey: ['data'],
-    queryFn: () => api.get('/data', {
-      signal: abortControllerRef.current?.signal,
-    }),
+    queryKey: ["data"],
+    queryFn: () =>
+      api.get("/data", {
+        signal: abortControllerRef.current?.signal,
+      }),
   });
 
   return <div>{JSON.stringify(data)}</div>;
@@ -182,18 +177,18 @@ export function OptimizedComponent() {
 // PATTERN 6: Memoize Expensive Computations
 // ============================================================================
 
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
 export function OptimizedComputation() {
   const { data } = useQuery({
-    queryKey: ['raw-data'],
-    queryFn: () => api.get('/data'),
+    queryKey: ["raw-data"],
+    queryFn: () => api.get("/data"),
   });
 
   // Expensive calculation only runs if data changes
   const processedData = useMemo(() => {
     if (!data) return null;
-    
+
     // Complex transformation (e.g., sorting, filtering, grouping)
     return transformData(data);
   }, [data]); // 👈 KEY: Only recompute if data changes
@@ -216,13 +211,13 @@ export function OptimizedWithListener() {
     };
 
     // Register listeners
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('keydown', handleKeyPress);
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("keydown", handleKeyPress);
 
     // 👈 CRITICAL: Cleanup or memory leaks!
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("keydown", handleKeyPress);
     };
   }, []);
 

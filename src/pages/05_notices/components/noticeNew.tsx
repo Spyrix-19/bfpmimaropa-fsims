@@ -117,7 +117,12 @@ function countsFromAccom(row?: { [k: string]: unknown }): NoticeCounts {
 
 const normalizeApiGuid = (value: unknown): string => {
   const text = String(value ?? "").trim();
-  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+  if (
+    !text ||
+    text === EMPTY_GUID ||
+    text.toLowerCase() === "null" ||
+    text.toLowerCase() === "undefined"
+  ) {
     return EMPTY_GUID;
   }
   return text;
@@ -307,7 +312,10 @@ function NoticesTable({
           const totalValue = manualValue + fsisValue;
 
           return (
-            <div key={field.key} className="rounded-xl border border-border/60 bg-card p-3 shadow-soft">
+            <div
+              key={field.key}
+              className="rounded-xl border border-border/60 bg-card p-3 shadow-soft"
+            >
               <div className="mb-3 flex items-center justify-between gap-2 border-b border-border/50 pb-2">
                 <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
                   {field.label}
@@ -362,7 +370,9 @@ function NoticesTable({
 
         <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Overall Total</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Overall Total
+            </span>
             <span className="text-sm font-bold tabular-nums text-primary">
               {NOTICE_FIELDS.reduce((sum, f) => sum + colTotal(f.key), 0).toLocaleString()}
             </span>
@@ -576,7 +586,10 @@ function NoticeAccomplishmentPanel({
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                   Issuance
                 </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.issued }}>
+                <div
+                  className="mt-1 text-sm font-semibold tabular-nums"
+                  style={{ color: SERIES.issued }}
+                >
                   {r.issued.toLocaleString()}
                 </div>
               </div>
@@ -585,7 +598,10 @@ function NoticeAccomplishmentPanel({
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                   Accomplished
                 </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.accomplished }}>
+                <div
+                  className="mt-1 text-sm font-semibold tabular-nums"
+                  style={{ color: SERIES.accomplished }}
+                >
                   {r.accomplished.toLocaleString()}
                 </div>
               </div>
@@ -594,7 +610,10 @@ function NoticeAccomplishmentPanel({
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                   Pending
                 </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.pending }}>
+                <div
+                  className="mt-1 text-sm font-semibold tabular-nums"
+                  style={{ color: SERIES.pending }}
+                >
                   {r.pending.toLocaleString()}
                 </div>
               </div>
@@ -603,7 +622,10 @@ function NoticeAccomplishmentPanel({
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                   Positive
                 </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.positive }}>
+                <div
+                  className="mt-1 text-sm font-semibold tabular-nums"
+                  style={{ color: SERIES.positive }}
+                >
                   {r.positive.toLocaleString()}
                 </div>
               </div>

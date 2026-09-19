@@ -40,10 +40,11 @@ export default function DeleteButton({
   // (this allows the global CSS :has selectors to detect the svg and apply the destructive family).
   let renderedIcon: React.ReactNode = icon;
   if (React.isValidElement(icon)) {
-    const prev = (icon as any).props?.className ?? "";
+    const element = icon as React.ReactElement<{ className?: string }>;
+    const prev = element.props?.className ?? "";
     const sizeClass = prev.includes("h-") ? prev : `h-4 w-4 ${prev}`.trim();
-    const className = sizeClass; // caller may include 'lucide-trash' if they want destructive styling
-    renderedIcon = React.cloneElement(icon as React.ReactElement, { className } as any);
+    // caller may include 'lucide-trash' if they want destructive styling
+    renderedIcon = React.cloneElement(element, { className: sizeClass });
   }
 
   const button = (

@@ -286,7 +286,12 @@ function normalizeDateKey(v: string | Date | null | undefined): string | null {
 
 const normalizeApiGuid = (value: unknown): string => {
   const text = String(value ?? "").trim();
-  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+  if (
+    !text ||
+    text === EMPTY_GUID ||
+    text.toLowerCase() === "null" ||
+    text.toLowerCase() === "undefined"
+  ) {
     return EMPTY_GUID;
   }
   return text;
@@ -806,8 +811,7 @@ function ComplianceEditBody({
         ].filter((iss) => {
           if (iss.issuanceno && iss.issuanceno !== EMPTY_GUID) return true;
           return Object.entries(iss).some(
-            ([k, v]) =>
-              k !== "issuanceno" && k !== "fsicmode" && typeof v === "number" && v !== 0,
+            ([k, v]) => k !== "issuanceno" && k !== "fsicmode" && typeof v === "number" && v !== 0,
           );
         });
 

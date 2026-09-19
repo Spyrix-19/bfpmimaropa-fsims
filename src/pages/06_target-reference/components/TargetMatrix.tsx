@@ -8,6 +8,7 @@ import { buildYears } from "@/lib/utils";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { targetreferenceAPI } from "@/services/targetreferenceAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { asRecord, readArray, readNumber, readString } from "@/lib/raw-record";
 import type {
   TargetReferenceModel,
   TargetReferenceClassModel,
@@ -101,7 +102,9 @@ function resolveTargetMonth(it: { reportmonth?: number; targetdate?: string }): 
   return null;
 }
 
-function buildStationRow(m: TargetReferenceModel): StationRow {
+function buildStationRow(model: TargetReferenceModel): StationRow {
+  const m = model;
+  const raw = asRecord(model);
   const months: Record<number, Bucket> = {};
   for (let i = 1; i <= 12; i++) months[i] = emptyBucket();
   (Array.isArray(m.targetreferencelist) ? m.targetreferencelist : []).forEach((it) => {
@@ -116,31 +119,27 @@ function buildStationRow(m: TargetReferenceModel): StationRow {
   });
   return {
     stationno: m.stationno,
-    stationCode: m.stationcode ?? (m as any).stationCode ?? "",
-    stationName: m.stationname ?? (m as any).stationName ?? "",
-    cityName:
-      (m as any).cityname ??
-      (m as any).cityName ??
-      (m as any).cityname ??
-      (m as any).cityName ??
-      "",
-    province: m.provincename ?? (m as any).province ?? (m as any).province ?? "—",
-    logoUrl: m.logourl ?? (m as any).logoUrl ?? (m as any).logoUrl ?? "",
+    stationCode: m.stationcode || readString(raw, ["stationCode"]),
+    stationName: m.stationname || readString(raw, ["stationName"]),
+    cityName: readString(raw, ["cityname", "cityName"]),
+    province: m.provincename || readString(raw, ["province", "provinceName"], "—"),
+    logoUrl: m.logourl || readString(raw, ["logoUrl"]),
     months,
   };
 }
 
-function normalizeTargetReferenceRow(item: any): TargetReferenceClassModel | null {
-  const targetdate = item.targetdate ?? item.Targetdate ?? item.targetDate;
-  const reportmonth = item.reportmonth ?? item.Reportmonth ?? item.reportMonth;
-  const bplototal = Number(item.bplototal ?? item.BPLOtotal ?? item.bploTotal ?? 0);
-  const govtotal = Number(item.govtotal ?? item.Govtotal ?? item.govTotal ?? 0);
-  const pezatotal = Number(item.pezatotal ?? item.PEZAtotal ?? item.pezaTotal ?? 0);
-  const tiezatotal = Number(item.tiezatotal ?? item.TIEZAtotal ?? item.tiezaTotal ?? 0);
+function normalizeTargetReferenceRow(input: unknown): TargetReferenceClassModel | null {
+  const item = asRecord(input);
+  const targetdate = readString(item, ["targetdate", "Targetdate", "targetDate"]);
+  const reportmonth = readNumber(item, ["reportmonth", "Reportmonth", "reportMonth"], 0);
+  const bplototal = readNumber(item, ["bplototal", "BPLOtotal", "bploTotal"]);
+  const govtotal = readNumber(item, ["govtotal", "Govtotal", "govTotal"]);
+  const pezatotal = readNumber(item, ["pezatotal", "PEZAtotal", "pezaTotal"]);
+  const tiezatotal = readNumber(item, ["tiezatotal", "TIEZAtotal", "tiezaTotal"]);
 
   if (
-    targetdate == null &&
-    reportmonth == null &&
+    !targetdate &&
+    !reportmonth &&
     bplototal === 0 &&
     govtotal === 0 &&
     pezatotal === 0 &&
@@ -149,13 +148,14 @@ function normalizeTargetReferenceRow(item: any): TargetReferenceClassModel | nul
     return null;
   }
 
+  const remarks = readString(item, ["remarks", "Remarks"]);
   return {
-    targetno: String(item.targetno ?? item.Targetno ?? ""),
-    targetdate: targetdate == null ? undefined : String(targetdate),
-    reportyear: item.reportyear ?? item.Reportyear,
-    reportmonth: reportmonth == null ? undefined : Number(reportmonth),
-    reportday: item.reportday || item.Reportday,
-    remarks: item.remarks ?? item.Remarks,
+    targetno: readString(item, ["targetno", "Targetno"]),
+    targetdate: targetdate || undefined,
+    reportyear: readNumber(item, ["reportyear", "Reportyear"]) || undefined,
+    reportmonth: reportmonth || undefined,
+    reportday: readNumber(item, ["reportday", "Reportday"]) || undefined,
+    remarks: remarks || undefined,
     bplototal,
     govtotal,
     pezatotal,
@@ -163,63 +163,57 @@ function normalizeTargetReferenceRow(item: any): TargetReferenceClassModel | nul
   };
 }
 
-function normalizeExportStation(item: any): TargetReferenceModel {
-  const targetreferencelist = Array.isArray(item.targetreferencelist)
-    ? item.targetreferencelist
-    : Array.isArray(item.targetreferenceList)
-      ? item.targetreferenceList
-      : Array.isArray(item.TargetReferenceList)
-        ? item.TargetReferenceList
-        : null;
+function normalizeExportStation(input: unknown): TargetReferenceModel {
+  const item = asRecord(input);
+  const targetreferencelist = readArray(item, [
+    "targetreferencelist",
+    "targetreferenceList",
+    "TargetReferenceList",
+  ]);
 
-  const rows = Array.isArray(targetreferencelist)
-    ? targetreferencelist
-        .map(normalizeTargetReferenceRow)
-        .filter((row): row is TargetReferenceClassModel => row != null)
-    : [];
+  const rows = targetreferencelist
+    .map(normalizeTargetReferenceRow)
+    .filter((row): row is TargetReferenceClassModel => row != null);
 
   const singleRow = normalizeTargetReferenceRow(item);
   const targetreferencelistRows = rows.length > 0 ? rows : singleRow ? [singleRow] : [];
 
   return {
-    stationno: String(item.stationno ?? item.Stationno ?? ""),
-    stationcode: String(item.stationcode ?? item.stationCode ?? item.Stationcode ?? ""),
-    stationname: String(item.stationname ?? item.stationName ?? item.Stationname ?? ""),
-    provinceno: String(item.provinceno ?? item.Provinceno ?? item.provinceNo ?? ""),
-    provincename: String(
-      item.provincename ?? item.province ?? item.provinceName ?? item.Provincename ?? "—",
+    stationno: readString(item, ["stationno", "Stationno"]),
+    stationcode: readString(item, ["stationcode", "stationCode", "Stationcode"]),
+    stationname: readString(item, ["stationname", "stationName", "Stationname"]),
+    provinceno: readString(item, ["provinceno", "Provinceno", "provinceNo"]),
+    provincename: readString(
+      item,
+      ["provincename", "province", "provinceName", "Provincename"],
+      "—",
     ),
-    logourl: String(item.logourl ?? item.logoUrl ?? item.Logourl ?? ""),
+    logourl: readString(item, ["logourl", "logoUrl", "Logourl"]),
     targetreferencelist: targetreferencelistRows,
   };
 }
 
 function buildGroupsFromExport(provinces: unknown): ProvinceGroup[] {
   const normalizedProvinces: ProvinceExportModel[] = [];
-  const payload = Array.isArray(provinces)
+  const payload: unknown[] = Array.isArray(provinces)
     ? provinces
-    : ((provinces as any)?.data ?? (provinces as any)?.provinces ?? []);
+    : readArray(asRecord(provinces), ["data", "provinces"]);
 
-  if (!Array.isArray(payload) || payload.length === 0) {
+  if (payload.length === 0) {
     return [];
   }
 
-  const first = payload[0] as any;
+  const first = asRecord(payload[0]);
   if (Array.isArray(first.stations) || Array.isArray(first.stationlist)) {
-    for (const rawProv of payload as any[]) {
-      const stations = Array.isArray(rawProv.stations)
-        ? rawProv.stations
-        : Array.isArray(rawProv.stationlist)
-          ? rawProv.stationlist
-          : [];
+    for (const rawProvince of payload) {
+      const rawProv = asRecord(rawProvince);
+      const stations = readArray(rawProv, ["stations", "stationlist"]);
       normalizedProvinces.push({
-        provinceno: String(rawProv.provinceno ?? rawProv.provinceNo ?? rawProv.Provinceno ?? ""),
-        provincename: String(
-          rawProv.provincename ??
-            rawProv.province ??
-            rawProv.provinceName ??
-            rawProv.Provincename ??
-            "—",
+        provinceno: readString(rawProv, ["provinceno", "provinceNo", "Provinceno"]),
+        provincename: readString(
+          rawProv,
+          ["provincename", "province", "provinceName", "Provincename"],
+          "—",
         ),
         stations: stations.map(normalizeExportStation),
       });
@@ -234,7 +228,7 @@ function buildGroupsFromExport(provinces: unknown): ProvinceGroup[] {
       }
     >();
 
-    for (const rawStation of payload as any[]) {
+    for (const rawStation of payload) {
       const station = normalizeExportStation(rawStation);
       const stationKey = station.stationno || station.stationname || "__unknown";
       const provinceKey = station.provinceno || station.provincename || "__unknown";

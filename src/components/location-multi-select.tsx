@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { locationAPI } from "@/services/locationAPI";
 import { stationAPI } from "@/services/stationAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { asRecord, readString } from "@/lib/raw-record";
 import type { SearchLocationModel } from "@/types/locationType";
 import { cn } from "@/lib/utils";
 import { SEARCH_POPOVER_PAGE_SIZE as PAGE_SIZE } from "@/lib/ui-constants";
@@ -79,21 +80,22 @@ export function LocationMultiSelect(props: LocationMultiSelectProps) {
         if (cancelled) return;
         const provinceRows = Array.isArray(data)
           ? (() => {
-              const entries = (data as Array<Record<string, any>>).map((item) => {
-                const provinceno =
-                  item.provinceno ??
-                  item.provinceNo ??
-                  item.province_no ??
-                  item.provinceid ??
-                  item.provinceId ??
-                  null;
-                const provincename =
-                  item.provincename ??
-                  item.provinceName ??
-                  item.province_name ??
-                  item.provname ??
-                  item.province ??
-                  null;
+              const entries = data.map((item) => {
+                const row = asRecord(item);
+                const provinceno = readString(row, [
+                  "provinceno",
+                  "provinceNo",
+                  "province_no",
+                  "provinceid",
+                  "provinceId",
+                ]);
+                const provincename = readString(row, [
+                  "provincename",
+                  "provinceName",
+                  "province_name",
+                  "provname",
+                  "province",
+                ]);
                 return { provinceno, provincename };
               });
 

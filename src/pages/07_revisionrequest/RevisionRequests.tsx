@@ -1,13 +1,6 @@
 import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import * as React from "react";
-import {
-  ShieldCheck,
-  Check,
-  X as XIcon,
-  Loader2,
-  Filter,
-  ChevronDown,
-} from "lucide-react";
+import { ShieldCheck, Check, X as XIcon, Loader2, Filter, ChevronDown } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
@@ -223,7 +216,9 @@ export default function TargetRevisionRequests({
               className="h-9 w-9 shrink-0"
             />
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-foreground">{r.stationname || "—"}</div>
+              <div className="truncate text-sm font-semibold text-foreground">
+                {r.stationname || "—"}
+              </div>
               <div className="truncate text-[11px] text-muted-foreground">
                 {r.stationcode || "—"}
               </div>
@@ -429,21 +424,16 @@ export default function TargetRevisionRequests({
           <table className="min-w-full border-collapse text-xs">
             <thead className="bg-muted/50 uppercase tracking-wider text-[10px] text-primary">
               <tr>
-                {[
-                  "Action",
-                  "Station",
-                  dateColumnHeader,
-                  "Status",
-                  "Requested",
-                  "Remarks",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="whitespace-nowrap border-b border-border/60 px-3 py-2 text-left font-semibold"
-                  >
-                    {h}
-                  </th>
-                ))}
+                {["Action", "Station", dateColumnHeader, "Status", "Requested", "Remarks"].map(
+                  (h) => (
+                    <th
+                      key={h}
+                      className="whitespace-nowrap border-b border-border/60 px-3 py-2 text-left font-semibold"
+                    >
+                      {h}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>

@@ -414,31 +414,66 @@ export default function TargetReferenceDetails({
                       <span className="inline-flex min-w-[88px] items-center justify-end rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm font-bold tabular-nums text-primary">
                         {(() => {
                           if (period === "DAILY" && dailyDerived) {
-                            return (dailyDerived.total.bplo + dailyDerived.total.gov + dailyDerived.total.peza + dailyDerived.total.tieza).toLocaleString(undefined, {
+                            return (
+                              dailyDerived.total.bplo +
+                              dailyDerived.total.gov +
+                              dailyDerived.total.peza +
+                              dailyDerived.total.tieza
+                            ).toLocaleString(undefined, {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             });
                           }
                           if (period === "MONTHLY" && overallTotals) {
-                            return (overallTotals.bplo + overallTotals.gov + overallTotals.peza + overallTotals.tieza).toLocaleString(undefined, {
+                            return (
+                              overallTotals.bplo +
+                              overallTotals.gov +
+                              overallTotals.peza +
+                              overallTotals.tieza
+                            ).toLocaleString(undefined, {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             });
                           }
                           if (period === "QUARTERLY" && derived) {
-                            return (derived.quarters.reduce((sum, q) => sum + (q?.bplo ?? 0) + (q?.gov ?? 0) + (q?.peza ?? 0) + (q?.tieza ?? 0), 0)).toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            });
+                            return derived.quarters
+                              .reduce(
+                                (sum, q) =>
+                                  sum +
+                                  (q?.bplo ?? 0) +
+                                  (q?.gov ?? 0) +
+                                  (q?.peza ?? 0) +
+                                  (q?.tieza ?? 0),
+                                0,
+                              )
+                              .toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              });
                           }
                           if (period === "SEMI-ANNUAL" && derived) {
-                            return (derived.halves.reduce((sum, h) => sum + (h?.bplo ?? 0) + (h?.gov ?? 0) + (h?.peza ?? 0) + (h?.tieza ?? 0), 0)).toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            });
+                            return derived.halves
+                              .reduce(
+                                (sum, h) =>
+                                  sum +
+                                  (h?.bplo ?? 0) +
+                                  (h?.gov ?? 0) +
+                                  (h?.peza ?? 0) +
+                                  (h?.tieza ?? 0),
+                                0,
+                              )
+                              .toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              });
                           }
                           if (period === "ANNUAL" && derived) {
-                            return ((derived.annual?.bplo ?? 0) + (derived.annual?.gov ?? 0) + (derived.annual?.peza ?? 0) + (derived.annual?.tieza ?? 0)).toLocaleString(undefined, {
+                            return (
+                              (derived.annual?.bplo ?? 0) +
+                              (derived.annual?.gov ?? 0) +
+                              (derived.annual?.peza ?? 0) +
+                              (derived.annual?.tieza ?? 0)
+                            ).toLocaleString(undefined, {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             });
@@ -557,31 +592,66 @@ export default function TargetReferenceDetails({
                       <span className="inline-flex min-w-[88px] items-center justify-end rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm font-bold tabular-nums text-primary">
                         {(() => {
                           if (period === "DAILY" && dailyDerived) {
-                            return (dailyDerived.total.bplo + dailyDerived.total.gov + dailyDerived.total.peza + dailyDerived.total.tieza).toLocaleString(undefined, {
+                            return (
+                              dailyDerived.total.bplo +
+                              dailyDerived.total.gov +
+                              dailyDerived.total.peza +
+                              dailyDerived.total.tieza
+                            ).toLocaleString(undefined, {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             });
                           }
                           if (period === "MONTHLY" && overallTotals) {
-                            return (overallTotals.bplo + overallTotals.gov + overallTotals.peza + overallTotals.tieza).toLocaleString(undefined, {
+                            return (
+                              overallTotals.bplo +
+                              overallTotals.gov +
+                              overallTotals.peza +
+                              overallTotals.tieza
+                            ).toLocaleString(undefined, {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             });
                           }
                           if (period === "QUARTERLY" && derived) {
-                            return (derived.quarters.reduce((sum, q) => sum + (q?.bplo ?? 0) + (q?.gov ?? 0) + (q?.peza ?? 0) + (q?.tieza ?? 0), 0)).toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            });
+                            return derived.quarters
+                              .reduce(
+                                (sum, q) =>
+                                  sum +
+                                  (q?.bplo ?? 0) +
+                                  (q?.gov ?? 0) +
+                                  (q?.peza ?? 0) +
+                                  (q?.tieza ?? 0),
+                                0,
+                              )
+                              .toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              });
                           }
                           if (period === "SEMI-ANNUAL" && derived) {
-                            return (derived.halves.reduce((sum, h) => sum + (h?.bplo ?? 0) + (h?.gov ?? 0) + (h?.peza ?? 0) + (h?.tieza ?? 0), 0)).toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            });
+                            return derived.halves
+                              .reduce(
+                                (sum, h) =>
+                                  sum +
+                                  (h?.bplo ?? 0) +
+                                  (h?.gov ?? 0) +
+                                  (h?.peza ?? 0) +
+                                  (h?.tieza ?? 0),
+                                0,
+                              )
+                              .toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              });
                           }
                           if (period === "ANNUAL" && derived) {
-                            return ((derived.annual?.bplo ?? 0) + (derived.annual?.gov ?? 0) + (derived.annual?.peza ?? 0) + (derived.annual?.tieza ?? 0)).toLocaleString(undefined, {
+                            return (
+                              (derived.annual?.bplo ?? 0) +
+                              (derived.annual?.gov ?? 0) +
+                              (derived.annual?.peza ?? 0) +
+                              (derived.annual?.tieza ?? 0)
+                            ).toLocaleString(undefined, {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             });

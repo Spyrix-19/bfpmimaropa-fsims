@@ -56,7 +56,8 @@ function buildApiFeeCategories(payload: DashboardFeeCollectionModel[] | null): F
     for (const fee of yearEntry?.feeList ?? []) {
       const feecateg = Number(fee?.feecateg) || 0;
       if (!feecateg || byCateg.has(feecateg)) continue;
-      const label = String(fee?.feecategname ?? "").trim() || String(fee?.feecategcode ?? "").trim();
+      const label =
+        String(fee?.feecategname ?? "").trim() || String(fee?.feecategcode ?? "").trim();
       const parentcode = String(fee?.feeparentcode ?? "").trim();
       const parentname = String(fee?.feeparentname ?? "").trim();
       byCateg.set(feecateg, {
@@ -494,9 +495,7 @@ export default function FireCodeFeesSection() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[calc(100vw-2rem)] p-3" align="start">
-                    <div className="grid grid-cols-1 gap-2">
-                      {filterControls}
-                    </div>
+                    <div className="grid grid-cols-1 gap-2">{filterControls}</div>
                   </PopoverContent>
                 </Popover>
               </div>
@@ -599,7 +598,10 @@ export default function FireCodeFeesSection() {
                             );
                           }, 0);
                           return (
-                            <tr key={c.key} className="border-b border-grid transition-colors hover:bg-muted/20">
+                            <tr
+                              key={c.key}
+                              className="border-b border-grid transition-colors hover:bg-muted/20"
+                            >
                               <td className="sticky left-0 z-20 border-r border-grid bg-card px-2 py-2 align-middle text-foreground/90 sm:px-2.5">
                                 {c.label}
                               </td>
@@ -637,7 +639,10 @@ export default function FireCodeFeesSection() {
 
           <div className="space-y-3 p-3 md:hidden">
             {mobileRows.map((row) => (
-              <article key={row.key} className="overflow-hidden rounded-lg border border-border/60 bg-card">
+              <article
+                key={row.key}
+                className="overflow-hidden rounded-lg border border-border/60 bg-card"
+              >
                 <div className="border-b border-border/60 bg-muted/40 px-3 py-2.5 text-sm font-semibold text-foreground">
                   {row.label}
                 </div>
@@ -654,7 +659,6 @@ export default function FireCodeFeesSection() {
                     </div>
                   ))}
                 </div>
-
               </article>
             ))}
           </div>

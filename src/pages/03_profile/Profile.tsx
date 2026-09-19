@@ -15,6 +15,7 @@ import {
   ShieldOff,
   ShieldCheck,
   UserCircle2,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -38,6 +39,7 @@ import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
 import { personnelAPI } from "@/services/personnelAPI";
 import { gentableAPI } from "@/services/gentableAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { getErrorMessage } from "@/lib/api-messages";
 import { compressImage } from "@/lib/image-compress";
 import { getConfirmVisuals } from "@/lib/confirm-visuals";
 import { formatLongDate, toDateInput, imageDataToDataUrl, unwrapOne } from "@/lib/utils";
@@ -175,8 +177,8 @@ export default function Profile() {
           updateUser({ fullname: normalized.fullname, name: normalized.fullname });
         }
       }
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed to load profile");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Failed to load profile"));
     }
   };
 
@@ -269,8 +271,8 @@ export default function Profile() {
       } else {
         toast.error(up.error || "Upload failed");
       }
-    } catch (e: any) {
-      toast.error(e?.message ?? "Upload failed");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Upload failed"));
     } finally {
       clearInterval(tick);
       if (success) {
@@ -333,8 +335,8 @@ export default function Profile() {
       await personnelAPI.UpdateInfo(payload);
       toast.success("Personal information updated");
       await loadMember();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed to save personal information");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Failed to save personal information"));
     } finally {
       setSavingInfo(false);
     }
@@ -356,8 +358,8 @@ export default function Profile() {
       await personnelAPI.UpdateEmployment(payload);
       toast.success("Employment updated");
       await loadMember();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed to save employment");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Failed to save employment"));
     } finally {
       setSavingEmployment(false);
     }
@@ -430,15 +432,15 @@ export default function Profile() {
     setConfirmOpen(false);
     try {
       await pendingAction.onClick?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Action failed");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Action failed"));
     } finally {
       setPendingAction(null);
     }
   };
 
   const securityActions: Array<{
-    icon: any;
+    icon: LucideIcon;
     title: string;
     desc: string;
     variant: "default" | "destructive" | "destructive-light" | "success";

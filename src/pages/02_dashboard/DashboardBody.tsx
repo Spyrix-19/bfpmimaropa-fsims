@@ -1114,7 +1114,6 @@ function ActivityCard({
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     <AvatarWithFallback
-                      entity="station"
                       name={item.stationname || item.stationcode}
                       src={item.logourl}
                       alt={item.stationname || "Station"}
@@ -1769,83 +1768,83 @@ export function DashboardBody({
         </div>
 
         <div className="space-y-6">
-        {/* KPIs — sector progress full width */}
-        <SectorProgressCard compliance={compliance} />
+          {/* KPIs — sector progress full width */}
+          <SectorProgressCard compliance={compliance} />
 
-      {/* Breakdowns — Inspection / FSEC / FSIC */}
-      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <BreakdownCard
-          label="Other Inspections"
-          icon={<ClipboardList className="h-5 w-5" />}
-          rows={inspectionBreakdown}
-        />
-        <BreakdownCard
-          label="FSEC"
-          icon={<FileText className="h-5 w-5" />}
-          accent="bg-warning/10 text-warning"
-          rows={fsecBreakdown}
-        />
-        <BreakdownCard
-          label="FSIC"
-          icon={<ClipboardCheck className="h-5 w-5" />}
-          accent="bg-success/10 text-success"
-          rows={fsicBreakdown}
-        />
-      </div>
+          {/* Breakdowns — Inspection / FSEC / FSIC */}
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <BreakdownCard
+              label="Other Inspections"
+              icon={<ClipboardList className="h-5 w-5" />}
+              rows={inspectionBreakdown}
+            />
+            <BreakdownCard
+              label="FSEC"
+              icon={<FileText className="h-5 w-5" />}
+              accent="bg-warning/10 text-warning"
+              rows={fsecBreakdown}
+            />
+            <BreakdownCard
+              label="FSIC"
+              icon={<ClipboardCheck className="h-5 w-5" />}
+              accent="bg-success/10 text-success"
+              rows={fsicBreakdown}
+            />
+          </div>
 
-      {/* Running notices — pending / accomplished / remaining */}
-      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <NoticeCard
-          label="NTC"
-          icon={<AlertCircle className="h-5 w-5" />}
-          accent="bg-warning/10 text-warning"
-          data={{
-            ...getNotice(compliance, "NTC"),
-            ntcvPending: getNotice(compliance, "NTCV").pending,
-          }}
-        />
-        <NoticeCard
-          label="NOD"
-          icon={<FileWarning className="h-5 w-5" />}
-          accent="bg-warning/10 text-warning"
-          data={getNotice(compliance, "NOD")}
-        />
-        <NoticeCard
-          label="NTCV"
-          icon={<ShieldAlert className="h-5 w-5" />}
-          accent="bg-destructive/10 text-destructive"
-          data={{
-            ...getNotice(compliance, "NTCV"),
-            abatementPending: getNotice(compliance, "ABATEMENT").pending,
-          }}
-        />
-        <NoticeCard
-          label="Abatement"
-          icon={<ShieldAlert className="h-5 w-5" />}
-          accent="bg-destructive/10 text-destructive"
-          data={getNotice(compliance, "ABATEMENT")}
-        />
-        <NoticeCard
-          label="Closure"
-          icon={<Ban className="h-5 w-5" />}
-          accent="bg-destructive/10 text-destructive"
-          data={getNotice(compliance, "CLOSURE")}
-        />
-        <NoticeCard
-          label="Non Operational"
-          icon={<Ban className="h-5 w-5" />}
-          accent="bg-primary/10 text-primary"
-          data={getNotice(compliance, "NON OPERATIONAL")}
-          singleValue
-        />
-      </div>
+          {/* Running notices — pending / accomplished / remaining */}
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <NoticeCard
+              label="NTC"
+              icon={<AlertCircle className="h-5 w-5" />}
+              accent="bg-warning/10 text-warning"
+              data={{
+                ...getNotice(compliance, "NTC"),
+                ntcvPending: getNotice(compliance, "NTCV").pending,
+              }}
+            />
+            <NoticeCard
+              label="NOD"
+              icon={<FileWarning className="h-5 w-5" />}
+              accent="bg-warning/10 text-warning"
+              data={getNotice(compliance, "NOD")}
+            />
+            <NoticeCard
+              label="NTCV"
+              icon={<ShieldAlert className="h-5 w-5" />}
+              accent="bg-destructive/10 text-destructive"
+              data={{
+                ...getNotice(compliance, "NTCV"),
+                abatementPending: getNotice(compliance, "ABATEMENT").pending,
+              }}
+            />
+            <NoticeCard
+              label="Abatement"
+              icon={<ShieldAlert className="h-5 w-5" />}
+              accent="bg-destructive/10 text-destructive"
+              data={getNotice(compliance, "ABATEMENT")}
+            />
+            <NoticeCard
+              label="Closure"
+              icon={<Ban className="h-5 w-5" />}
+              accent="bg-destructive/10 text-destructive"
+              data={getNotice(compliance, "CLOSURE")}
+            />
+            <NoticeCard
+              label="Non Operational"
+              icon={<Ban className="h-5 w-5" />}
+              accent="bg-primary/10 text-primary"
+              data={getNotice(compliance, "NON OPERATIONAL")}
+              singleValue
+            />
+          </div>
 
-        {/* Row 1: Target Gap by Province | Inspections (50/50) */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <GapChartCard rows={gapRows} loading={gapLoading} />
+          {/* Row 1: Target Gap by Province | Inspections (50/50) */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <GapChartCard rows={gapRows} loading={gapLoading} />
 
-          <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
-        </div>
+            <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
+          </div>
         </div>
       </div>
 

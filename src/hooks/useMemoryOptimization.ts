@@ -3,16 +3,16 @@
  * Prevents all API calls from firing simultaneously on page load.
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState } from "react";
 
-type SectionId = 'trend' | 'monthly' | 'performance' | 'fees' | 'activity';
+type SectionId = "trend" | "monthly" | "performance" | "fees" | "activity";
 
 const LOAD_DELAY_MS: Record<SectionId, number> = {
-  trend: 300,         // Load immediately-ish
-  monthly: 600,       // Slight delay
-  performance: 900,   // More delay
-  fees: 1200,        // Even more delay
-  activity: 1500,    // Last to load
+  trend: 300, // Load immediately-ish
+  monthly: 600, // Slight delay
+  performance: 900, // More delay
+  fees: 1200, // Even more delay
+  activity: 1500, // Last to load
 };
 
 /**
@@ -54,7 +54,7 @@ export function useVisibilityTracking(elementRef: React.RefObject<HTMLElement>):
       ([entry]) => {
         setIsVisible(entry.isIntersecting);
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     observer.observe(elementRef.current);
@@ -112,6 +112,6 @@ export function useLimitedConcurrency(maxConcurrent = 2) {
       queueRef.current.push(task);
       void executeQueue();
     },
-    [executeQueue]
+    [executeQueue],
   );
 }

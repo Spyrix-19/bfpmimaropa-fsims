@@ -13,7 +13,11 @@ import {
 import { Eye, EyeOff, KeyRound } from "lucide-react";
 import { toast } from "@/lib/toast";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import { PasswordChecklist, firstPasswordError, isPasswordValid } from "@/components/password-rules";
+import {
+  PasswordChecklist,
+  firstPasswordError,
+  isPasswordValid,
+} from "@/components/password-rules";
 import type { MemberDetailModel as MemberModel } from "@/types/personnelType";
 import { useAuth } from "@/lib/auth";
 
@@ -24,7 +28,12 @@ type Props = {
   record?: MemberModel | null;
 };
 
-export default function ChangePasswordDialog({ open, onOpenChange, onRequestConfirm, record }: Props) {
+export default function ChangePasswordDialog({
+  open,
+  onOpenChange,
+  onRequestConfirm,
+  record,
+}: Props) {
   const { user } = useAuth();
   const person = {
     profileurl: record?.profileurl || user?.profileurl || "",

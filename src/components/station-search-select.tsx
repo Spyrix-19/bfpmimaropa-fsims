@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { stationAPI } from "@/services/stationAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { asRecord, readString } from "@/lib/raw-record";
 import { EMPTY_GUID } from "@/lib/fsims-constants";
 import type { SearchStationModel } from "@/types/stationTypes";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
@@ -87,31 +88,31 @@ export default function StationSearchSelect({
         },
         { suppressGlobalLoading: true },
       );
-      const { ok, data, total, totalPages } = unwrap<any[]>(resp);
+      const { ok, data, total, totalPages } = unwrap<unknown[]>(resp);
       if (cancelled) return;
       // Map to StationCodeModel. Per spec: use `logourl` directly for the
       // logo — do NOT fall back to filetype/imagedata base64 anymore.
-      const mapped: SearchStationModel[] = (ok && Array.isArray(data) ? data : []).map(
-        (s: any) =>
-          ({
-            stationno: s.stationno,
-            stationcode: s.stationcode ?? s.stationCode ?? "",
-            stationname: s.stationname ?? s.stationName ?? "",
-            regionno: s.regionno ?? "",
-            regioncode: s.regioncode ?? "",
-            regionname: s.regionname ?? s.regionName ?? "",
-            provinceno: s.provinceno ?? "",
-            provincename: s.provincename ?? s.provinceName ?? "",
-            cityno: s.cityno ?? "",
-            cityname: s.cityname ?? s.cityName ?? "",
-            zipcode: s.zipcode ?? "",
-            barangayno: s.barangayno ?? "",
-            barangayname: s.barangayname ?? s.barangayName ?? "",
-            streetaddress: s.streetaddress ?? s.streetAddress ?? "",
-            logourl: s.logourl ?? s.logoUrl ?? "",
-            filetype: s.filetype ?? "",
-          }) as any,
-      );
+      const mapped: SearchStationModel[] = (ok && Array.isArray(data) ? data : []).map((item) => {
+        const s = asRecord(item);
+        return {
+          stationno: readString(s, ["stationno", "stationNo"]),
+          stationcode: readString(s, ["stationcode", "stationCode"]),
+          stationname: readString(s, ["stationname", "stationName"]),
+          regionno: readString(s, ["regionno", "regionNo"]),
+          regioncode: readString(s, ["regioncode", "regionCode"]),
+          regionname: readString(s, ["regionname", "regionName"]),
+          provinceno: readString(s, ["provinceno", "provinceNo"]),
+          provincename: readString(s, ["provincename", "provinceName"]),
+          cityno: readString(s, ["cityno", "cityNo"]),
+          cityname: readString(s, ["cityname", "cityName"]),
+          zipcode: readString(s, ["zipcode", "zipCode"]),
+          barangayno: readString(s, ["barangayno", "barangayNo"]),
+          barangayname: readString(s, ["barangayname", "barangayName"]),
+          streetaddress: readString(s, ["streetaddress", "streetAddress"]),
+          logourl: readString(s, ["logourl", "logoUrl"]),
+          filetype: readString(s, ["filetype", "fileType"]),
+        } satisfies SearchStationModel;
+      });
       setRows(mapped);
       setPageCount(
         resolvePageCount({ total, totalPages, pageSize: PAGE_SIZE, page, rowCount: mapped.length }),
@@ -234,7 +235,7 @@ export default function StationSearchSelect({
                   {allSelected ? <Check className="h-4 w-4 text-primary" /> : null}
                 </button>
               ) : null}
-              {rows.map((r: any) => {
+              {rows.map((r: SearchStationModel) => {
                 const selected = r.stationno === value;
                 return (
                   <button

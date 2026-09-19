@@ -148,7 +148,7 @@ export async function decryptPayload<T>(
       // Provide lightweight diagnostics to help debugging intermittent
       // decryption failures on some browsers/platforms. Avoid logging raw
       // ciphertext or keys.
-      // eslint-disable-next-line no-console
+
       console.warn("secure-session: decryptPayload failed", {
         cryptoAvailable: cryptoAvailable(),
         rawPrefix: raw.slice(0, ENVELOPE_PREFIX.length),

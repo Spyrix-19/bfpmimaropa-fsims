@@ -528,7 +528,9 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
               </div>
 
               <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
-                <span>{monthName} {year}</span>
+                <span>
+                  {monthName} {year}
+                </span>
                 <span className="text-sm font-bold tabular-nums text-primary">
                   {displayNumber(grandTotal).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -699,7 +701,11 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                         className="flex w-full items-center gap-3 px-3 py-3 text-left"
                       >
                         <div className="shrink-0">
-                          <DayLockIcon date={dayKey(year, month, entry.day)} module="notice" className="h-4 w-4" />
+                          <DayLockIcon
+                            date={dayKey(year, month, entry.day)}
+                            module="notice"
+                            className="h-4 w-4"
+                          />
                         </div>
 
                         <span className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
@@ -733,7 +739,8 @@ export function NoticeViewModal({ open, onOpenChange, record, onEdit }: NoticeVi
                           <div className="space-y-3">
                             {NOTICE_CATEGORIES.map((category) => {
                               const total =
-                                (entry.modes.manual[category] ?? 0) + (entry.modes.fsis[category] ?? 0);
+                                (entry.modes.manual[category] ?? 0) +
+                                (entry.modes.fsis[category] ?? 0);
                               return (
                                 <div
                                   key={`${entry.day}-${category}`}

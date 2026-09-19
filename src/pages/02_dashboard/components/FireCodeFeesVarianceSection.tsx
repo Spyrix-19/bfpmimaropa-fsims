@@ -298,18 +298,18 @@ export default function FireCodeFeesVarianceSection() {
     (async () => {
       setLoading(true);
       const yearList = sortedYears.filter(Boolean);
-        const months = resolveReportMonths(interval as DashInterval, subPeriod);
-        const intervalCode = INTERVAL_CODE[interval] ?? 6;
-        try {
-          const resp = await dashboardAPI.getYearlyFireCodeVariance(
-            {
-              reportyear: yearList,
-              reportmonth: months,
-              interval: intervalCode,
-              provinces: provincesPayload,
-            },
-            { suppressGlobalLoading: true, suppressErrorToast: true },
-          );
+      const months = resolveReportMonths(interval as DashInterval, subPeriod);
+      const intervalCode = INTERVAL_CODE[interval] ?? 6;
+      try {
+        const resp = await dashboardAPI.getYearlyFireCodeVariance(
+          {
+            reportyear: yearList,
+            reportmonth: months,
+            interval: intervalCode,
+            provinces: provincesPayload,
+          },
+          { suppressGlobalLoading: true, suppressErrorToast: true },
+        );
         const { ok, data: payload } = unwrap<DashboardFireCodeFeeVarianceModel[]>(resp);
 
         if (cancelled) return;
@@ -484,9 +484,7 @@ export default function FireCodeFeesVarianceSection() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[calc(100vw-2rem)] p-3" align="start">
-                <div className="grid grid-cols-1 gap-2">
-                  {filterControls}
-                </div>
+                <div className="grid grid-cols-1 gap-2">{filterControls}</div>
               </PopoverContent>
             </Popover>
           </div>
@@ -525,13 +523,17 @@ export default function FireCodeFeesVarianceSection() {
                     <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
                       Variance
                     </dt>
-                    <dd className="mt-1 tabular-nums text-muted-foreground">{peso(row.variance)}</dd>
+                    <dd className="mt-1 tabular-nums text-muted-foreground">
+                      {peso(row.variance)}
+                    </dd>
                   </div>
                   <div className="bg-card p-3 text-right">
                     <dt className="text-[10px] font-semibold uppercase text-muted-foreground">
                       Positive listing
                     </dt>
-                    <dd className="mt-1 tabular-nums text-muted-foreground">{peso(row.positive)}</dd>
+                    <dd className="mt-1 tabular-nums text-muted-foreground">
+                      {peso(row.positive)}
+                    </dd>
                   </div>
                 </dl>
                 <div className="flex items-center justify-between border-t border-border/60 px-3 py-2.5 text-xs">
@@ -555,7 +557,9 @@ export default function FireCodeFeesVarianceSection() {
                 </div>
                 <div>
                   <span className="block text-muted-foreground">Variance</span>
-                  <strong className="tabular-nums">{peso(varianceOf(totalBase, totalCompare))}</strong>
+                  <strong className="tabular-nums">
+                    {peso(varianceOf(totalBase, totalCompare))}
+                  </strong>
                 </div>
                 <div className="text-right">
                   <span className="block text-muted-foreground">Performance</span>
@@ -610,7 +614,10 @@ export default function FireCodeFeesVarianceSection() {
                     {varianceRows.map((row) => {
                       const { baseAmt, compareAmt, percentage: pct } = row;
                       return (
-                        <tr key={row.code} className="border-b border-grid transition-colors hover:bg-muted/20">
+                        <tr
+                          key={row.code}
+                          className="border-b border-grid transition-colors hover:bg-muted/20"
+                        >
                           <td className="sticky left-0 z-20 w-52 min-w-52 border-r border-grid bg-card px-3 py-2.5 align-middle font-medium text-foreground/90 sm:w-64 sm:min-w-64 sm:px-4">
                             {row.label}
                           </td>

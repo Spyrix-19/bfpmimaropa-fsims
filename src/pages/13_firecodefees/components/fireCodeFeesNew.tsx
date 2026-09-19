@@ -146,7 +146,12 @@ export const toAmount = (raw: string) => {
 
 const normalizePrimaryGuid = (value: unknown): string => {
   const text = String(value ?? "").trim();
-  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+  if (
+    !text ||
+    text === EMPTY_GUID ||
+    text.toLowerCase() === "null" ||
+    text.toLowerCase() === "undefined"
+  ) {
     return EMPTY_GUID;
   }
   return text;
@@ -157,7 +162,9 @@ const maybePrimaryGuid = (value: unknown): string | null => {
   return normalized === EMPTY_GUID ? null : normalized;
 };
 
-const dedupeFeeCollectionChildren = (items: FSISFeeCollectionClassDTO[]): FSISFeeCollectionClassDTO[] => {
+const dedupeFeeCollectionChildren = (
+  items: FSISFeeCollectionClassDTO[],
+): FSISFeeCollectionClassDTO[] => {
   const seen = new Set<string>();
   const unique: FSISFeeCollectionClassDTO[] = [];
 
@@ -228,7 +235,8 @@ export function pickFeeRecord(data: unknown): FSISFeeCollectionDetailModel | nul
     // Individual accomfeelist rows also carry a feeno, so they must not be
     // mistaken for the record itself.
     const isRecord =
-      recordFeeno !== EMPTY_GUID && (Array.isArray(obj.accomfeelist) || obj.dateaccomplish !== undefined);
+      recordFeeno !== EMPTY_GUID &&
+      (Array.isArray(obj.accomfeelist) || obj.dateaccomplish !== undefined);
     if (isRecord) {
       rows.push({ ...obj, feeno: recordFeeno } as FSISFeeCollectionDetailModel);
       return;
@@ -368,10 +376,7 @@ export function FeeCategoryMatrix({
     [values],
   );
 
-  const grand = React.useMemo(
-    () => modeTotals.reduce((a, m) => a + m.total, 0),
-    [modeTotals],
-  );
+  const grand = React.useMemo(() => modeTotals.reduce((a, m) => a + m.total, 0), [modeTotals]);
 
   return (
     <>
@@ -516,7 +521,9 @@ export function FeeCategoryMatrix({
                 return (
                   <div key={c.key} className="p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="min-w-0 text-sm font-medium text-foreground/90">{c.label}</div>
+                      <div className="min-w-0 text-sm font-medium text-foreground/90">
+                        {c.label}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {MODES.map((m) => (
@@ -616,7 +623,11 @@ export function FireCodeFeesFormBody({
       .filter((o) => feeTypes.includes(o.code))
       .map((o) => o.name.toUpperCase())
       .filter(Boolean);
-    const norm = (text: string) => String(text ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    const norm = (text: string) =>
+      String(text ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
     const matches = (text: string) => {
       const t = norm(text);
       if (!t) return false;
@@ -662,7 +673,9 @@ export function FireCodeFeesFormBody({
 
     const now = new Date();
     setYear(initialYear && initialYear > 1900 ? initialYear : now.getFullYear());
-    setMonth(initialMonth && initialMonth >= 1 && initialMonth <= 12 ? initialMonth : now.getMonth() + 1);
+    setMonth(
+      initialMonth && initialMonth >= 1 && initialMonth <= 12 ? initialMonth : now.getMonth() + 1,
+    );
     setValues(emptyValues());
     setErrors({});
     setExistingFeeno(null);
@@ -724,24 +737,21 @@ export function FireCodeFeesFormBody({
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
 
-  const setAmount = React.useCallback(
-    (mode: ModeCode, feecateg: number, raw: string) => {
-      setValues((prev) => ({
-        ...prev,
-        [mode]: { ...prev[mode], [feecateg]: toAmount(raw) },
-      }));
-    },
-    [],
-  );
+  const setAmount = React.useCallback((mode: ModeCode, feecateg: number, raw: string) => {
+    setValues((prev) => ({
+      ...prev,
+      [mode]: { ...prev[mode], [feecateg]: toAmount(raw) },
+    }));
+  }, []);
 
   /* Existing record detection -------------------------------------------- */
   const [existingFeeno, setExistingFeeno] = React.useState<string | null>(null);
   const [existingAccomplishNos, setExistingAccomplishNos] = React.useState<Record<string, string>>(
     {},
   );
-  const [pendingRecord, setPendingRecord] = React.useState<
-    FSISFeeCollectionDetailModel | null
-  >(null);
+  const [pendingRecord, setPendingRecord] = React.useState<FSISFeeCollectionDetailModel | null>(
+    null,
+  );
   const [checkingExisting, setCheckingExisting] = React.useState(false);
   const [reloadNonce, setReloadNonce] = React.useState(0);
   const [confirmExistingOpen, setConfirmExistingOpen] = React.useState(false);
@@ -973,8 +983,6 @@ export function FireCodeFeesFormBody({
           </span>
         </div>
       )}
-
-
 
       {/* 1. Reporting period */}
       <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
@@ -1311,7 +1319,6 @@ export function FireCodeFeesFormBody({
         }}
       />
 
-
       <ConfirmDialog
         open={!!deleteRequestId}
         onOpenChange={(v) => !v && setDeleteRequestId(null)}
@@ -1377,7 +1384,9 @@ export default function FireCodeFeesFormModal({
               <Coins className="h-5 w-5 text-primary" />
             </div>
             <div className="text-left">
-              <DialogTitle className="text-left text-base font-bold">Fire Code Fees Collection</DialogTitle>
+              <DialogTitle className="text-left text-base font-bold">
+                Fire Code Fees Collection
+              </DialogTitle>
               <DialogDescription className="text-left">
                 Select a collection date and station, then encode the amounts collected per fee
                 category.

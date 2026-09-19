@@ -101,7 +101,9 @@ export function PasswordChecklist({
             <span
               className={cn(
                 "grid h-4 w-4 shrink-0 place-items-center rounded-full transition-colors",
-                item.passed ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground/70",
+                item.passed
+                  ? "bg-success text-success-foreground"
+                  : "bg-muted text-muted-foreground/70",
               )}
             >
               {item.passed ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}

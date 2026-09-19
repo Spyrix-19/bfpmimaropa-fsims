@@ -91,16 +91,38 @@ ${colorConfig
 
 const ChartTooltip = Tooltip;
 
+/** A single series entry as handed to us by recharts' Tooltip/Legend. */
+export type ChartPayloadItem = {
+  type?: string;
+  name?: string;
+  dataKey?: string | number;
+  value?: string | number;
+  color?: string;
+  payload?: Record<string, unknown> & { fill?: string };
+};
+
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  any &
-    React.ComponentProps<"div"> & {
-      hideLabel?: boolean;
-      hideIndicator?: boolean;
-      indicator?: "line" | "dot" | "dashed";
-      nameKey?: string;
-      labelKey?: string;
-    }
+  React.ComponentProps<"div"> & {
+    active?: boolean;
+    payload?: ChartPayloadItem[];
+    label?: React.ReactNode;
+    labelFormatter?: (value: React.ReactNode, payload: ChartPayloadItem[]) => React.ReactNode;
+    labelClassName?: string;
+    formatter?: (
+      value: string | number,
+      name: string,
+      item: ChartPayloadItem,
+      index: number,
+      payload: ChartPayloadItem["payload"],
+    ) => React.ReactNode;
+    color?: string;
+    hideLabel?: boolean;
+    hideIndicator?: boolean;
+    indicator?: "line" | "dot" | "dashed";
+    nameKey?: string;
+    labelKey?: string;
+  }
 >(
   (
     {
@@ -165,11 +187,11 @@ const ChartTooltipContent = React.forwardRef<
         {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
           {payload
-            .filter((item: any) => item.type !== "none")
-            .map((item: any, index: number) => {
+            .filter((item) => item.type !== "none")
+            .map((item, index) => {
               const key = `${nameKey || item.name || item.dataKey || "value"}`;
               const itemConfig = getPayloadConfigFromPayload(config, item, key);
-              const indicatorColor = color || item.payload.fill || item.color;
+              const indicatorColor = color || item.payload?.fill || item.color;
 
               return (
                 <div
@@ -242,7 +264,7 @@ const ChartLegend = Legend;
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
-    payload?: any;
+    payload?: ChartPayloadItem[];
     verticalAlign?: string;
     hideIcon?: boolean;
     nameKey?: string;
@@ -264,8 +286,8 @@ const ChartLegendContent = React.forwardRef<
       )}
     >
       {payload
-        .filter((item: any) => item.type !== "none")
-        .map((item: any) => {
+        .filter((item) => item.type !== "none")
+        .map((item) => {
           const key = `${nameKey || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
 

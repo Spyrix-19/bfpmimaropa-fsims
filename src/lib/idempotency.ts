@@ -30,7 +30,7 @@ export const generateIdempotencyKey = (): string => {
   }
 
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
-    const random = Math.random() * 16 | 0;
+    const random = (Math.random() * 16) | 0;
     const value = char === "x" ? random : (random & 0x3) | 0x8;
     return value.toString(16);
   });
@@ -47,7 +47,10 @@ export const withIdempotencyKey = <T extends IdempotencyHeaders>(
     return { headers: nextHeaders as T, idempotencyKey: null };
   }
 
-  const idempotencyKey = existingKey ?? (nextHeaders["Idempotency-Key"] as string | undefined) ?? generateIdempotencyKey();
+  const idempotencyKey =
+    existingKey ??
+    (nextHeaders["Idempotency-Key"] as string | undefined) ??
+    generateIdempotencyKey();
   nextHeaders["Idempotency-Key"] = idempotencyKey;
 
   return {

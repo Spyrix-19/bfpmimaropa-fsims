@@ -307,7 +307,11 @@ export function FeeMatrixTable({
                     ) : null}
                   </td>
                   {visibleSectors.map((s) => (
-                    <td key={`${s.key}-g`} colSpan={2} className="border-l border-grid px-3 py-1.5" />
+                    <td
+                      key={`${s.key}-g`}
+                      colSpan={2}
+                      className="border-l border-grid px-3 py-1.5"
+                    />
                   ))}
                 </tr>
                 {showSubItems &&
@@ -382,76 +386,77 @@ export function FeeMatrixTable({
           const showGroupDescription = hasMultipleItems && g.name && g.name !== g.code;
 
           return (
-            <div key={g.parentno || g.code || g.name} className="overflow-hidden rounded-lg border border-border/60 bg-muted/20">
+            <div
+              key={g.parentno || g.code || g.name}
+              className="overflow-hidden rounded-lg border border-border/60 bg-muted/20"
+            >
               <div className="bg-primary/5 px-3 py-2">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-primary">
                   {g.code || g.name}
                 </div>
                 {showGroupDescription && (
-                  <div className="mt-0.5 text-[11px] font-medium text-foreground/90">
-                    {g.name}
-                  </div>
+                  <div className="mt-0.5 text-[11px] font-medium text-foreground/90">{g.name}</div>
                 )}
               </div>
               <div className="space-y-2 p-2">
-              {showSubItems &&
-                g.items.map((c) => {
-                  const manual = values["bplo"][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0;
-                  const fsis = values["bplo"][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
-                  const total = manual + fsis;
-                  const renderAmount = (mode: ModeCode, label: string, amount: number) => {
-                    if (!editable) {
+                {showSubItems &&
+                  g.items.map((c) => {
+                    const manual = values["bplo"][FIRE_CODE_MODE_MANUAL][c.detno] ?? 0;
+                    const fsis = values["bplo"][FIRE_CODE_MODE_FSIS][c.detno] ?? 0;
+                    const total = manual + fsis;
+                    const renderAmount = (mode: ModeCode, label: string, amount: number) => {
+                      if (!editable) {
+                        return (
+                          <div className="rounded-md bg-muted/30 px-2 py-1.5">
+                            <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                              {label}
+                            </div>
+                            <div className="mt-1 text-xs font-semibold tabular-nums text-foreground">
+                              {peso(amount)}
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div className="rounded-md bg-muted/30 px-2 py-1.5">
                           <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                             {label}
                           </div>
-                          <div className="mt-1 text-xs font-semibold tabular-nums text-foreground">
-                            {peso(amount)}
+                          <div className="mt-1">
+                            <AmountInput
+                              value={amount}
+                              disabled={locked}
+                              onValueChange={(raw) => onChange?.("bplo", mode, c.detno, raw)}
+                            />
                           </div>
                         </div>
                       );
-                    }
+                    };
 
                     return (
-                      <div className="rounded-md bg-muted/30 px-2 py-1.5">
-                        <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                          {label}
+                      <div key={c.key} className="rounded-md border border-border/60 bg-card p-2.5">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <span className="min-w-0 flex-1 text-xs font-medium text-foreground/90">
+                            {c.label}
+                            {c.parentname && c.parentname !== g.name && (
+                              <span className="mt-0.5 block text-[9px] font-normal text-muted-foreground">
+                                {c.parentname}
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-xs font-bold tabular-nums text-primary">
+                            {peso(total)}
+                          </span>
                         </div>
-                        <div className="mt-1">
-                          <AmountInput
-                            value={amount}
-                            disabled={locked}
-                            onValueChange={(raw) => onChange?.("bplo", mode, c.detno, raw)}
-                          />
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {renderAmount(FIRE_CODE_MODE_MANUAL, "Manual", manual)}
+                          {renderAmount(FIRE_CODE_MODE_FSIS, "FSIS", fsis)}
                         </div>
                       </div>
                     );
-                  };
-
-                  return (
-                    <div key={c.key} className="rounded-md border border-border/60 bg-card p-2.5">
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="min-w-0 flex-1 text-xs font-medium text-foreground/90">
-                          {c.label}
-                          {c.parentname && c.parentname !== g.name && (
-                            <span className="mt-0.5 block text-[9px] font-normal text-muted-foreground">
-                              {c.parentname}
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-xs font-bold tabular-nums text-primary">
-                          {peso(total)}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        {renderAmount(FIRE_CODE_MODE_MANUAL, "Manual", manual)}
-                        {renderAmount(FIRE_CODE_MODE_FSIS, "FSIS", fsis)}
-                      </div>
-                    </div>
-                  );
-                })}
+                  })}
               </div>
             </div>
           );

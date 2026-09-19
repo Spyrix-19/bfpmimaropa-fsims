@@ -28,7 +28,11 @@ import {
   X,
   AlertTriangle,
   Trash2,
-  Ban, ChevronUp, ChevronDown, ChevronRight, } from "lucide-react";
+  Ban,
+  ChevronUp,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
@@ -855,7 +859,10 @@ export default function TargetReferenceForm({
       </div>
     ) : (
       <>
-        <div className="hidden w-full max-w-full overflow-auto md:block" style={{ maxHeight: "70vh" }}>
+        <div
+          className="hidden w-full max-w-full overflow-auto md:block"
+          style={{ maxHeight: "70vh" }}
+        >
           <table className="min-w-full border-collapse text-xs">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
@@ -1023,10 +1030,12 @@ export default function TargetReferenceForm({
               {MONTHS[month - 1]?.name ?? ""} {year}
             </div>
             <span className="inline-flex min-w-[88px] items-center justify-end rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm font-bold tabular-nums text-primary">
-              {days.reduce((sum, d) => sum + dayTotal(d), 0).toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              {days
+                .reduce((sum, d) => sum + dayTotal(d), 0)
+                .toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
             </span>
           </div>
 
@@ -1136,10 +1145,14 @@ export default function TargetReferenceForm({
                             <EditButton
                               variant="square"
                               tooltip={
-                                !revStation ? "Select a station to request a revision" : "Request Revision"
+                                !revStation
+                                  ? "Select a station to request a revision"
+                                  : "Request Revision"
                               }
                               ariaLabel={
-                                !revStation ? "Select a station to request a revision" : "Request Revision"
+                                !revStation
+                                  ? "Select a station to request a revision"
+                                  : "Request Revision"
                               }
                               disabled={!revStation}
                               icon={<FilePen className="h-4 w-4" />}

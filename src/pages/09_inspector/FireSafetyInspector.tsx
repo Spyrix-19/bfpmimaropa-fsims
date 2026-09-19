@@ -54,7 +54,10 @@ export interface InspectorField {
 /** An inspector row: station identity + record key + numeric metrics. */
 
 export type InspectorRow = StationInfo &
-  Record<string, any> & { recordno: string; remarks?: string };
+  Record<string, string | number | boolean | null | undefined> & {
+    recordno: string;
+    remarks?: string;
+  };
 
 /** Maps an API ledger/detail model into the flat row shape used by the UI. */
 function toInspectorRow(model: unknown): InspectorRow {

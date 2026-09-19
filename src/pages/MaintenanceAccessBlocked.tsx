@@ -1,9 +1,4 @@
-import {
-  LockKeyhole,
-  ShieldAlert,
-  Shield,
-  Wrench,
-} from "lucide-react";
+import { LockKeyhole, ShieldAlert, Shield, Wrench } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 import { brand } from "@/lib/brand";
@@ -47,7 +42,7 @@ export default function MaintenanceAccessBlocked() {
               System Maintenance — Access Restricted
             </h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              The {brand.organization} {brand.appName} is currently under maintenance. Only 
+              The {brand.organization} {brand.appName} is currently under maintenance. Only
               authorized Super Administrators can access the system during this period.
             </p>
           </div>
@@ -68,15 +63,15 @@ export default function MaintenanceAccessBlocked() {
                 </span>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
-                Your account ({user?.badgeno}) does not have Super Administrator privileges. 
-                Access is automatically being revoked to maintain system integrity during maintenance.
+                Your account ({user?.badgeno}) does not have Super Administrator privileges. Access
+                is automatically being revoked to maintain system integrity during maintenance.
               </p>
             </div>
 
             <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
-              During scheduled maintenance, only Super Administrators are permitted to access 
-              the {brand.organization} {brand.appName}. This restriction is in place to ensure 
-              system stability and to prevent data conflicts during maintenance operations.
+              During scheduled maintenance, only Super Administrators are permitted to access the{" "}
+              {brand.organization} {brand.appName}. This restriction is in place to ensure system
+              stability and to prevent data conflicts during maintenance operations.
             </p>
           </div>
         </Card>
@@ -91,7 +86,7 @@ export default function MaintenanceAccessBlocked() {
               </h2>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              The system is currently undergoing scheduled maintenance to improve performance, 
+              The system is currently undergoing scheduled maintenance to improve performance,
               reliability, and security. This maintenance is critical for system health.
             </p>
           </Card>
@@ -99,12 +94,10 @@ export default function MaintenanceAccessBlocked() {
           <Card className="border-border/60 p-6">
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" aria-hidden />
-              <h2 className="text-sm font-semibold text-foreground">
-                Super Admin Access Required
-              </h2>
+              <h2 className="text-sm font-semibold text-foreground">Super Admin Access Required</h2>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Only users with Super Administrator privileges are permitted access during this 
+              Only users with Super Administrator privileges are permitted access during this
               maintenance window. Please contact your system administrator for further assistance.
             </p>
           </Card>
@@ -117,8 +110,8 @@ export default function MaintenanceAccessBlocked() {
             <h2 className="text-sm font-semibold text-foreground">Need assistance?</h2>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            If you are a Super Administrator and need access, please ensure you are logging in 
-            with the correct Super Administrator account. For further assistance, please contact{" "}
+            If you are a Super Administrator and need access, please ensure you are logging in with
+            the correct Super Administrator account. For further assistance, please contact{" "}
             {brand.supportContact} or the designated {brand.organization} ICT support personnel.
           </p>
         </Card>
@@ -136,13 +129,12 @@ export default function MaintenanceAccessBlocked() {
                 Signing out automatically
               </p>
               <p className="mt-1 text-sm text-yellow-800/80 dark:text-yellow-400/80">
-                Your account does not have Super Administrator privileges required for access during 
+                Your account does not have Super Administrator privileges required for access during
                 maintenance. You will be signed out automatically to protect system integrity.
               </p>
             </div>
           </div>
         </div>
-
       </div>
     </main>
   );

@@ -37,11 +37,7 @@ const activities = [
   "Service reliability improvements",
 ];
 
-export default function Maintenance({
-  showAccessStatus = false,
-}: {
-  showAccessStatus?: boolean;
-}) {
+export default function Maintenance({ showAccessStatus = false }: { showAccessStatus?: boolean }) {
   return (
     <main className="min-h-screen bg-background px-4 py-10 sm:px-6 lg:py-16">
       <div className="mx-auto w-full max-w-3xl">
@@ -109,11 +105,13 @@ export default function Maintenance({
                   </p>
                 </div>
                 <div className="mt-4 rounded-lg border border-border/60 bg-card p-4">
-                  <h3 className="text-sm font-semibold text-foreground">Super Admin Access Required</h3>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Super Admin Access Required
+                  </h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     Access is limited to authorized Super Administrator accounts only. If you do not
-                    have Super Administrator privileges, please wait until the maintenance window has
-                    ended before attempting to sign in again.
+                    have Super Administrator privileges, please wait until the maintenance window
+                    has ended before attempting to sign in again.
                   </p>
                 </div>
               </div>
@@ -216,7 +214,6 @@ export default function Maintenance({
             {brand.organization} ICT support personnel.
           </p>
         </Card>
-
       </div>
     </main>
   );

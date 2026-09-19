@@ -116,7 +116,12 @@ const freshMonth = (month: number): MonthState => {
 
 const normalizePrimaryGuid = (value: unknown): string => {
   const text = String(value ?? "").trim();
-  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+  if (
+    !text ||
+    text === EMPTY_GUID ||
+    text.toLowerCase() === "null" ||
+    text.toLowerCase() === "undefined"
+  ) {
     return EMPTY_GUID;
   }
   return text;
@@ -127,7 +132,9 @@ const maybePrimaryGuid = (value: unknown): string | null => {
   return normalized === EMPTY_GUID ? null : normalized;
 };
 
-const dedupeFeeCollectionChildren = (items: FSISFeeCollectionClassDTO[]): FSISFeeCollectionClassDTO[] => {
+const dedupeFeeCollectionChildren = (
+  items: FSISFeeCollectionClassDTO[],
+): FSISFeeCollectionClassDTO[] => {
   const seen = new Set<string>();
   const unique: FSISFeeCollectionClassDTO[] = [];
 
@@ -257,7 +264,11 @@ export function FireCodeFeesYearEditorBody({
       .filter((o) => feeTypes.includes(o.code))
       .map((o) => o.name.toUpperCase())
       .filter(Boolean);
-    const norm = (text: string) => String(text ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    const norm = (text: string) =>
+      String(text ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
     const matches = (text: string) => {
       const t = norm(text);
       if (!t) return false;
@@ -274,7 +285,6 @@ export function FireCodeFeesYearEditorBody({
   }, [displayCategories, feeTypes, feeTypeOptions]);
 
   const YEARS = React.useMemo(buildYears, []);
-
 
   const [year, setYear] = React.useState(initialYear);
   React.useEffect(() => setYear(initialYear), [initialYear]);
@@ -727,9 +737,16 @@ export function FireCodeFeesYearEditorBody({
                         )}
                       </div>
                     ) : null}
-                    <div className={cn("flex min-w-[9rem] items-center gap-2", showRevisionAction && "pl-0")}>
+                    <div
+                      className={cn(
+                        "flex min-w-[9rem] items-center gap-2",
+                        showRevisionAction && "pl-0",
+                      )}
+                    >
                       <DayLockIcon
-                        locked={isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, m.month)}
+                        locked={
+                          isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, m.month)
+                        }
                         className="h-3.5 w-3.5"
                       />
                       <span className="text-sm font-semibold">{name}</span>
@@ -762,27 +779,29 @@ export function FireCodeFeesYearEditorBody({
                     </div>
                     <div className="ml-auto flex items-center gap-4">
                       <div className="hidden md:flex md:items-end">
-                        {FEE_SECTORS.filter((s) => s.key === "bplo").flatMap((s) => [
-                          {
-                            key: `${s.key}-manual`,
-                            title: "MANUAL",
-                            value: sumAmounts(m.values[s.key][FIRE_CODE_MODE_MANUAL]),
-                          },
-                          {
-                            key: `${s.key}-fsis`,
-                            title: "FSIS",
-                            value: sumAmounts(m.values[s.key][FIRE_CODE_MODE_FSIS]),
-                          },
-                        ]).map((item) => (
-                          <div key={item.key} className="w-28 shrink-0 px-2 text-right">
-                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                              {item.title}
+                        {FEE_SECTORS.filter((s) => s.key === "bplo")
+                          .flatMap((s) => [
+                            {
+                              key: `${s.key}-manual`,
+                              title: "MANUAL",
+                              value: sumAmounts(m.values[s.key][FIRE_CODE_MODE_MANUAL]),
+                            },
+                            {
+                              key: `${s.key}-fsis`,
+                              title: "FSIS",
+                              value: sumAmounts(m.values[s.key][FIRE_CODE_MODE_FSIS]),
+                            },
+                          ])
+                          .map((item) => (
+                            <div key={item.key} className="w-28 shrink-0 px-2 text-right">
+                              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                {item.title}
+                              </div>
+                              <div className="text-[11px] font-semibold tabular-nums text-foreground">
+                                {peso(item.value)}
+                              </div>
                             </div>
-                            <div className="text-[11px] font-semibold tabular-nums text-foreground">
-                              {peso(item.value)}
-                            </div>
-                          </div>
-                        ))}
+                          ))}
                         <div className="w-32 shrink-0 border-l border-border/60 px-2 text-right">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Total

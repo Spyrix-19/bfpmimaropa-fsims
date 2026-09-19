@@ -51,6 +51,7 @@ import {
 import { cn, buildYears } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { unwrap } from "@/lib/api-envelope";
+import { asRecord } from "@/lib/raw-record";
 import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { useAuth } from "@/lib/auth";
 import { MONTHS } from "@/lib/fsims-constants";
@@ -137,7 +138,12 @@ interface DaySourceExt extends DaySource {
  */
 const normalizeApiGuid = (value: unknown): string => {
   const text = String(value ?? "").trim();
-  if (!text || text === EMPTY_GUID || text.toLowerCase() === "null" || text.toLowerCase() === "undefined") {
+  if (
+    !text ||
+    text === EMPTY_GUID ||
+    text.toLowerCase() === "null" ||
+    text.toLowerCase() === "undefined"
+  ) {
     return EMPTY_GUID;
   }
   return text;
@@ -148,8 +154,15 @@ const maybeApiGuid = (value: unknown): string | null => {
   return normalized === EMPTY_GUID ? null : normalized;
 };
 
+/** True when an API row is a station wrapper that carries `noticedetallist`. */
+function isNoticeDetailWrapper(
+  value: NoticeDetailModel | NoticeDetailClassModel,
+): value is NoticeDetailModel {
+  return Array.isArray(asRecord(value).noticedetallist);
+}
+
 function parseDetailToDays(
-  detail: NoticeDetailModel | null | undefined,
+  detail: Pick<NoticeDetailModel, "noticedetallist"> | null | undefined,
 ): Map<string, DaySourceExt> {
   const map = new Map<string, DaySourceExt>();
   const list = Array.isArray(detail?.noticedetallist) ? detail!.noticedetallist : [];
@@ -175,8 +188,8 @@ function parseDetailToDays(
     for (const accom of Array.isArray(entry?.noticeaccomlist) ? entry.noticeaccomlist : []) {
       const key: ModeKey = Number(accom?.fsicmode) === MODE_FSIS ? "fsis" : "manual";
       current.accomNos[key] = {
-        accomplishno: maybeApiGuid((accom as any)?.accomplishno) ?? EMPTY_GUID,
-        noticeno: maybeApiGuid((accom as any)?.noticeno ?? entry?.noticeno) ?? EMPTY_GUID,
+        accomplishno: maybeApiGuid(asRecord(accom).accomplishno) ?? EMPTY_GUID,
+        noticeno: maybeApiGuid(asRecord(accom).noticeno ?? entry?.noticeno) ?? EMPTY_GUID,
       };
       for (const category of NOTICE_CATEGORIES) {
         const raw = (accom as unknown as Record<string, unknown>)[CATEGORY_COUNT_KEY[category]];
@@ -467,7 +480,10 @@ function NoticeAccomplishmentPanel({
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                   Issuance
                 </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.issued }}>
+                <div
+                  className="mt-1 text-sm font-semibold tabular-nums"
+                  style={{ color: SERIES.issued }}
+                >
                   {r.issued.toLocaleString()}
                 </div>
               </div>
@@ -476,7 +492,10 @@ function NoticeAccomplishmentPanel({
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                   Accomplished
                 </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.accomplished }}>
+                <div
+                  className="mt-1 text-sm font-semibold tabular-nums"
+                  style={{ color: SERIES.accomplished }}
+                >
                   {r.accomplished.toLocaleString()}
                 </div>
               </div>
@@ -485,7 +504,10 @@ function NoticeAccomplishmentPanel({
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                   Pending
                 </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.pending }}>
+                <div
+                  className="mt-1 text-sm font-semibold tabular-nums"
+                  style={{ color: SERIES.pending }}
+                >
                   {r.pending.toLocaleString()}
                 </div>
               </div>
@@ -494,7 +516,10 @@ function NoticeAccomplishmentPanel({
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                   Positive
                 </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums" style={{ color: SERIES.positive }}>
+                <div
+                  className="mt-1 text-sm font-semibold tabular-nums"
+                  style={{ color: SERIES.positive }}
+                >
                   {r.positive.toLocaleString()}
                 </div>
               </div>
@@ -638,21 +663,22 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       // so `parseDetailToDays` can work uniformly.
       let parsed: Map<string, DaySourceExt> = new Map();
       if (Array.isArray(data)) {
+        const rows: Array<NoticeDetailModel | NoticeDetailClassModel> = data;
         // Case A: API returned an array of full `NoticeDetailModel` wrappers
-        if (data.length > 0 && Array.isArray((data[0] as any).noticedetallist)) {
-          const detail = (data as any[]).find((d) => d?.stationno === stationno) ?? data[0] ?? null;
-          parsed = parseDetailToDays(detail as NoticeDetailModel);
+        const wrappers = rows.filter(isNoticeDetailWrapper);
+        if (wrappers.length > 0) {
+          const detail = wrappers.find((d) => d.stationno === stationno) ?? wrappers[0];
+          parsed = parseDetailToDays(detail);
         } else {
           // Case B: API returned a flat array of `NoticeDetailClassModel` items
-          parsed = parseDetailToDays({ noticedetallist: data as any } as NoticeDetailModel);
+          parsed = parseDetailToDays({ noticedetallist: rows as NoticeDetailClassModel[] });
         }
+      } else if (isNoticeDetailWrapper(data)) {
+        // Single wrapper object returned
+        parsed = parseDetailToDays(data);
       } else {
-        // Single object returned — could be either wrapper or a single detail entry
-        if (Array.isArray((data as any).noticedetallist)) {
-          parsed = parseDetailToDays(data as NoticeDetailModel);
-        } else {
-          parsed = parseDetailToDays({ noticedetallist: [data as any] } as NoticeDetailModel);
-        }
+        // Single detail entry returned
+        parsed = parseDetailToDays({ noticedetallist: [data] });
       }
       const loaded = buildDays(parsed, year, month);
       // Always replace the visible month snapshot with the selected period.
@@ -789,7 +815,8 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
       for (const entry of editable) {
         const src = daySourceMap.get(entry.date);
         const parentNoticeno =
-          maybeApiGuid(src?.accomNos?.manual?.noticeno ?? src?.accomNos?.fsis?.noticeno) ?? EMPTY_GUID;
+          maybeApiGuid(src?.accomNos?.manual?.noticeno ?? src?.accomNos?.fsis?.noticeno) ??
+          EMPTY_GUID;
 
         const payload = {
           noticeno: parentNoticeno,
@@ -798,7 +825,8 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
           encodedby: user?.memberno ?? "",
           accomnoticeList: MODE_ROWS.map((mode) => ({
             accomplishno: maybeApiGuid(src?.accomNos?.[mode.key]?.accomplishno) ?? EMPTY_GUID,
-            noticeno: maybeApiGuid(src?.accomNos?.[mode.key]?.noticeno ?? parentNoticeno) ?? EMPTY_GUID,
+            noticeno:
+              maybeApiGuid(src?.accomNos?.[mode.key]?.noticeno ?? parentNoticeno) ?? EMPTY_GUID,
             fsicmode: mode.code,
             nodcount: Number(entry.modes[mode.key].NOD ?? 0) || 0,
             ntccount: Number(entry.modes[mode.key].NTC ?? 0) || 0,
@@ -948,7 +976,9 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
               </div>
 
               <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
-                <span>{monthName} {year}</span>
+                <span>
+                  {monthName} {year}
+                </span>
                 <span className="text-sm font-bold tabular-nums text-primary">
                   {Number(grandTotal).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -957,7 +987,10 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                 </span>
               </div>
 
-              <div className="hidden w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft md:block" style={{ maxHeight: "70vh" }}>
+              <div
+                className="hidden w-full max-w-full overflow-auto rounded-lg border border-grid shadow-soft md:block"
+                style={{ maxHeight: "70vh" }}
+              >
                 <table className="w-full min-w-max border-separate border-spacing-0 text-[11px] text-foreground">
                   <thead className="sticky top-0 z-30">
                     <tr>
@@ -1235,8 +1268,16 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                             <div className="shrink-0">
                               <EditButton
                                 variant="square"
-                                tooltip={!stationno ? "Select a station to request a revision" : "Request Revision"}
-                                ariaLabel={!stationno ? "Select a station to request a revision" : "Request Revision"}
+                                tooltip={
+                                  !stationno
+                                    ? "Select a station to request a revision"
+                                    : "Request Revision"
+                                }
+                                ariaLabel={
+                                  !stationno
+                                    ? "Select a station to request a revision"
+                                    : "Request Revision"
+                                }
                                 disabled={!stationno}
                                 icon={<FilePen className="h-4 w-4" />}
                                 onClick={(event) => {
@@ -1286,7 +1327,8 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                           <div className="space-y-3">
                             {NOTICE_CATEGORIES.map((category) => {
                               const total =
-                                (entry.modes.manual[category] ?? 0) + (entry.modes.fsis[category] ?? 0);
+                                (entry.modes.manual[category] ?? 0) +
+                                (entry.modes.fsis[category] ?? 0);
 
                               return (
                                 <div

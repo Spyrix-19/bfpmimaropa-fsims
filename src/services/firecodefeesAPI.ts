@@ -32,13 +32,9 @@ export const firecodefeesAPI = {
     params?: FSISFeeCollectionDetailParams,
     options?: import("@/lib/api").ApiOptions,
   ) {
-    return await apiPost<FSISFeeCollectionDetailModel>(
-      "/api/v1/FSISFeeCollection/Detail",
-      params,
-      {
-        ...options,
-      },
-    );
+    return await apiPost<FSISFeeCollectionDetailModel>("/api/v1/FSISFeeCollection/Detail", params, {
+      ...options,
+    });
   },
 
   async getLedger(

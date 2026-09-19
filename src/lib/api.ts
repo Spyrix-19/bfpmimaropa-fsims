@@ -1,4 +1,10 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError, AxiosResponse } from "axios";
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosError,
+  AxiosResponse,
+  AxiosProgressEvent,
+} from "axios";
 import { toast } from "@/lib/toast";
 import { loadingBus } from "@/lib/loading-bus";
 import { getAccessToken } from "@/lib/auth-token";
@@ -419,10 +425,7 @@ const switchToBackupHostIfNeeded = (host: string, error: AxiosError) => {
   return false;
 };
 
-const requestOnHost = async <T>(
-  host: string,
-  config: TrackedConfig,
-): Promise<AxiosResponse<T>> => {
+const requestOnHost = async <T>(host: string, config: TrackedConfig): Promise<AxiosResponse<T>> => {
   try {
     const result = await api.request<T>({ ...config, __apiBaseUrl: host } as TrackedConfig);
     markApiHostRecovered(host);
@@ -551,8 +554,7 @@ const REFERENCE_PATHS = [
 
 const isReferenceUrl = (url: string) => REFERENCE_PATHS.some((p) => url.startsWith(p));
 
-const ttlForUrl = (url: string): number =>
-  isReferenceUrl(url) ? REFERENCE_TTL_MS : BURST_TTL_MS;
+const ttlForUrl = (url: string): number => (isReferenceUrl(url) ? REFERENCE_TTL_MS : BURST_TTL_MS);
 
 interface CacheEntry {
   expiresAt: number;
@@ -670,8 +672,6 @@ const invalidateAfterMutation = (url: string) => {
   }
 };
 
-
-
 const canceledResponse = <T>(): ApiResponse<T> => ({
   statusCode: 0,
   isSuccess: false,
@@ -760,15 +760,18 @@ const doRequest = async <T>(
     __suppressErrorToast: options?.suppressErrorToast,
     __apiBaseUrl: EXTERNAL_API_BASE_URL,
     __idempotencyKey: idempotencyKey ?? undefined,
-    onUploadProgress: (ev: any) => {
+    onUploadProgress: (ev: AxiosProgressEvent) => {
       try {
         const cb = options?.progressCallback;
         if (!cb) return;
-        const loaded = ev?.loaded ?? ev?.progress?.loaded;
-        const total = ev?.total ?? ev?.progress?.total;
-        if (!loaded || !total) return;
-        const percent = Math.round((loaded / total) * 100);
-        cb(percent);
+        const loaded = ev.loaded;
+        const total = ev.total;
+        if (loaded && total) {
+          cb(Math.round((loaded / total) * 100));
+          return;
+        }
+        // Some transports only expose the 0..1 ratio.
+        if (typeof ev.progress === "number") cb(Math.round(ev.progress * 100));
       } catch {
         // ignore
       }
@@ -797,7 +800,7 @@ const doRequest = async <T>(
       markApiHostFailure(hostUsed);
     }
 
-    if (ax?.code === "ERR_CANCELED" || (ax as any)?.name === "CanceledError") {
+    if (ax?.code === "ERR_CANCELED" || ax?.name === "CanceledError") {
       return canceledResponse<T>();
     }
     return normalizeError<T>(ax, options);

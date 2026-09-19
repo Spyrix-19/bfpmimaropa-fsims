@@ -14,7 +14,7 @@ import {
   Coins,
   Radio,
   ShieldCheck,
-  DatabaseZap
+  DatabaseZap,
 } from "lucide-react";
 
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";

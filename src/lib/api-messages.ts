@@ -113,3 +113,26 @@ export function isGenericError(message?: string | null): boolean {
     message === ApiMessages.API_ERR
   );
 }
+
+/**
+ * Extract a display message from a thrown value (axios error, Error, envelope
+ * shaped object). Never surfaces stack traces; falls back to `fallback`.
+ */
+export function getErrorMessage(error: unknown, fallback: string = ApiMessages.UNKNOWN): string {
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (error && typeof error === "object") {
+    const err = error as {
+      message?: unknown;
+      response?: { status?: number; data?: { errorMessages?: unknown } };
+    };
+    const envelope = err.response?.data?.errorMessages;
+    if (typeof envelope === "string" && envelope.trim()) {
+      return sanitizeEnvelopeMessage(envelope, err.response?.status ?? 0);
+    }
+    if (typeof err.message === "string" && err.message.trim()) {
+      const message = err.message.trim();
+      return isSystemLeakMessage(message) ? fallback : message;
+    }
+  }
+  return fallback;
+}

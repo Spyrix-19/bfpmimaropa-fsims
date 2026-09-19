@@ -836,7 +836,12 @@ function ActivityTable({
             const inspection = day?.inspection ?? emptyInspection(day?.key ?? "0000-00-00");
             const manual = day?.manual ?? emptyIssuance(FSIC_MODE_MANUAL);
             const fsis = day?.fsis ?? emptyIssuance(FSIC_MODE_FSIS);
-            const total = rowTotal({ ...(day ?? ({} as ViewDay)), inspection, manual, fsis } as ViewDay);
+            const total = rowTotal({
+              ...(day ?? ({} as ViewDay)),
+              inspection,
+              manual,
+              fsis,
+            } as ViewDay);
 
             return (
               <React.Fragment key={day.key}>

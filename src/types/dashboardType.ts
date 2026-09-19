@@ -176,9 +176,7 @@ export interface StationMonthlyPerformanceClass {
   tiezaPercentage: number;
 }
 
-
-
-export interface DashboardYearToYearFCFDTO  {
+export interface DashboardYearToYearFCFDTO {
   reportyear: number[];
   feeparentno: number[];
   provinces: DashboardClass[];
@@ -198,8 +196,6 @@ export interface DashboardFeeItemModel {
   feeparentname: string;
   collectionamount: number;
 }
-
-
 
 export interface DashboardFireCodeFeeVarianceModel {
   reportyear: number;

@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getAvatarSrc, getInitials } from "@/lib/utils";
+import { getAvatarSrc, getInitials, type AvatarEntity } from "@/lib/utils";
 
 type Props = {
-  entity?: any;
+  entity?: AvatarEntity | null;
   name?: string;
   className?: string;
   alt?: string;

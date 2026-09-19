@@ -73,7 +73,7 @@ export interface FSISFeeCollectionDetailByDateParams {
 export interface FSISFeeCollectionDetailParams {
   Stationno: string;
   Reportyear: number;
-   Feeparentno: number[];
+  Feeparentno: number[];
 }
 
 export interface FSISFeeCollectionLedgerParams {

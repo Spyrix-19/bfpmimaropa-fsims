@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 import type { AuthMemberModel } from "@/types/authType";
 import { authAPI } from "@/services/authAPI";
+import { getErrorMessage } from "@/lib/api-messages";
 import { PasswordChecklist, isPasswordValid } from "@/components/password-rules";
 
 type Props = {
@@ -49,15 +50,18 @@ export default function SetNewPasswordModal({ open, onOpenChange, member, onUpda
         },
         { suppressGlobalLoading: true },
       );
-      const data: any = resp?.data ?? null;
+      const data = (resp?.data ?? null) as {
+        isSuccess?: boolean;
+        errorMessages?: string;
+      } | null;
       if (!data?.isSuccess) {
         toast.error(data?.errorMessages || "Failed to update password.");
         return;
       }
       onOpenChange(false);
       onUpdated?.();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.errorMessages || e?.message || "Failed to update password.");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Failed to update password."));
     } finally {
       setPending(false);
     }

@@ -279,7 +279,10 @@ export function MonthMultiSelect({
           <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-[min(320px,calc(100vw-2rem))] p-0 pointer-events-auto" align="start">
+      <PopoverContent
+        className="w-[min(320px,calc(100vw-2rem))] p-0 pointer-events-auto"
+        align="start"
+      >
         <button
           type="button"
           onClick={toggleAll}

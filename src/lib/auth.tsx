@@ -19,6 +19,7 @@ import { authAPI } from "@/services/authAPI";
 import { clearApiCache } from "@/lib/api";
 import { personnelAPI } from "@/services/personnelAPI";
 import { unwrap } from "@/lib/api-envelope";
+import { asRecord, readString } from "@/lib/raw-record";
 import { getClientIp } from "@/lib/client-ip";
 import { FSIMS_SYSTEMNO, FSIMS_SYSTEMCODE, SUPER, ADMIN, PERSONNEL } from "@/lib/fsims-constants";
 import { encryptPayload, decryptPayload, destroySessionKey } from "@/lib/secure-session";
@@ -390,7 +391,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionRef.current = session;
   }, [session]);
 
-
   const applySession = useCallback((s: Session | null) => {
     setSession(s);
     setAccessToken(s?.user.accessToken ?? null);
@@ -417,9 +417,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Retry up to 3 times, small delay between attempts.
       for (let i = 0; i < 3 && !stored; i += 1) {
         // short backoff
-        // eslint-disable-next-line no-await-in-loop
+
         await new Promise((r) => setTimeout(r, 250 * (i + 1)));
-        // eslint-disable-next-line no-await-in-loop
+
         stored = await readStoredSession();
       }
     }
@@ -469,13 +469,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         { memberno: String(cur.user.memberno) },
         { suppressGlobalLoading: true },
       );
-      const { data } = unwrap<any[]>(resp);
+      const { data } = unwrap<Record<string, unknown>[]>(resp);
       const m = Array.isArray(data) ? data[0] : null;
       if (m) {
+        const row = asRecord(m);
+        const fullname = readString(row, ["fullname"]);
         updateUser({
-          profileurl: m.profileurl ?? cur.user.profileurl,
-          fullname: m.fullname ?? cur.user.fullname,
-          name: m.fullname ?? cur.user.name,
+          profileurl: readString(row, ["profileurl"], cur.user.profileurl ?? ""),
+          fullname: fullname || cur.user.fullname,
+          name: fullname || cur.user.name,
         });
       }
     } catch {

@@ -356,9 +356,9 @@ export default function FireCodeFeesPage() {
 
   const [rows, setRows] = React.useState<FireCodeFeeLedgerRow[]>([]);
   const [total, setTotal] = React.useState(0);
-  const [provincePayload, setProvincePayload] = React.useState<FSISFeeCollectionParamClass[] | null>(
-    null,
-  );
+  const [provincePayload, setProvincePayload] = React.useState<
+    FSISFeeCollectionParamClass[] | null
+  >(null);
   const [showAllFeeDetailsForAllCards, setShowAllFeeDetailsForAllCards] = React.useState(false);
 
   const displayCategories = React.useMemo(
@@ -522,14 +522,14 @@ export default function FireCodeFeesPage() {
       return entries
         .map((entry) => {
           const source = (entry ?? {}) as Record<string, unknown>;
-          const provinceno = String(
-            source.Provinceno ?? source.provinceno ?? EMPTY_GUID,
-          );
-          const stationnos = (Array.isArray(source.Stationnos)
-            ? source.Stationnos
-            : Array.isArray(source.stationnos)
-              ? source.stationnos
-              : []) as unknown[];
+          const provinceno = String(source.Provinceno ?? source.provinceno ?? EMPTY_GUID);
+          const stationnos = (
+            Array.isArray(source.Stationnos)
+              ? source.Stationnos
+              : Array.isArray(source.stationnos)
+                ? source.stationnos
+                : []
+          ) as unknown[];
           return {
             Provinceno: provinceno,
             Stationnos: stationnos.map((station) => String(station)).filter(Boolean),
@@ -586,7 +586,8 @@ export default function FireCodeFeesPage() {
     const params = normalizeProvinceSelections(JSON.parse(locationParamsKey));
     let cancelled = false;
     (async () => {
-      const needsFill = params.length === 0 || params.some((p) => (p.Stationnos ?? []).length === 0);
+      const needsFill =
+        params.length === 0 || params.some((p) => (p.Stationnos ?? []).length === 0);
       if (!needsFill) {
         setProvincePayload(
           params.map((p) => ({
@@ -720,7 +721,16 @@ export default function FireCodeFeesPage() {
           Stationnos: p.Stationnos ?? [],
         })) ?? [];
 
-      const allStationOptions = new Map<string, { stationno: string; stationcode: string; stationname: string; provinceno: string; provincename: string }>();
+      const allStationOptions = new Map<
+        string,
+        {
+          stationno: string;
+          stationcode: string;
+          stationname: string;
+          provinceno: string;
+          provincename: string;
+        }
+      >();
       for (const province of exportProvinces) {
         const stationNumbers = Array.isArray(province.Stationnos) ? province.Stationnos : [];
         if (stationNumbers.length > 0) {
@@ -740,13 +750,23 @@ export default function FireCodeFeesPage() {
         const resp = await stationAPI.search(
           {
             provinceno:
-              province.Provinceno && province.Provinceno !== EMPTY_GUID ? province.Provinceno : undefined,
+              province.Provinceno && province.Provinceno !== EMPTY_GUID
+                ? province.Provinceno
+                : undefined,
             pageNumber: 1,
             pageSize: 1000,
           },
           { suppressGlobalLoading: true, suppressErrorToast: true },
         );
-        const { ok, data } = unwrap<{ stationno: string; stationcode: string; stationname: string; provinceno: string; provincename: string }[]>(resp);
+        const { ok, data } = unwrap<
+          {
+            stationno: string;
+            stationcode: string;
+            stationname: string;
+            provinceno: string;
+            provincename: string;
+          }[]
+        >(resp);
         if (ok && Array.isArray(data)) {
           data.forEach((station) => {
             if (!station?.stationno) return;
@@ -1009,7 +1029,6 @@ export default function FireCodeFeesPage() {
           </div>
         )}
       </StickyPageTop>
-
 
       {loading ? (
         <Card className="flex items-center justify-center gap-2 border-border/60 p-10 text-sm text-muted-foreground">
@@ -1397,9 +1416,9 @@ function FireCodeFeesLedgerCard({
   const monthName = MONTHS.find((m) => m.value === row.month)?.name ?? String(row.month);
   const showMobileFeeControls = Boolean(
     (showFeeFilter || (feeTypeOptions && feeTypeOptions.length > 0)) &&
-      feeTypes !== undefined &&
-      onFeeTypesChange &&
-      feeTypeOptions,
+    feeTypes !== undefined &&
+    onFeeTypesChange &&
+    feeTypeOptions,
   );
 
   return (
@@ -1527,19 +1546,16 @@ function FireCodeFeesLedgerCard({
                   >
                     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
                       <span className="flex min-w-0 items-center gap-2 whitespace-nowrap">
-                        {/^\d{4}-\d{2}$/.test(line.key) && (() => {
-                          const [yearText, monthText] = line.key.split("-");
-                          const monthYear = Number(yearText);
-                          const monthNo = Number(monthText);
-                          const monthLocked =
-                            isPastDateLockEnabled("fire-code-fees") && isPastMonth(monthYear, monthNo);
-                          return (
-                            <DayLockIcon
-                              locked={monthLocked}
-                              className="h-3.5 w-3.5"
-                            />
-                          );
-                        })()}
+                        {/^\d{4}-\d{2}$/.test(line.key) &&
+                          (() => {
+                            const [yearText, monthText] = line.key.split("-");
+                            const monthYear = Number(yearText);
+                            const monthNo = Number(monthText);
+                            const monthLocked =
+                              isPastDateLockEnabled("fire-code-fees") &&
+                              isPastMonth(monthYear, monthNo);
+                            return <DayLockIcon locked={monthLocked} className="h-3.5 w-3.5" />;
+                          })()}
                         <span className="truncate text-sm font-semibold">{line.label}</span>
                       </span>
                       {!hasRecord && (
@@ -1552,7 +1568,10 @@ function FireCodeFeesLedgerCard({
                     <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto sm:justify-end sm:gap-3">
                       <div className="grid grid-cols-2 gap-2 sm:hidden">
                         {perSector.map((s) => (
-                          <div key={s.key} className="min-w-[4.5rem] rounded-md bg-muted/25 px-2 py-1.5 text-left">
+                          <div
+                            key={s.key}
+                            className="min-w-[4.5rem] rounded-md bg-muted/25 px-2 py-1.5 text-left"
+                          >
                             <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
                               {s.title}
                             </div>

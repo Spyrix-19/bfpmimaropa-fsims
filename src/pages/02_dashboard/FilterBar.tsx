@@ -205,7 +205,14 @@ export function FilterBar() {
     state: filterState,
     onChange: handleFilterChange,
     onReset: reset,
-    intervals: ["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"] as ModuleInterval[],
+    intervals: [
+      "DAILY",
+      "WEEKLY",
+      "MONTHLY",
+      "QUARTERLY",
+      "SEMESTER",
+      "ANNUAL",
+    ] as ModuleInterval[],
   };
 
   const locationFilters = (

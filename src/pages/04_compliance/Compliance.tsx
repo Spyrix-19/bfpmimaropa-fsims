@@ -1727,7 +1727,10 @@ function ComplianceLedgerCard({
     const sectors = Object.fromEntries(
       INSPECTION_SECTORS.map((s) => [
         s.key,
-        { target: num(l.sectors?.[s.key]?.target ?? 0), accomplished: num(l.sectors?.[s.key]?.accomplished ?? 0) },
+        {
+          target: num(l.sectors?.[s.key]?.target ?? 0),
+          accomplished: num(l.sectors?.[s.key]?.accomplished ?? 0),
+        },
       ]),
     ) as Record<string, { target: number; accomplished: number }>;
     const reinspection = Object.fromEntries(
@@ -1866,7 +1869,10 @@ function ComplianceLedgerCard({
                         >
                           FSIC
                         </th>
-                        <th colSpan={NOTICE_COLS.length} className={`${headCell} sticky top-0 z-30`}>
+                        <th
+                          colSpan={NOTICE_COLS.length}
+                          className={`${headCell} sticky top-0 z-30`}
+                        >
                           Issued Notices
                         </th>
                       </tr>
@@ -1936,26 +1942,30 @@ function ComplianceLedgerCard({
                                 </span>
                               </th>
                               {INSPECTION_PLAIN_COLS.map((c) => (
-                                <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                                <td
+                                  key={c.key}
+                                  rowSpan={2}
+                                  className={`${bodyCell} ${strongRight}`}
+                                >
                                   <N v={l.inspection[c.key] ?? 0} />
                                 </td>
                               ))}
-                            {INSPECTION_SECTORS.map((s) => (
-                              <SectorMetricCells
-                                key={s.key}
-                                metrics={lineMetrics[lineIdx][s.key]}
-                                cellClass={bodyCell}
-                                rowSpan={2}
-                              />
-                            ))}
-                            <td className={`${bodyCell} ${strongRight}`}>
-                              <ModeBadge label="MANUAL" />
-                            </td>
-                            {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
-                          <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                            <N v={l.manual[c.key] ?? 0} />
-                          </td>
-                        ))}
+                              {INSPECTION_SECTORS.map((s) => (
+                                <SectorMetricCells
+                                  key={s.key}
+                                  metrics={lineMetrics[lineIdx][s.key]}
+                                  cellClass={bodyCell}
+                                  rowSpan={2}
+                                />
+                              ))}
+                              <td className={`${bodyCell} ${strongRight}`}>
+                                <ModeBadge label="MANUAL" />
+                              </td>
+                              {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                                <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.manual[c.key] ?? 0} />
+                                </td>
+                              ))}
                             </tr>
                             <tr className="group row-alt transition-colors hover:bg-primary/5">
                               <td className={`${bodyCell} ${strongRight}`}>
@@ -2028,7 +2038,10 @@ function ComplianceLedgerCard({
                     }));
 
                     return (
-                      <Card key={l.key} className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+                      <Card
+                        key={l.key}
+                        className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -2046,16 +2059,27 @@ function ComplianceLedgerCard({
                             </div>
                           </div>
                           <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
-                            <div className="text-[9px] font-semibold uppercase text-primary">Total</div>
+                            <div className="text-[9px] font-semibold uppercase text-primary">
+                              Total
+                            </div>
                             <div className="text-sm font-bold text-primary">
-                              {(l.totals.inspection + l.totals.fsec + l.totals.fsic + l.totals.notices).toLocaleString()}
+                              {(
+                                l.totals.inspection +
+                                l.totals.fsec +
+                                l.totals.fsic +
+                                l.totals.notices
+                              ).toLocaleString()}
                             </div>
                           </div>
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           {inspectionValues.map((item) => (
-                            <MobileStat key={item.label} label={item.label} value={item.value.toLocaleString()} />
+                            <MobileStat
+                              key={item.label}
+                              label={item.label}
+                              value={item.value.toLocaleString()}
+                            />
                           ))}
                         </div>
 
@@ -2064,7 +2088,10 @@ function ComplianceLedgerCard({
                             Sector detail
                           </div>
                           {sectorValues.map((sector) => (
-                            <div key={sector.key} className="rounded-lg border border-border/40 bg-card p-2">
+                            <div
+                              key={sector.key}
+                              className="rounded-lg border border-border/40 bg-card p-2"
+                            >
                               <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
                                 <span>{sector.label}</span>
                                 <span>{sector.value.pctText}</span>
@@ -2072,11 +2099,15 @@ function ComplianceLedgerCard({
                               <div className="grid grid-cols-2 gap-2 text-[11px] tabular-nums">
                                 <div>
                                   <div className="text-muted-foreground">Target</div>
-                                  <div className="font-semibold">{sector.value.target.toLocaleString()}</div>
+                                  <div className="font-semibold">
+                                    {sector.value.target.toLocaleString()}
+                                  </div>
                                 </div>
                                 <div>
                                   <div className="text-muted-foreground">Done</div>
-                                  <div className="font-semibold">{sector.value.accomplished.toLocaleString()}</div>
+                                  <div className="font-semibold">
+                                    {sector.value.accomplished.toLocaleString()}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -2222,14 +2253,16 @@ function ComplianceLedgerCard({
                         </th>
                       </tr>
                       <tr>
-                        {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c, idx) => (
-                          <th
-                            key={`${c.key}-${idx}`}
-                            className={`${headCell} sticky top-[30px] z-30 min-w-[6rem] ${strongRight}`}
-                          >
-                            {c.label}
-                          </th>
-                        ))}
+                        {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map(
+                          (c, idx) => (
+                            <th
+                              key={`${c.key}-${idx}`}
+                              className={`${headCell} sticky top-[30px] z-30 min-w-[6rem] ${strongRight}`}
+                            >
+                              {c.label}
+                            </th>
+                          ),
+                        )}
                       </tr>
                     </thead>
 
@@ -2256,7 +2289,11 @@ function ComplianceLedgerCard({
                                 </span>
                               </th>
                               {REINSPECTION_COLS.map((c) => (
-                                <td key={c.key} rowSpan={2} className={`${bodyCell} ${strongRight}`}>
+                                <td
+                                  key={c.key}
+                                  rowSpan={2}
+                                  className={`${bodyCell} ${strongRight}`}
+                                >
                                   <N v={l.reinspection[c.key] ?? 0} />
                                 </td>
                               ))}
@@ -2327,7 +2364,10 @@ function ComplianceLedgerCard({
                     }));
 
                     return (
-                      <Card key={l.key} className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+                      <Card
+                        key={l.key}
+                        className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -2340,19 +2380,32 @@ function ComplianceLedgerCard({
                               )}
                               {l.label}
                             </div>
-                            <div className="mt-1 text-xs font-bold text-foreground">Reinspection</div>
+                            <div className="mt-1 text-xs font-bold text-foreground">
+                              Reinspection
+                            </div>
                           </div>
                           <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
-                            <div className="text-[9px] font-semibold uppercase text-primary">Total</div>
+                            <div className="text-[9px] font-semibold uppercase text-primary">
+                              Total
+                            </div>
                             <div className="text-sm font-bold text-primary">
-                              {(l.totals.inspection + l.totals.fsec + l.totals.fsic + l.totals.notices).toLocaleString()}
+                              {(
+                                l.totals.inspection +
+                                l.totals.fsec +
+                                l.totals.fsic +
+                                l.totals.notices
+                              ).toLocaleString()}
                             </div>
                           </div>
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           {reinspectionStats.map((item) => (
-                            <MobileStat key={item.label} label={item.label} value={item.value.toLocaleString()} />
+                            <MobileStat
+                              key={item.label}
+                              label={item.label}
+                              value={item.value.toLocaleString()}
+                            />
                           ))}
                         </div>
 

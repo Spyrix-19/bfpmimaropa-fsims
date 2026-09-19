@@ -25,12 +25,7 @@ const OptionButton = React.forwardRef<HTMLButtonElement, OptionButtonProps>(
     } ${className}`.trim();
 
     const button = (
-      <button
-        ref={ref}
-        type={(rest as any).type ?? "button"}
-        className={classes}
-        {...(rest as any)}
-      >
+      <button ref={ref} type={rest.type ?? "button"} className={classes} {...rest}>
         {/* ensure icon color responds to parent hover using group-hover */}
         <MoreVertical className="h-4 w-3 text-current transition-colors" />
       </button>

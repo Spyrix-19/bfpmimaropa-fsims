@@ -44,7 +44,9 @@ export function useFeeTypes() {
       setOptions(
         rows.map((r) => {
           const code = String(r.recordcode ?? "").trim();
-          const name = String(r.description ?? "").replace(/\s+/g, " ").trim();
+          const name = String(r.description ?? "")
+            .replace(/\s+/g, " ")
+            .trim();
           return {
             detno: Number(r.detno ?? 0),
             code,

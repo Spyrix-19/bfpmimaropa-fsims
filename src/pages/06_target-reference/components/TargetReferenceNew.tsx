@@ -752,7 +752,8 @@ export default function TargetReferenceForm({
   const selectedDay = Number(selectedDate.slice(8, 10));
 
   /* ── Past-date lock rules (Add mode, single date) ───────────────────────── */
-  const isPastSelectedDate = !!selectedDate && isDateLocked(parseDateInputValue(selectedDate), "target-reference");
+  const isPastSelectedDate =
+    !!selectedDate && isDateLocked(parseDateInputValue(selectedDate), "target-reference");
   const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
   /** Pending revision request for the selected date (used for cancel/delete). */
   const activeAddRequest = React.useMemo(() => {
@@ -1084,7 +1085,10 @@ export default function TargetReferenceForm({
     </div>
   ) : (
     <>
-      <div className="hidden w-full max-w-full overflow-auto md:block" style={{ maxHeight: "70vh" }}>
+      <div
+        className="hidden w-full max-w-full overflow-auto md:block"
+        style={{ maxHeight: "70vh" }}
+      >
         <table className="min-w-full border-collapse text-xs">
           <thead className="sticky top-0 z-10 bg-card">
             <tr className="bg-card text-left uppercase tracking-[0.15em] text-primary">
@@ -1347,7 +1351,11 @@ export default function TargetReferenceForm({
                   <span className="text-sm font-bold tabular-nums text-primary">
                     {dayTotal(d).toLocaleString()}
                   </span>
-                  {expanded ? <span className="text-muted-foreground">▾</span> : <span className="text-muted-foreground">▸</span>}
+                  {expanded ? (
+                    <span className="text-muted-foreground">▾</span>
+                  ) : (
+                    <span className="text-muted-foreground">▸</span>
+                  )}
                 </div>
               </button>
 

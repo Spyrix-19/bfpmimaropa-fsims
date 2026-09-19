@@ -14,8 +14,8 @@ type ConfirmDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   headerTitle?: string;
-  HeaderIcon?: React.ComponentType<any>;
-  ContentIcon?: React.ComponentType<any> | null;
+  HeaderIcon?: React.ComponentType<{ className?: string }>;
+  ContentIcon?: React.ComponentType<{ className?: string }> | null;
   title: React.ReactNode;
   description?: React.ReactNode;
   confirmLabel?: string;
@@ -137,7 +137,7 @@ export default function ConfirmDialog({
             {showCancel ? (
               <DialogClose asChild>
                 <Button
-                  variant={cancelVariant as any}
+                  variant={cancelVariant}
                   size="default"
                   className={"px-4 " + (cancelClassName ?? "")}
                   onClick={() => onCancel?.()}
@@ -147,7 +147,7 @@ export default function ConfirmDialog({
               </DialogClose>
             ) : null}
             <Button
-              variant={confirmVariant as any}
+              variant={confirmVariant}
               size="default"
               onClick={() => {
                 onOpenChange(false);

@@ -86,7 +86,8 @@ export default function DuplicateData() {
               Duplicate Data
             </h1>
             <p className="text-xs text-muted-foreground">
-              Review duplicate records by station and record type across the Fire Safety collection ledger.
+              Review duplicate records by station and record type across the Fire Safety collection
+              ledger.
             </p>
           </div>
         </div>
@@ -110,7 +111,10 @@ export default function DuplicateData() {
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    <td
+                      colSpan={3}
+                      className="px-4 py-10 text-center text-sm text-muted-foreground"
+                    >
                       <div className="flex flex-col items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-muted-foreground" />
                         No duplicate records found.
@@ -127,7 +131,10 @@ export default function DuplicateData() {
                     const logoUrl = row.logourl ?? row.Logourl ?? undefined;
 
                     return (
-                      <tr key={`${primaryKey}-${stationName}-${recordType}`} className="align-middle hover:bg-muted/30">
+                      <tr
+                        key={`${primaryKey}-${stationName}-${recordType}`}
+                        className="align-middle hover:bg-muted/30"
+                      >
                         <td className="border-b border-border/60 px-4 py-3 font-medium text-foreground">
                           {primaryKey || "—"}
                         </td>
@@ -141,8 +148,12 @@ export default function DuplicateData() {
                               />
                             </div>
                             <div className="min-w-0">
-                              <div className="truncate font-medium text-foreground">{stationName}</div>
-                              <div className="truncate text-xs text-muted-foreground">{stationCode}</div>
+                              <div className="truncate font-medium text-foreground">
+                                {stationName}
+                              </div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {stationCode}
+                              </div>
                               <div className="truncate text-[11px] text-muted-foreground/80">
                                 {provinceName}
                               </div>

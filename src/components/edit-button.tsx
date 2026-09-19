@@ -42,9 +42,10 @@ export default function EditButton({
   // allow passing a custom icon; clone to ensure sizing and direct svg child when needed
   let renderedIcon: React.ReactNode = icon;
   if (React.isValidElement(icon)) {
-    const prev = (icon as any).props?.className ?? "";
+    const element = icon as React.ReactElement<{ className?: string }>;
+    const prev = element.props?.className ?? "";
     const sizeClass = prev.includes("h-") ? prev : `h-4 w-4 ${prev}`.trim();
-    renderedIcon = React.cloneElement(icon as React.ReactElement, { className: sizeClass } as any);
+    renderedIcon = React.cloneElement(element, { className: sizeClass });
   }
 
   const button = (

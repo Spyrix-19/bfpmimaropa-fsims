@@ -22,7 +22,18 @@ export function getInitials(name?: string, size = 2, upper = true): string {
   return upper ? raw.toUpperCase() : raw;
 }
 
-export function getAvatarSrc(entity: any): string | null {
+/** Shape of any record that may carry an avatar/logo image URL and a display name. */
+export type AvatarEntity = {
+  logourl?: string | null;
+  logoUrl?: string | null;
+  imageUrl?: string | null;
+  avatarUrl?: string | null;
+  profileurl?: string | null;
+  fullname?: string | null;
+  name?: string | null;
+};
+
+export function getAvatarSrc(entity: AvatarEntity | null | undefined): string | null {
   if (!entity) return null;
 
   const candidates = [
@@ -63,7 +74,7 @@ export function imageDataToDataUrl(
 }
 
 /** Return the first record from a backend envelope response (or null). */
-export function unwrapOne<T = any>(resp: { data?: unknown } | null | undefined): T | null {
+export function unwrapOne<T = unknown>(resp: { data?: unknown } | null | undefined): T | null {
   const env = (resp?.data ?? null) as { data?: unknown } | null;
   const inner = (env?.data ?? null) as unknown;
   if (Array.isArray(inner)) return (inner[0] ?? null) as T | null;
@@ -82,7 +93,7 @@ export function clampCoordinateInput(v: string): string {
   return match ? match[0] : "";
 }
 
-export function clampCoordinateNumber(v: any): number {
+export function clampCoordinateNumber(v: string | number | null | undefined): number {
   const n = Number(v);
   if (!Number.isFinite(n)) return 0;
   return Math.max(-180, Math.min(180, n));
@@ -102,22 +113,19 @@ export function toWhole(v: string): string {
 }
 
 /** Convert an array of records into CSV. */
-export function toCsv(rows: any[], headers?: string[]): string {
+export function toCsv(rows: Record<string, unknown>[], headers?: string[]): string {
   if (!Array.isArray(rows) || rows.length === 0) return "";
   const keys =
     headers && headers.length
       ? headers
       : Array.from(new Set(rows.flatMap((r) => Object.keys(r || {}))));
-  const escape = (v: any) => {
+  const escape = (v: unknown) => {
     if (v === null || v === undefined) return "";
     const s = String(v);
     if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
   };
-  return [
-    keys.join(","),
-    ...rows.map((r) => keys.map((k) => escape((r as any)?.[k])).join(",")),
-  ].join("\n");
+  return [keys.join(","), ...rows.map((r) => keys.map((k) => escape(r?.[k])).join(","))].join("\n");
 }
 
 export function downloadCsv(filename: string, csv: string) {
