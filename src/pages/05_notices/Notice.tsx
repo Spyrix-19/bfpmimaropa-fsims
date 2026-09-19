@@ -1187,7 +1187,7 @@ function NoticeLedgerCard({
                         }
                         className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
                       >
-                        <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
                           {line.key.match(/^\d{4}-\d{2}-\d{2}$/) && (
                             <DayLockIcon date={line.key} module="notice" className="h-4 w-4" />
                           )}
@@ -1198,7 +1198,7 @@ function NoticeLedgerCard({
 
                         <div className="flex shrink-0 items-center gap-2">
                           {total === 0 && (
-                            <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                            <span className="hidden items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground min-[400px]:inline-flex">
                               NO RECORD
                             </span>
                           )}

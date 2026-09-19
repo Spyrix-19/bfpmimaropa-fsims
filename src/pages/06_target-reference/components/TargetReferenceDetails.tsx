@@ -693,7 +693,7 @@ export default function TargetReferenceDetails({
 
                               <div className="flex shrink-0 items-center gap-2">
                                 {!hasRecord && (
-                                  <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                  <span className="hidden items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground min-[400px]:inline-flex">
                                     NO RECORD
                                   </span>
                                 )}

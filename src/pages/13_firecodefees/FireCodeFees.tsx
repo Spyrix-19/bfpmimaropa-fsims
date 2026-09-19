@@ -1559,7 +1559,7 @@ function FireCodeFeesLedgerCard({
                         <span className="truncate text-sm font-semibold">{line.label}</span>
                       </span>
                       {!hasRecord && (
-                        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span className="hidden shrink-0 rounded-md bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground min-[400px]:inline-block">
                           No Record
                         </span>
                       )}

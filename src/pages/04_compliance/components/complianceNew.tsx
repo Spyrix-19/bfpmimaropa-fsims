@@ -234,6 +234,12 @@ const ISSUANCE_FIELDS = [
   ...ISSUANCE_NOTICE_FIELDS,
 ];
 
+/**
+ * Non Operational (issuance) and Closure (reinspection) are recorded per Mode
+ * of Issuance, exactly like every other notice category: one MANUAL value and
+ * one FSIS value, on both desktop and mobile.
+ */
+
 const ALL_NUMERIC_FIELDS = [...DAILY_INSPECTION_FIELDS];
 
 /* -------------------------------------------------------------------------- */
@@ -880,6 +886,7 @@ function InspectionsNewBody({
           fsictiezacount: vals.fsic_tieza ?? 0,
           nodcount: vals.not_nod ?? 0,
           ntccount: vals.not_ntc ?? 0,
+          // Non Operational is recorded per mode, like every other notice.
           closedcount: vals.not_non_operational ?? 0,
           // NTCV / Abatement / Closure are reinspection-only categories.
           ntcvcount: 0,
@@ -894,6 +901,7 @@ function InspectionsNewBody({
           refsictiezacount: revals.fsic_tieza ?? 0,
           rentcvcount: revals.not_ntcv ?? 0,
           reabatementcount: revals.not_abatement ?? 0,
+          // Closure is recorded per mode, like every other re-issued notice.
           reclosurecount: revals.not_closure ?? 0,
         };
       };
@@ -1793,6 +1801,135 @@ function SectionTitle({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Mobile card layout shared by Issuance & Reinspection matrices.            */
+/*  Replaces the wide table below the md breakpoint; desktop table untouched. */
+/* -------------------------------------------------------------------------- */
+
+function MobileMatrixCards({
+  groups,
+  allFields,
+  manualValues,
+  fsisValues,
+  onManualChange,
+  onFsisChange,
+  shortLabel,
+  locked,
+}: {
+  groups: { title: string; fields: NumericFieldSpec[] }[];
+  allFields: NumericFieldSpec[];
+  manualValues: Record<string, number>;
+  fsisValues: Record<string, number>;
+  onManualChange: (key: string, raw: string) => void;
+  onFsisChange: (key: string, raw: string) => void;
+  shortLabel: (label: string) => string;
+  locked?: boolean;
+}) {
+  const rowTotal = (values: Record<string, number>) =>
+    allFields.reduce((sum, f) => sum + (values[f.key] ?? 0), 0);
+  const manualTotal = rowTotal(manualValues);
+  const fsisTotal = rowTotal(fsisValues);
+
+  return (
+    <div className="space-y-3">
+      {groups.map((g) => (
+        <div
+          key={g.title}
+          className="overflow-hidden rounded-lg border border-border/60 shadow-soft"
+        >
+          <div
+            className={cn(
+              "border-b border-border/60 px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider",
+              MONITORING_THEME.headerGroup,
+            )}
+          >
+            {g.title}
+          </div>
+          <div className="divide-y divide-border/50">
+            {g.fields.map((f) => {
+              const fieldTotal = (manualValues[f.key] ?? 0) + (fsisValues[f.key] ?? 0);
+              return (
+                <div key={f.key} className="space-y-2 px-3 py-2.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-wide text-foreground"
+                      title={f.tooltip}
+                    >
+                      {shortLabel(f.label)}
+                    </span>
+                    <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
+                      Total: {fieldTotal.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <span className="block text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Manual
+                      </span>
+                      <NumericInput
+                        value={manualValues[f.key]}
+                        disabled={locked}
+                        readOnly={locked}
+                        onValueChange={(raw) => onManualChange(f.key, raw)}
+                        className="h-9 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="block text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        FSIS
+                      </span>
+                      <NumericInput
+                        value={fsisValues[f.key]}
+                        disabled={locked}
+                        readOnly={locked}
+                        onValueChange={(raw) => onFsisChange(f.key, raw)}
+                        className="h-9 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Totals card */}
+      <div className="overflow-hidden rounded-lg border border-border/60 bg-accent shadow-soft">
+        <div className="border-b border-border/60 px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-foreground">
+          Total
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-border/50">
+          <div className="px-2 py-2.5 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Manual
+            </div>
+            <div className="text-sm font-bold tabular-nums text-foreground">
+              {manualTotal.toLocaleString()}
+            </div>
+          </div>
+          <div className="px-2 py-2.5 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              FSIS
+            </div>
+            <div className="text-sm font-bold tabular-nums text-foreground">
+              {fsisTotal.toLocaleString()}
+            </div>
+          </div>
+          <div className="px-2 py-2.5 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Grand
+            </div>
+            <div className="text-sm font-bold tabular-nums text-foreground">
+              {(manualTotal + fsisTotal).toLocaleString()}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function IssuanceTable({
   manualValues,
   fsisValues,
@@ -1877,17 +2014,19 @@ function IssuanceTable({
         {rowLabel}
       </td>
       {groups.flatMap((g) =>
-        g.fields.map((f) => (
-          <td key={f.key} className="border-b border-r px-1.5 py-1.5 text-center">
-            <NumericInput
-              value={values[f.key]}
-              disabled={locked}
-              readOnly={locked}
-              onValueChange={(raw) => onChange(f.key, raw)}
-              className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
-            />
-          </td>
-        )),
+        g.fields.map((f) => {
+          return (
+            <td key={f.key} className="border-b border-r px-1.5 py-1.5 text-center">
+              <NumericInput
+                value={values[f.key]}
+                disabled={locked}
+                readOnly={locked}
+                onValueChange={(raw) => onChange(f.key, raw)}
+                className="h-8 w-full rounded-sm border-border/70 bg-white/90 px-2 py-1 text-center tabular-nums"
+              />
+            </td>
+          );
+        }),
       )}
       <td className="border-b px-3 py-1.5 text-center font-bold tabular-nums">
         {rowTotal(values).toLocaleString()}
@@ -1896,7 +2035,21 @@ function IssuanceTable({
   );
 
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft">
+    <>
+      {/* Mobile: stacked group cards (below md). Desktop table is unchanged. */}
+      <div className="md:hidden">
+        <MobileMatrixCards
+          groups={groups}
+          allFields={ISSUANCE_FIELDS}
+          manualValues={manualValues}
+          fsisValues={fsisValues}
+          onManualChange={onManualChange}
+          onFsisChange={onFsisChange}
+          shortLabel={shortLabel}
+          locked={locked}
+        />
+      </div>
+      <div className="hidden w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft md:block">
       <div className="overflow-auto">
         <table className="min-w-max border-separate border-spacing-0 text-[11px]">
           <thead className="sticky top-0 z-30">
@@ -1973,7 +2126,8 @@ function IssuanceTable({
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -2144,7 +2298,21 @@ function ReinspectionTable({
   );
 
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft">
+    <>
+      {/* Mobile: stacked group cards (below md). Desktop table is unchanged. */}
+      <div className="md:hidden">
+        <MobileMatrixCards
+          groups={groups}
+          allFields={REINSPECTION_FIELDS}
+          manualValues={manualValues}
+          fsisValues={fsisValues}
+          onManualChange={onManualChange}
+          onFsisChange={onFsisChange}
+          shortLabel={shortLabel}
+          locked={locked}
+        />
+      </div>
+      <div className="hidden w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft md:block">
       <div className="overflow-auto">
         <table className="min-w-max border-separate border-spacing-0 text-[11px]">
           <thead className="sticky top-0 z-30">
@@ -2221,7 +2389,8 @@ function ReinspectionTable({
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
