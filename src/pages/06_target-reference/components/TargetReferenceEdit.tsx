@@ -1062,7 +1062,7 @@ export default function TargetReferenceForm({
                   <button
                     type="button"
                     onClick={() => setMobileExpandedDates((prev) => ({ ...prev, [d]: !prev[d] }))}
-                    className="flex w-full items-center gap-3 px-3 py-3 text-left"
+                    className="@container flex w-full items-center gap-3 px-3 py-3 text-left"
                   >
                     <div className="shrink-0">
                       <DayLockIcon
@@ -1079,7 +1079,7 @@ export default function TargetReferenceForm({
 
                     <div className="flex shrink-0 items-center gap-2">
                       {!hasRecord && (
-                        <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+                        <span className="hidden @min-[480px]:inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
                           NO RECORD
                         </span>
                       )}

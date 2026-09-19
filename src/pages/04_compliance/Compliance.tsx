@@ -1943,7 +1943,7 @@ function MobileLineList({
               type="button"
               onClick={() => setOpenKey(open ? null : l.key)}
               aria-expanded={open}
-              className="flex min-h-14 w-full items-center justify-between gap-2 px-2 py-3 text-left transition-colors hover:bg-muted/30"
+              className="@container flex min-h-14 w-full items-center justify-between gap-2 px-2 py-3 text-left transition-colors hover:bg-muted/30"
             >
               <span className="flex min-w-0 flex-1 items-center gap-3 text-sm font-semibold text-foreground">
                 {labelDate && (
@@ -1953,7 +1953,7 @@ function MobileLineList({
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 {!hasRecord && (
-                  <span className="hidden rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground min-[400px]:inline-block">
+                  <span className="hidden rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground @min-[480px]:inline-block">
                     No Record
                   </span>
                 )}

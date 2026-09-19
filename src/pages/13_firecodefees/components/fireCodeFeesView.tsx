@@ -426,7 +426,7 @@ export function FireCodeFeesYearViewBody({
                         setExpanded((p) => ({ ...p, [m.month]: !p[m.month] }));
                       }
                     }}
-                    className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
+                    className="@container flex cursor-pointer select-none flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
                   >
                     <div className="flex min-w-[9rem] items-center gap-2">
                       {info.locked ? (
@@ -442,7 +442,7 @@ export function FireCodeFeesYearViewBody({
                           Encoded
                         </span>
                       ) : (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                        <span className="hidden @min-[480px]:inline-block rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
                           No record
                         </span>
                       )}

@@ -520,7 +520,7 @@ export default function IssuedBwcPage() {
             </h1>
             <p className="text-xs text-muted-foreground">{DESCRIPTION}</p>
           </div>
-          {/* Mobile: Add BWC full width (Filter + Export live under the search box).
+          {/* Mobile: Add BWC lives under the Filter | Export row (below the search box).
               Desktop (md+): Export and Add side by side, unchanged. */}
           <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
             <Button
@@ -537,7 +537,10 @@ export default function IssuedBwcPage() {
               {exporting ? "Exporting…" : "Export"}
             </Button>
             {canManage && (
-              <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
+              <Button
+                onClick={openAdd}
+                className="hidden w-full justify-center gap-2 sm:w-auto md:inline-flex"
+              >
                 <Plus className="h-4 w-4" /> {ADD_LABEL}
               </Button>
             )}
@@ -631,6 +634,15 @@ export default function IssuedBwcPage() {
                 )}{" "}
                 {exporting ? "Exporting…" : "Export"}
               </Button>
+              {/* Mobile-only: Add sits below the Filter | Export row */}
+              {canManage && (
+                <Button
+                  onClick={openAdd}
+                  className="col-span-2 w-full justify-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> {ADD_LABEL}
+                </Button>
+              )}
             </div>
 
             <div className="hidden md:block">

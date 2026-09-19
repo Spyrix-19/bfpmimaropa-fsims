@@ -1217,7 +1217,7 @@ function MatrixHeader({
                 rowSpan={g.grouped ? undefined : 2}
                 className={`border-b px-1.5 py-1 text-center text-[10px] font-bold uppercase ${
                   gi === COLUMN_GROUPS.length - 1 && monthIdx === 2
-                    ? "border-r-2 border-r-emerald-800/60"
+                    ? "border-r-2 border-r-primary/60"
                     : "border-r"
                 } ${CATEGORY_SUB_STYLE[g.category]}`}
               >

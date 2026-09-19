@@ -684,7 +684,7 @@ export function FireCodeFeesYearEditorBody({
                         setExpanded((p) => ({ ...p, [m.month]: !p[m.month] }));
                       }
                     }}
-                    className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
+                    className="@container flex cursor-pointer select-none flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
                   >
                     {/* Revision action — reserve space only when it is actually visible. */}
                     {showRevisionAction ? (
@@ -757,7 +757,7 @@ export function FireCodeFeesYearEditorBody({
                           Encoded
                         </span>
                       ) : (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                        <span className="hidden @min-[480px]:inline-block rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
                           No record
                         </span>
                       )}

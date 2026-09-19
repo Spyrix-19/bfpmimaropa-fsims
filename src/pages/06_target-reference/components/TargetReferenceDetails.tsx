@@ -675,7 +675,7 @@ export default function TargetReferenceDetails({
                                   [row.key]: !prev[row.key],
                                 }))
                               }
-                              className="flex w-full items-center gap-3 px-3 py-3 text-left"
+                              className="@container flex w-full items-center gap-3 px-3 py-3 text-left"
                             >
                               <div className="shrink-0">
                                 {(row as { lockDate?: string }).lockDate ? (
@@ -693,7 +693,7 @@ export default function TargetReferenceDetails({
 
                               <div className="flex shrink-0 items-center gap-2">
                                 {!hasRecord && (
-                                  <span className="hidden items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground min-[400px]:inline-flex">
+                                  <span className="hidden items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground @min-[480px]:inline-flex">
                                     NO RECORD
                                   </span>
                                 )}

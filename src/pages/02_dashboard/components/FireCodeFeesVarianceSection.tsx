@@ -354,7 +354,7 @@ export default function FireCodeFeesVarianceSection() {
     pct === null ? "—" : `${Math.round(pct * 100) / 100}%`;
   /** Green when performance reaches or exceeds 100% of the base year. */
   const percentClass = (pct: number | null) =>
-    pct !== null && pct >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground";
+    pct !== null && pct >= 100 ? "text-success" : "text-muted-foreground";
 
   const valueCellClass =
     "w-28 min-w-28 px-3 py-2.5 text-right tabular-nums text-muted-foreground sm:w-40 sm:min-w-40 sm:px-4";

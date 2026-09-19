@@ -8,7 +8,7 @@ export type AddButtonProps = React.ComponentProps<typeof Button> & {
 
 const AddButton = React.forwardRef<HTMLButtonElement, AddButtonProps>(
   ({ className, children, ...props }, ref) => {
-    // Uses the emerald/green family while ensuring white foreground for icon and text.
+    // Uses the theme's primary color token while ensuring white foreground for icon and text.
     // Consumers can still pass extra classes via `className` to tweak spacing/size.
     return (
       <Button

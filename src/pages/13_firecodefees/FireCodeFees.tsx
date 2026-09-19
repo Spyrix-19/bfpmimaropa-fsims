@@ -1542,7 +1542,7 @@ function FireCodeFeesLedgerCard({
                         toggle(line.key);
                       }
                     }}
-                    className="flex cursor-pointer select-none flex-col gap-2 px-3 py-3 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:gap-3 sm:px-4"
+                    className="@container flex cursor-pointer select-none flex-col gap-2 px-3 py-3 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:gap-3 sm:px-4"
                   >
                     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
                       <span className="flex min-w-0 items-center gap-2 whitespace-nowrap">
@@ -1559,7 +1559,7 @@ function FireCodeFeesLedgerCard({
                         <span className="truncate text-sm font-semibold">{line.label}</span>
                       </span>
                       {!hasRecord && (
-                        <span className="hidden shrink-0 rounded-md bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground min-[400px]:inline-block">
+                        <span className="hidden shrink-0 rounded-md bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground @min-[480px]:inline-block">
                           No Record
                         </span>
                       )}

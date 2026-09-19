@@ -1330,7 +1330,7 @@ export default function TargetReferenceForm({
                   type="button"
                   aria-expanded={expanded}
                   onClick={() => setMobileExpandedDates((prev) => ({ ...prev, [d]: !prev[d] }))}
-                  className="flex min-h-11 w-full items-center gap-3 px-3 py-3 text-left"
+                  className="@container flex min-h-11 w-full items-center gap-3 px-3 py-3 text-left"
                 >
                   <div className="shrink-0">
                     <DayLockIcon
@@ -1362,7 +1362,7 @@ export default function TargetReferenceForm({
 
                   <div className="flex shrink-0 items-center gap-2">
                     {!hasRecord && (
-                      <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <span className="hidden @min-[480px]:inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         NO RECORD
                       </span>
                     )}

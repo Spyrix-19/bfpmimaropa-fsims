@@ -506,7 +506,7 @@ function MatrixHeader({
                 key={`c-${mv}-${String(f.key)}`}
                 className={`border-b px-1.5 py-1 text-center text-[10px] font-bold uppercase ${
                   i === catSpan - 1 && monthIdx === 2
-                    ? "border-r-2 border-r-emerald-800/60"
+                    ? "border-r-2 border-r-primary/60"
                     : "border-r"
                 } ${STYLE.cat}`}
               >

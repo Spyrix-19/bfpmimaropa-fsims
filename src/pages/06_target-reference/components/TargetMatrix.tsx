@@ -811,7 +811,7 @@ function MatrixHeader() {
               <th
                 key={`c-${mv}-${c.key}`}
                 className={`border-b px-1.5 py-1 text-center text-[10px] font-bold uppercase ${
-                  i === 3 && monthIdx === 2 ? "border-r-2 border-r-emerald-800/60" : "border-r"
+                  i === 3 && monthIdx === 2 ? "border-r-2 border-r-primary/60" : "border-r"
                 } ${STYLE.cat}`}
               >
                 {c.label}

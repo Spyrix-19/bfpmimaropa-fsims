@@ -510,7 +510,8 @@ export default function FireSafetyInspectorPage() {
             </h1>
             <p className="text-xs text-muted-foreground">{DESCRIPTION}</p>
           </div>
-          {/* Mobile: only Add Inspector here — Export joins the Filter | Export row below. */}
+          {/* Mobile: Add Inspector lives under the Filter | Export row (below the search box).
+              Desktop (sm+): Export and Add side by side, unchanged. */}
           <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
             <Button
               variant="outline"
@@ -526,7 +527,10 @@ export default function FireSafetyInspectorPage() {
               {exporting ? "Exporting…" : "Export"}
             </Button>
             {canManage && (
-              <Button onClick={openAdd} className="w-full justify-center gap-2 sm:w-auto">
+              <Button
+                onClick={openAdd}
+                className="hidden w-full justify-center gap-2 sm:w-auto sm:inline-flex"
+              >
                 <Plus className="h-4 w-4" /> {ADD_LABEL}
               </Button>
             )}
@@ -618,6 +622,15 @@ export default function FireSafetyInspectorPage() {
                   )}{" "}
                   {exporting ? "Exporting…" : "Export"}
                 </Button>
+                {/* Mobile-only: Add sits below the Filter | Export row */}
+                {canManage && (
+                  <Button
+                    onClick={openAdd}
+                    className="col-span-2 w-full justify-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" /> {ADD_LABEL}
+                  </Button>
+                )}
               </div>
             </div>
 

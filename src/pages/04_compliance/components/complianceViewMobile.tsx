@@ -324,7 +324,7 @@ export function MobileActivityList({
               type="button"
               onClick={() => setOpenKey(open ? null : day.key)}
               aria-expanded={open}
-              className="flex min-h-14 w-full items-center justify-between gap-2 px-2 py-3 text-left transition-colors hover:bg-muted/30"
+              className="@container flex min-h-14 w-full items-center justify-between gap-2 px-2 py-3 text-left transition-colors hover:bg-muted/30"
             >
               <span className="flex min-w-0 items-center gap-3 text-sm font-semibold text-foreground">
                 <DayLockIcon date={day.key} module="monitoring" className="h-4 w-4 shrink-0" />
@@ -332,7 +332,7 @@ export function MobileActivityList({
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 {!hasRecord && (
-                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span className="hidden @min-[480px]:inline-block rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     No Record
                   </span>
                 )}
