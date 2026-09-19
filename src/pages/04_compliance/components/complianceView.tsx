@@ -529,7 +529,7 @@ function ComplianceViewBody({
   return (
     <div className="space-y-8 pb-4 md:space-y-8">
       {/* Reporting Period ---------------------------------------------------- */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+      <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <CalendarDays className="h-4 w-4" />
@@ -601,7 +601,7 @@ function ComplianceViewBody({
       />
 
       {/* Monthly Dashboard ------------------------------------------------------ */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Monthly Dashboard"
           subtitle={`Reporting month · ${monthName} ${selectedYear}`}
@@ -620,7 +620,7 @@ function ComplianceViewBody({
       </Card>
 
       {/* Daily Inspection & Issuance ------------------------------------------ */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-5 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Daily Inspection & Issuance Activities"
           subtitle="Recorded issuances shown separately for MANUAL and FSIS"
@@ -645,7 +645,7 @@ function ComplianceViewBody({
       </Card>
 
       {/* Daily Reinspection ---------------------------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-5 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Daily Reinspection Activities"
           subtitle="Reinspection, RE-FSIC and re-issued notices"
@@ -1181,7 +1181,7 @@ export function ComplianceViewModal({
         onInteractOutside={(e) => e.preventDefault()}
         className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
-        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 sm:px-5 text-left">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
               <Eye className="h-5 w-5 text-primary" />
@@ -1202,7 +1202,7 @@ export function ComplianceViewModal({
             </div>
           </div>
         </DialogHeader>
-        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-5 py-4">
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">
           {open ? (
             <ComplianceViewBody
               stationno={stationno}
@@ -1212,7 +1212,7 @@ export function ComplianceViewModal({
             />
           ) : null}
         </div>
-        <div className="flex flex-wrap justify-end gap-2 border-t bg-background px-5 py-3">
+        <div className="flex flex-wrap justify-end gap-2 border-t bg-background px-4 py-3 sm:px-5">
           {onEdit && canEdit && (
             <Button
               type="button"

@@ -990,7 +990,7 @@ function InspectionsNewBody({
         </div>
       )}
       {/* 1. Reporting Period ------------------------------------------------ */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle icon={<CalendarIcon className="h-4 w-4" />} title="Reporting Period" />
         <div className="grid grid-cols-1 gap-4 sm:max-w-md">
           <Field label="Reporting Period As Of" required error={errors.reportingDate}>
@@ -1115,7 +1115,7 @@ function InspectionsNewBody({
       </StationInfoCard>
 
       {/* 3. Daily Inspection Activities ------------------------------------ */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Daily Dashboard"
           subtitle={`Reporting month · ${monthName} ${year}`}
@@ -1291,7 +1291,7 @@ function InspectionsNewBody({
       </Card>
 
       {/* 4. Daily Issuance Activities -------------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-5 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Daily Inspection & Issuance Activities"
           subtitle="Encode issuances separately for MANUAL and FSIS"
@@ -1326,7 +1326,7 @@ function InspectionsNewBody({
       </Card>
 
       {/* 5. Daily Reinspection Activities ----------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-5 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Daily Reinspection Activities"
           subtitle="Reinspection panel and detailed table"
@@ -1584,7 +1584,7 @@ export function InspectionsNewModal({
         onInteractOutside={(e) => e.preventDefault()}
         className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
-        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 sm:px-5">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
               <FilePlus2 className="h-5 w-5 text-primary" />
@@ -1601,7 +1601,7 @@ export function InspectionsNewModal({
         </DialogHeader>
 
         <ModalFooterLayout>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
             <div className="min-h-full pr-2">
               {open ? (
                 <InspectionsNewBody

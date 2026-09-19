@@ -1787,15 +1787,15 @@ function ComplianceLedgerCard({
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">
       {/* Header — station details */}
-      <div className="flex items-start gap-3 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-4">
+      <div className="flex items-start gap-2 border-b border-border/40 dark:border-border/50 bg-gradient-to-r from-primary/5 via-primary/5 to-transparent p-3 sm:gap-3 sm:p-4">
         <AvatarWithFallback
           entity={{ name: row.stationname }}
           src={row.logoUrl || undefined}
           name={row.stationname}
-          className="h-14 w-14 shrink-0 rounded-full ring-2 ring-primary/20"
+          className="h-11 w-11 shrink-0 rounded-full ring-2 ring-primary/20 sm:h-14 sm:w-14"
         />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
               {row.stationcode}
             </span>
@@ -1803,10 +1803,10 @@ function ComplianceLedgerCard({
               {periodLabel ?? `${monthName} ${row.year}`}
             </span>
           </div>
-          <div className="mt-1 text-sm font-bold text-foreground dark:text-slate-100">
+          <div className="mt-1 break-words text-sm font-bold text-foreground dark:text-slate-100">
             {row.stationname}
           </div>
-          <div className="text-[11px] text-muted-foreground dark:text-slate-400">
+          <div className="break-words text-[11px] text-muted-foreground dark:text-slate-400">
             {row.cityname ? `${row.cityname} · ` : ""}
             {row.provincename}
           </div>

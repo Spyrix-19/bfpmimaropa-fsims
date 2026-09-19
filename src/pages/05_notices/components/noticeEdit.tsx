@@ -1214,7 +1214,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                                 ariaLabel="Cancel Revision Request"
                                 icon={<Ban className="h-4 w-4" />}
                                 onClick={(event) => {
-                                  event.stopPropagation();
+                                  event?.stopPropagation();
                                   if (rev.req) setCancelRequestId(rev.req.requestno);
                                   else toast.info("No active revision request to cancel.");
                                 }}
@@ -1225,7 +1225,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                                 ariaLabel="Delete Revision Request"
                                 icon={<Trash2 className="h-4 w-4" />}
                                 onClick={(event) => {
-                                  event.stopPropagation();
+                                  event?.stopPropagation();
                                   if (rev.req) setDeleteRequestId(rev.req.requestno);
                                   else toast.info("No revision request to delete.");
                                 }}
@@ -1240,7 +1240,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
                                 disabled={!stationno}
                                 icon={<FilePen className="h-4 w-4" />}
                                 onClick={(event) => {
-                                  event.stopPropagation();
+                                  event?.stopPropagation();
                                   setRevisionReferenceKey(EMPTY_GUID);
                                   setRevisionDate(entry.date);
                                   setRevisionOpen(true);

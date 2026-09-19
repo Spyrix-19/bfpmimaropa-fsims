@@ -608,9 +608,9 @@ export default function TargetReferenceDetails({
                               className="flex w-full items-center gap-3 px-3 py-3 text-left"
                             >
                               <div className="shrink-0">
-                                {row.lockDate ? (
+                                {(row as { lockDate?: string }).lockDate ? (
                                   <DayLockIcon
-                                    date={row.lockDate}
+                                    date={(row as { lockDate?: string }).lockDate as string}
                                     module="target-reference"
                                     className="h-4 w-4"
                                   />

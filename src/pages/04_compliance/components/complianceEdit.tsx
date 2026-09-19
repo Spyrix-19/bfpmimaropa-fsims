@@ -929,7 +929,7 @@ function ComplianceEditBody({
   return (
     <div className="space-y-8 pb-4 md:space-y-8">
       {/* Reporting Period ---------------------------------------------------- */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+      <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <CalendarDays className="h-4 w-4" />
@@ -997,7 +997,7 @@ function ComplianceEditBody({
       {/* Daily Dashboard removed per request */}
 
       {/* Monthly Dashboard ------------------------------------------------------ */}
-      <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-4 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Monthly Dashboard"
           subtitle={`Reporting month · ${monthName} ${year}`}
@@ -1016,7 +1016,7 @@ function ComplianceEditBody({
       </Card>
 
       {/* Daily Inspection & Issuance ------------------------------------------ */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-5 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Daily Inspection & Issuance Activities"
           subtitle="Encode issuances separately for MANUAL and FSIS"
@@ -1047,7 +1047,7 @@ function ComplianceEditBody({
       </Card>
 
       {/* Daily Reinspection ---------------------------------------------------- */}
-      <Card className="space-y-5 border-border/60 bg-card p-5 shadow-soft">
+      <Card className="space-y-5 border-border/60 bg-card p-4 shadow-soft sm:p-5">
         <SectionTitle
           title="Daily Reinspection Activities"
           subtitle="Reinspection, RE-FSIC and re-issued notices"
@@ -1855,7 +1855,7 @@ export function ComplianceEditModal({
         onInteractOutside={(e) => e.preventDefault()}
         className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-[1100px] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
-        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+        <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 sm:px-5">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
               <Table2 className="h-5 w-5 text-primary" />
@@ -1884,7 +1884,7 @@ export function ComplianceEditModal({
         </DialogHeader>
 
         <ModalFooterLayout>
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">
             {open ? (
               <ComplianceEditBody
                 stationno={stationno}

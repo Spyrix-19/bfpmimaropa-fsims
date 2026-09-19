@@ -864,7 +864,7 @@ export default function ComplianceMatrixTable({
         onInteractOutside={(e) => e.preventDefault()}
         className="flex h-[90vh] w-[95vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
       >
-        <DialogHeader className="flex flex-row items-center justify-between gap-3 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
+        <DialogHeader className="flex flex-col items-start justify-between gap-3 text-left sm:flex-row sm:items-center border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
             <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-primary text-primary-foreground shadow-elegant">
               <LayoutGrid className="h-4 w-4" />
@@ -908,7 +908,7 @@ export default function ComplianceMatrixTable({
         </DialogHeader>
 
         {/* Filters — mirrors the ledger filter bar */}
-        <div className="border-b bg-card px-5 py-4">
+        <div className="border-b bg-card px-4 py-4 sm:px-5">
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">

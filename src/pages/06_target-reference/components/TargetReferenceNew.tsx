@@ -1282,7 +1282,7 @@ export default function TargetReferenceForm({
                       ariaLabel="Cancel Revision Request"
                       icon={<Ban className="h-4 w-4" />}
                       onClick={(event) => {
-                        event.stopPropagation();
+                        event?.stopPropagation();
                         if (activeReq) setCancelRequestId(activeReq.requestno);
                         else toast.info("No active revision request to cancel.");
                       }}
@@ -1293,7 +1293,7 @@ export default function TargetReferenceForm({
                       ariaLabel="Delete Revision Request"
                       icon={<Trash2 className="h-4 w-4" />}
                       onClick={(event) => {
-                        event.stopPropagation();
+                        event?.stopPropagation();
                         if (activeReq) setDeleteRequestId(activeReq.requestno);
                         else toast.info("No revision request to delete.");
                       }}
@@ -1312,7 +1312,7 @@ export default function TargetReferenceForm({
                       disabled={!revStation}
                       icon={<FilePen className="h-4 w-4" />}
                       onClick={(event) => {
-                        event.stopPropagation();
+                        event?.stopPropagation();
                         setRevisionDay(Number(d));
                       }}
                     />

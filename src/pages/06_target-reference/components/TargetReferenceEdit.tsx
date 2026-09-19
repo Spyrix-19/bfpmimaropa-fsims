@@ -1114,7 +1114,7 @@ export default function TargetReferenceForm({
                               ariaLabel="Cancel Revision Request"
                               icon={<Ban className="h-4 w-4" />}
                               onClick={(event) => {
-                                event.stopPropagation();
+                                event?.stopPropagation();
                                 if (activeReq) setCancelRequestId(activeReq.requestno);
                                 else toast.info("No active revision request to cancel.");
                               }}
@@ -1125,7 +1125,7 @@ export default function TargetReferenceForm({
                               ariaLabel="Delete Revision Request"
                               icon={<Trash2 className="h-4 w-4" />}
                               onClick={(event) => {
-                                event.stopPropagation();
+                                event?.stopPropagation();
                                 if (activeReq) setDeleteRequestId(activeReq.requestno);
                                 else toast.info("No revision request to delete.");
                               }}
@@ -1144,7 +1144,7 @@ export default function TargetReferenceForm({
                               disabled={!revStation}
                               icon={<FilePen className="h-4 w-4" />}
                               onClick={(event) => {
-                                event.stopPropagation();
+                                event?.stopPropagation();
                                 setRevisionDay(Number(d));
                               }}
                             />
@@ -1208,26 +1208,33 @@ export default function TargetReferenceForm({
           onInteractOutside={(e) => e.preventDefault()}
           className="flex max-h-[92vh] min-h-0 w-[calc(100vw-2rem)] max-w-[980px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
         >
-          <DialogHeader className="hidden md:block shrink-0 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3">
-            <DialogTitle className="text-base font-bold">
-              {isEdit ? "Edit Target Reference" : "Target Reference Entry"}
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              Record target references per station and reporting period — monthly, quarterly,
-              semi-annual, and annual totals are auto-computed.
-            </p>
-            {isPastDateLockEnabled("target-reference") && (
-              <p className="mt-1 text-[11px] text-muted-foreground/90">
-                <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
-                Past dates are locked until a revision request is approved. Current and future dates
-                remain editable.
-              </p>
-            )}
+          <DialogHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-3 text-left">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 rounded-full bg-primary/10 p-2">
+                <Building2 className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-bold">
+                  {isEdit ? "Edit Target Reference" : "Target Reference Entry"}
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground">
+                  Record target references per station and reporting period — monthly, quarterly,
+                  semi-annual, and annual totals are auto-computed.
+                </p>
+                {isPastDateLockEnabled("target-reference") && (
+                  <p className="mt-1 text-[11px] text-muted-foreground/90">
+                    <Lock className="mr-1 inline h-3 w-3 text-warning" aria-hidden="true" />
+                    Past dates are locked until a revision request is approved. Current and future
+                    dates remain editable.
+                  </p>
+                )}
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-5 py-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden bg-muted/20 px-5 py-5">
             {/* Reporting Period card */}
-            <Card className="hidden md:block space-y-4 border-border/60 bg-card p-5 shadow-soft sm:p-6">
+            <Card className="space-y-4 border-border/60 bg-card p-5 shadow-soft">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   <Calendar className="h-4 w-4" />
@@ -1289,7 +1296,7 @@ export default function TargetReferenceForm({
 
             {/* Station Information card */}
             <StationInfoCard
-              className="hidden md:block"
+              className="rounded-xl"
               stationName={stationName || (stationLoading ? "Loading…" : "")}
               unitCode={stationCode || ""}
               logoUrl={logoUrl || null}
@@ -1331,27 +1338,21 @@ export default function TargetReferenceForm({
             </StationInfoCard>
 
             {/* Monthly Target Reference table */}
-            <div className="hidden md:block">
-              <div className="flex flex-col overflow-hidden rounded-lg border border-border/60">
-                <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
-                  <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
-                    <Calendar className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
-                    Daily Target Reference
-                  </span>
-                </div>
-
-                {tableBody}
+            <div className="flex min-h-0 flex-col rounded-xl border border-border/60 bg-card shadow-soft">
+              <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                  <Calendar className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 text-[11px] font-bold uppercase tracking-[0.15em] text-primary">
+                  Daily Target Reference
+                </span>
               </div>
-            </div>
 
-            <div className="block md:hidden">
               {tableBody}
             </div>
           </div>
 
-          <DialogFooter className="flex w-full flex-row items-center justify-end gap-2 border-t border-border/60 bg-muted/30 px-5 py-3">
+          <DialogFooter className="flex w-full flex-row items-center justify-end gap-2 border-t border-border/60 bg-background px-5 py-3">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}

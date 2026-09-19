@@ -1468,10 +1468,10 @@ function FireCodeFeesLedgerCard({
               <div className="flex w-full items-center gap-2 sm:hidden">
                 <div className="min-w-0 flex-1 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
                   <FeeTypeMultiSelect
-                    options={feeTypeOptions}
+                    options={feeTypeOptions ?? []}
                     loading={feeTypesLoading}
-                    value={feeTypes}
-                    onChange={onFeeTypesChange}
+                    value={feeTypes ?? []}
+                    onChange={onFeeTypesChange ?? (() => {})}
                     className="w-full"
                   />
                 </div>
