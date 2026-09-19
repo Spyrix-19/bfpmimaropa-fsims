@@ -29,7 +29,7 @@ import { InspectionsNewModal } from "./components/complianceNew.tsx";
 import TargetAccomplishmentPanel from "./components/TargetAccomplishmentPanel.tsx";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MONTHS } from "@/lib/fsims-constants";
-import { buildYears, cn } from "@/lib/utils";
+import { buildYears } from "@/lib/utils";
 import { toISODate, getYearWeekRanges } from "@/lib/filters";
 import PaginationControls from "@/components/pagination";
 import {
@@ -1683,197 +1683,6 @@ function SectorMetricCells({
   );
 }
 
-/**
- * One column group rendered as its own card: banner header, column labels,
- * one row per ledger line (optionally split into MANUAL / FSIS sub-rows),
- * and a total row. Wide groups scroll horizontally inside the card.
- */
-function GroupCard({
-  title,
-  periodHeading,
-  lines,
-  columns,
-  minW = "min-w-[640px]",
-  splitModes = false,
-  subHeads,
-  cellValue,
-  manualAt,
-  fsisAt,
-  totalAt,
-  renderLineCells,
-  renderTotalCells,
-}: {
-  title: string;
-  periodHeading: string;
-  lines: DayLine[];
-  columns: LedgerCol[];
-  /** Minimum table width — wide groups scroll horizontally inside the card. */
-  minW?: string;
-  /** Split every ledger line into a MANUAL and an FSIS sub-row. */
-  splitModes?: boolean;
-  /** Sector sub-headers (e.g. BPLO / GOV / PEZA / TIEZA) over metric columns. */
-  subHeads?: { key: string; label: string; colSpan: number }[];
-  cellValue?: (line: DayLine, key: string) => number;
-  manualAt?: (line: DayLine, key: string) => number;
-  fsisAt?: (line: DayLine, key: string) => number;
-  totalAt?: (key: string) => number;
-  renderLineCells?: (line: DayLine, idx: number) => React.ReactNode;
-  renderTotalCells?: () => React.ReactNode;
-}) {
-  const bannerSpan = subHeads
-    ? subHeads.reduce((sum, s) => sum + s.colSpan, 0)
-    : columns.length + (splitModes ? 1 : 0);
-  const headRowSpan = subHeads ? 3 : 2;
-
-  return (
-    <div className="max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner">
-      <table className={`w-full ${minW} border-separate border-spacing-0 text-xs`}>
-        <thead>
-          <tr>
-            <th
-              rowSpan={headRowSpan}
-              className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
-            >
-              {periodHeading}
-            </th>
-            <th colSpan={bannerSpan} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
-              {title}
-            </th>
-          </tr>
-          {subHeads ? (
-            <>
-              <tr>
-                {subHeads.map((s) => (
-                  <th
-                    key={s.key}
-                    colSpan={s.colSpan}
-                    className={`${headCell} sticky top-[30px] z-30 min-w-[16rem] ${strongRight}`}
-                  >
-                    {s.label}
-                  </th>
-                ))}
-              </tr>
-              <tr>
-                {subHeads.map((s) =>
-                  SECTOR_METRIC_LABELS.map((label, idx) => (
-                    <th
-                      key={`${s.key}-${label}`}
-                      className={`${subHeadCell} sticky top-[60px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
-                    >
-                      <span className="block uppercase leading-[1.1]">{label}</span>
-                    </th>
-                  )),
-                )}
-              </tr>
-            </>
-          ) : (
-            <tr>
-              {splitModes && (
-                <th
-                  className={`${headCell} sticky top-[30px] z-30 min-w-[7.5rem] ${strongRight}`}
-                >
-                  Mode of Issuance
-                </th>
-              )}
-              {columns.map((c) => (
-                <th
-                  key={c.key}
-                  className={`${headCell} sticky top-[30px] z-30 min-w-[5.5rem] ${strongRight}`}
-                >
-                  {c.label}
-                </th>
-              ))}
-            </tr>
-          )}
-        </thead>
-
-        <tbody>
-          {lines.map((l, idx) => {
-            const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
-              ? l.key
-              : l.key.match(/^\d{4}-\d{2}$/)
-                ? `${l.key}-01`
-                : null;
-            const rowHead = (
-              <th scope="row" className={rowHeadCell}>
-                <span className="flex items-center gap-2 whitespace-nowrap">
-                  {labelDate && (
-                    <DayLockIcon date={labelDate} module="monitoring" className="h-3 w-3" />
-                  )}
-                  {l.label}
-                </span>
-              </th>
-            );
-            if (splitModes) {
-              return (
-                <React.Fragment key={l.key}>
-                  <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
-                    {rowHead}
-                    <td className={`${bodyCell} ${strongRight}`}>
-                      <ModeBadge label="MANUAL" />
-                    </td>
-                    {columns.map((c) => (
-                      <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                        <N v={manualAt!(l, c.key)} />
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="group row-alt transition-colors hover:bg-primary/5">
-                    <td className={`${bodyCell} ${strongRight}`}>
-                      <ModeBadge label="FSIS" />
-                    </td>
-                    {columns.map((c) => (
-                      <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                        <N v={fsisAt!(l, c.key)} />
-                      </td>
-                    ))}
-                  </tr>
-                </React.Fragment>
-              );
-            }
-            return (
-              <tr
-                key={l.key}
-                className="group bg-card even:row-alt transition-colors hover:bg-primary/5"
-              >
-                {rowHead}
-                {renderLineCells
-                  ? renderLineCells(l, idx)
-                  : columns.map((c) => (
-                      <td key={c.key} className={`${bodyCell} ${strongRight}`}>
-                        <N v={cellValue!(l, c.key)} />
-                      </td>
-                    ))}
-              </tr>
-            );
-          })}
-        </tbody>
-
-        <tfoot>
-          <tr>
-            <th
-              scope="row"
-              className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
-            >
-              Total
-            </th>
-            {splitModes && (
-              <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
-            )}
-            {renderTotalCells
-              ? renderTotalCells()
-              : columns.map((c) => (
-                  <td key={c.key} className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>
-                    <N v={totalAt!(c.key)} />
-                  </td>
-                ))}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-}
-
 function sumMobileNumbers(...values: Array<number | undefined | null>) {
   return values.reduce<number>((total, value) => total + (Number(value) || 0), 0);
 }
@@ -1885,219 +1694,6 @@ function MobileStat({ label, value }: { label: string; value: number | string })
         {label}
       </div>
       <div className="mt-1 text-sm font-bold tabular-nums text-foreground">{value}</div>
-    </div>
-  );
-}
-
-/** Mobile period list — shows one row per date/month/quarter/etc. without per-period totals. */
-function MobilePeriodList({
-  lines,
-  groupBy,
-  hasRecord,
-  renderDetails,
-}: {
-  lines: DayLine[];
-  groupBy: LedgerGranularity;
-  hasRecord: (line: DayLine) => boolean;
-  renderDetails?: (line: DayLine, idx: number) => React.ReactNode;
-}) {
-  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
-  const toggle = (key: string) => {
-    const next = new Set(expanded);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    setExpanded(next);
-  };
-  const emptyMessage =
-    groupBy === "day" ? "No daily entries for this period." : "No entries for this period.";
-  return (
-    <div className="space-y-0 md:hidden overflow-hidden rounded-xl border border-border/40 bg-card">
-      {lines.length === 0 ? (
-        <div className="p-4 text-center text-xs text-muted-foreground">{emptyMessage}</div>
-      ) : (
-        lines.map((l, idx) => {
-          const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
-            ? l.key
-            : l.key.match(/^\d{4}-\d{2}$/)
-              ? `${l.key}-01`
-              : null;
-          const record = hasRecord(l);
-          const isExpanded = expanded.has(l.key);
-          return (
-            <div
-              key={l.key}
-              className={cn(
-                "overflow-hidden",
-                idx !== lines.length - 1 && "border-b border-border/25",
-              )}
-            >
-              <button
-                type="button"
-                aria-expanded={isExpanded}
-                onClick={() => toggle(l.key)}
-                className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
-              >
-                <span className="flex items-center gap-2 text-xs font-medium text-foreground">
-                  {labelDate && (
-                    <DayLockIcon date={labelDate} module="monitoring" className="h-3 w-3" />
-                  )}
-                  {l.label}
-                </span>
-                <span className="flex items-center gap-2">
-                  {!record && (
-                    <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      NO RECORD
-                    </span>
-                  )}
-                  {renderDetails &&
-                    (isExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ))}
-                </span>
-              </button>
-              {isExpanded && renderDetails && (
-                <div className="border-t border-border/25 bg-muted/20 px-3 pb-3 pt-2">
-                  {renderDetails(l, idx)}
-                </div>
-              )}
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-}
-
-function MobileDetailKvp({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-2 text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium tabular-nums">{value}</span>
-    </div>
-  );
-}
-
-function MobileDetailSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-primary">{title}</div>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
-}
-
-function ModePair({ manual, fsis }: { manual: number; fsis: number }) {
-  return (
-    <span className="flex flex-col items-end gap-1">
-      <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-primary">
-        MANUAL <N v={manual} />
-      </span>
-      <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-muted-foreground">
-        FSIS <N v={fsis} />
-      </span>
-    </span>
-  );
-}
-
-function InspectionMobileDetails({
-  line,
-  metrics,
-}: {
-  line: DayLine;
-  metrics: Record<string, SectorMetrics>;
-}) {
-  return (
-    <div className="space-y-3">
-      <MobileDetailSection title="Inspection">
-        {INSPECTION_PLAIN_COLS.map((c) => (
-          <MobileDetailKvp key={c.key} label={c.label} value={<N v={line.inspection[c.key] ?? 0} />} />
-        ))}
-      </MobileDetailSection>
-
-      {INSPECTION_SECTORS.map((s) => {
-        const m = metrics[s.key];
-        if (!m) return null;
-        return (
-          <MobileDetailSection key={s.key} title={`Government Sector: ${s.label}`}>
-            <MobileDetailKvp label="Target" value={<N v={m.target} />} />
-            <MobileDetailKvp label="Accomplished" value={<N v={m.accomplished} />} />
-            <MobileDetailKvp label="Variance" value={<N v={m.variance} />} />
-            <MobileDetailKvp label="Positive Listing" value={<N v={m.positive} />} />
-            <MobileDetailKvp
-              label="%"
-              value={<span className={cn("font-medium", m.pctClass)}>{m.pctText}</span>}
-            />
-          </MobileDetailSection>
-        );
-      })}
-
-      <MobileDetailSection title="FSEC">
-        {FSEC_COLS.map((c) => (
-          <MobileDetailKvp
-            key={c.key}
-            label={c.label}
-            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
-          />
-        ))}
-      </MobileDetailSection>
-
-      <MobileDetailSection title="FSIC">
-        {FSIC_COLS.map((c) => (
-          <MobileDetailKvp
-            key={c.key}
-            label={c.label}
-            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
-          />
-        ))}
-      </MobileDetailSection>
-
-      <MobileDetailSection title="Issued Notices">
-        {NOTICE_COLS.map((c) => (
-          <MobileDetailKvp
-            key={c.key}
-            label={c.label}
-            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
-          />
-        ))}
-      </MobileDetailSection>
-    </div>
-  );
-}
-
-function ReinspectionMobileDetails({ line }: { line: DayLine }) {
-  return (
-    <div className="space-y-3">
-      <MobileDetailSection title="Reinspection">
-        {REINSPECTION_COLS.map((c) => (
-          <MobileDetailKvp
-            key={c.key}
-            label={c.label}
-            value={<N v={line.reinspection[c.key] ?? 0} />}
-          />
-        ))}
-      </MobileDetailSection>
-
-      <MobileDetailSection title="Re-FSIC">
-        {RE_FSIC_COLS.map((c) => (
-          <MobileDetailKvp
-            key={c.key}
-            label={c.label}
-            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
-          />
-        ))}
-      </MobileDetailSection>
-
-      <MobileDetailSection title="Re-Issued Notices">
-        {RE_NOTICE_COLS.map((c) => (
-          <MobileDetailKvp
-            key={c.key}
-            label={c.label}
-            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
-          />
-        ))}
-      </MobileDetailSection>
     </div>
   );
 }
@@ -2264,106 +1860,370 @@ function ComplianceLedgerCard({
               </div>
             ) : (
               <>
-                <div className="hidden flex-wrap items-start gap-3 md:flex">
-                  {/* Inspection — During / After */}
-                  <div className="w-full">
-                    <GroupCard
-                      title="Inspection"
-                      periodHeading={periodHeading}
-                      lines={normLines}
-                      columns={INSPECTION_PLAIN_COLS}
-                      minW="min-w-[24rem]"
-                      cellValue={(l, key) => l.inspection[key] ?? 0}
-                      totalAt={(key) => totals.inspection[key] ?? 0}
-                    />
-                  </div>
-
-                  {/* Government Sector — per-sector metrics */}
-                  <div className="w-full">
-                    <GroupCard
-                      title="Government Sector"
-                      periodHeading={periodHeading}
-                      lines={normLines}
-                      columns={[]}
-                      minW="min-w-[1550px]"
-                      subHeads={INSPECTION_SECTORS.map((s) => ({
-                        key: s.key,
-                        label: s.label,
-                        colSpan: SECTOR_METRIC_LABELS.length,
-                      }))}
-                      renderLineCells={(l, idx) =>
-                        INSPECTION_SECTORS.map((s) => (
-                          <SectorMetricCells
+                <div className="hidden max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner md:block">
+                  <table className="w-full min-w-[1800px] border-separate border-spacing-0 text-xs">
+                    <thead>
+                      <tr>
+                        <th
+                          rowSpan={3}
+                          className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] border-r border-r-border/50 text-left shadow-[2px_0_6px_-4px_hsl(var(--foreground)/0.35)]`}
+                        >
+                          {periodHeading}
+                        </th>
+                        <th
+                          colSpan={INSPECTION_PLAIN_COLS.length + INSPECTION_SECTORS.length * 5}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                        >
+                          Inspection
+                        </th>
+                        <th rowSpan={3} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
+                          Mode of Issuance
+                        </th>
+                        <th
+                          colSpan={FSEC_COLS.length}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                        >
+                          FSEC
+                        </th>
+                        <th
+                          colSpan={FSIC_COLS.length}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                        >
+                          FSIC
+                        </th>
+                        <th
+                          colSpan={NOTICE_COLS.length}
+                          className={`${headCell} sticky top-0 z-30`}
+                        >
+                          Issued Notices
+                        </th>
+                      </tr>
+                      <tr>
+                        {INSPECTION_PLAIN_COLS.map((c) => (
+                          <th
+                            key={c.key}
+                            rowSpan={2}
+                            className={`${headCell} sticky top-[30px] z-30 min-w-[5rem] ${strongRight}`}
+                          >
+                            {c.label}
+                          </th>
+                        ))}
+                        {INSPECTION_SECTORS.map((s) => (
+                          <th
                             key={s.key}
-                            metrics={lineMetrics[idx][s.key]}
-                            cellClass={bodyCell}
-                          />
-                        ))
-                      }
-                      renderTotalCells={() =>
-                        INSPECTION_SECTORS.map((s) => (
+                            colSpan={5}
+                            className={`${headCell} sticky top-[30px] z-30 min-w-[16rem] ${strongRight}`}
+                          >
+                            {s.label}
+                          </th>
+                        ))}
+                        {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                          <th
+                            key={c.key}
+                            rowSpan={2}
+                            className={`${headCell} sticky top-[30px] z-30 min-w-[5.5rem] ${strongRight}`}
+                          >
+                            {c.label}
+                          </th>
+                        ))}
+                      </tr>
+                      <tr>
+                        {INSPECTION_SECTORS.map((s) =>
+                          SECTOR_METRIC_LABELS.map((label, idx) => (
+                            <th
+                              key={`${s.key}-${label}`}
+                              className={`${subHeadCell} sticky top-[60px] z-30 min-w-[4.5rem] ${idx === SECTOR_METRIC_LABELS.length - 1 ? strongRight : ""}`}
+                            >
+                              <span className="block uppercase leading-[1.1]">{label}</span>
+                            </th>
+                          )),
+                        )}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {normLines.map((l, lineIdx) => {
+                        const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                          ? l.key
+                          : l.key.match(/^\d{4}-\d{2}$/)
+                            ? `${l.key}-01`
+                            : null;
+                        return (
+                          <React.Fragment key={l.key}>
+                            <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
+                              <th scope="row" rowSpan={2} className={rowHeadCell}>
+                                <span className="flex items-center gap-2 whitespace-nowrap">
+                                  {labelDate && (
+                                    <DayLockIcon
+                                      date={labelDate}
+                                      module="monitoring"
+                                      className="h-3 w-3"
+                                    />
+                                  )}
+                                  {l.label}
+                                </span>
+                              </th>
+                              {INSPECTION_PLAIN_COLS.map((c) => (
+                                <td
+                                  key={c.key}
+                                  rowSpan={2}
+                                  className={`${bodyCell} ${strongRight}`}
+                                >
+                                  <N v={l.inspection[c.key] ?? 0} />
+                                </td>
+                              ))}
+                              {INSPECTION_SECTORS.map((s) => (
+                                <SectorMetricCells
+                                  key={s.key}
+                                  metrics={lineMetrics[lineIdx][s.key]}
+                                  cellClass={bodyCell}
+                                  rowSpan={2}
+                                />
+                              ))}
+                              <td className={`${bodyCell} ${strongRight}`}>
+                                <ModeBadge label="MANUAL" />
+                              </td>
+                              {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                                <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.manual[c.key] ?? 0} />
+                                </td>
+                              ))}
+                            </tr>
+                            <tr className="group row-alt transition-colors hover:bg-primary/5">
+                              <td className={`${bodyCell} ${strongRight}`}>
+                                <ModeBadge label="FSIS" />
+                              </td>
+                              {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                                <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.fsis[c.key] ?? 0} />
+                                </td>
+                              ))}
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+
+                    <tfoot>
+                      {/* One combined total — MANUAL + FSIS are never split here. */}
+                      <tr>
+                        <th
+                          scope="row"
+                          className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
+                        >
+                          Total
+                        </th>
+                        {INSPECTION_PLAIN_COLS.map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          >
+                            <N v={totals.inspection[c.key]} />
+                          </td>
+                        ))}
+                        {INSPECTION_SECTORS.map((s) => (
                           <SectorMetricCells
                             key={s.key}
                             metrics={totalMetrics[s.key]}
                             cellClass={`${footCell} sticky bottom-0 z-30`}
                           />
-                        ))
-                      }
-                    />
-                  </div>
-
-                  {/* FSEC / FSIC / Issued Notices — MANUAL + FSIS issuance modes */}
-                  <div className="min-w-[30rem] flex-1">
-                    <GroupCard
-                      title="FSEC"
-                      periodHeading={periodHeading}
-                      lines={normLines}
-                      columns={FSEC_COLS}
-                      minW="min-w-[31rem]"
-                      splitModes
-                      manualAt={(l, key) => l.manual[key] ?? 0}
-                      fsisAt={(l, key) => l.fsis[key] ?? 0}
-                      totalAt={(key) => totals.combined[key] ?? 0}
-                    />
-                  </div>
-                  <div className="min-w-[40rem] flex-1">
-                    <GroupCard
-                      title="FSIC"
-                      periodHeading={periodHeading}
-                      lines={normLines}
-                      columns={FSIC_COLS}
-                      minW="min-w-[43rem]"
-                      splitModes
-                      manualAt={(l, key) => l.manual[key] ?? 0}
-                      fsisAt={(l, key) => l.fsis[key] ?? 0}
-                      totalAt={(key) => totals.combined[key] ?? 0}
-                    />
-                  </div>
-                  <div className="min-w-[26rem] flex-1">
-                    <GroupCard
-                      title="Issued Notices"
-                      periodHeading={periodHeading}
-                      lines={normLines}
-                      columns={NOTICE_COLS}
-                      minW="min-w-[28rem]"
-                      splitModes
-                      manualAt={(l, key) => l.manual[key] ?? 0}
-                      fsisAt={(l, key) => l.fsis[key] ?? 0}
-                      totalAt={(key) => totals.combined[key] ?? 0}
-                    />
-                  </div>
+                        ))}
+                        <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
+                        {[...FSEC_COLS, ...FSIC_COLS, ...NOTICE_COLS].map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          >
+                            <N v={totals.combined[c.key]} />
+                          </td>
+                        ))}
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
 
-                <MobilePeriodList
-                  lines={normLines}
-                  groupBy={groupBy}
-                  hasRecord={(l) =>
-                    l.totals.inspection + l.totals.fsec + l.totals.fsic + l.totals.notices > 0
-                  }
-                  renderDetails={(l, idx) => (
-                    <InspectionMobileDetails line={l} metrics={lineMetrics[idx] ?? {}} />
-                  )}
-                />
+                <div className="space-y-3 md:hidden">
+                  {normLines.map((l, lineIdx) => {
+                    const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                      ? l.key
+                      : l.key.match(/^\d{4}-\d{2}$/)
+                        ? `${l.key}-01`
+                        : null;
+                    const inspectionValues = [
+                      { label: "During", value: l.inspection.inspectduringcount ?? 0 },
+                      { label: "After", value: l.inspection.inspectaftercount ?? 0 },
+                    ];
+                    const sectorValues = INSPECTION_SECTORS.map((s) => ({
+                      key: s.key,
+                      label: s.label,
+                      value: lineMetrics[lineIdx][s.key],
+                    }));
+
+                    return (
+                      <Card
+                        key={l.key}
+                        className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              {labelDate && (
+                                <DayLockIcon
+                                  date={labelDate}
+                                  module="monitoring"
+                                  className="h-3 w-3"
+                                />
+                              )}
+                              {l.label}
+                            </div>
+                            <div className="mt-1 text-xs font-bold text-foreground">
+                              Inspection &amp; Issuance
+                            </div>
+                          </div>
+                          <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
+                            <div className="text-[9px] font-semibold uppercase text-primary">
+                              Total
+                            </div>
+                            <div className="text-sm font-bold text-primary">
+                              {(
+                                l.totals.inspection +
+                                l.totals.fsec +
+                                l.totals.fsic +
+                                l.totals.notices
+                              ).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {inspectionValues.map((item) => (
+                            <MobileStat
+                              key={item.label}
+                              label={item.label}
+                              value={item.value.toLocaleString()}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="mt-3 space-y-2 rounded-xl border border-border/50 bg-muted/20 p-2">
+                          <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                            Sector detail
+                          </div>
+                          {sectorValues.map((sector) => (
+                            <div
+                              key={sector.key}
+                              className="rounded-lg border border-border/40 bg-card p-2"
+                            >
+                              <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
+                                <span>{sector.label}</span>
+                                <span>{sector.value.pctText}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-[11px] tabular-nums">
+                                <div>
+                                  <div className="text-muted-foreground">Target</div>
+                                  <div className="font-semibold">
+                                    {sector.value.target.toLocaleString()}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">Done</div>
+                                  <div className="font-semibold">
+                                    {sector.value.accomplished.toLocaleString()}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              Manual
+                            </div>
+                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>FSEC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.fsecbuildingcount,
+                                    l.manual.fsecgovcount,
+                                    l.manual.fsecpezacount,
+                                    l.manual.fsectiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>FSIC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.fsicoccupancycount,
+                                    l.manual.fsicbplonewcount,
+                                    l.manual.fsicbplorenewcount,
+                                    l.manual.fsicgovcount,
+                                    l.manual.fsicpezacount,
+                                    l.manual.fsictiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Notices</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.nodcount,
+                                    l.manual.ntccount,
+                                    l.manual.closedcount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              FSIS
+                            </div>
+                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>FSEC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.fsecbuildingcount,
+                                    l.fsis.fsecgovcount,
+                                    l.fsis.fsecpezacount,
+                                    l.fsis.fsectiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>FSIC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.fsicoccupancycount,
+                                    l.fsis.fsicbplonewcount,
+                                    l.fsis.fsicbplorenewcount,
+                                    l.fsis.fsicgovcount,
+                                    l.fsis.fsicpezacount,
+                                    l.fsis.fsictiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Notices</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.nodcount,
+                                    l.fsis.ntccount,
+                                    l.fsis.closedcount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
               </>
             ))}
         </section>
@@ -2382,71 +2242,261 @@ function ComplianceLedgerCard({
               </div>
             ) : (
               <>
-                <div className="hidden flex-wrap items-start gap-3 md:flex">
-                  {/* REINSPECTION — occupancy / sector counts */}
-                  <div className="min-w-[36rem] flex-1">
-                    <GroupCard
-                      title="Reinspection"
-                      periodHeading={periodHeading}
-                      lines={normLines}
-                      columns={REINSPECTION_COLS}
-                      minW="min-w-[37rem]"
-                      cellValue={(l, key) => l.reinspection[key] ?? 0}
-                      totalAt={(key) => totals.reinspection[key] ?? 0}
-                    />
-                  </div>
+                <div className="hidden max-h-[26rem] overflow-auto rounded-xl border border-border/40 bg-card shadow-inner md:block">
+                  <table className="w-full min-w-[1300px] border-separate border-spacing-0 text-xs">
+                    <thead>
+                      <tr>
+                        <th
+                          rowSpan={2}
+                          className={`${headCell} sticky left-0 top-0 z-40 min-w-[9.5rem] text-left border-r border-r-border/50`}
+                        >
+                          {periodHeading}
+                        </th>
+                        <th
+                          colSpan={REINSPECTION_COLS.length}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                        >
+                          Reinspection
+                        </th>
+                        <th rowSpan={2} className={`${headCell} sticky top-0 z-30 ${strongRight}`}>
+                          Mode of Issuance
+                        </th>
+                        <th
+                          colSpan={RE_FSIC_COLS.length}
+                          className={`${headCell} sticky top-0 z-30 ${strongRight}`}
+                        >
+                          Re-FSIC
+                        </th>
+                        <th
+                          colSpan={RE_NOTICE_COLS.length}
+                          className={`${headCell} sticky top-0 z-30`}
+                        >
+                          Re-Issued Notices
+                        </th>
+                      </tr>
+                      <tr>
+                        {[...REINSPECTION_COLS, ...RE_FSIC_COLS, ...RE_NOTICE_COLS].map(
+                          (c, idx) => (
+                            <th
+                              key={`${c.key}-${idx}`}
+                              className={`${headCell} sticky top-[30px] z-30 min-w-[6rem] ${strongRight}`}
+                            >
+                              {c.label}
+                            </th>
+                          ),
+                        )}
+                      </tr>
+                    </thead>
 
-                  {/* RE-FSIC — MANUAL + FSIS issuance modes */}
-                  <div className="min-w-[41rem] flex-1">
-                    <GroupCard
-                      title="Re-FSIC"
-                      periodHeading={periodHeading}
-                      lines={normLines}
-                      columns={RE_FSIC_COLS}
-                      minW="min-w-[43rem]"
-                      splitModes
-                      manualAt={(l, key) => l.manual[key] ?? 0}
-                      fsisAt={(l, key) => l.fsis[key] ?? 0}
-                      totalAt={(key) => totals.combined[key] ?? 0}
-                    />
-                  </div>
+                    <tbody>
+                      {normLines.map((l) => {
+                        const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                          ? l.key
+                          : l.key.match(/^\d{4}-\d{2}$/)
+                            ? `${l.key}-01`
+                            : null;
+                        return (
+                          <React.Fragment key={l.key}>
+                            <tr className="group bg-card even:row-alt transition-colors hover:bg-primary/5">
+                              <th scope="row" rowSpan={2} className={rowHeadCell}>
+                                <span className="flex items-center gap-2 whitespace-nowrap">
+                                  {labelDate && (
+                                    <DayLockIcon
+                                      date={labelDate}
+                                      module="monitoring"
+                                      className="h-3 w-3"
+                                    />
+                                  )}
+                                  {l.label}
+                                </span>
+                              </th>
+                              {REINSPECTION_COLS.map((c) => (
+                                <td
+                                  key={c.key}
+                                  rowSpan={2}
+                                  className={`${bodyCell} ${strongRight}`}
+                                >
+                                  <N v={l.reinspection[c.key] ?? 0} />
+                                </td>
+                              ))}
+                              <td className={`${bodyCell} ${strongRight}`}>
+                                <ModeBadge label="MANUAL" />
+                              </td>
+                              {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                                <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.manual[c.key] ?? 0} />
+                                </td>
+                              ))}
+                            </tr>
+                            <tr className="group row-alt transition-colors hover:bg-primary/5">
+                              <td className={`${bodyCell} ${strongRight}`}>
+                                <ModeBadge label="FSIS" />
+                              </td>
+                              {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                                <td key={c.key} className={`${bodyCell} ${strongRight}`}>
+                                  <N v={l.fsis[c.key] ?? 0} />
+                                </td>
+                              ))}
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
 
-                  {/* RE-ISSUED NOTICES — MANUAL + FSIS issuance modes */}
-                  <div className="min-w-[25rem] flex-1">
-                    <GroupCard
-                      title="Re-Issued Notices"
-                      periodHeading={periodHeading}
-                      lines={normLines}
-                      columns={RE_NOTICE_COLS}
-                      minW="min-w-[28rem]"
-                      splitModes
-                      manualAt={(l, key) => l.manual[key] ?? 0}
-                      fsisAt={(l, key) => l.fsis[key] ?? 0}
-                      totalAt={(key) => totals.combined[key] ?? 0}
-                    />
-                  </div>
+                    <tfoot>
+                      <tr>
+                        <th
+                          scope="row"
+                          className={`${footCell} sticky bottom-0 left-0 z-40 border-r border-r-border/50 text-left uppercase`}
+                        >
+                          Total
+                        </th>
+                        {REINSPECTION_COLS.map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          >
+                            <N v={totals.reinspection[c.key]} />
+                          </td>
+                        ))}
+                        <td className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}>Total</td>
+                        {[...RE_FSIC_COLS, ...RE_NOTICE_COLS].map((c) => (
+                          <td
+                            key={c.key}
+                            className={`${footCell} sticky bottom-0 z-30 ${strongRight}`}
+                          >
+                            <N v={totals.combined[c.key]} />
+                          </td>
+                        ))}
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
 
-                <MobilePeriodList
-                  lines={normLines}
-                  groupBy={groupBy}
-                  hasRecord={(l) => {
-                    const reinspectionTotal = REINSPECTION_COLS.reduce(
-                      (sum, c) => sum + num(l.reinspection[c.key]),
-                      0,
+                <div className="space-y-3 md:hidden">
+                  {normLines.map((l) => {
+                    const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+                      ? l.key
+                      : l.key.match(/^\d{4}-\d{2}$/)
+                        ? `${l.key}-01`
+                        : null;
+                    const reinspectionStats = REINSPECTION_COLS.map((c) => ({
+                      label: c.label,
+                      value: l.reinspection[c.key] ?? 0,
+                    }));
+
+                    return (
+                      <Card
+                        key={l.key}
+                        className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              {labelDate && (
+                                <DayLockIcon
+                                  date={labelDate}
+                                  module="monitoring"
+                                  className="h-3 w-3"
+                                />
+                              )}
+                              {l.label}
+                            </div>
+                            <div className="mt-1 text-xs font-bold text-foreground">
+                              Reinspection
+                            </div>
+                          </div>
+                          <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
+                            <div className="text-[9px] font-semibold uppercase text-primary">
+                              Total
+                            </div>
+                            <div className="text-sm font-bold text-primary">
+                              {(
+                                l.totals.inspection +
+                                l.totals.fsec +
+                                l.totals.fsic +
+                                l.totals.notices
+                              ).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {reinspectionStats.map((item) => (
+                            <MobileStat
+                              key={item.label}
+                              label={item.label}
+                              value={item.value.toLocaleString()}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              Manual
+                            </div>
+                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Re-FSIC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.fsicoccupancycount,
+                                    l.manual.fsicbplonewcount,
+                                    l.manual.fsicbplorenewcount,
+                                    l.manual.fsicgovcount,
+                                    l.manual.fsicpezacount,
+                                    l.manual.fsictiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Notices</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.manual.nodcount,
+                                    l.manual.ntccount,
+                                    l.manual.closedcount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
+                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              FSIS
+                            </div>
+                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Re-FSIC</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.fsicoccupancycount,
+                                    l.fsis.fsicbplonewcount,
+                                    l.fsis.fsicbplorenewcount,
+                                    l.fsis.fsicgovcount,
+                                    l.fsis.fsicpezacount,
+                                    l.fsis.fsictiezacount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Notices</span>
+                                <span className="font-semibold">
+                                  {sumMobileNumbers(
+                                    l.fsis.nodcount,
+                                    l.fsis.ntccount,
+                                    l.fsis.closedcount,
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
                     );
-                    const reFsicTotal = RE_FSIC_COLS.reduce(
-                      (sum, c) => sum + num(l.manual[c.key]) + num(l.fsis[c.key]),
-                      0,
-                    );
-                    const reNoticeTotal = RE_NOTICE_COLS.reduce(
-                      (sum, c) => sum + num(l.manual[c.key]) + num(l.fsis[c.key]),
-                      0,
-                    );
-                    return reinspectionTotal + reFsicTotal + reNoticeTotal > 0;
-                  }}
-                  renderDetails={(l) => <ReinspectionMobileDetails line={l} />}
-                />
+                  })}
+                </div>
               </>
             ))}
         </section>
