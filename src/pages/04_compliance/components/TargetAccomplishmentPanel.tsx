@@ -51,6 +51,28 @@ function Dot({ color }: { color: string }) {
   );
 }
 
+/** Mobile-only stat box: uppercase label above a colored value. */
+function MobileStat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-md border border-border/40 bg-muted/20 px-2.5 py-2">
+      <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <span className="text-base font-bold tabular-nums" style={color ? { color } : undefined}>
+        {value.toLocaleString()}
+      </span>
+    </div>
+  );
+}
+
 function pickTarget(m: TargetAccomplishmentModel, k: CategoryKey): number {
   switch (k) {
     case "bplo":
@@ -258,8 +280,8 @@ export default function TargetAccomplishmentPanel({
         </div>
       ) : (
         <>
-          <div className="border-b border-border/50 bg-card/40 p-4">
-            <div className="h-64 w-full">
+          <div className="border-b border-border/50 bg-card/40 p-3 md:p-4">
+            <div className="h-44 w-full sm:h-56 md:h-64">
               <ResponsiveContainer>
                 <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -274,7 +296,8 @@ export default function TargetAccomplishmentPanel({
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          {/* Desktop: full table (unchanged on md+) */}
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -381,6 +404,55 @@ export default function TargetAccomplishmentPanel({
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile: per-category stat cards — mirrors the notices view style.
+              Rendered only below md; the desktop table above is untouched. */}
+          <div className="space-y-3 p-3 md:hidden">
+            {rows.map((r) => (
+              <div
+                key={r.key}
+                className="overflow-hidden rounded-xl border border-border/40 bg-card shadow-soft"
+              >
+                <div className="flex items-center justify-between gap-2 border-b border-border/40 bg-muted/10 px-3 py-2.5">
+                  <span className="text-sm font-bold uppercase tracking-wide text-foreground">
+                    {r.label}
+                  </span>
+                  <span
+                    className="text-sm font-bold tabular-nums"
+                    style={{ color: r.percentage >= 100 ? SERIES.positive : SERIES.inspected }}
+                  >
+                    {r.percentage.toFixed(2)}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 p-2.5">
+                  <MobileStat label="Target" value={r.target} color={SERIES.target} />
+                  <MobileStat label="Inspected" value={r.inspected} color={SERIES.inspected} />
+                  <MobileStat label="Variance" value={r.variance} color={SERIES.variance} />
+                  <MobileStat label="Positive" value={r.positive} color={SERIES.positive} />
+                </div>
+              </div>
+            ))}
+
+            <div className="overflow-hidden rounded-xl border border-border/40 bg-primary/5 shadow-soft">
+              <div className="flex items-center justify-between gap-2 border-b border-border/40 bg-muted/10 px-3 py-2.5">
+                <span className="text-sm font-bold uppercase tracking-wide text-foreground">
+                  Total
+                </span>
+                <span
+                  className="text-sm font-bold tabular-nums"
+                  style={{ color: totalPct >= 100 ? SERIES.positive : SERIES.inspected }}
+                >
+                  {totalPct.toFixed(2)}%
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 p-2.5">
+                <MobileStat label="Target" value={totals.target} color={SERIES.target} />
+                <MobileStat label="Inspected" value={totals.inspected} color={SERIES.inspected} />
+                <MobileStat label="Variance" value={totalVariance} color={SERIES.variance} />
+                <MobileStat label="Positive" value={totalPositive} color={SERIES.positive} />
+              </div>
+            </div>
           </div>
         </>
       )}

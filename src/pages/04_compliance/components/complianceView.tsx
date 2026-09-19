@@ -35,6 +35,7 @@ import StationInfoCard from "@/components/station-info-card";
 import { complianceAPI } from "@/services/complianceAPI";
 import { MONITORING_THEME } from "./complianceTheme";
 import TargetAccomplishmentPanel from "./TargetAccomplishmentPanel";
+import { MobileActivityList } from "./complianceViewMobile";
 import { unwrap } from "@/lib/api-envelope";
 import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { MONTHS } from "@/lib/fsims-constants";
@@ -629,18 +630,35 @@ function ComplianceViewBody({
         />
 
         {issuanceExpanded && (
-          <ActivityTable
-            days={days}
-            inspectionLabel="Inspection"
-            inspectionCols={INSPECT_COLS}
-            targetBreakdown
-            groups={[
-              { label: "FSEC", cols: FSEC_COLS },
-              { label: "FSIC", cols: FSIC_COLS },
-              { label: "Issued Notices", cols: NOTICE_COLS },
-            ]}
-            rowTotal={inspectionRowTotal}
-          />
+          <>
+            <div className="hidden md:block">
+              <ActivityTable
+                days={days}
+                inspectionLabel="Inspection"
+                inspectionCols={INSPECT_COLS}
+                targetBreakdown
+                groups={[
+                  { label: "FSEC", cols: FSEC_COLS },
+                  { label: "FSIC", cols: FSIC_COLS },
+                  { label: "Issued Notices", cols: NOTICE_COLS },
+                ]}
+                rowTotal={inspectionRowTotal}
+              />
+            </div>
+            <div className="md:hidden">
+              <MobileActivityList
+                days={days}
+                variant="inspection"
+                inspectionCols={INSPECT_COLS}
+                groups={[
+                  { label: "FSEC", cols: FSEC_COLS },
+                  { label: "FSIC", cols: FSIC_COLS },
+                  { label: "Issued Notices", cols: NOTICE_COLS },
+                ]}
+                rowTotal={(d) => inspectionRowTotal(d as never)}
+              />
+            </div>
+          </>
         )}
       </Card>
 
@@ -654,16 +672,32 @@ function ComplianceViewBody({
         />
 
         {reinspectionExpanded && (
-          <ActivityTable
-            days={days}
-            inspectionLabel="Reinspection"
-            inspectionCols={REINSPECT_COLS}
-            groups={[
-              { label: "RE-FSIC", cols: REFSIC_COLS },
-              { label: "Re-Issued Notices", cols: RENOTICE_COLS },
-            ]}
-            rowTotal={reinspectionRowTotal}
-          />
+          <>
+            <div className="hidden md:block">
+              <ActivityTable
+                days={days}
+                inspectionLabel="Reinspection"
+                inspectionCols={REINSPECT_COLS}
+                groups={[
+                  { label: "RE-FSIC", cols: REFSIC_COLS },
+                  { label: "Re-Issued Notices", cols: RENOTICE_COLS },
+                ]}
+                rowTotal={reinspectionRowTotal}
+              />
+            </div>
+            <div className="md:hidden">
+              <MobileActivityList
+                days={days}
+                variant="reinspection"
+                inspectionCols={REINSPECT_COLS}
+                groups={[
+                  { label: "RE-FSIC", cols: REFSIC_COLS },
+                  { label: "Re-Issued Notices", cols: RENOTICE_COLS },
+                ]}
+                rowTotal={(d) => reinspectionRowTotal(d as never)}
+              />
+            </div>
+          </>
         )}
       </Card>
     </div>
@@ -1122,13 +1156,13 @@ export default function ComplianceViewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elegant">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elegant">
             <Eye className="h-5 w-5" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
               Fire Safety Compliance — Daily Details
             </h1>
             <p className="text-sm text-muted-foreground">

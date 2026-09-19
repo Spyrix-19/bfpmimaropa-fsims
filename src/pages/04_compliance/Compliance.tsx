@@ -1683,17 +1683,301 @@ function SectorMetricCells({
   );
 }
 
-function sumMobileNumbers(...values: Array<number | undefined | null>) {
-  return values.reduce<number>((total, value) => total + (Number(value) || 0), 0);
+/* ---------------------- Mobile accordion (phones only) ----------------------
+ * Renders every date / week / period of the browsed month as a collapsible
+ * row. Rows with no activity show a "No Record" pill; tapping a row reveals
+ * the full sub-item breakdown. Desktop keeps the wide ledger tables.
+ * ------------------------------------------------------------------------- */
+
+/** Right-aligned value; zeros are muted so real activity stands out. */
+function MobileValue({ v }: { v: number }) {
+  const value = num(v);
+  return (
+    <span
+      className={`text-xs font-semibold tabular-nums ${value ? "text-foreground" : "text-muted-foreground"}`}
+    >
+      {value.toLocaleString()}
+    </span>
+  );
 }
 
-function MobileStat({ label, value }: { label: string; value: number | string }) {
+/** Two equal mobile value cells used for paired metrics and issuance modes. */
+function MobileValuePair({
+  leftLabel,
+  leftValue,
+  rightLabel,
+  rightValue,
+}: {
+  leftLabel: string;
+  leftValue: number;
+  rightLabel: string;
+  rightValue: number;
+}) {
   return (
-    <div className="rounded-xl border border-border/50 bg-muted/25 p-2">
-      <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
+    <div className="grid grid-cols-2 gap-2">
+      {[
+        { label: leftLabel, value: leftValue },
+        { label: rightLabel, value: rightValue },
+      ].map((item) => (
+        <div
+          key={item.label}
+          className="flex min-h-8 items-center justify-between gap-2 rounded-lg border border-border bg-background px-2"
+        >
+          <span className="text-[9px] font-bold uppercase text-muted-foreground">{item.label}</span>
+          <MobileValue v={item.value} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MobileModePair({ manual, fsis }: { manual: number; fsis: number }) {
+  return (
+    <MobileValuePair
+      leftLabel="Manual"
+      leftValue={manual}
+      rightLabel="FSIS"
+      rightValue={fsis}
+    />
+  );
+}
+
+/** Group caption inside an expanded mobile row, e.g. "REINSPECTION". */
+function MobileGroupTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="pb-2 pt-4 text-xs font-bold uppercase text-primary">
+      {children}
+    </div>
+  );
+}
+
+/** One bordered item card inside an expanded mobile period. */
+function MobileDetailCard({
+  label,
+  total,
+  children,
+}: {
+  label: string;
+  total?: number | string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-2">
+      <div className="flex items-center justify-between gap-3 pb-2">
+        <span className="text-[10px] font-bold uppercase text-muted-foreground">{label}</span>
+        {total !== undefined && (
+          <span className="text-xs font-bold tabular-nums text-primary">{total}</span>
+        )}
       </div>
-      <div className="mt-1 text-sm font-bold tabular-nums text-foreground">{value}</div>
+      {children}
+    </div>
+  );
+}
+
+/** True when any count or target on the line is non-zero. */
+function mobileLineHasRecord(l: DayLine): boolean {
+  if (Object.values(l.inspection).some((v) => num(v) !== 0)) return true;
+  if (Object.values(l.reinspection).some((v) => num(v) !== 0)) return true;
+  if (
+    Object.values(l.sectors).some((s) => num(s?.target) !== 0 || num(s?.accomplished) !== 0)
+  ) {
+    return true;
+  }
+  return [...Object.values(l.manual), ...Object.values(l.fsis)].some((v) => num(v) !== 0);
+}
+
+/** Full sub-item breakdown for the Inspection & Issuance section. */
+function MobileInspectionDetail({ line }: { line: DayLine }) {
+  return (
+    <div>
+      <div>
+        <MobileGroupTitle>Inspection</MobileGroupTitle>
+        <MobileValuePair
+          leftLabel="During"
+          leftValue={line.inspection.inspectduringcount ?? 0}
+          rightLabel="After"
+          rightValue={line.inspection.inspectaftercount ?? 0}
+        />
+      </div>
+      <div>
+        <MobileGroupTitle>Government Sector</MobileGroupTitle>
+        <div className="space-y-2">
+          {INSPECTION_SECTORS.map((s) => {
+            const m = calcSectorMetrics(
+              line.sectors[s.key]?.target ?? 0,
+              line.sectors[s.key]?.accomplished ?? 0,
+            );
+            return (
+              <MobileDetailCard key={s.key} label={s.label}>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  {[
+                    ["Target", m.target],
+                    ["Accomplished", m.accomplished],
+                    ["Variance", m.variance],
+                    ["Positive Listing", m.positive],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between gap-2 py-1">
+                      <span className="text-[10px] text-muted-foreground">{label}</span>
+                      <MobileValue v={Number(value)} />
+                    </div>
+                  ))}
+                  <div className="col-span-2 flex items-center justify-between border-t border-border pt-1">
+                    <span className="text-[10px] text-muted-foreground">Percentage</span>
+                    <span className={`text-xs font-bold tabular-nums ${m.pctClass}`}>{m.pctText}</span>
+                  </div>
+                </div>
+              </MobileDetailCard>
+            );
+          })}
+        </div>
+      </div>
+      <div>
+        <MobileGroupTitle>FSEC</MobileGroupTitle>
+        <div className="space-y-2">
+          {FSEC_COLS.map((c) => (
+            <MobileDetailCard key={c.key} label={c.label} total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}>
+              <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />
+            </MobileDetailCard>
+          ))}
+        </div>
+      </div>
+      <div>
+        <MobileGroupTitle>FSIC</MobileGroupTitle>
+        <div className="space-y-2">
+          {FSIC_COLS.map((c) => (
+            <MobileDetailCard key={c.key} label={c.label} total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}>
+              <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />
+            </MobileDetailCard>
+          ))}
+        </div>
+      </div>
+      <div className="pb-2">
+        <MobileGroupTitle>Issued Notices</MobileGroupTitle>
+        <div className="space-y-2">
+          {NOTICE_COLS.map((c) => {
+            const total = (line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0);
+            return (
+              <MobileDetailCard key={c.key} label={c.label} total={total}>
+                {c.key !== "closedcount" && <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+              </MobileDetailCard>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Full sub-item breakdown for the Reinspection section. */
+function MobileReinspectionDetail({ line }: { line: DayLine }) {
+  return (
+    <div>
+      <div>
+        <MobileGroupTitle>Reinspection</MobileGroupTitle>
+        <div className="space-y-2">
+          {REINSPECTION_COLS.map((c) => (
+            <MobileDetailCard key={c.key} label={c.label} total={line.reinspection[c.key] ?? 0} />
+          ))}
+        </div>
+      </div>
+      <div>
+        <MobileGroupTitle>Re-FSIC</MobileGroupTitle>
+        <div className="space-y-2">
+          {RE_FSIC_COLS.map((c) => (
+            <MobileDetailCard key={c.key} label={c.label} total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}>
+              <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />
+            </MobileDetailCard>
+          ))}
+        </div>
+      </div>
+      <div className="pb-2">
+        <MobileGroupTitle>Re-Issued Notices</MobileGroupTitle>
+        <div className="space-y-2">
+          {RE_NOTICE_COLS.map((c) => {
+            const total = (line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0);
+            return (
+              <MobileDetailCard key={c.key} label={c.label} total={total}>
+                {c.key !== "reclosurecount" && <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+              </MobileDetailCard>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Accordion list of period rows (mobile only). Each row shows the period
+ * label, a "No Record" pill or the line total, and expands to reveal the
+ * complete sub-item breakdown for its section.
+ */
+function MobileLineList({
+  lines,
+  variant,
+}: {
+  lines: DayLine[];
+  variant: "inspection" | "reinspection";
+}) {
+  const [openKey, setOpenKey] = React.useState<string | null>(null);
+
+  return (
+    <div className="border-y border-border bg-card px-3">
+      {lines.map((l) => {
+        const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+          ? l.key
+          : l.key.match(/^\d{4}-\d{2}$/)
+            ? `${l.key}-01`
+            : null;
+        const hasRecord = mobileLineHasRecord(l);
+        const lineTotal = l.totals.inspection + l.totals.fsec + l.totals.fsic + l.totals.notices;
+        const open = openKey === l.key;
+        const ToggleIcon = open ? ChevronUp : ChevronDown;
+
+        return (
+          <div
+            key={l.key}
+            className="border-b border-border last:border-b-0"
+          >
+            <button
+              type="button"
+              onClick={() => setOpenKey(open ? null : l.key)}
+              aria-expanded={open}
+              className="flex min-h-14 w-full items-center justify-between gap-2 px-2 py-3 text-left transition-colors hover:bg-muted/30"
+            >
+              <span className="flex min-w-0 items-center gap-3 text-sm font-semibold text-foreground">
+                {labelDate && (
+                  <DayLockIcon date={labelDate} module="monitoring" className="h-4 w-4 shrink-0" />
+                )}
+                <span className="truncate">{l.label}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                {!hasRecord && (
+                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    No Record
+                  </span>
+                )}
+                <span className="min-w-8 text-right text-sm font-bold tabular-nums text-primary">
+                  {lineTotal.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+                <ToggleIcon className="h-4 w-4 text-foreground/70" />
+              </span>
+            </button>
+            {open && (
+              <div className="border-t border-border/40 px-2 pb-2">
+                {variant === "inspection" ? (
+                  <MobileInspectionDetail line={l} />
+                ) : (
+                  <MobileReinspectionDetail line={l} />
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1771,6 +2055,41 @@ function ComplianceLedgerCard({
   }, []);
 
   const normLines = React.useMemo(() => lines.map((l) => normalizeLine(l)), [lines, normalizeLine]);
+
+  /**
+   * Mobile-only: the complete list of periods for the browsed month, so the
+   * accordion shows every date (daily) or week (weekly) — rows without
+   * activity render a "No Record" pill. Other granularities and the single
+   * picked date keep exactly the lines that carry data.
+   */
+  const mobileLines = React.useMemo((): DayLine[] => {
+    if (groupBy === "day" && !dateISO && row.year && row.month) {
+      const byKey = new Map(normLines.map((l) => [l.key, l]));
+      const totalDays = calendarDaysInMonth(row.year, row.month);
+      const out: DayLine[] = [];
+      for (let d = 1; d <= totalDays; d++) {
+        const iso = `${row.year}-${String(row.month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        out.push(byKey.get(iso) ?? emptyLine(iso, dayLabel(iso)));
+      }
+      return out;
+    }
+    if (groupBy === "week" && row.year && row.month) {
+      const byKey = new Map(normLines.map((l) => [l.key, l]));
+      const totalDays = calendarDaysInMonth(row.year, row.month);
+      const seen = new Set<number>();
+      const out: DayLine[] = [];
+      for (let d = 1; d <= totalDays; d++) {
+        const iso = `${row.year}-${String(row.month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const wk = weekByDate?.get(iso) ?? weekOfMonth(new Date(`${iso}T00:00:00`));
+        if (seen.has(wk)) continue;
+        seen.add(wk);
+        const key = `${row.year}-w${String(wk).padStart(2, "0")}`;
+        out.push(byKey.get(key) ?? emptyLine(key, weekRangeLabels?.get(wk) ?? `Week ${wk} ${row.year}`));
+      }
+      return out;
+    }
+    return normLines;
+  }, [normLines, groupBy, dateISO, row.year, row.month, weekByDate, weekRangeLabels]);
 
   const totals = React.useMemo(() => calculateLedgerTotals(normLines), [normLines]);
 
@@ -2042,187 +2361,8 @@ function ComplianceLedgerCard({
                   </table>
                 </div>
 
-                <div className="space-y-3 md:hidden">
-                  {normLines.map((l, lineIdx) => {
-                    const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
-                      ? l.key
-                      : l.key.match(/^\d{4}-\d{2}$/)
-                        ? `${l.key}-01`
-                        : null;
-                    const inspectionValues = [
-                      { label: "During", value: l.inspection.inspectduringcount ?? 0 },
-                      { label: "After", value: l.inspection.inspectaftercount ?? 0 },
-                    ];
-                    const sectorValues = INSPECTION_SECTORS.map((s) => ({
-                      key: s.key,
-                      label: s.label,
-                      value: lineMetrics[lineIdx][s.key],
-                    }));
-
-                    return (
-                      <Card
-                        key={l.key}
-                        className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {labelDate && (
-                                <DayLockIcon
-                                  date={labelDate}
-                                  module="monitoring"
-                                  className="h-3 w-3"
-                                />
-                              )}
-                              {l.label}
-                            </div>
-                            <div className="mt-1 text-xs font-bold text-foreground">
-                              Inspection &amp; Issuance
-                            </div>
-                          </div>
-                          <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
-                            <div className="text-[9px] font-semibold uppercase text-primary">
-                              Total
-                            </div>
-                            <div className="text-sm font-bold text-primary">
-                              {(
-                                l.totals.inspection +
-                                l.totals.fsec +
-                                l.totals.fsic +
-                                l.totals.notices
-                              ).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          {inspectionValues.map((item) => (
-                            <MobileStat
-                              key={item.label}
-                              label={item.label}
-                              value={item.value.toLocaleString()}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="mt-3 space-y-2 rounded-xl border border-border/50 bg-muted/20 p-2">
-                          <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                            Sector detail
-                          </div>
-                          {sectorValues.map((sector) => (
-                            <div
-                              key={sector.key}
-                              className="rounded-lg border border-border/40 bg-card p-2"
-                            >
-                              <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
-                                <span>{sector.label}</span>
-                                <span>{sector.value.pctText}</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-[11px] tabular-nums">
-                                <div>
-                                  <div className="text-muted-foreground">Target</div>
-                                  <div className="font-semibold">
-                                    {sector.value.target.toLocaleString()}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-muted-foreground">Done</div>
-                                  <div className="font-semibold">
-                                    {sector.value.accomplished.toLocaleString()}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
-                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Manual
-                            </div>
-                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>FSEC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.fsecbuildingcount,
-                                    l.manual.fsecgovcount,
-                                    l.manual.fsecpezacount,
-                                    l.manual.fsectiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>FSIC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.fsicoccupancycount,
-                                    l.manual.fsicbplonewcount,
-                                    l.manual.fsicbplorenewcount,
-                                    l.manual.fsicgovcount,
-                                    l.manual.fsicpezacount,
-                                    l.manual.fsictiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Notices</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.nodcount,
-                                    l.manual.ntccount,
-                                    l.manual.closedcount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
-                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              FSIS
-                            </div>
-                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>FSEC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.fsecbuildingcount,
-                                    l.fsis.fsecgovcount,
-                                    l.fsis.fsecpezacount,
-                                    l.fsis.fsectiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>FSIC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.fsicoccupancycount,
-                                    l.fsis.fsicbplonewcount,
-                                    l.fsis.fsicbplorenewcount,
-                                    l.fsis.fsicgovcount,
-                                    l.fsis.fsicpezacount,
-                                    l.fsis.fsictiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Notices</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.nodcount,
-                                    l.fsis.ntccount,
-                                    l.fsis.closedcount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
+                <div className="md:hidden">
+                  <MobileLineList lines={mobileLines} variant="inspection" />
                 </div>
               </>
             ))}
@@ -2373,129 +2513,8 @@ function ComplianceLedgerCard({
                   </table>
                 </div>
 
-                <div className="space-y-3 md:hidden">
-                  {normLines.map((l) => {
-                    const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
-                      ? l.key
-                      : l.key.match(/^\d{4}-\d{2}$/)
-                        ? `${l.key}-01`
-                        : null;
-                    const reinspectionStats = REINSPECTION_COLS.map((c) => ({
-                      label: c.label,
-                      value: l.reinspection[c.key] ?? 0,
-                    }));
-
-                    return (
-                      <Card
-                        key={l.key}
-                        className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {labelDate && (
-                                <DayLockIcon
-                                  date={labelDate}
-                                  module="monitoring"
-                                  className="h-3 w-3"
-                                />
-                              )}
-                              {l.label}
-                            </div>
-                            <div className="mt-1 text-xs font-bold text-foreground">
-                              Reinspection
-                            </div>
-                          </div>
-                          <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
-                            <div className="text-[9px] font-semibold uppercase text-primary">
-                              Total
-                            </div>
-                            <div className="text-sm font-bold text-primary">
-                              {(
-                                l.totals.inspection +
-                                l.totals.fsec +
-                                l.totals.fsic +
-                                l.totals.notices
-                              ).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          {reinspectionStats.map((item) => (
-                            <MobileStat
-                              key={item.label}
-                              label={item.label}
-                              value={item.value.toLocaleString()}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
-                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Manual
-                            </div>
-                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Re-FSIC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.fsicoccupancycount,
-                                    l.manual.fsicbplonewcount,
-                                    l.manual.fsicbplorenewcount,
-                                    l.manual.fsicgovcount,
-                                    l.manual.fsicpezacount,
-                                    l.manual.fsictiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Notices</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.nodcount,
-                                    l.manual.ntccount,
-                                    l.manual.closedcount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
-                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              FSIS
-                            </div>
-                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Re-FSIC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.fsicoccupancycount,
-                                    l.fsis.fsicbplonewcount,
-                                    l.fsis.fsicbplorenewcount,
-                                    l.fsis.fsicgovcount,
-                                    l.fsis.fsicpezacount,
-                                    l.fsis.fsictiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Notices</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.nodcount,
-                                    l.fsis.ntccount,
-                                    l.fsis.closedcount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
+                <div className="md:hidden">
+                  <MobileLineList lines={mobileLines} variant="reinspection" />
                 </div>
               </>
             ))}
