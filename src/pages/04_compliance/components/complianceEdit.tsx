@@ -56,6 +56,7 @@ import { unwrap } from "@/lib/api-envelope";
 import { MONTHS, EMPTY_GUID } from "@/lib/fsims-constants";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { MONITORING_THEME } from "./complianceTheme";
+import { MobileEditableActivityList } from "./complianceEditMobile";
 // Revision dialogs are code-split: their chunks load the first time one is opened.
 const RevisionRequestDialog = React.lazy(
   () => import("@/pages/06_target-reference/revision/RevisionRequestDialog"),
@@ -100,7 +101,7 @@ import { isPastDateLockEnabled } from "@/lib/past-date-lock";
 /* ========================================================================== */
 
 /** Inspection-level (compliancelist[*]) numeric fields. */
-type InspectionField =
+export type InspectionField =
   | "inspectduringcount"
   | "inspectaftercount"
   | "inspectbplocount"
@@ -114,10 +115,14 @@ type InspectionField =
   | "reinspecttiezacount";
 
 /** Daily target fields (read-only, supplied by the Detail API). */
-type TargetField = "dailytargetbplo" | "dailytargetgov" | "dailytargetpeza" | "dailytargettieza";
+export type TargetField =
+  | "dailytargetbplo"
+  | "dailytargetgov"
+  | "dailytargetpeza"
+  | "dailytargettieza";
 
 /** Issuance-level (compliancelist[*].issuancelist[*]) numeric fields. */
-type IssuanceField =
+export type IssuanceField =
   | "fsecbuildingcount"
   | "fsecgovcount"
   | "fsecpezacount"
@@ -144,12 +149,12 @@ type IssuanceField =
   | "reabatementcount"
   | "reclosurecount";
 
-interface InspectionCol {
+export interface InspectionCol {
   api: InspectionField;
   label: string;
   target?: TargetField;
 }
-interface IssuanceCol {
+export interface IssuanceCol {
   api: IssuanceField;
   label: string;
 }
@@ -242,7 +247,7 @@ type EditableIssuance = Record<IssuanceField, number> & {
   fsicmode: number;
 };
 
-interface EditableDay {
+export interface EditableDay {
   day: number;
   label: string;
   key: string;
@@ -471,7 +476,7 @@ const reinspectionRowTotal = (day: EditableDay) =>
 /*  Editor body — per-day editable tables                                    */
 /* ========================================================================== */
 
-type DayWithRevision = EditableDay & {
+export type DayWithRevision = EditableDay & {
   rev: {
     req: FSISEditRequestModel | null;
     status: RevisionStatus | null;
@@ -1034,24 +1039,48 @@ function ComplianceEditBody({
         />
 
         {issuanceExpanded && (
-          <ActivityTable
-            days={days}
-            stationno={stationno}
-            inspectionLabel="Inspection"
-            inspectionCols={INSPECT_COLS}
-            groups={[
-              { label: "FSEC", cols: FSEC_COLS },
-              { label: "FSIC", cols: FSIC_COLS },
-              { label: "Issued Notices", cols: NOTICE_COLS },
-            ]}
-            rowTotal={inspectionRowTotal}
-            onInspectionChange={updateInspectionField}
-            onIssuanceChange={updateIssuanceField}
-            onRequestRevision={openRevisionRequest}
-            onCancelRevision={setCancelRequestId}
-            onDeleteRevision={setDeleteRequestId}
-            targetBreakdown={true}
-          />
+          <>
+            <div className="hidden md:block">
+              <ActivityTable
+                days={days}
+                stationno={stationno}
+                inspectionLabel="Inspection"
+                inspectionCols={INSPECT_COLS}
+                groups={[
+                  { label: "FSEC", cols: FSEC_COLS },
+                  { label: "FSIC", cols: FSIC_COLS },
+                  { label: "Issued Notices", cols: NOTICE_COLS },
+                ]}
+                rowTotal={inspectionRowTotal}
+                onInspectionChange={updateInspectionField}
+                onIssuanceChange={updateIssuanceField}
+                onRequestRevision={openRevisionRequest}
+                onCancelRevision={setCancelRequestId}
+                onDeleteRevision={setDeleteRequestId}
+                targetBreakdown={true}
+              />
+            </div>
+            <div className="md:hidden">
+              <MobileEditableActivityList
+                days={days}
+                stationno={stationno}
+                inspectionLabel="Inspection"
+                inspectionCols={INSPECT_COLS}
+                groups={[
+                  { label: "FSEC", cols: FSEC_COLS },
+                  { label: "FSIC", cols: FSIC_COLS },
+                  { label: "Issued Notices", cols: NOTICE_COLS },
+                ]}
+                rowTotal={inspectionRowTotal}
+                onInspectionChange={updateInspectionField}
+                onIssuanceChange={updateIssuanceField}
+                onRequestRevision={openRevisionRequest}
+                onCancelRevision={setCancelRequestId}
+                onDeleteRevision={setDeleteRequestId}
+                targetBreakdown={true}
+              />
+            </div>
+          </>
         )}
       </Card>
 
@@ -1065,23 +1094,46 @@ function ComplianceEditBody({
         />
 
         {reinspectionExpanded && (
-          <ActivityTable
-            days={days}
-            stationno={stationno}
-            inspectionLabel="Reinspection"
-            inspectionCols={REINSPECT_COLS}
-            groups={[
-              { label: "RE-FSIC", cols: REFSIC_COLS },
-              { label: "Re-Issued Notices", cols: RENOTICE_COLS },
-            ]}
-            rowTotal={reinspectionRowTotal}
-            onInspectionChange={updateInspectionField}
-            onIssuanceChange={updateIssuanceField}
-            onRequestRevision={openRevisionRequest}
-            onCancelRevision={setCancelRequestId}
-            onDeleteRevision={setDeleteRequestId}
-            targetBreakdown={true}
-          />
+          <>
+            <div className="hidden md:block">
+              <ActivityTable
+                days={days}
+                stationno={stationno}
+                inspectionLabel="Reinspection"
+                inspectionCols={REINSPECT_COLS}
+                groups={[
+                  { label: "RE-FSIC", cols: REFSIC_COLS },
+                  { label: "Re-Issued Notices", cols: RENOTICE_COLS },
+                ]}
+                rowTotal={reinspectionRowTotal}
+                onInspectionChange={updateInspectionField}
+                onIssuanceChange={updateIssuanceField}
+                onRequestRevision={openRevisionRequest}
+                onCancelRevision={setCancelRequestId}
+                onDeleteRevision={setDeleteRequestId}
+                targetBreakdown={true}
+              />
+            </div>
+            <div className="md:hidden">
+              <MobileEditableActivityList
+                days={days}
+                stationno={stationno}
+                inspectionLabel="Reinspection"
+                inspectionCols={REINSPECT_COLS}
+                groups={[
+                  { label: "RE-FSIC", cols: REFSIC_COLS },
+                  { label: "Re-Issued Notices", cols: RENOTICE_COLS },
+                ]}
+                rowTotal={reinspectionRowTotal}
+                onInspectionChange={updateInspectionField}
+                onIssuanceChange={updateIssuanceField}
+                onRequestRevision={openRevisionRequest}
+                onCancelRevision={setCancelRequestId}
+                onDeleteRevision={setDeleteRequestId}
+                targetBreakdown={true}
+              />
+            </div>
+          </>
         )}
       </Card>
 
@@ -1778,12 +1830,20 @@ function SectionTitle({
           : undefined
       }
     >
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        {icon}
-        {title}
-      </h2>
-      <div className="flex items-center gap-2">
-        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+      {/* Mobile: subtitle stacks under the title; sm+ keeps it inline on the right. */}
+      <div className="min-w-0 flex-1">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          {icon}
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-1 text-xs leading-snug text-muted-foreground sm:hidden">{subtitle}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {subtitle && (
+          <span className="hidden text-xs text-muted-foreground sm:inline">{subtitle}</span>
+        )}
         {onToggle && (
           <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
         )}
@@ -1810,8 +1870,10 @@ export default function ComplianceEditPage() {
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elegant">
             <Table2 className="h-5 w-5" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Fire Safety Compliance Editor</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+              Fire Safety Compliance Editor
+            </h1>
             <p className="text-sm text-muted-foreground">
               {stationno} — {monthName} {y}
             </p>

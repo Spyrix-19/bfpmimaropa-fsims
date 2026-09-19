@@ -1170,7 +1170,7 @@ function InspectionsNewBody({
                     </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="hidden overflow-x-auto sm:block">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1286,6 +1286,113 @@ function InspectionsNewBody({
                       </tr>
                     </tbody>
                   </table>
+                </div>
+                {/* Mobile: stacked cards for the daily summary (read-only). */}
+                <div className="divide-y divide-border/50 overflow-hidden rounded-lg border border-border/60 shadow-soft sm:hidden">
+                  {dailySummaryRows.rows.map((r) => (
+                    <div key={r.key} className="px-3 py-2.5">
+                      <div className="mb-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
+                        {r.label}
+                      </div>
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                        <dt className="text-muted-foreground">Daily Target</dt>
+                        <dd
+                          className="text-right font-medium tabular-nums"
+                          style={{ color: DAILY_SERIES.target }}
+                        >
+                          {r.target.toLocaleString()}
+                        </dd>
+                        <dt className="text-muted-foreground">Daily Inspected</dt>
+                        <dd
+                          className="text-right font-medium tabular-nums"
+                          style={{ color: DAILY_SERIES.inspected }}
+                        >
+                          {r.inspected.toLocaleString()}
+                        </dd>
+                        <dt className="text-muted-foreground">Variance</dt>
+                        <dd
+                          className="text-right font-medium tabular-nums"
+                          style={r.variance > 0 ? { color: DAILY_SERIES.variance } : undefined}
+                        >
+                          {r.variance.toLocaleString()}
+                        </dd>
+                        <dt className="text-muted-foreground">Positive Listing</dt>
+                        <dd
+                          className="text-right font-medium tabular-nums"
+                          style={r.positive > 0 ? { color: DAILY_SERIES.positive } : undefined}
+                        >
+                          {r.positive.toLocaleString()}
+                        </dd>
+                        <dt className="text-muted-foreground">% Accomplishment</dt>
+                        <dd
+                          className="text-right font-medium tabular-nums"
+                          style={{
+                            color:
+                              r.percentage >= 100
+                                ? DAILY_SERIES.positive
+                                : DAILY_SERIES.inspected,
+                          }}
+                        >
+                          {`${r.percentage.toFixed(2)}%`}
+                        </dd>
+                      </dl>
+                    </div>
+                  ))}
+                  <div className="bg-primary/5 px-3 py-2.5">
+                    <div className="mb-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
+                      Total
+                    </div>
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs font-semibold">
+                      <dt className="text-muted-foreground">Daily Target</dt>
+                      <dd
+                        className="text-right tabular-nums"
+                        style={{ color: DAILY_SERIES.target }}
+                      >
+                        {dailySummaryRows.totals.target.toLocaleString()}
+                      </dd>
+                      <dt className="text-muted-foreground">Daily Inspected</dt>
+                      <dd
+                        className="text-right tabular-nums"
+                        style={{ color: DAILY_SERIES.inspected }}
+                      >
+                        {dailySummaryRows.totals.inspected.toLocaleString()}
+                      </dd>
+                      <dt className="text-muted-foreground">Variance</dt>
+                      <dd
+                        className="text-right tabular-nums"
+                        style={
+                          dailySummaryRows.totalVariance > 0
+                            ? { color: DAILY_SERIES.variance }
+                            : undefined
+                        }
+                      >
+                        {dailySummaryRows.totalVariance.toLocaleString()}
+                      </dd>
+                      <dt className="text-muted-foreground">Positive Listing</dt>
+                      <dd
+                        className="text-right tabular-nums"
+                        style={
+                          dailySummaryRows.totalPositive > 0
+                            ? { color: DAILY_SERIES.positive }
+                            : undefined
+                        }
+                      >
+                        {dailySummaryRows.totalPositive.toLocaleString()}
+                      </dd>
+                      <dt className="text-muted-foreground">% Accomplishment</dt>
+                      <dd
+                        className="text-right tabular-nums"
+                        style={{
+                          color:
+                            dailySummaryRows.totalPct >= 100
+                              ? DAILY_SERIES.positive
+                              : DAILY_SERIES.inspected,
+                        }}
+                      >
+                        {`${dailySummaryRows.totalPct.toFixed(2)}%`}
+                      </dd>
+                    </dl>
+                  </div>
                 </div>
               </>
             ) : (
@@ -1664,12 +1771,20 @@ function SectionTitle({
           : undefined
       }
     >
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        {icon}
-        {title}
-      </h2>
-      <div className="flex items-center gap-2">
-        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+      {/* Mobile: subtitle stacks under the title; sm+ keeps it inline on the right. */}
+      <div className="min-w-0 flex-1">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          {icon}
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-1 text-xs leading-snug text-muted-foreground sm:hidden">{subtitle}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {subtitle && (
+          <span className="hidden text-xs text-muted-foreground sm:inline">{subtitle}</span>
+        )}
         {onToggle && (
           <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
         )}

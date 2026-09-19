@@ -2125,8 +2125,8 @@ function ComplianceLedgerCard({
     groupBy === "day" ? "No daily entries for this period." : "No entries for this period.";
 
   // Collapsible state for the two activity tables (display only — data is kept).
-  const [inspectionExpanded, setInspectionExpanded] = React.useState(true);
-  const [reinspectionExpanded, setReinspectionExpanded] = React.useState(true);
+  const [inspectionExpanded, setInspectionExpanded] = React.useState(false);
+  const [reinspectionExpanded, setReinspectionExpanded] = React.useState(false);
 
   return (
     <Card className="flex flex-col overflow-hidden border-border/50 dark:border-border/40 shadow-soft transition-shadow hover:shadow-elegant">

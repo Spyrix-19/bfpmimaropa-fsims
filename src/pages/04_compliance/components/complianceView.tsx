@@ -1130,12 +1130,20 @@ function SectionTitle({
           : undefined
       }
     >
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        {icon}
-        {title}
-      </h2>
-      <div className="flex items-center gap-2">
-        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+      {/* Mobile: subtitle stacks under the title; sm+ keeps it inline on the right. */}
+      <div className="min-w-0 flex-1">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          {icon}
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-1 text-xs leading-snug text-muted-foreground sm:hidden">{subtitle}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {subtitle && (
+          <span className="hidden text-xs text-muted-foreground sm:inline">{subtitle}</span>
+        )}
         {onToggle && (
           <ToggleIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
         )}

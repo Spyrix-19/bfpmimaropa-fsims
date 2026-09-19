@@ -233,10 +233,9 @@ function MobileInspectionDetail({
             {g.cols.map((c) => {
               const manual = num(day.manual[c.api]);
               const fsis = num(day.fsis[c.api]);
-              const skipPair = c.api === "closedcount" || c.api === "reclosurecount";
               return (
                 <MobileDetailCard key={c.api} label={c.label} total={manual + fsis}>
-                  {!skipPair && <MobileModePair manual={manual} fsis={fsis} />}
+                  <MobileModePair manual={manual} fsis={fsis} />
                 </MobileDetailCard>
               );
             })}
@@ -273,10 +272,9 @@ function MobileReinspectionDetail({
             {g.cols.map((c) => {
               const manual = num(day.manual[c.api]);
               const fsis = num(day.fsis[c.api]);
-              const skipPair = c.api === "reclosurecount";
               return (
                 <MobileDetailCard key={c.api} label={c.label} total={manual + fsis}>
-                  {!skipPair && <MobileModePair manual={manual} fsis={fsis} />}
+                  <MobileModePair manual={manual} fsis={fsis} />
                 </MobileDetailCard>
               );
             })}
