@@ -1,6 +1,15 @@
 import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import * as React from "react";
-import { AlertTriangle, Download, Loader2, Eye, Plus, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  Download,
+  Loader2,
+  Eye,
+  Plus,
+  ShieldCheck,
+  SlidersHorizontal,
+} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -233,6 +242,9 @@ export default function FireSafetyInspectorPage() {
   }, [selectedProvinces, selectedStations]);
 
   const provinceKey = JSON.stringify(provinceParams);
+
+  /** Number of Province/Station filters currently restricting the ledger. */
+  const activeFilterCount = selectedProvinces.length + selectedStations.length;
 
   React.useEffect(() => {
     let cancelled = false;

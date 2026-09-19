@@ -84,14 +84,16 @@ import type {
 } from "@/types/targetreferenceType";
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import { resolveTargetScope, buildDays, formatDayLabel } from "../helpers";
-import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import { revisionRequestType } from "../revision/types";
 import { useRevisionLedger } from "../revision/useRevisionRequests";
-import ReasonRemarksDialog from "../revision/ReasonRemarksDialog";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { isPastDateLockEnabled, isDateLocked } from "@/lib/past-date-lock";
 import { serializePhilippineDateTime } from "@/lib/date-format";
+
+// Revision dialogs are code-split: their chunks load the first time one is opened.
+const RevisionRequestDialog = React.lazy(() => import("../revision/RevisionRequestDialog"));
+const ReasonRemarksDialog = React.lazy(() => import("../revision/ReasonRemarksDialog"));
 
 interface Props {
   open: boolean;
@@ -940,6 +942,20 @@ export default function TargetReferenceForm({
   const sectorTotal = React.useCallback((sn: number) => totals.perSector.get(sn) ?? 0, [totals]);
   const grandTotal = totals.grand;
 
+  // Pending revision requests indexed by day so each rendered row does a map
+  // lookup instead of scanning the full request list. reportday 0 (absent)
+  // keeps the previous "matches any day" fallback of the old per-row find.
+  const activeReqByDay = React.useMemo(() => {
+    const map = new Map<number, (typeof revisionRequests)[number]>();
+    for (const req of revisionRequests) {
+      if (req.statuscode?.toUpperCase() !== "PENDING") continue;
+      if (Number(req.reportmonth) !== Number(month)) continue;
+      const day = Number((req as { reportday?: number }).reportday || 0);
+      if (!map.has(day)) map.set(day, req);
+    }
+    return map;
+  }, [revisionRequests, month]);
+
   const loadingGrid = sectorsLoading || existingLoading;
 
   const isDirty = React.useMemo(() => {
@@ -1144,12 +1160,7 @@ export default function TargetReferenceForm({
           <tbody>
             {days.map((d, i) => {
               const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
-              const activeReq = revisionRequests.find(
-                (req) =>
-                  Number(req.reportmonth) === Number(month) &&
-                  Number((req as { reportday?: number }).reportday || d) === Number(d) &&
-                  req.statuscode?.toUpperCase() === "PENDING",
-              );
+              const activeReq = activeReqByDay.get(d) ?? activeReqByDay.get(0);
               const editablestatus = existingEditableStatus[String(d)];
               const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
               const serverIsEditable = editablestatus === 153;
@@ -1300,12 +1311,7 @@ export default function TargetReferenceForm({
           {days.map((d) => {
             const revStation = stationNo && stationNo !== EMPTY_GUID ? stationNo : "";
             const rowDateKey = dayKey(Number(year), Number(month), Number(d));
-            const activeReq = revisionRequests.find(
-              (req) =>
-                Number(req.reportmonth) === Number(month) &&
-                Number((req as { reportday?: number }).reportday || d) === Number(d) &&
-                req.statuscode?.toUpperCase() === "PENDING",
-            );
+            const activeReq = activeReqByDay.get(d) ?? activeReqByDay.get(0);
             const editablestatus = existingEditableStatus[String(d)];
             const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
             const serverIsEditable = editablestatus === 153;
@@ -1762,6 +1768,7 @@ export default function TargetReferenceForm({
       />
 
       {addRevisionOpen && (
+        <React.Suspense fallback={null}>
         <RevisionRequestDialog
           open={addRevisionOpen}
           onOpenChange={(v) => setAddRevisionOpen(v)}
@@ -1779,9 +1786,11 @@ export default function TargetReferenceForm({
           dateinspected={selectedDate}
           onSubmitted={() => setReloadNonce((n) => n + 1)}
         />
+        </React.Suspense>
       )}
 
       {revisionDay !== null && (
+        <React.Suspense fallback={null}>
         <RevisionRequestDialog
           open={revisionDay !== null}
           onOpenChange={(v) => !v && setRevisionDay(null)}
@@ -1803,9 +1812,12 @@ export default function TargetReferenceForm({
           }
           onSubmitted={() => setReloadNonce((n) => n + 1)}
         />
+        </React.Suspense>
       )}
 
-      <ReasonRemarksDialog
+      {cancelRequestId && (
+        <React.Suspense fallback={null}>
+        <ReasonRemarksDialog
         open={!!cancelRequestId}
         onOpenChange={(v) => !v && setCancelRequestId(null)}
         title="Cancel Revision Request"
@@ -1832,7 +1844,9 @@ export default function TargetReferenceForm({
           setCancelRequestId(null);
           setReloadNonce((n) => n + 1);
         }}
-      />
+        />
+        </React.Suspense>
+      )}
 
       <ConfirmDialog
         open={!!deleteRequestId}

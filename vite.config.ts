@@ -35,7 +35,8 @@ export default defineConfig({
         clientsClaim: false,
         skipWaiting: false,
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
+        // /offline.html is precached and served directly — never swapped for the SPA shell.
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/offline\.html$/],
         runtimeCaching: [
           {
             // HTML navigations always try the network first so a new

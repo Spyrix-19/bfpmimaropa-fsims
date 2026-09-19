@@ -1,6 +1,7 @@
 import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import * as React from "react";
-import { AlertTriangle, Download, Loader2, Eye, Plus, Radio } from "lucide-react";
+import { AlertTriangle, Download, Loader2, Eye, Plus, Radio, SlidersHorizontal } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -292,6 +293,9 @@ export default function IssuedBwcPage() {
 
   const refresh = () => setRefreshTick((t) => t + 1);
 
+  /** Number of active province/station selections, shown as a badge on the mobile Filter button. */
+  const activeFilterCount = selectedProvinces.length + selectedStations.length;
+
   const handleReset = () => {
     setSearchkey("");
     setSelectedProvinces([]);
@@ -516,12 +520,14 @@ export default function IssuedBwcPage() {
             </h1>
             <p className="text-xs text-muted-foreground">{DESCRIPTION}</p>
           </div>
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
+          {/* Mobile: Add BWC full width (Filter + Export live under the search box).
+              Desktop (md+): Export and Add side by side, unchanged. */}
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
             <Button
               variant="outline"
               onClick={handleExport}
               disabled={exporting}
-              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+              className="hidden w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white md:inline-flex md:w-auto"
             >
               {exporting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -551,46 +557,126 @@ export default function IssuedBwcPage() {
                 widthClass="w-full"
               />
             </FilterField>
-            <FilterField label="Province">
-              {scope.provinceLocked ? (
-                <LockedFilter
-                  value={scope.provincename}
-                  placeholder="All provinces"
-                  title="Restricted to your assigned province"
-                />
-              ) : (
-                <LocationMultiSelect
-                  mode="location"
-                  value={selectedProvinces}
-                  locationtype="PROVINCE"
-                  parentcode={MIMAROPA_REGION_CODE}
-                  onChange={handleProvincesChange}
-                  placeholder="All provinces"
-                  hideCode
-                  className="w-full"
-                />
-              )}
-            </FilterField>
-            <FilterField label="Station">
-              {scope.stationLocked ? (
-                <LockedFilter
-                  value={scope.stationname}
-                  placeholder="All stations"
-                  title="Restricted to your assigned station"
-                />
-              ) : (
-                <StationMultiSelect
-                  mode="station"
-                  value={selectedStations}
-                  provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
-                  onChange={handleStationsChange}
-                  placeholder="All stations"
-                  alwaysEnabled
-                  className="w-full"
-                />
-              )}
-            </FilterField>
-            <div className="flex justify-end">
+
+            {/* Mobile-only (below md): Filter popover holding province/station + reset,
+                next to Export. The desktop grid below is untouched. */}
+            <div className="grid w-full grid-cols-2 gap-2 md:hidden">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                    {activeFilterCount > 0 && (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 space-y-3 p-3">
+                  <FilterField label="Province">
+                    {scope.provinceLocked ? (
+                      <LockedFilter
+                        value={scope.provincename}
+                        placeholder="All provinces"
+                        title="Restricted to your assigned province"
+                      />
+                    ) : (
+                      <LocationMultiSelect
+                        mode="location"
+                        value={selectedProvinces}
+                        locationtype="PROVINCE"
+                        parentcode={MIMAROPA_REGION_CODE}
+                        onChange={handleProvincesChange}
+                        placeholder="All provinces"
+                        hideCode
+                        className="w-full"
+                      />
+                    )}
+                  </FilterField>
+                  <FilterField label="Station">
+                    {scope.stationLocked ? (
+                      <LockedFilter
+                        value={scope.stationname}
+                        placeholder="All stations"
+                        title="Restricted to your assigned station"
+                      />
+                    ) : (
+                      <StationMultiSelect
+                        mode="station"
+                        value={selectedStations}
+                        provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
+                        onChange={handleStationsChange}
+                        placeholder="All stations"
+                        alwaysEnabled
+                        className="w-full"
+                      />
+                    )}
+                  </FilterField>
+                  <div className="flex justify-end">
+                    <ResetFiltersButton onReset={handleReset} />
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                disabled={exporting}
+                className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}{" "}
+                {exporting ? "Exporting…" : "Export"}
+              </Button>
+            </div>
+
+            <div className="hidden md:block">
+              <FilterField label="Province">
+                {scope.provinceLocked ? (
+                  <LockedFilter
+                    value={scope.provincename}
+                    placeholder="All provinces"
+                    title="Restricted to your assigned province"
+                  />
+                ) : (
+                  <LocationMultiSelect
+                    mode="location"
+                    value={selectedProvinces}
+                    locationtype="PROVINCE"
+                    parentcode={MIMAROPA_REGION_CODE}
+                    onChange={handleProvincesChange}
+                    placeholder="All provinces"
+                    hideCode
+                    className="w-full"
+                  />
+                )}
+              </FilterField>
+            </div>
+            <div className="hidden md:block">
+              <FilterField label="Station">
+                {scope.stationLocked ? (
+                  <LockedFilter
+                    value={scope.stationname}
+                    placeholder="All stations"
+                    title="Restricted to your assigned station"
+                  />
+                ) : (
+                  <StationMultiSelect
+                    mode="station"
+                    value={selectedStations}
+                    provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
+                    onChange={handleStationsChange}
+                    placeholder="All stations"
+                    alwaysEnabled
+                    className="w-full"
+                  />
+                )}
+              </FilterField>
+            </div>
+            <div className="hidden justify-end md:flex">
               <ResetFiltersButton onReset={handleReset} />
             </div>
           </div>

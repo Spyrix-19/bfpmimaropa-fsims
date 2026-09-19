@@ -15,7 +15,9 @@ import {
   Building2,
   UserPlus,
   UserCheck,
+  SlidersHorizontal,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -271,6 +273,11 @@ export default function UsersLedger({ variant, title, description }: Props) {
     return rows.filter((r) => r.stationno === stationno);
   }, [rows, stationno]);
 
+  /** Number of Province/Station filters currently restricting the ledger. */
+  const activeFilterCount =
+    (provinceno && provinceno !== EMPTY_GUID ? 1 : 0) +
+    (stationno && stationno !== EMPTY_GUID ? 1 : 0);
+
   React.useEffect(() => {
     setPage(1);
   }, [search, provinceno, stationno, pageSize, setPage]);
@@ -411,45 +418,108 @@ export default function UsersLedger({ variant, title, description }: Props) {
                 widthClass="w-full"
               />
             </FilterField>
-            <FilterField label="Province">
-              <LocationSearchSelect
-                value={provinceno}
-                valueName={provincename}
-                locationtype="PROVINCE"
-                parentcode={MIMAROPA_REGION_CODE}
-                showAllOption
-                hideCode
-                readOnly={!provinceEditable}
-                onChange={(no, name) => {
-                  setProvinceno(no);
-                  setProvincename(name);
-                  // Reset station when province changes
-                  setStationno(EMPTY_GUID);
-                  setStationname("");
-                }}
-                placeholder="Select province"
-              />
-            </FilterField>
-            <FilterField label="Station">
-              <StationSearchSelect
-                value={stationno}
-                valueName={stationname}
-                provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
-                showAllOption
-                readOnly={!stationEditable}
-                disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}
-                onChange={(no, name) => {
-                  setStationno(no);
-                  setStationname(name);
-                }}
-                placeholder={
-                  stationEditable && (!provinceno || provinceno === EMPTY_GUID)
-                    ? "Select province first"
-                    : "Select station"
-                }
-              />
-            </FilterField>
-            <div className="flex items-end justify-end md:justify-start lg:justify-end">
+
+            {/* Mobile: collapsed Province/Station filters inside a popover */}
+            <div className="md:hidden">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                    {activeFilterCount > 0 && (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 space-y-3">
+                  <FilterField label="Province">
+                    <LocationSearchSelect
+                      value={provinceno}
+                      valueName={provincename}
+                      locationtype="PROVINCE"
+                      parentcode={MIMAROPA_REGION_CODE}
+                      showAllOption
+                      hideCode
+                      readOnly={!provinceEditable}
+                      onChange={(no, name) => {
+                        setProvinceno(no);
+                        setProvincename(name);
+                        // Reset station when province changes
+                        setStationno(EMPTY_GUID);
+                        setStationname("");
+                      }}
+                      placeholder="Select province"
+                    />
+                  </FilterField>
+                  <FilterField label="Station">
+                    <StationSearchSelect
+                      value={stationno}
+                      valueName={stationname}
+                      provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
+                      showAllOption
+                      readOnly={!stationEditable}
+                      disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}
+                      onChange={(no, name) => {
+                        setStationno(no);
+                        setStationname(name);
+                      }}
+                      placeholder={
+                        stationEditable && (!provinceno || provinceno === EMPTY_GUID)
+                          ? "Select province first"
+                          : "Select station"
+                      }
+                    />
+                  </FilterField>
+                  <ResetFiltersButton onReset={handleResetFilters} />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="hidden md:block">
+              <FilterField label="Province">
+                <LocationSearchSelect
+                  value={provinceno}
+                  valueName={provincename}
+                  locationtype="PROVINCE"
+                  parentcode={MIMAROPA_REGION_CODE}
+                  showAllOption
+                  hideCode
+                  readOnly={!provinceEditable}
+                  onChange={(no, name) => {
+                    setProvinceno(no);
+                    setProvincename(name);
+                    // Reset station when province changes
+                    setStationno(EMPTY_GUID);
+                    setStationname("");
+                  }}
+                  placeholder="Select province"
+                />
+              </FilterField>
+            </div>
+            <div className="hidden md:block">
+              <FilterField label="Station">
+                <StationSearchSelect
+                  value={stationno}
+                  valueName={stationname}
+                  provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
+                  showAllOption
+                  readOnly={!stationEditable}
+                  disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}
+                  onChange={(no, name) => {
+                    setStationno(no);
+                    setStationname(name);
+                  }}
+                  placeholder={
+                    stationEditable && (!provinceno || provinceno === EMPTY_GUID)
+                      ? "Select province first"
+                      : "Select station"
+                  }
+                />
+              </FilterField>
+            </div>
+            <div className="hidden items-end justify-end md:flex lg:justify-end">
               <ResetFiltersButton onReset={handleResetFilters} />
             </div>
           </div>

@@ -56,8 +56,13 @@ import { unwrap } from "@/lib/api-envelope";
 import { MONTHS, EMPTY_GUID } from "@/lib/fsims-constants";
 import { isReportMonthLocked } from "@/pages/06_target-reference/helpers";
 import { MONITORING_THEME } from "./complianceTheme";
-import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
-import ReasonRemarksDialog from "@/pages/06_target-reference/revision/ReasonRemarksDialog";
+// Revision dialogs are code-split: their chunks load the first time one is opened.
+const RevisionRequestDialog = React.lazy(
+  () => import("@/pages/06_target-reference/revision/RevisionRequestDialog"),
+);
+const ReasonRemarksDialog = React.lazy(
+  () => import("@/pages/06_target-reference/revision/ReasonRemarksDialog"),
+);
 import {
   revisionRequestType,
   type RevisionStatus,
@@ -1154,6 +1159,7 @@ function ComplianceEditBody({
       </AlertDialog>
 
       {revisionOpen && (
+        <React.Suspense fallback={null}>
         <RevisionRequestDialog
           open={revisionOpen}
           onOpenChange={setRevisionOpen}
@@ -1172,9 +1178,12 @@ function ComplianceEditBody({
           dateinspected={revisionDate}
           onSubmitted={() => setRevisionRequestRefreshTick((n) => n + 1)}
         />
+        </React.Suspense>
       )}
 
-      <ReasonRemarksDialog
+      {cancelRequestId && (
+        <React.Suspense fallback={null}>
+        <ReasonRemarksDialog
         open={!!cancelRequestId}
         onOpenChange={(v) => !v && setCancelRequestId(null)}
         title="Cancel Revision Request"
@@ -1201,7 +1210,9 @@ function ComplianceEditBody({
           setCancelRequestId(null);
           setRevisionRequestRefreshTick((n) => n + 1);
         }}
-      />
+        />
+        </React.Suspense>
+      )}
 
       <ConfirmDialog
         open={!!deleteRequestId}
