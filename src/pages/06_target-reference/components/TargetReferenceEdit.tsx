@@ -28,8 +28,7 @@ import {
   X,
   AlertTriangle,
   Trash2,
-  Ban,
-} from "lucide-react";
+  Ban, ChevronUp, ChevronDown, ChevronRight, } from "lucide-react";
 import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import { toast } from "@/lib/toast";
