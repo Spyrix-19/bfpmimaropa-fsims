@@ -510,12 +510,13 @@ export default function FireSafetyInspectorPage() {
             </h1>
             <p className="text-xs text-muted-foreground">{DESCRIPTION}</p>
           </div>
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
+          {/* Mobile: only Add Inspector here — Export joins the Filter | Export row below. */}
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-row sm:items-center">
             <Button
               variant="outline"
               onClick={handleExport}
               disabled={exporting}
-              className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:w-auto"
+              className="hidden w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white sm:inline-flex sm:w-auto"
             >
               {exporting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -545,46 +546,125 @@ export default function FireSafetyInspectorPage() {
                 widthClass="w-full"
               />
             </FilterField>
-            <FilterField label="Province">
-              {scope.provinceLocked ? (
-                <LockedFilter
-                  value={scope.provincename}
-                  placeholder="All provinces"
-                  title="Restricted to your assigned province"
-                />
-              ) : (
-                <LocationMultiSelect
-                  mode="location"
-                  value={selectedProvinces}
-                  locationtype="PROVINCE"
-                  parentcode={MIMAROPA_REGION_CODE}
-                  onChange={handleProvincesChange}
-                  placeholder="All provinces"
-                  hideCode
-                  className="w-full"
-                />
-              )}
-            </FilterField>
-            <FilterField label="Station">
-              {scope.stationLocked ? (
-                <LockedFilter
-                  value={scope.stationname}
-                  placeholder="All stations"
-                  title="Restricted to your assigned station"
-                />
-              ) : (
-                <StationMultiSelect
-                  mode="station"
-                  value={selectedStations}
-                  provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
-                  onChange={handleStationsChange}
-                  placeholder="All stations"
-                  alwaysEnabled
-                  className="w-full"
-                />
-              )}
-            </FilterField>
-            <div className="flex justify-end">
+
+            {/* Mobile: collapsed Province/Station filters + Export in one row */}
+            <div className="md:hidden">
+              <div className="grid grid-cols-2 gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full gap-2">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      Filter
+                      {activeFilterCount > 0 && (
+                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-72 space-y-3">
+                    <FilterField label="Province">
+                      {scope.provinceLocked ? (
+                        <LockedFilter
+                          value={scope.provincename}
+                          placeholder="All provinces"
+                          title="Restricted to your assigned province"
+                        />
+                      ) : (
+                        <LocationMultiSelect
+                          mode="location"
+                          value={selectedProvinces}
+                          locationtype="PROVINCE"
+                          parentcode={MIMAROPA_REGION_CODE}
+                          onChange={handleProvincesChange}
+                          placeholder="All provinces"
+                          hideCode
+                          className="w-full"
+                        />
+                      )}
+                    </FilterField>
+                    <FilterField label="Station">
+                      {scope.stationLocked ? (
+                        <LockedFilter
+                          value={scope.stationname}
+                          placeholder="All stations"
+                          title="Restricted to your assigned station"
+                        />
+                      ) : (
+                        <StationMultiSelect
+                          mode="station"
+                          value={selectedStations}
+                          provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
+                          onChange={handleStationsChange}
+                          placeholder="All stations"
+                          alwaysEnabled
+                          className="w-full"
+                        />
+                      )}
+                    </FilterField>
+                    <ResetFiltersButton onReset={handleReset} />
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  variant="outline"
+                  onClick={handleExport}
+                  disabled={exporting}
+                  className="w-full justify-center gap-2 !text-primary [&_svg]:text-primary hover:!bg-primary hover:!text-white hover:[&_svg]:text-white"
+                >
+                  {exporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}{" "}
+                  {exporting ? "Exporting…" : "Export"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="hidden md:block">
+              <FilterField label="Province">
+                {scope.provinceLocked ? (
+                  <LockedFilter
+                    value={scope.provincename}
+                    placeholder="All provinces"
+                    title="Restricted to your assigned province"
+                  />
+                ) : (
+                  <LocationMultiSelect
+                    mode="location"
+                    value={selectedProvinces}
+                    locationtype="PROVINCE"
+                    parentcode={MIMAROPA_REGION_CODE}
+                    onChange={handleProvincesChange}
+                    placeholder="All provinces"
+                    hideCode
+                    className="w-full"
+                  />
+                )}
+              </FilterField>
+            </div>
+            <div className="hidden md:block">
+              <FilterField label="Station">
+                {scope.stationLocked ? (
+                  <LockedFilter
+                    value={scope.stationname}
+                    placeholder="All stations"
+                    title="Restricted to your assigned station"
+                  />
+                ) : (
+                  <StationMultiSelect
+                    mode="station"
+                    value={selectedStations}
+                    provinces={selectedProvinces.map((p) => ({ provinceno: p.locationno }))}
+                    onChange={handleStationsChange}
+                    placeholder="All stations"
+                    alwaysEnabled
+                    className="w-full"
+                  />
+                )}
+              </FilterField>
+            </div>
+            <div className="hidden justify-end md:flex">
               <ResetFiltersButton onReset={handleReset} />
             </div>
           </div>

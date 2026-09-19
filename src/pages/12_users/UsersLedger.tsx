@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import {
+  Download,
   Loader2,
   Users,
   ShieldCheck,
@@ -114,6 +115,9 @@ export default function UsersLedger({ variant, title, description }: Props) {
   const [selectedRole, setSelectedRole] = React.useState<string>("");
   const [selectedRoleName, setSelectedRoleName] = React.useState<string>("");
   const [activateConfirmOpen, setActivateConfirmOpen] = React.useState(false);
+
+  // Export is on hold — mobile Export button opens this notice.
+  const [exportHoldOpen, setExportHoldOpen] = React.useState(false);
 
   // Role-update dialog (active users only)
   const [roleTarget, setRoleTarget] = React.useState<UserModel | null>(null);
@@ -419,62 +423,72 @@ export default function UsersLedger({ variant, title, description }: Props) {
               />
             </FilterField>
 
-            {/* Mobile: collapsed Province/Station filters inside a popover */}
+            {/* Mobile: Filter | Export row */}
             <div className="md:hidden">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full gap-2">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                    {activeFilterCount > 0 && (
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-72 space-y-3">
-                  <FilterField label="Province">
-                    <LocationSearchSelect
-                      value={provinceno}
-                      valueName={provincename}
-                      locationtype="PROVINCE"
-                      parentcode={MIMAROPA_REGION_CODE}
-                      showAllOption
-                      hideCode
-                      readOnly={!provinceEditable}
-                      onChange={(no, name) => {
-                        setProvinceno(no);
-                        setProvincename(name);
-                        // Reset station when province changes
-                        setStationno(EMPTY_GUID);
-                        setStationname("");
-                      }}
-                      placeholder="Select province"
-                    />
-                  </FilterField>
-                  <FilterField label="Station">
-                    <StationSearchSelect
-                      value={stationno}
-                      valueName={stationname}
-                      provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
-                      showAllOption
-                      readOnly={!stationEditable}
-                      disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}
-                      onChange={(no, name) => {
-                        setStationno(no);
-                        setStationname(name);
-                      }}
-                      placeholder={
-                        stationEditable && (!provinceno || provinceno === EMPTY_GUID)
-                          ? "Select province first"
-                          : "Select station"
-                      }
-                    />
-                  </FilterField>
-                  <ResetFiltersButton onReset={handleResetFilters} />
-                </PopoverContent>
-              </Popover>
+              <div className="grid grid-cols-2 gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full gap-2">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      Filter
+                      {activeFilterCount > 0 && (
+                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-72 space-y-3">
+                    <FilterField label="Province">
+                      <LocationSearchSelect
+                        value={provinceno}
+                        valueName={provincename}
+                        locationtype="PROVINCE"
+                        parentcode={MIMAROPA_REGION_CODE}
+                        showAllOption
+                        hideCode
+                        readOnly={!provinceEditable}
+                        onChange={(no, name) => {
+                          setProvinceno(no);
+                          setProvincename(name);
+                          // Reset station when province changes
+                          setStationno(EMPTY_GUID);
+                          setStationname("");
+                        }}
+                        placeholder="Select province"
+                      />
+                    </FilterField>
+                    <FilterField label="Station">
+                      <StationSearchSelect
+                        value={stationno}
+                        valueName={stationname}
+                        provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
+                        showAllOption
+                        readOnly={!stationEditable}
+                        disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}
+                        onChange={(no, name) => {
+                          setStationno(no);
+                          setStationname(name);
+                        }}
+                        placeholder={
+                          stationEditable && (!provinceno || provinceno === EMPTY_GUID)
+                            ? "Select province first"
+                            : "Select station"
+                        }
+                      />
+                    </FilterField>
+                    <ResetFiltersButton onReset={handleResetFilters} />
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setExportHoldOpen(true)}
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </div>
             </div>
 
             <div className="hidden md:block">
@@ -1097,6 +1111,19 @@ export default function UsersLedger({ variant, title, description }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={exportHoldOpen}
+        onOpenChange={setExportHoldOpen}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
+        title="Export On Hold"
+        description="The export feature is currently on hold and will be available in a future update."
+        confirmLabel="OK"
+        showCancel={false}
+        onConfirm={() => {}}
+      />
     </div>
   );
 }

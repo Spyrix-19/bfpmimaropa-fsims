@@ -29,7 +29,7 @@ import { InspectionsNewModal } from "./components/complianceNew.tsx";
 import TargetAccomplishmentPanel from "./components/TargetAccomplishmentPanel.tsx";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { MONTHS } from "@/lib/fsims-constants";
-import { buildYears } from "@/lib/utils";
+import { buildYears, cn } from "@/lib/utils";
 import { toISODate, getYearWeekRanges } from "@/lib/filters";
 import PaginationControls from "@/components/pagination";
 import {
@@ -1698,6 +1698,218 @@ function MobileStat({ label, value }: { label: string; value: number | string })
   );
 }
 
+/** Mobile period list — shows one row per date/month/quarter/etc. without per-period totals. */
+function MobilePeriodList({
+  lines,
+  groupBy,
+  hasRecord,
+  renderDetails,
+}: {
+  lines: DayLine[];
+  groupBy: LedgerGranularity;
+  hasRecord: (line: DayLine) => boolean;
+  renderDetails?: (line: DayLine, idx: number) => React.ReactNode;
+}) {
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const toggle = (key: string) => {
+    const next = new Set(expanded);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setExpanded(next);
+  };
+  const emptyMessage =
+    groupBy === "day" ? "No daily entries for this period." : "No entries for this period.";
+  return (
+    <div className="space-y-0 md:hidden overflow-hidden rounded-xl border border-border/40 bg-card">
+      {lines.length === 0 ? (
+        <div className="p-4 text-center text-xs text-muted-foreground">{emptyMessage}</div>
+      ) : (
+        lines.map((l, idx) => {
+          const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
+            ? l.key
+            : l.key.match(/^\d{4}-\d{2}$/)
+              ? `${l.key}-01`
+              : null;
+          const record = hasRecord(l);
+          const isExpanded = expanded.has(l.key);
+          return (
+            <div
+              key={l.key}
+              className={cn(
+                "overflow-hidden",
+                idx !== lines.length - 1 && "border-b border-border/25",
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => toggle(l.key)}
+                className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
+              >
+                <span className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  {labelDate && (
+                    <DayLockIcon date={labelDate} module="monitoring" className="h-3 w-3" />
+                  )}
+                  {l.label}
+                </span>
+                <span className="flex items-center gap-2">
+                  {!record && (
+                    <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      NO RECORD
+                    </span>
+                  )}
+                  {renderDetails &&
+                    (isExpanded ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ))}
+                </span>
+              </button>
+              {isExpanded && renderDetails && (
+                <div className="border-t border-border/25 bg-muted/20 px-3 pb-3 pt-2">
+                  {renderDetails(l, idx)}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+function MobileDetailKvp({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function MobileDetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-primary">{title}</div>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+function ModePair({ manual, fsis }: { manual: number; fsis: number }) {
+  return (
+    <span className="flex items-center gap-2">
+      <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+        M <N v={manual} />
+      </span>
+      <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground">
+        F <N v={fsis} />
+      </span>
+    </span>
+  );
+}
+
+function InspectionMobileDetails({
+  line,
+  metrics,
+}: {
+  line: DayLine;
+  metrics: Record<string, SectorMetrics>;
+}) {
+  return (
+    <div className="space-y-3">
+      <MobileDetailSection title="Inspection">
+        {INSPECTION_PLAIN_COLS.map((c) => (
+          <MobileDetailKvp key={c.key} label={c.label} value={<N v={line.inspection[c.key] ?? 0} />} />
+        ))}
+      </MobileDetailSection>
+
+      {INSPECTION_SECTORS.map((s) => {
+        const m = metrics[s.key];
+        if (!m) return null;
+        return (
+          <MobileDetailSection key={s.key} title={`Sector: ${s.label}`}>
+            <MobileDetailKvp label="Target" value={<N v={m.target} />} />
+            <MobileDetailKvp label="Accomplished" value={<N v={m.accomplished} />} />
+            <MobileDetailKvp label="Variance" value={<N v={m.variance} />} />
+            <MobileDetailKvp label="Positive Listing" value={<N v={m.positive} />} />
+            <MobileDetailKvp
+              label="%"
+              value={<span className={cn("font-medium", m.pctClass)}>{m.pctText}</span>}
+            />
+          </MobileDetailSection>
+        );
+      })}
+
+      <MobileDetailSection title="FSEC">
+        {FSEC_COLS.map((c) => (
+          <MobileDetailKvp
+            key={c.key}
+            label={c.label}
+            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+          />
+        ))}
+      </MobileDetailSection>
+
+      <MobileDetailSection title="FSIC">
+        {FSIC_COLS.map((c) => (
+          <MobileDetailKvp
+            key={c.key}
+            label={c.label}
+            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+          />
+        ))}
+      </MobileDetailSection>
+
+      <MobileDetailSection title="Issued Notices">
+        {NOTICE_COLS.map((c) => (
+          <MobileDetailKvp
+            key={c.key}
+            label={c.label}
+            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+          />
+        ))}
+      </MobileDetailSection>
+    </div>
+  );
+}
+
+function ReinspectionMobileDetails({ line }: { line: DayLine }) {
+  return (
+    <div className="space-y-3">
+      <MobileDetailSection title="Reinspection">
+        {REINSPECTION_COLS.map((c) => (
+          <MobileDetailKvp
+            key={c.key}
+            label={c.label}
+            value={<N v={line.reinspection[c.key] ?? 0} />}
+          />
+        ))}
+      </MobileDetailSection>
+
+      <MobileDetailSection title="Re-FSIC">
+        {RE_FSIC_COLS.map((c) => (
+          <MobileDetailKvp
+            key={c.key}
+            label={c.label}
+            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+          />
+        ))}
+      </MobileDetailSection>
+
+      <MobileDetailSection title="Re-Issued Notices">
+        {RE_NOTICE_COLS.map((c) => (
+          <MobileDetailKvp
+            key={c.key}
+            label={c.label}
+            value={<ModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+          />
+        ))}
+      </MobileDetailSection>
+    </div>
+  );
+}
+
 function ComplianceLedgerCard({
   row,
   locked,
@@ -2042,188 +2254,13 @@ function ComplianceLedgerCard({
                   </table>
                 </div>
 
-                <div className="space-y-3 md:hidden">
-                  {normLines.map((l, lineIdx) => {
-                    const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
-                      ? l.key
-                      : l.key.match(/^\d{4}-\d{2}$/)
-                        ? `${l.key}-01`
-                        : null;
-                    const inspectionValues = [
-                      { label: "During", value: l.inspection.inspectduringcount ?? 0 },
-                      { label: "After", value: l.inspection.inspectaftercount ?? 0 },
-                    ];
-                    const sectorValues = INSPECTION_SECTORS.map((s) => ({
-                      key: s.key,
-                      label: s.label,
-                      value: lineMetrics[lineIdx][s.key],
-                    }));
-
-                    return (
-                      <Card
-                        key={l.key}
-                        className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {labelDate && (
-                                <DayLockIcon
-                                  date={labelDate}
-                                  module="monitoring"
-                                  className="h-3 w-3"
-                                />
-                              )}
-                              {l.label}
-                            </div>
-                            <div className="mt-1 text-xs font-bold text-foreground">
-                              Inspection &amp; Issuance
-                            </div>
-                          </div>
-                          <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
-                            <div className="text-[9px] font-semibold uppercase text-primary">
-                              Total
-                            </div>
-                            <div className="text-sm font-bold text-primary">
-                              {(
-                                l.totals.inspection +
-                                l.totals.fsec +
-                                l.totals.fsic +
-                                l.totals.notices
-                              ).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          {inspectionValues.map((item) => (
-                            <MobileStat
-                              key={item.label}
-                              label={item.label}
-                              value={item.value.toLocaleString()}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="mt-3 space-y-2 rounded-xl border border-border/50 bg-muted/20 p-2">
-                          <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                            Sector detail
-                          </div>
-                          {sectorValues.map((sector) => (
-                            <div
-                              key={sector.key}
-                              className="rounded-lg border border-border/40 bg-card p-2"
-                            >
-                              <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
-                                <span>{sector.label}</span>
-                                <span>{sector.value.pctText}</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-[11px] tabular-nums">
-                                <div>
-                                  <div className="text-muted-foreground">Target</div>
-                                  <div className="font-semibold">
-                                    {sector.value.target.toLocaleString()}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-muted-foreground">Done</div>
-                                  <div className="font-semibold">
-                                    {sector.value.accomplished.toLocaleString()}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
-                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Manual
-                            </div>
-                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>FSEC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.fsecbuildingcount,
-                                    l.manual.fsecgovcount,
-                                    l.manual.fsecpezacount,
-                                    l.manual.fsectiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>FSIC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.fsicoccupancycount,
-                                    l.manual.fsicbplonewcount,
-                                    l.manual.fsicbplorenewcount,
-                                    l.manual.fsicgovcount,
-                                    l.manual.fsicpezacount,
-                                    l.manual.fsictiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Notices</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.nodcount,
-                                    l.manual.ntccount,
-                                    l.manual.closedcount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
-                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              FSIS
-                            </div>
-                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>FSEC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.fsecbuildingcount,
-                                    l.fsis.fsecgovcount,
-                                    l.fsis.fsecpezacount,
-                                    l.fsis.fsectiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>FSIC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.fsicoccupancycount,
-                                    l.fsis.fsicbplonewcount,
-                                    l.fsis.fsicbplorenewcount,
-                                    l.fsis.fsicgovcount,
-                                    l.fsis.fsicpezacount,
-                                    l.fsis.fsictiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Notices</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.nodcount,
-                                    l.fsis.ntccount,
-                                    l.fsis.closedcount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
+                <MobilePeriodList
+                  lines={normLines}
+                  groupBy={groupBy}
+                  hasRecord={(l) =>
+                    l.totals.inspection + l.totals.fsec + l.totals.fsic + l.totals.notices > 0
+                  }
+                />
               </>
             ))}
         </section>
@@ -2373,130 +2410,25 @@ function ComplianceLedgerCard({
                   </table>
                 </div>
 
-                <div className="space-y-3 md:hidden">
-                  {normLines.map((l) => {
-                    const labelDate = l.key.match(/^\d{4}-\d{2}-\d{2}$/)
-                      ? l.key
-                      : l.key.match(/^\d{4}-\d{2}$/)
-                        ? `${l.key}-01`
-                        : null;
-                    const reinspectionStats = REINSPECTION_COLS.map((c) => ({
-                      label: c.label,
-                      value: l.reinspection[c.key] ?? 0,
-                    }));
-
-                    return (
-                      <Card
-                        key={l.key}
-                        className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {labelDate && (
-                                <DayLockIcon
-                                  date={labelDate}
-                                  module="monitoring"
-                                  className="h-3 w-3"
-                                />
-                              )}
-                              {l.label}
-                            </div>
-                            <div className="mt-1 text-xs font-bold text-foreground">
-                              Reinspection
-                            </div>
-                          </div>
-                          <div className="rounded-lg bg-primary/10 px-2 py-1 text-right">
-                            <div className="text-[9px] font-semibold uppercase text-primary">
-                              Total
-                            </div>
-                            <div className="text-sm font-bold text-primary">
-                              {(
-                                l.totals.inspection +
-                                l.totals.fsec +
-                                l.totals.fsic +
-                                l.totals.notices
-                              ).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          {reinspectionStats.map((item) => (
-                            <MobileStat
-                              key={item.label}
-                              label={item.label}
-                              value={item.value.toLocaleString()}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
-                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Manual
-                            </div>
-                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Re-FSIC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.fsicoccupancycount,
-                                    l.manual.fsicbplonewcount,
-                                    l.manual.fsicbplorenewcount,
-                                    l.manual.fsicgovcount,
-                                    l.manual.fsicpezacount,
-                                    l.manual.fsictiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Notices</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.manual.nodcount,
-                                    l.manual.ntccount,
-                                    l.manual.closedcount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-2">
-                            <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              FSIS
-                            </div>
-                            <div className="mt-2 space-y-1 text-[11px] text-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Re-FSIC</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.fsicoccupancycount,
-                                    l.fsis.fsicbplonewcount,
-                                    l.fsis.fsicbplorenewcount,
-                                    l.fsis.fsicgovcount,
-                                    l.fsis.fsicpezacount,
-                                    l.fsis.fsictiezacount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Notices</span>
-                                <span className="font-semibold">
-                                  {sumMobileNumbers(
-                                    l.fsis.nodcount,
-                                    l.fsis.ntccount,
-                                    l.fsis.closedcount,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
+                <MobilePeriodList
+                  lines={normLines}
+                  groupBy={groupBy}
+                  hasRecord={(l) => {
+                    const reinspectionTotal = REINSPECTION_COLS.reduce(
+                      (sum, c) => sum + num(l.reinspection[c.key]),
+                      0,
                     );
-                  })}
-                </div>
+                    const reFsicTotal = RE_FSIC_COLS.reduce(
+                      (sum, c) => sum + num(l.manual[c.key]) + num(l.fsis[c.key]),
+                      0,
+                    );
+                    const reNoticeTotal = RE_NOTICE_COLS.reduce(
+                      (sum, c) => sum + num(l.manual[c.key]) + num(l.fsis[c.key]),
+                      0,
+                    );
+                    return reinspectionTotal + reFsicTotal + reNoticeTotal > 0;
+                  }}
+                />
               </>
             ))}
         </section>
