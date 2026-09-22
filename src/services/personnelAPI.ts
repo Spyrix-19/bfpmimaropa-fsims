@@ -14,6 +14,7 @@ import type {
   ResetMemberPasswordDTO,
   SearchMemberParams,
   SearchMemberModel,
+  RemoveMemberProfilePhotoParams,
 } from "@/types/personnelType";
 
 export const personnelAPI = {
@@ -60,9 +61,30 @@ export const personnelAPI = {
     return await apiPost("/api/v1/Personnel/Profile/Upload", form, { ...NO_RETRY, ...options });
   },
 
+  async deleteProfilePhoto(params: RemoveMemberProfilePhotoParams, options?: import("@/lib/api").ApiOptions) {
+    const query = {
+      Memberno: String(params.memberno ?? ""),
+      Badgeno: String(params.badgeno ?? ""),
+      Deletedby: String(params.deletedby ?? ""),
+    } as Record<string, string>;
+
+    return await apiDelete("/api/v1/Personnel/Profile/Delete", undefined, {
+      params: query,
+      ...MUTATION_RETRY_LIGHT,
+      ...options,
+    });
+  },
+
+
   async deleteProfile(params: MemberProfileDeleteParams, options?: import("@/lib/api").ApiOptions) {
-    return await apiDelete("/api/v1/Personnel/Profile/Delete", {
-      params,
+    const query = {
+      Memberno: String(params.memberno ?? ""),
+      Badgeno: String(params.badgeno ?? ""),
+      Deletedby: String(params.deletedby ?? ""),
+    } as Record<string, string>;
+
+    return await apiDelete("/api/v1/Personnel/Delete", undefined, {
+      params: query,
       ...MUTATION_RETRY_LIGHT,
       ...options,
     });

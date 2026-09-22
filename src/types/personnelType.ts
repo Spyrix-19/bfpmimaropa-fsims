@@ -73,14 +73,6 @@ export interface UpdatePasswordExpiryDTO {
   updatedby: string;
 }
 
-export interface UploadResultDTO {
-  memberno: string;
-  fileName: string;
-  path: string;
-  relativeUrl: string;
-  fullUrl: string;
-}
-
 export interface MemberDetailParams {
   memberno: string;
 }
@@ -197,8 +189,58 @@ export class SearchMemberModel {
   Filetype: string = "";
 }
 
-export interface MemberDeleteParams {
+export interface RemoveMemberProfilePhotoParams {
   memberno: string;
+  badgeno: string;
   deletedby: string;
-  roleno: number;
+}
+
+export interface MemberModel {
+  memberno: string;
+  badgeno: string;
+  lastname: string;
+  firstname: string;
+  miname: string;
+  suffix: string;
+  fullname: string;
+
+  rankno: number;
+  rankcode: string;
+  rankname: string;
+
+  genderno: number;
+  gendercode: string;
+  gendername: string;
+
+  degs: string; // DateTime
+  defs: string;
+
+  emailaddress: string;
+  mobileno: string;
+
+  isams: boolean;
+
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provincename?: string;
+  logourl: string;
+
+  officeno: number;
+  officecode: string;
+  officename: string;
+
+  designation: string;
+
+  isfingerprint: boolean;
+  isscope: boolean;
+  isface: boolean;
+
+  isactive: boolean;
+  accountlock: boolean;
+
+  profileurl: string;
+
+  filetype: string;
+  imagedata: string; // Base64 (byte[])
 }
