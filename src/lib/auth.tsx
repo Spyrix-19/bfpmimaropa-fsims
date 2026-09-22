@@ -92,6 +92,8 @@ interface AuthCtx {
   systemAccess: FsimsAccess | null;
   isAuthenticated: boolean;
   initialized: boolean;
+  /** True only while a *stored* session is still being decrypted. */
+  restorePending: boolean;
   isnewaccount: boolean;
   pendingMember: AuthMemberModel | null;
   login: (
@@ -347,6 +349,23 @@ async function writeStoredSession(stored: Session, remember: boolean) {
   }
 }
 
+/**
+ * True when *some* stored session ciphertext exists in either store.
+ *
+ * Signed-out visitors have nothing stored, so `restoreSession` must not spend
+ * its decrypt-retry budget on them — that delay was the whole reason the
+ * dashboard appeared much slower before signing in.
+ */
+function hasStoredSessionCiphertext(): boolean {
+  try {
+    return LEGACY_STORAGE_KEYS.some(
+      (key) => localStorage.getItem(key) !== null || sessionStorage.getItem(key) !== null,
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function readStoredSession(): Promise<{ session: Session; legacy: boolean } | null> {
   try {
     const candidates = [
@@ -387,6 +406,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [initialized, setInitialized] = useState(false);
   const expiryTimerRef = useRef<number | null>(null);
   const sessionRef = useRef<Session | null>(null);
+  /** Captured once: is there any stored session worth waiting for? */
+  const maybeSignedInRef = useRef<boolean>(hasStoredSessionCiphertext());
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
@@ -412,8 +433,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Some browsers may delay IndexedDB availability or crypto keys may not
     // be ready immediately after a hard reload. Retry a couple of times with
     // small backoff before giving up to avoid logging the user out spuriously.
+    //
+    // The retry budget only applies when ciphertext is actually present. With
+    // nothing stored (signed-out visitor) there is nothing to wait for, and
+    // spending 1.5s here delayed the whole first paint.
     let stored = await readStoredSession();
-    if (!stored) {
+    if (!stored && hasStoredSessionCiphertext()) {
       // Retry up to 3 times, small delay between attempts.
       for (let i = 0; i < 3 && !stored; i += 1) {
         // short backoff
@@ -676,6 +701,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       systemAccess: sa,
       isAuthenticated: !!session?.user,
       initialized,
+      restorePending: !initialized && maybeSignedInRef.current,
       isnewaccount: session?.user.isnewaccount ?? false,
       pendingMember,
       clearPendingMember: () => setPendingMember(null),
@@ -693,9 +719,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [session, pendingMember, initialized, login, logout, restoreSession, updateUser, refreshUser]);
 
+  // A visitor with no stored session has nothing to restore, so the app paints
+  // immediately instead of holding a blank screen. Users with a stored session
+  // still wait for the decrypt so the shell never flickers signed-out first.
+  const holdForRestore = !initialized && maybeSignedInRef.current;
+
   return (
     <AuthContext.Provider value={value}>
-      {initialized ? children : <div aria-hidden className="min-h-dvh bg-background" />}
+      {holdForRestore ? <div aria-hidden className="min-h-dvh bg-background" /> : children}
     </AuthContext.Provider>
   );
 }

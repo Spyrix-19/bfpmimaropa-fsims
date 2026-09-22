@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,17 @@ import bfpLogo from "@/assets/bfp-mimaropa.svg";
 import ForgotPasswordModal from "./forgotpasswordmodal";
 import SetNewPasswordModal from "./newpasswordmodal";
 
+/**
+ * Only same-origin, single-slash paths are followed after sign-in, so a crafted
+ * link can never bounce a user to an external site.
+ */
+function safeReturnPath(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  if (!value.startsWith("/") || value.startsWith("//")) return null;
+  if (value === "/" || value.startsWith("/access-denied")) return null;
+  return value;
+}
+
 export function LoginModal({
   open,
   onOpenChange,
@@ -29,6 +41,8 @@ export function LoginModal({
   onLoginAttempt?: () => void;
 }) {
   const { login, pendingMember, clearPendingMember } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [badgeno, setBadgeno] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -78,6 +92,10 @@ export function LoginModal({
 
     toast.success("Welcome back");
     onOpenChange(false);
+
+    // Return the user to the protected page that sent them here, if any.
+    const back = safeReturnPath((location.state as { from?: unknown } | null)?.from);
+    if (back) navigate(back, { replace: true });
   };
 
   return (

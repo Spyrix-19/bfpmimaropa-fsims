@@ -9,8 +9,39 @@ import path from "node:path";
 // hardcoded server assumptions — this project deploys as a static SPA on
 // Cloudflare Pages, Vercel, Netlify, or any static host. All API calls go
 // directly to VITE_BFP_MIMAROPA_API_BASE_URL from the browser.
+// Content-Security-Policy. The authoritative copy is served as a real HTTP
+// response header from public/_headers (Cloudflare Pages / Netlify). This meta
+// tag is a fallback for hosts that ignore _headers, and is injected into the
+// production build only — the dev server needs inline scripts for HMR.
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "form-action 'self'",
+  "script-src 'self'",
+  "worker-src 'self' blob:",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://bfpr4bv3-api.onrender.com https://bfpr4bv3-api.up.railway.app https://api.ipify.org",
+  "manifest-src 'self'",
+  "media-src 'self' blob:",
+].join("; ");
+
+const cspMeta = {
+  name: "csp-meta-fallback",
+  apply: "build" as const,
+  transformIndexHtml(html: string) {
+    return html.replace(
+      "<head>",
+      `<head>\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`,
+    );
+  },
+};
+
 export default defineConfig({
   plugins: [
+    cspMeta,
     react(),
     tsconfigPaths(),
     tailwindcss(),

@@ -32,6 +32,21 @@ export default tseslint.config(
           ],
         },
       ],
+      // XSS guard: raw HTML may only be injected through src/lib/safe-html.tsx
+      // (DOMPurify) or the chart stylesheet, both of which opt out explicitly.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message:
+            "Do not use dangerouslySetInnerHTML. Render text through JSX, or use <SafeHtml> / sanitizeHtml() from @/lib/safe-html.",
+        },
+        {
+          selector: "Property[key.name='dangerouslySetInnerHTML']",
+          message:
+            "Do not use dangerouslySetInnerHTML. Render text through JSX, or use <SafeHtml> / sanitizeHtml() from @/lib/safe-html.",
+        },
+      ],
       "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "error",

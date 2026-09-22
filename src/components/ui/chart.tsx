@@ -60,6 +60,15 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+// Only plain CSS colour values may be interpolated into the generated
+// stylesheet: hex, rgb/rgba, hsl/hsla, oklch, colour keywords and CSS custom
+// property references. Anything else (url(), expressions, braces, semicolons)
+// is dropped, so a chart config can never inject arbitrary CSS.
+const SAFE_COLOR =
+  /^(#[0-9a-f]{3,8}|(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\([0-9a-z%.,\s/-]*\)|var\(--[a-z0-9-]+\)|[a-z]+)$/i;
+// Keys become part of a CSS custom property name.
+const SAFE_KEY = /^[a-z0-9_-]+$/i;
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color);
 
@@ -67,26 +76,28 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
+  const css = Object.entries(THEMES)
+    .map(
+      ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const color = (
+      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+      itemConfig.color ||
+      ""
+    ).trim();
+    if (!color || !SAFE_KEY.test(key) || !SAFE_COLOR.test(color)) return null;
+    return `  --color-${key}: ${color};`;
   })
   .join("\n")}
 }
 `,
-          )
-          .join("\n"),
-      }}
-    />
-  );
+    )
+    .join("\n");
+
+  // eslint-disable-next-line no-restricted-syntax -- values pass the allowlist above
+  return <style dangerouslySetInnerHTML={{ __html: css }} />;
 };
 
 const ChartTooltip = Tooltip;

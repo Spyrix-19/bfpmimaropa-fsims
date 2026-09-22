@@ -41,8 +41,18 @@ function RequireAccess({ module, children }: { module: AppModule; children: Reac
   const { isAuthenticated, canAccess, initialized } = useAuth();
   const location = useLocation();
 
-  if (!initialized) return null;
-  if (!isAuthenticated) return <Navigate to="/" replace state={{ from: location }} />;
+  // Never decide access before the session is resolved, otherwise a reload on a
+  // protected page would bounce an authenticated user back to the dashboard.
+  if (!initialized) return <PageLoader />;
+  if (!isAuthenticated) {
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    );
+  }
   if (!canAccess(module)) return <Navigate to="/access-denied" replace />;
   return children;
 }
@@ -103,14 +113,17 @@ function AppContent({
   maintenance: boolean;
   maintenanceLoginAttempt: boolean;
 }) {
-  const { isSuperAdmin, initialized, isAuthenticated, hasRole } = useAuth();
-  if (!initialized) return <PageLoader />;
+  const { isSuperAdmin, initialized, restorePending, hasRole } = useAuth();
+  // Only hold the whole router while an existing stored session is decrypting.
+  // Signed-out visitors render the (public) dashboard straight away.
+  if (restorePending) return <PageLoader />;
   const isSuperAdminUser = isSuperAdmin() || hasRole(1);
-
   // During maintenance the original Maintenance page remains the only visible UI.
   // The login-specific access-status section is appended only after an actual
-  // login attempt, and super-admin users bypass the gate.
+  // login attempt, and super-admin users bypass the gate. Wait for the session
+  // to resolve first so a super admin is never shown the gate by mistake.
   if (maintenance) {
+    if (!initialized) return <PageLoader />;
     if (!isSuperAdminUser) {
       return <Maintenance showAccessStatus={maintenanceLoginAttempt} />;
     }
