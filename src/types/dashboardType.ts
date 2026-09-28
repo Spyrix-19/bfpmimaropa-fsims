@@ -208,6 +208,6 @@ export interface DashboardFireCodeFeeVarianceModel {
 export interface DashboardFCFYearToYearDTO {
   reportyear: number[];
   reportmonth: number[];
-  interval: number; // 3 = Monthly, 4 = Quarterly, 5 = Semester, 6 = Annual
+  interval: number;
   provinces: DashboardClass[];
 }

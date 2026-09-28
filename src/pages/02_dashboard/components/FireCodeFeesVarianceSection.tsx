@@ -27,7 +27,8 @@ import {
 } from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import type { DashboardFireCodeFeeVarianceModel } from "@/types/dashboardType";
-import { resolveReportMonths, INTERVAL_CODE } from "@/lib/filters";
+import { resolveReportMonths } from "@/lib/filters";
+import { REPORT_INTERVAL_CODES } from "@/lib/fsims-constants";
 import type { DashInterval } from "@/lib/filters";
 
 import { peso } from "./fees/feeColumns";
@@ -299,7 +300,7 @@ export default function FireCodeFeesVarianceSection() {
       setLoading(true);
       const yearList = sortedYears.filter(Boolean);
       const months = resolveReportMonths(interval as DashInterval, subPeriod);
-      const intervalCode = INTERVAL_CODE[interval] ?? 6;
+      const intervalCode = REPORT_INTERVAL_CODES[interval] ?? 6;
       try {
         const resp = await dashboardAPI.getYearlyFireCodeVariance(
           {

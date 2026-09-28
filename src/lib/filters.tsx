@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { SelectedLocation } from "@/components/location-multi-select";
 import type { SelectedStation } from "@/components/station-multi-select";
+import { MONTHS, REPORT_INTERVAL_CODES } from "@/lib/fsims-constants";
 
 /**
  * Global dashboard/report filters. Reference-data fields store both the
@@ -62,17 +63,6 @@ export const DEFAULT_FILTERS: DashFilters = {
  * Backend date-range resolution
  * ------------------------------------------------------------------ */
 
-/** Backend interval codes: 1 Daily, 2 Weekly, 3 Monthly, 4 Quarterly, 5 Semester, 6 Annual. */
-export const INTERVAL_CODE: Record<DashInterval, number> = {
-  DAILY: 1,
-  WEEKLY: 2,
-  MONTHLY: 3,
-  QUARTERLY: 4,
-  SEMESTER: 5,
-  ANNUAL: 6,
-  ALL: 6,
-};
-
 /** `MM/dd/yyyy` (no leading zeros are required by the API, but kept padded). */
 export function toApiDate(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -112,7 +102,7 @@ export function resolveDateRange(
   interval: DashInterval,
   period: string,
 ): { interval: number; startdate: string; enddate: string } {
-  const code = INTERVAL_CODE[interval] ?? 6;
+  const code = REPORT_INTERVAL_CODES[interval] ?? 6;
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year, 11, 31);
   const monthRange = (months: number[]) => {
@@ -173,6 +163,18 @@ export function resolveDateRange(
 
 /** Expands the interval/period selection into the concrete list of months. */
 
+const QUARTER_MONTHS = {
+  "1": MONTHS.filter((month) => [1, 2, 3].includes(month.value)).map((month) => month.value),
+  "2": MONTHS.filter((month) => [4, 5, 6].includes(month.value)).map((month) => month.value),
+  "3": MONTHS.filter((month) => [7, 8, 9].includes(month.value)).map((month) => month.value),
+  "4": MONTHS.filter((month) => [10, 11, 12].includes(month.value)).map((month) => month.value),
+} as const;
+
+const SEMESTER_MONTHS = {
+  "1": MONTHS.filter((month) => month.value >= 1 && month.value <= 6).map((month) => month.value),
+  "2": MONTHS.filter((month) => month.value >= 7 && month.value <= 12).map((month) => month.value),
+} as const;
+
 export function resolveReportMonths(interval: DashInterval, period: string): number[] {
   const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   if (interval === "ALL" || interval === "ANNUAL") return ALL;
@@ -226,28 +228,38 @@ export function resolveReportMonths(interval: DashInterval, period: string): num
     return months.length ? [...new Set(months)].sort((a, b) => a - b) : ALL;
   }
   if (interval === "QUARTERLY") {
-    switch (period) {
-      case "q1":
-        return [1, 2, 3];
-      case "q2":
-        return [4, 5, 6];
-      case "q3":
-        return [7, 8, 9];
-      case "q4":
-        return [10, 11, 12];
-      default:
-        return ALL;
-    }
+    const normalized = String(period ?? "").trim().toLowerCase();
+    if (!normalized || normalized === "all") return ALL;
+
+    const selected = normalized
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .map((v) => v.replace(/^q/, ""));
+
+    const picked = [...new Set(selected)]
+      .map((v) => QUARTER_MONTHS[v as keyof typeof QUARTER_MONTHS])
+      .filter((months): months is number[] => Array.isArray(months));
+
+    if (!picked.length) return ALL;
+    return [...new Set(picked.flat())].sort((a, b) => a - b);
   }
   if (interval === "SEMESTER") {
-    switch (period) {
-      case "s1":
-        return [1, 2, 3, 4, 5, 6];
-      case "s2":
-        return [7, 8, 9, 10, 11, 12];
-      default:
-        return ALL;
-    }
+    const normalized = String(period ?? "").trim().toLowerCase();
+    if (!normalized || normalized === "all") return ALL;
+
+    const selected = normalized
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .map((v) => v.replace(/^s/, ""));
+
+    const picked = [...new Set(selected)]
+      .map((v) => SEMESTER_MONTHS[v as keyof typeof SEMESTER_MONTHS])
+      .filter((months): months is number[] => Array.isArray(months));
+
+    if (!picked.length) return ALL;
+    return [...new Set(picked.flat())].sort((a, b) => a - b);
   }
   return ALL;
 }

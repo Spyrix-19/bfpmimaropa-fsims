@@ -56,6 +56,17 @@ export const MONTHS: { value: number; name: string; short: string }[] = [
   { value: 12, name: "December", short: "DEC" },
 ];
 
+/** Backend report interval codes: 1 Daily, 2 Weekly, 3 Monthly, 4 Quarterly, 5 Semester, 6 Annual. */
+export const REPORT_INTERVAL_CODES = {
+  DAILY: 1,
+  WEEKLY: 2,
+  MONTHLY: 3,
+  QUARTERLY: 4,
+  SEMESTER: 5,
+  ANNUAL: 6,
+  ALL: 6,
+} as const;
+
 export const QUARTERS = ["Q1", "Q2", "Q3", "Q4"] as const;
 export const HALVES = ["1st Half", "2nd Half"] as const;
 

@@ -42,8 +42,8 @@ function ensureHooks() {
   if (hooked || typeof window === "undefined") return;
   hooked = true;
   // Any link that survives sanitisation opens safely.
-  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-    if (node instanceof Element && node.tagName === "A" && node.hasAttribute("href")) {
+  DOMPurify.addHook("afterSanitizeAttributes", (node: Element) => {
+    if (node.tagName === "A" && node.hasAttribute("href")) {
       node.setAttribute("target", "_blank");
       node.setAttribute("rel", "noopener noreferrer nofollow");
     }
