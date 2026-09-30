@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import {
-  AlertTriangle,
   ClipboardList,
   Eye,
   LayoutGrid,
@@ -57,7 +56,6 @@ import EditButton from "@/components/edit-button";
 import DeleteButton from "@/components/delete-button";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import SecureDeleteDialog from "@/components/secure-delete-dialog";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 // Monthly ledger queries are moved to the editor modal to avoid
 // calling the heavy Monthly endpoint on the main listing view.
@@ -472,7 +470,6 @@ export default function FireSafetyCompliancePage() {
   } | null>(null);
   const [viewTarget, setViewTarget] = React.useState<ComplianceMonthlyRow | null>(null);
   const [editTarget, setEditTarget] = React.useState<ComplianceMonthlyRow | null>(null);
-  const [editOnHoldOpen, setEditOnHoldOpen] = React.useState(false);
   const [addOpen, setAddOpen] = React.useState(false);
 
   const openMatrixGlobal = () => {
@@ -1079,7 +1076,7 @@ export default function FireSafetyCompliancePage() {
               weekRangeLabels={weekRangeLabels}
               locked={!canManage}
               onView={() => setViewTarget(r)}
-              onEdit={() => (isSuperAdmin() ? setEditTarget(r) : setEditOnHoldOpen(true))}
+              onEdit={() => setEditTarget(r)}
               onDelete={() => askDelete(r)}
               onMatrix={() => openMatrixForCard(r)}
             />
@@ -1197,14 +1194,9 @@ export default function FireSafetyCompliancePage() {
           onEdit={
             canManage
               ? (y, m) => {
-                  if (isSuperAdmin()) {
-                    const t = viewTarget;
-                    setViewTarget(null);
-                    setEditTarget({ ...t, year: y, month: m });
-                  } else {
-                    setViewTarget(null);
-                    setEditOnHoldOpen(true);
-                  }
+                  const t = viewTarget;
+                  setViewTarget(null);
+                  setEditTarget({ ...t, year: y, month: m });
                 }
               : undefined
           }
@@ -1223,19 +1215,6 @@ export default function FireSafetyCompliancePage() {
         />
       )}
 
-      <ConfirmDialog
-        open={editOnHoldOpen}
-        onOpenChange={setEditOnHoldOpen}
-        ContentIcon={AlertTriangle}
-        contentIconBgClass="tone-danger-soft"
-        contentIconColorClass="text-destructive"
-        title="Feature under development"
-        description="This feature is currently under development. Please use the Add Record button to update the record."
-        confirmLabel="OK"
-        cancelClassName="hidden"
-        showCancel={false}
-        onConfirm={() => {}}
-      />
     </div>
   );
 }
