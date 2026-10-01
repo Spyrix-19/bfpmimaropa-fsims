@@ -1840,7 +1840,7 @@ export function DashboardBody({
           </div>
 
           {/* Row 1: Target Gap by Province | Inspections (50/50) */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="hidden grid grid-cols-1 gap-6 lg:grid-cols-2">
             <GapChartCard rows={gapRows} loading={gapLoading} />
 
             <InspectionSummaryChartCard rows={inspectionRows} loading={inspectionLoading} />
@@ -1849,7 +1849,7 @@ export function DashboardBody({
       </div>
 
       {/* Supplementary row: Target vs Actual by Province */}
-      <div ref={targetVsActualSectionRef} className="grid grid-cols-1 gap-6">
+      <div ref={targetVsActualSectionRef} className="hidden grid grid-cols-1 gap-6">
         <ChartCard
           title="Target vs Actual by Province"
           subtitle="Provincial accomplishment"
@@ -2033,16 +2033,17 @@ export function DashboardBody({
       </ChartCard>
 
       {/* Row 4: Monthly Trend by Sector (100%) */}
-      <ChartCard
-        title="Monthly Trend by Sector"
-        subtitle="Actual inspections per sector"
-        height="h-[420px] xl:h-[500px]"
-        actions={
-          <ChartActionsBar
-            chartType={monthlySectorChartType}
-            setChartType={setMonthlySectorChartType}
-            filters={
-              <>
+      <div className="hidden">
+        <ChartCard
+          title="Monthly Trend by Sector"
+          subtitle="Actual inspections per sector"
+          height="h-[420px] xl:h-[500px]"
+          actions={
+            <ChartActionsBar
+              chartType={monthlySectorChartType}
+              setChartType={setMonthlySectorChartType}
+              filters={
+                <>
                 <Select
                   value={String(monthlySectorYear)}
                   onValueChange={(v) => setMonthlySectorYear(Number(v))}
@@ -2112,7 +2113,8 @@ export function DashboardBody({
             </LineChart>
           </ResponsiveContainer>
         )}
-      </ChartCard>
+        </ChartCard>
+      </div>
 
       {/* Row 5: Year-over-Year Comparison (100%) */}
       <ChartCard
