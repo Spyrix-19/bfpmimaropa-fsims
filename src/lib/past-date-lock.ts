@@ -9,6 +9,10 @@
  *   VITE_BFP_MIMAROPA_PAST_DATE_LOCK_ROM     → Romblon
  *   VITE_BFP_MIMAROPA_PAST_DATE_LOCK_PAL     → Palawan
  *
+ * Hard lock (highest priority): modules listed in the province-specific
+ * ALL_DATE_LOCK_MODULES env vars are locked for every date in that province,
+ * regardless of exemption or past-date configuration.
+ *
  * Super Administrators (roleno === 1) are exempt from the lock everywhere.
  *
  * Per-province module exemptions (comma separated, same keys used to group
@@ -93,10 +97,13 @@ const ALL_TOKENS = new Set(["ALL", "*", "EVERY", "EVERYTHING"]);
 /** Parse a comma-separated module list from an env var into a module set. */
 function parseModuleList(name: string): Set<PastDateLockModule> {
   const raw = String((import.meta.env?.[name] as string | undefined) ?? "")
-    .replace(/^["'[]|["'\]]$/g, "")
+    .replace(/^['"\[]+|['"\]]+$/g, "")
     .trim();
   if (!raw) return new Set();
-  const parts = raw.split(",").map((p) => p.trim());
+  const parts = raw
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
   if (parts.some((p) => ALL_TOKENS.has(p.toUpperCase()))) {
     return new Set(PAST_DATE_LOCK_MODULES);
   }
@@ -122,11 +129,33 @@ const PROVINCE_EXEMPT_MODULES: Record<string, Set<PastDateLockModule>> = {
   ),
 };
 
+/** provinceno (lowercased) → modules that are locked for every date in that province. */
+const PROVINCE_ALL_DATE_LOCK_MODULES: Record<string, Set<PastDateLockModule>> = {
+  [MIMAROPA_ORIENTAL_MINDORO.toLowerCase()]: parseModuleList(
+    "VITE_BFP_MIMAROPA_ALL_DATE_LOCK_MODULES_ORMIN",
+  ),
+  [MIMAROPA_OCCIDENTAL_MINDORO.toLowerCase()]: parseModuleList(
+    "VITE_BFP_MIMAROPA_ALL_DATE_LOCK_MODULES_OCCMIN",
+  ),
+  [MIMAROPA_MARINDUQUE.toLowerCase()]: parseModuleList(
+    "VITE_BFP_MIMAROPA_ALL_DATE_LOCK_MODULES_MAR",
+  ),
+  [MIMAROPA_ROMBLON.toLowerCase()]: parseModuleList("VITE_BFP_MIMAROPA_ALL_DATE_LOCK_MODULES_ROM"),
+  [MIMAROPA_PALAWAN.toLowerCase()]: parseModuleList("VITE_BFP_MIMAROPA_ALL_DATE_LOCK_MODULES_PAL"),
+};
+
 /** Whether `module` is exempted from the lock in the given province. */
 export function isModuleExempt(module: PastDateLockModule, provinceno?: string): boolean {
   const key = (provinceno ?? context.provinceno ?? "").trim().toLowerCase();
   if (!key) return false;
   return PROVINCE_EXEMPT_MODULES[key]?.has(module) === true;
+}
+
+/** Whether `module` is hard-locked for every date in the given province. */
+export function isModuleLockedForAllDates(module: PastDateLockModule, provinceno?: string): boolean {
+  const key = (provinceno ?? context.provinceno ?? "").trim().toLowerCase();
+  if (!key) return false;
+  return PROVINCE_ALL_DATE_LOCK_MODULES[key]?.has(module) === true;
 }
 
 type LockContext = { provinceno: string; roleno: number };
@@ -140,9 +169,16 @@ export function setPastDateLockContext(next: LockContext | null) {
 
 /** Whether the past-date lock applies to the currently logged-in user. */
 export function isPastDateLockEnabled(module?: PastDateLockModule): boolean {
-  // Super Administrators bypass every past-date rule.
-  if (context.roleno === SUPER_ADMIN_ROLE_NO) return false;
   const provinceno = (context.provinceno || "").trim().toLowerCase();
+
+  // Super administrators are exempt from all date-lock rules, including the
+  // high-priority all-date hard lock.
+  if (context.roleno === SUPER_ADMIN_ROLE_NO) return false;
+
+  // Highest-priority hard lock: these modules are locked for every date regardless
+  // of province-level past-date toggle or module exemptions.
+  if (module && isModuleLockedForAllDates(module, provinceno)) return true;
+
   // Per-province module exemptions.
   if (module && isModuleExempt(module, provinceno)) return false;
   if (!provinceno) return false;
@@ -182,6 +218,10 @@ export function isDateLocked(
   module?: PastDateLockModule,
   now: Date = new Date(),
 ): boolean {
+  if (context.roleno === SUPER_ADMIN_ROLE_NO) return false;
+
+  const provinceno = (context.provinceno || "").trim().toLowerCase();
+  if (module && isModuleLockedForAllDates(module, provinceno)) return true;
   if (!isPastDateLockEnabled(module)) return false;
   let d: Date;
   if (typeof value === "string") {

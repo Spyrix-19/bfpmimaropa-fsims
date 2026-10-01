@@ -25,6 +25,7 @@ import {
   Download,
   Filter,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import AddButton from "@/components/add-button";
@@ -45,6 +46,7 @@ import {
 } from "@/components/shared/ModuleFilterBar";
 import { resolveModuleMonths, resolveSelectedDay } from "@/components/shared/ModuleFilterBar";
 import { StickyPageTop } from "@/components/shared/StickyPageTop";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 import { useAuth } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE, MONTHS, QUARTERS, HALVES } from "@/lib/fsims-constants";
@@ -77,6 +79,7 @@ import ReadOnlyField from "./components/ReadOnlyField";
 import { canManageTargetAndCompliance } from "@/lib/permissions";
 import { CurrentMonthNote } from "@/components/shared/CurrentMonthNote";
 import { DayLockIcon } from "@/components/day-lock-icon";
+import { isModuleLockedForAllDates } from "@/lib/past-date-lock";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 function BucketCell({
@@ -238,6 +241,20 @@ export default function TargetReferenceIndexPage() {
     stationno: string;
     month?: number;
   } | null>(null);
+  const [allDateLockPromptOpen, setAllDateLockPromptOpen] = React.useState(false);
+
+  const targetReferenceAllDateLocked = React.useMemo(() => {
+    const provinceKey =
+      scope.provinceLocked && scope.provinceno ? scope.provinceno : user?.provinceno ?? "";
+    return isModuleLockedForAllDates("target-reference", provinceKey);
+  }, [scope.provinceLocked, scope.provinceno, user?.provinceno]);
+
+  const promptAllDateLock = React.useCallback((action: "add" | "edit") => {
+    if (!targetReferenceAllDateLocked) return false;
+    void action;
+    setAllDateLockPromptOpen(true);
+    return true;
+  }, [targetReferenceAllDateLocked]);
 
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [detailsTarget, setDetailsTarget] = React.useState<{
@@ -324,6 +341,7 @@ export default function TargetReferenceIndexPage() {
   }, [filterState, locationParamsKey, pageSize, setPage]);
 
   const handleAdd = () => {
+    if (promptAllDateLock("add")) return;
     setEditingGroup(null);
     setFormOpen(true);
   };
@@ -335,6 +353,7 @@ export default function TargetReferenceIndexPage() {
   };
 
   const handleEdit = (g: GroupItem) => {
+    if (promptAllDateLock("edit")) return;
     setEditingGroup({ year: g.year, stationno: g.stationno });
     setFormOpen(true);
   };
@@ -585,6 +604,22 @@ export default function TargetReferenceIndexPage() {
           onPageSizeChange={setPageSize}
         />
       </div>
+
+      <ConfirmDialog
+        open={allDateLockPromptOpen}
+        onOpenChange={(open) => {
+          setAllDateLockPromptOpen(open);
+        }}
+        ContentIcon={AlertTriangle}
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
+        title="Target Reference is locked"
+        description="This feature is configured for all-date lock in this province. Add and edit actions are not allowed until the lock is removed."
+        confirmLabel="OK"
+        showCancel={false}
+        dismissible={false}
+        onConfirm={() => setAllDateLockPromptOpen(false)}
+      />
 
       <TargetReferenceEdit
         open={formOpen}

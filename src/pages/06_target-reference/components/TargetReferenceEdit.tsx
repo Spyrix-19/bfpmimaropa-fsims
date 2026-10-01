@@ -447,6 +447,37 @@ export default function TargetReferenceForm({
     [revisionRequests, existingEditableStatus, existingIsRevisionRequest, year, month],
   );
 
+  const hasAllDateLockForPeriod = React.useMemo(() => {
+    if (!days.length) return false;
+    return days.some((day) => isDateLocked(new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0), "target-reference"));
+  }, [days, month, year]);
+
+  const hasLockedDaysInEditPeriod = React.useMemo(
+    () =>
+      days.some((day) => {
+        const lock = rowRevisionLock(day);
+        return lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(day));
+      }),
+    [days, month, rowRevisionLock, year],
+  );
+  const allLockedInPeriod = React.useMemo(
+    () =>
+      days.length > 0 &&
+      days.every((day) => {
+        const lock = rowRevisionLock(day);
+        return lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(day));
+      }),
+    [days, month, rowRevisionLock, year],
+  );
+
+  const requestRevisionForCurrentPeriod = React.useCallback(() => {
+    if (!stationNo || stationNo === EMPTY_GUID) {
+      toast.error("Please select a station first.");
+      return;
+    }
+    setRevisionDay(Number(days[0] ?? 1));
+  }, [days, stationNo]);
+
   // Reset baseline state when opening.
   // NOTE: depend on primitive fields (not the `editing` object) — the parent
   // passes a new object literal on every render, which previously re-ran this
@@ -1365,6 +1396,23 @@ export default function TargetReferenceForm({
                 </span>
               </div>
 
+              {hasLockedDaysInEditPeriod && (
+                <div className="flex items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
+                  <Lock className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                  <span>This date has already passed and is locked. Submit a revision request to enable editing.</span>
+                </div>
+              )}
+
+              {allLockedInPeriod && (
+                <div className="flex items-start gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                  <div>
+                    <div className="font-semibold">This reporting month is locked</div>
+                    <p className="mt-1">A revision request is required to edit these records.</p>
+                  </div>
+                </div>
+              )}
+
               {tableBody}
             </div>
           </div>
@@ -1378,13 +1426,23 @@ export default function TargetReferenceForm({
             >
               <X className="h-4 w-4" /> Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || loadingGrid || sectors.length === 0 || !isDirty}
-              className="gap-2 bg-primary text-white hover:bg-primary/90"
-            >
-              <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save"}
-            </Button>
+            {hasAllDateLockForPeriod ? (
+              <Button
+                onClick={requestRevisionForCurrentPeriod}
+                disabled={saving || loadingGrid || sectors.length === 0}
+                className="gap-2 bg-primary text-white hover:bg-primary/90"
+              >
+                <FilePen className="h-4 w-4" /> Request Revision
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSave}
+                disabled={saving || loadingGrid || sectors.length === 0 || !isDirty}
+                className="gap-2 bg-primary text-white hover:bg-primary/90"
+              >
+                <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
