@@ -1376,6 +1376,9 @@ function NoticeLedgerCard({
                     >
                       Total
                     </th>
+                    <td
+                      className={`${footCell} sticky bottom-0 left-[11rem] z-30 border-r border-r-border/50`}
+                    />
                     {NOTICE_CATEGORIES.map((category) => (
                       <td
                         key={`combined-${category}`}
