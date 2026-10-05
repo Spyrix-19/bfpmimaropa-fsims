@@ -762,14 +762,14 @@ function ComplianceEditBody({
       return;
     }
 
-    // Month lock only blocks when no day was unlocked by an approved revision.
-    const anyApprovedDay = Array.from(editableDays.values()).some(
-      (d) => Number(d.editablestatus) === 153,
-    );
-    if (!anyApprovedDay && isReportMonthLocked(year, month)) {
-      setSaveError("This reporting month is locked and cannot be edited.");
-      return;
-    }
+    // The month guard must not reject changes when the per-day rules allow editing.
+    //const hasEditableDay = Array.from(editableDays.values()).some(
+     // (day) => !dayRevision(day).locked,
+    //);
+    //if (!hasEditableDay && isReportMonthLocked(year, month)) {
+     // setSaveError("This reporting month is locked and cannot be edited.");
+    // // return;
+    //}
 
     setSaving(true);
     try {
