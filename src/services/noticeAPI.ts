@@ -44,8 +44,20 @@ export const noticeAPI = {
   },
 
   async delete(params?: FSISNoticeDeleteParams, options?: import("@/lib/api").ApiOptions) {
-    return await apiDelete("/api/v1/FSISNotice/Delete", undefined, {
-      params,
+    const query = params
+      ? {
+          Stationno: String(params.stationno ?? ""),
+          Reportyear: String(params.reportyear ?? ""),
+          ...(params.reportmonth !== undefined && params.reportmonth !== null
+            ? { Reportmonth: String(params.reportmonth) }
+            : {}),
+          Deletedby: String(params.deletedby ?? ""),
+          Roleno: String(params.roleno ?? 0),
+        }
+      : undefined;
+
+    return await apiGet("/api/v1/FSISNotice/Delete", {
+      params: query,
       ...MUTATION_RETRY_LIGHT,
       ...options,
     });
