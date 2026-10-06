@@ -740,7 +740,10 @@ export function FireCodeFeesFormBody({
 
   /* Existing record detection -------------------------------------------- */
   const [existingFeeno, setExistingFeeno] = React.useState<string | null>(null);
-  const [existingMeta, setExistingMeta] = React.useState({ editablestatus: 0, isrevisionrequest: false });
+  const [existingMeta, setExistingMeta] = React.useState({
+    editablestatus: 0,
+    isrevisionrequest: false,
+  });
   const [existingAccomplishNos, setExistingAccomplishNos] = React.useState<Record<string, string>>(
     {},
   );
@@ -852,7 +855,10 @@ export function FireCodeFeesFormBody({
     reloadNonce,
   });
 
-  const isPastSelectedDate = isDateLocked(`${year}-${String(month).padStart(2, "0")}-01`, "fire-code-fees");
+  const isPastSelectedDate = isDateLocked(
+    `${year}-${String(month).padStart(2, "0")}-01`,
+    "fire-code-fees",
+  );
   const {
     activeRequest,
     unlockedByApproval,

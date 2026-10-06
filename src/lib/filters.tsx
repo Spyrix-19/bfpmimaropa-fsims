@@ -228,7 +228,9 @@ export function resolveReportMonths(interval: DashInterval, period: string): num
     return months.length ? [...new Set(months)].sort((a, b) => a - b) : ALL;
   }
   if (interval === "QUARTERLY") {
-    const normalized = String(period ?? "").trim().toLowerCase();
+    const normalized = String(period ?? "")
+      .trim()
+      .toLowerCase();
     if (!normalized || normalized === "all") return ALL;
 
     const selected = normalized
@@ -245,7 +247,9 @@ export function resolveReportMonths(interval: DashInterval, period: string): num
     return [...new Set(picked.flat())].sort((a, b) => a - b);
   }
   if (interval === "SEMESTER") {
-    const normalized = String(period ?? "").trim().toLowerCase();
+    const normalized = String(period ?? "")
+      .trim()
+      .toLowerCase();
     if (!normalized || normalized === "all") return ALL;
 
     const selected = normalized

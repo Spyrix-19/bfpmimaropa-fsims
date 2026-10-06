@@ -52,15 +52,7 @@ function Dot({ color }: { color: string }) {
 }
 
 /** Mobile-only stat box: uppercase label above a colored value. */
-function MobileStat({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color?: string;
-}) {
+function MobileStat({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-md border border-border/40 bg-muted/20 px-2.5 py-2">
       <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">

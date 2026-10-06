@@ -624,10 +624,7 @@ export default function FireSafetyInspectorPage() {
                 </Button>
                 {/* Mobile-only: Add sits below the Filter | Export row */}
                 {canManage && (
-                  <Button
-                    onClick={openAdd}
-                    className="col-span-2 w-full justify-center gap-2"
-                  >
+                  <Button onClick={openAdd} className="col-span-2 w-full justify-center gap-2">
                     <Plus className="h-4 w-4" /> {ADD_LABEL}
                   </Button>
                 )}

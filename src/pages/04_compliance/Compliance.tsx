@@ -692,7 +692,7 @@ export default function FireSafetyCompliancePage() {
 
   // Server-side ledger returns a single page — `rows` is rendered directly and
   // `total` drives the pagination controls.
-  const monthLocked = isReportMonthLocked(Number(year), Number(month));
+  const monthLocked = isReportMonthLocked(Number(year), Number(month), new Date(), "monitoring");
 
   // Effective GUIDs for the Target vs. Accomplishment panel.
   const effectiveStationNo = scope.stationLocked ? scope.stationno : stationno;
@@ -1214,7 +1214,6 @@ export default function FireSafetyCompliancePage() {
           onSaved={refresh}
         />
       )}
-
     </div>
   );
 }
@@ -1712,22 +1711,13 @@ function MobileValuePair({
 
 function MobileModePair({ manual, fsis }: { manual: number; fsis: number }) {
   return (
-    <MobileValuePair
-      leftLabel="Manual"
-      leftValue={manual}
-      rightLabel="FSIS"
-      rightValue={fsis}
-    />
+    <MobileValuePair leftLabel="Manual" leftValue={manual} rightLabel="FSIS" rightValue={fsis} />
   );
 }
 
 /** Group caption inside an expanded mobile row, e.g. "REINSPECTION". */
 function MobileGroupTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="pb-2 pt-4 text-xs font-bold uppercase text-primary">
-      {children}
-    </div>
-  );
+  return <div className="pb-2 pt-4 text-xs font-bold uppercase text-primary">{children}</div>;
 }
 
 /** One bordered item card inside an expanded mobile period. */
@@ -1757,9 +1747,7 @@ function MobileDetailCard({
 function mobileLineHasRecord(l: DayLine): boolean {
   if (Object.values(l.inspection).some((v) => num(v) !== 0)) return true;
   if (Object.values(l.reinspection).some((v) => num(v) !== 0)) return true;
-  if (
-    Object.values(l.sectors).some((s) => num(s?.target) !== 0 || num(s?.accomplished) !== 0)
-  ) {
+  if (Object.values(l.sectors).some((s) => num(s?.target) !== 0 || num(s?.accomplished) !== 0)) {
     return true;
   }
   return [...Object.values(l.manual), ...Object.values(l.fsis)].some((v) => num(v) !== 0);
@@ -1802,7 +1790,9 @@ function MobileInspectionDetail({ line }: { line: DayLine }) {
                   ))}
                   <div className="col-span-2 flex items-center justify-between border-t border-border pt-1">
                     <span className="text-[10px] text-muted-foreground">Percentage</span>
-                    <span className={`text-xs font-bold tabular-nums ${m.pctClass}`}>{m.pctText}</span>
+                    <span className={`text-xs font-bold tabular-nums ${m.pctClass}`}>
+                      {m.pctText}
+                    </span>
                   </div>
                 </div>
               </MobileDetailCard>
@@ -1814,7 +1804,11 @@ function MobileInspectionDetail({ line }: { line: DayLine }) {
         <MobileGroupTitle>FSEC</MobileGroupTitle>
         <div className="space-y-2">
           {FSEC_COLS.map((c) => (
-            <MobileDetailCard key={c.key} label={c.label} total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}>
+            <MobileDetailCard
+              key={c.key}
+              label={c.label}
+              total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}
+            >
               <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />
             </MobileDetailCard>
           ))}
@@ -1824,7 +1818,11 @@ function MobileInspectionDetail({ line }: { line: DayLine }) {
         <MobileGroupTitle>FSIC</MobileGroupTitle>
         <div className="space-y-2">
           {FSIC_COLS.map((c) => (
-            <MobileDetailCard key={c.key} label={c.label} total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}>
+            <MobileDetailCard
+              key={c.key}
+              label={c.label}
+              total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}
+            >
               <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />
             </MobileDetailCard>
           ))}
@@ -1837,7 +1835,9 @@ function MobileInspectionDetail({ line }: { line: DayLine }) {
             const total = (line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0);
             return (
               <MobileDetailCard key={c.key} label={c.label} total={total}>
-                {c.key !== "closedcount" && <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+                {c.key !== "closedcount" && (
+                  <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />
+                )}
               </MobileDetailCard>
             );
           })}
@@ -1863,7 +1863,11 @@ function MobileReinspectionDetail({ line }: { line: DayLine }) {
         <MobileGroupTitle>Re-FSIC</MobileGroupTitle>
         <div className="space-y-2">
           {RE_FSIC_COLS.map((c) => (
-            <MobileDetailCard key={c.key} label={c.label} total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}>
+            <MobileDetailCard
+              key={c.key}
+              label={c.label}
+              total={(line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0)}
+            >
               <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />
             </MobileDetailCard>
           ))}
@@ -1876,7 +1880,9 @@ function MobileReinspectionDetail({ line }: { line: DayLine }) {
             const total = (line.manual[c.key] ?? 0) + (line.fsis[c.key] ?? 0);
             return (
               <MobileDetailCard key={c.key} label={c.label} total={total}>
-                {c.key !== "reclosurecount" && <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />}
+                {c.key !== "reclosurecount" && (
+                  <MobileModePair manual={line.manual[c.key] ?? 0} fsis={line.fsis[c.key] ?? 0} />
+                )}
               </MobileDetailCard>
             );
           })}
@@ -1914,10 +1920,7 @@ function MobileLineList({
         const ToggleIcon = open ? ChevronUp : ChevronDown;
 
         return (
-          <div
-            key={l.key}
-            className="border-b border-border last:border-b-0"
-          >
+          <div key={l.key} className="border-b border-border last:border-b-0">
             <button
               type="button"
               onClick={() => setOpenKey(open ? null : l.key)}
@@ -2063,7 +2066,9 @@ function ComplianceLedgerCard({
         if (seen.has(wk)) continue;
         seen.add(wk);
         const key = `${row.year}-w${String(wk).padStart(2, "0")}`;
-        out.push(byKey.get(key) ?? emptyLine(key, weekRangeLabels?.get(wk) ?? `Week ${wk} ${row.year}`));
+        out.push(
+          byKey.get(key) ?? emptyLine(key, weekRangeLabels?.get(wk) ?? `Week ${wk} ${row.year}`),
+        );
       }
       return out;
     }

@@ -100,7 +100,7 @@ const ALL_TOKENS = new Set(["ALL", "*", "EVERY", "EVERYTHING"]);
 /** Parse a comma-separated module list from an env var into a module set. */
 function parseModuleList(name: string): Set<PastDateLockModule> {
   const raw = String((import.meta.env?.[name] as string | undefined) ?? "")
-    .replace(/^['"\[]+|['"\]]+$/g, "")
+    .replace(/^['"[]+|['"\]]+$/g, "")
     .trim();
   if (!raw) return new Set();
   const parts = raw
@@ -155,7 +155,10 @@ export function isModuleExempt(module: PastDateLockModule, provinceno?: string):
 }
 
 /** Whether `module` is hard-locked for every date in the given province. */
-export function isModuleLockedForAllDates(module: PastDateLockModule, provinceno?: string): boolean {
+export function isModuleLockedForAllDates(
+  module: PastDateLockModule,
+  provinceno?: string,
+): boolean {
   const key = (provinceno ?? context.provinceno ?? "").trim().toLowerCase();
   if (!key) return false;
   return PROVINCE_ALL_DATE_LOCK_MODULES[key]?.has(module) === true;

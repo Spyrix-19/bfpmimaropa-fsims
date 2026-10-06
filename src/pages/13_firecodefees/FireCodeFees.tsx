@@ -82,6 +82,7 @@ import FireCodeFeesYearViewModal from "./components/fireCodeFeesView";
 import { FeeTypeMultiSelect, useFeeTypes } from "./components/fireCodeFeesFeeTypeFilter";
 import { DayLockIcon } from "@/components/day-lock-icon";
 import { isDateLocked } from "@/lib/past-date-lock";
+import { deriveRevisionLock } from "@/pages/06_target-reference/revision/useRevisionRequests";
 import { isPastMonth } from "./components/feeShared";
 
 /** Station + period context handed to the entry form when editing a ledger card. */
@@ -1551,8 +1552,18 @@ function FireCodeFeesLedgerCard({
                             const [yearText, monthText] = line.key.split("-");
                             const monthYear = Number(yearText);
                             const monthNo = Number(monthText);
-                            const monthLocked =
-                              isDateLocked(`${monthYear}-${String(monthNo).padStart(2, "0")}-01`, "fire-code-fees");
+                            const ym = `${monthYear}-${String(monthNo).padStart(2, "0")}`;
+                            // Same shared rules as the add/edit screens: Super Admin,
+                            // lock-all, exempt module, province lock, then 153/152.
+                            const rec = (row.feedetaillist ?? []).find((r) =>
+                              String(r?.dateaccomplish ?? "").startsWith(ym),
+                            );
+                            const monthLocked = deriveRevisionLock({
+                              requests: [],
+                              isPast: isDateLocked(`${ym}-01`, "fire-code-fees"),
+                              editablestatus: Number(rec?.editablestatus ?? 0) || 0,
+                              isrevisionrequest: Boolean(rec?.isrevisionrequest),
+                            }).fieldsLocked;
                             return <DayLockIcon locked={monthLocked} className="h-3.5 w-3.5" />;
                           })()}
                         <span className="truncate text-sm font-semibold">{line.label}</span>

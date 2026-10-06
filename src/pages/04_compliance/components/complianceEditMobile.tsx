@@ -89,9 +89,7 @@ function MobileFieldPair({
           key={item.key}
           className="flex min-h-9 flex-col justify-center gap-1 rounded-lg border border-border bg-background px-2 py-1.5"
         >
-          <span className="text-[9px] font-bold uppercase text-muted-foreground">
-            {item.label}
-          </span>
+          <span className="text-[9px] font-bold uppercase text-muted-foreground">{item.label}</span>
           {item.locked ? (
             <span className="text-right text-xs font-semibold tabular-nums text-muted-foreground">
               {item.value.toLocaleString()}
@@ -188,7 +186,12 @@ function MobileSectorEditCard({
 
   return (
     <MobileDetailCard label={label}>
-      <MobileFieldRow label="Accomplished" value={accomplished} locked={locked} onChange={onChange} />
+      <MobileFieldRow
+        label="Accomplished"
+        value={accomplished}
+        locked={locked}
+        onChange={onChange}
+      />
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
         {(
           [
@@ -248,8 +251,8 @@ function MobileEditDetail({
   targetBreakdown: boolean;
 }) {
   const plainCols = inspectionCols.filter((c) => !c.target);
-  const sectorCols = inspectionCols.filter(
-    (c): c is InspectionCol & { target: TargetField } => Boolean(c.target),
+  const sectorCols = inspectionCols.filter((c): c is InspectionCol & { target: TargetField } =>
+    Boolean(c.target),
   );
   const locked = day.isLocked;
 
@@ -383,12 +386,8 @@ function MobileRevisionActions({
       <div className="flex items-center gap-2 pt-3">
         <EditButton
           variant="square"
-          tooltip={
-            !stationno ? "Select a station to request a revision" : "Request Revision"
-          }
-          ariaLabel={
-            !stationno ? "Select a station to request a revision" : "Request Revision"
-          }
+          tooltip={!stationno ? "Select a station to request a revision" : "Request Revision"}
+          ariaLabel={!stationno ? "Select a station to request a revision" : "Request Revision"}
           disabled={!stationno}
           icon={<FilePen className="h-4 w-4" />}
           onClick={() => onRequestRevision(day)}

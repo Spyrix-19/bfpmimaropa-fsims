@@ -125,14 +125,26 @@ function belongsTo(r: FSISEditRequestModel, match: RevisionMatch): boolean {
 
 /** 153 = APPROVED, as tagged on the Revision Requests page. */
 const STATUS_NO_APPROVED = 153;
+/** 152 = PENDING. */
+const STATUS_NO_PENDING = 152;
 
 function requestStatus(r: FSISEditRequestModel): string {
   if (Number(r.statusno) === STATUS_NO_APPROVED) return "APPROVED";
-  const code = String(r.statuscode ?? "").trim().toUpperCase();
-  const name = String(r.statusname ?? "").trim().toUpperCase();
+  if (Number(r.statusno) === STATUS_NO_PENDING) return "PENDING";
+  const code = String(r.statuscode ?? "")
+    .trim()
+    .toUpperCase();
+  const name = String(r.statusname ?? "")
+    .trim()
+    .toUpperCase();
   if (code.startsWith("APPROV") || name.startsWith("APPROV")) return "APPROVED";
   if (code.startsWith("PEND") || name.startsWith("PEND")) return "PENDING";
   return code;
+}
+
+/** True when a ledger request is still awaiting review (statusno 152 / PENDING). */
+export function isPendingRequest(r: FSISEditRequestModel | null | undefined): boolean {
+  return !!r && requestStatus(r) === "PENDING";
 }
 
 /** Finds the request with `status` that belongs to a record, date or month. */
@@ -201,10 +213,9 @@ export const EDITABLE_STATUS = {
  *     date-lock rule (past-date, all-date, exemption) or role.
  *  2. editablestatus 152 (PENDING) → locked; only this state shows the
  *     Cancel / Remove revision request actions.
- *  3. Any other editablestatus (154/155/156) → no revision effect; fall
- *     through to the env date-lock rules (`isPast`).
- *  When the record carries no editablestatus, `isrevisionrequest` and the
- *  revision-request ledger are used instead.
+ *  3. Any other status (154/155/156 or none) → env date-lock rules (`isPast`).
+ *  When no saved record/status exists, the matching revision request's own
+ *  status (152/153) is used as the effective status.
  */
 export function deriveRevisionLock({
   requests,
@@ -217,9 +228,22 @@ export function deriveRevisionLock({
   readOnly = false,
 }: RevisionLockInput): RevisionLock {
   const match = { referencekey, dateKey, report };
-  const status = Number(editablestatus) || 0;
-  const hasStatus = (Object.values(EDITABLE_STATUS) as number[]).includes(status);
+  const recordStatus = Number(editablestatus) || 0;
+  const recordHasStatus = (Object.values(EDITABLE_STATUS) as number[]).includes(recordStatus);
   const ledgerPending = findRequest(requests, "PENDING", match);
+  const ledgerApproved = findRequest(requests, "APPROVED", match);
+
+  // Effective status: the saved record's editablestatus wins. When there is no
+  // saved record yet (or it carries no status), the matching revision request
+  // supplies the same 152/153 code, so one rule set covers both cases.
+  const status = recordHasStatus
+    ? recordStatus
+    : ledgerApproved
+      ? EDITABLE_STATUS.APPROVED
+      : ledgerPending
+        ? EDITABLE_STATUS.PENDING
+        : 0;
+  void isrevisionrequest; // informational only — 152 is the sole pending signal
 
   if (status === EDITABLE_STATUS.APPROVED) {
     return {
@@ -239,25 +263,12 @@ export function deriveRevisionLock({
       fieldsLocked: true,
     };
   }
-  if (hasStatus) {
-    // Rejected / cancelled / done: the env date-lock rules decide.
-    return {
-      activeRequest: null,
-      unlockedByApproval: false,
-      hasPendingRevision: false,
-      needsRevisionRequest: !readOnly && isPast,
-      fieldsLocked: readOnly || isPast,
-    };
-  }
-
-  const unlockedByApproval = !!findRequest(requests, "APPROVED", match);
-  // A pending request locks the record even when its date is not in the past.
-  const hasPendingRevision = !unlockedByApproval && (isrevisionrequest || !!ledgerPending);
+  // Rejected / cancelled / done / no status: the env date-lock rules decide.
   return {
-    activeRequest: ledgerPending,
-    unlockedByApproval,
-    hasPendingRevision,
-    needsRevisionRequest: !readOnly && isPast && !unlockedByApproval && !hasPendingRevision,
-    fieldsLocked: readOnly || (!unlockedByApproval && (isPast || hasPendingRevision)),
+    activeRequest: null,
+    unlockedByApproval: false,
+    hasPendingRevision: false,
+    needsRevisionRequest: !readOnly && isPast,
+    fieldsLocked: readOnly || isPast,
   };
 }

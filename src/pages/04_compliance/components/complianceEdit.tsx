@@ -116,10 +116,7 @@ export type InspectionField =
 
 /** Daily target fields (read-only, supplied by the Detail API). */
 export type TargetField =
-  | "dailytargetbplo"
-  | "dailytargetgov"
-  | "dailytargetpeza"
-  | "dailytargettieza";
+  "dailytargetbplo" | "dailytargetgov" | "dailytargetpeza" | "dailytargettieza";
 
 /** Issuance-level (compliancelist[*].issuancelist[*]) numeric fields. */
 export type IssuanceField =
@@ -332,7 +329,11 @@ function hasPstLockActivated(
   now: Date = new Date(),
 ): boolean {
   // Same single decision every module uses (src/lib/past-date-lock.ts).
-  return isDateLocked(`${reportyear}-${String(reportmonth).padStart(2, "0")}-01`, "monitoring", now);
+  return isDateLocked(
+    `${reportyear}-${String(reportmonth).padStart(2, "0")}-01`,
+    "monitoring",
+    now,
+  );
 }
 
 /** Check if a given date has already passed (is before today at midnight). */
@@ -608,7 +609,9 @@ function ComplianceEditBody({
     [revisionRequests],
   );
 
-  const hasLockedDaysInPeriod = Array.from(editableDays.values()).some((day) => dayRevision(day).locked);
+  const hasLockedDaysInPeriod = Array.from(editableDays.values()).some(
+    (day) => dayRevision(day).locked,
+  );
 
   /* ----------------------------- Data loading ---------------------------- */
   React.useEffect(() => {
@@ -763,10 +766,10 @@ function ComplianceEditBody({
 
     // The month guard must not reject changes when the per-day rules allow editing.
     //const hasEditableDay = Array.from(editableDays.values()).some(
-     // (day) => !dayRevision(day).locked,
+    // (day) => !dayRevision(day).locked,
     //);
     //if (!hasEditableDay && isReportMonthLocked(year, month)) {
-     // setSaveError("This reporting month is locked and cannot be edited.");
+    // setSaveError("This reporting month is locked and cannot be edited.");
     // // return;
     //}
 
@@ -1222,57 +1225,57 @@ function ComplianceEditBody({
 
       {revisionOpen && (
         <React.Suspense fallback={null}>
-        <RevisionRequestDialog
-          open={revisionOpen}
-          onOpenChange={setRevisionOpen}
-          module="monitoring"
-          station={{
-            stationno,
-            stationcode: station?.stationcode || "",
-            stationname: station?.stationname || "",
-            provinceno: provinceno || "",
-            provincename: station?.provincename || "",
-            cityname: station?.cityname || user?.cityname || "",
-          }}
-          year={year}
-          month={month}
-          referencekey={revisionReferenceKey}
-          dateinspected={revisionDate}
-          onSubmitted={() => setRevisionRequestRefreshTick((n) => n + 1)}
-        />
+          <RevisionRequestDialog
+            open={revisionOpen}
+            onOpenChange={setRevisionOpen}
+            module="monitoring"
+            station={{
+              stationno,
+              stationcode: station?.stationcode || "",
+              stationname: station?.stationname || "",
+              provinceno: provinceno || "",
+              provincename: station?.provincename || "",
+              cityname: station?.cityname || user?.cityname || "",
+            }}
+            year={year}
+            month={month}
+            referencekey={revisionReferenceKey}
+            dateinspected={revisionDate}
+            onSubmitted={() => setRevisionRequestRefreshTick((n) => n + 1)}
+          />
         </React.Suspense>
       )}
 
       {cancelRequestId && (
         <React.Suspense fallback={null}>
-        <ReasonRemarksDialog
-        open={!!cancelRequestId}
-        onOpenChange={(v) => !v && setCancelRequestId(null)}
-        title="Cancel Revision Request"
-        description="Provide the reason for cancelling this pending request."
-        reasonLabel="Cancellation Reason"
-        confirmLabel="Cancel Request"
-        confirmVariant="destructive"
-        onConfirm={async ({ reason, remarks }) => {
-          if (!cancelRequestId) return;
-          const resp = await revisionrequestAPI.status({
-            requestno: cancelRequestId,
-            stationno: stationno || EMPTY_GUID,
-            requesttype: revisionRequestType("monitoring"),
-            remarks: [reason, remarks].filter(Boolean).join(" — "),
-            statusno: 155,
-            taggedby: user?.memberno ?? "",
-          });
-          const { ok, error } = unwrap(resp);
-          if (!ok) {
-            toast.error(error || "Unable to cancel revision request.");
-            return;
-          }
-          toast.success("Revision request cancelled.");
-          setCancelRequestId(null);
-          setRevisionRequestRefreshTick((n) => n + 1);
-        }}
-        />
+          <ReasonRemarksDialog
+            open={!!cancelRequestId}
+            onOpenChange={(v) => !v && setCancelRequestId(null)}
+            title="Cancel Revision Request"
+            description="Provide the reason for cancelling this pending request."
+            reasonLabel="Cancellation Reason"
+            confirmLabel="Cancel Request"
+            confirmVariant="destructive"
+            onConfirm={async ({ reason, remarks }) => {
+              if (!cancelRequestId) return;
+              const resp = await revisionrequestAPI.status({
+                requestno: cancelRequestId,
+                stationno: stationno || EMPTY_GUID,
+                requesttype: revisionRequestType("monitoring"),
+                remarks: [reason, remarks].filter(Boolean).join(" — "),
+                statusno: 155,
+                taggedby: user?.memberno ?? "",
+              });
+              const { ok, error } = unwrap(resp);
+              if (!ok) {
+                toast.error(error || "Unable to cancel revision request.");
+                return;
+              }
+              toast.success("Revision request cancelled.");
+              setCancelRequestId(null);
+              setRevisionRequestRefreshTick((n) => n + 1);
+            }}
+          />
         </React.Suspense>
       )}
 

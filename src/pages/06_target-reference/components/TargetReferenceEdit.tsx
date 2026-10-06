@@ -61,6 +61,7 @@ import RevisionRequestDialog from "../revision/RevisionRequestDialog";
 import { revisionRequestType } from "../revision/types";
 import {
   deriveRevisionLock,
+  isPendingRequest,
   matchRequest,
   useRevisionLedger,
 } from "../revision/useRevisionRequests";
@@ -920,8 +921,7 @@ export default function TargetReferenceForm({
                 const lock = rowRevisionLock(d);
                 const activeReq =
                   lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
-                const rowLocked =
-                  lock.fieldsLocked;
+                const rowLocked = lock.fieldsLocked;
                 const isEditable = !rowLocked;
                 const rowReferenceKey = existingTargetNos?.[String(d)] || "";
                 return (
@@ -985,7 +985,7 @@ export default function TargetReferenceForm({
                         {activeReq ? (
                           <RevisionStatusBadge
                             status={
-                              activeReq.statuscode?.toUpperCase() === "PENDING"
+                              isPendingRequest(activeReq)
                                 ? "PENDING"
                                 : activeReq.statuscode?.toUpperCase() === "APPROVED"
                                   ? "APPROVED"
@@ -1075,8 +1075,7 @@ export default function TargetReferenceForm({
               const lock = rowRevisionLock(d);
               const activeReq =
                 lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
-              const rowLocked =
-                lock.fieldsLocked;
+              const rowLocked = lock.fieldsLocked;
               const isEditable = !rowLocked;
               const showRevisionAction = !isEditable && !lock.unlockedByApproval;
               const expanded = Boolean(mobileExpandedDates[d]);
@@ -1133,7 +1132,7 @@ export default function TargetReferenceForm({
                         {activeReq ? (
                           <RevisionStatusBadge
                             status={
-                              activeReq.statuscode?.toUpperCase() === "PENDING"
+                              isPendingRequest(activeReq)
                                 ? "PENDING"
                                 : activeReq.statuscode?.toUpperCase() === "APPROVED"
                                   ? "APPROVED"
@@ -1393,13 +1392,19 @@ export default function TargetReferenceForm({
               {hasLockedDaysInEditPeriod && (
                 <div className="flex items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
                   <Lock className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
-                  <span>This date has already passed and is locked. Submit a revision request to enable editing.</span>
+                  <span>
+                    This date has already passed and is locked. Submit a revision request to enable
+                    editing.
+                  </span>
                 </div>
               )}
 
               {allLockedInPeriod && (
                 <div className="flex items-start gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                  <AlertTriangle
+                    className="mt-0.5 h-4 w-4 shrink-0 text-warning"
+                    aria-hidden="true"
+                  />
                   <div>
                     <div className="font-semibold">This reporting month is locked</div>
                     <p className="mt-1">A revision request is required to edit these records.</p>

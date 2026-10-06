@@ -1344,9 +1344,7 @@ function InspectionsNewBody({
                           className="text-right font-medium tabular-nums"
                           style={{
                             color:
-                              r.percentage >= 100
-                                ? DAILY_SERIES.positive
-                                : DAILY_SERIES.inspected,
+                              r.percentage >= 100 ? DAILY_SERIES.positive : DAILY_SERIES.inspected,
                           }}
                         >
                           {`${r.percentage.toFixed(2)}%`}
@@ -2058,82 +2056,82 @@ function IssuanceTable({
         />
       </div>
       <div className="hidden w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft md:block">
-      <div className="overflow-auto">
-        <table className="min-w-max border-separate border-spacing-0 text-[11px]">
-          <thead className="sticky top-0 z-30">
-            <tr>
-              <th
-                rowSpan={2}
-                className={cn(
-                  "sticky left-0 top-0 z-40 min-w-[110px] border-b border-r px-3 py-2 text-center align-middle uppercase tracking-wider",
-                  MONITORING_THEME.headerPrimary,
-                )}
-              >
-                Issuance
-              </th>
-              {groups.map((g) => (
+        <div className="overflow-auto">
+          <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+            <thead className="sticky top-0 z-30">
+              <tr>
                 <th
-                  key={g.title}
-                  colSpan={g.fields.length}
+                  rowSpan={2}
                   className={cn(
-                    "border-b border-r px-2 py-2 text-center uppercase tracking-wider",
-                    g.headClass,
+                    "sticky left-0 top-0 z-40 min-w-[110px] border-b border-r px-3 py-2 text-center align-middle uppercase tracking-wider",
+                    MONITORING_THEME.headerPrimary,
                   )}
                 >
-                  {g.title}
+                  Issuance
                 </th>
-              ))}
-              <th
-                rowSpan={2}
-                className={cn(
-                  "min-w-[90px] border-b border-l px-3 py-2 text-center align-middle uppercase tracking-wider",
-                  MONITORING_THEME.headerPrimary,
-                )}
-              >
-                Total
-              </th>
-            </tr>
-            <tr>
-              {groups.flatMap((g) =>
-                g.fields.map((f) => (
+                {groups.map((g) => (
                   <th
-                    key={f.key}
+                    key={g.title}
+                    colSpan={g.fields.length}
                     className={cn(
-                      "min-w-[80px] border-b border-r px-1.5 py-1 text-center text-[10px] font-bold uppercase",
-                      g.subHeadClass,
+                      "border-b border-r px-2 py-2 text-center uppercase tracking-wider",
+                      g.headClass,
                     )}
-                    title={f.tooltip}
                   >
-                    {shortLabel(f.label)}
+                    {g.title}
                   </th>
-                )),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {renderRow("MANUAL", manualValues, onManualChange, true)}
-            {renderRow("FSIS", fsisValues, onFsisChange, false)}
-            <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
-              <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
-                Total
-              </td>
-              {groups.flatMap((g) =>
-                g.fields.map((f) => (
-                  <td
-                    key={f.key}
-                    className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
-                  >
-                    {colTotal(f.key).toLocaleString()}
-                  </td>
-                )),
-              )}
-              <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
-                {grandTotal.toLocaleString()}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                ))}
+                <th
+                  rowSpan={2}
+                  className={cn(
+                    "min-w-[90px] border-b border-l px-3 py-2 text-center align-middle uppercase tracking-wider",
+                    MONITORING_THEME.headerPrimary,
+                  )}
+                >
+                  Total
+                </th>
+              </tr>
+              <tr>
+                {groups.flatMap((g) =>
+                  g.fields.map((f) => (
+                    <th
+                      key={f.key}
+                      className={cn(
+                        "min-w-[80px] border-b border-r px-1.5 py-1 text-center text-[10px] font-bold uppercase",
+                        g.subHeadClass,
+                      )}
+                      title={f.tooltip}
+                    >
+                      {shortLabel(f.label)}
+                    </th>
+                  )),
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {renderRow("MANUAL", manualValues, onManualChange, true)}
+              {renderRow("FSIS", fsisValues, onFsisChange, false)}
+              <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
+                <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
+                  Total
+                </td>
+                {groups.flatMap((g) =>
+                  g.fields.map((f) => (
+                    <td
+                      key={f.key}
+                      className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
+                    >
+                      {colTotal(f.key).toLocaleString()}
+                    </td>
+                  )),
+                )}
+                <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
+                  {grandTotal.toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );
@@ -2321,82 +2319,82 @@ function ReinspectionTable({
         />
       </div>
       <div className="hidden w-full max-w-full overflow-hidden rounded-lg border border-border/60 shadow-soft md:block">
-      <div className="overflow-auto">
-        <table className="min-w-max border-separate border-spacing-0 text-[11px]">
-          <thead className="sticky top-0 z-30">
-            <tr>
-              <th
-                rowSpan={2}
-                className={cn(
-                  "sticky left-0 top-0 z-40 min-w-[110px] border-b border-r px-3 py-2 text-center align-middle uppercase tracking-wider",
-                  MONITORING_THEME.headerPrimary,
-                )}
-              >
-                Reinspection
-              </th>
-              {groups.map((g) => (
+        <div className="overflow-auto">
+          <table className="min-w-max border-separate border-spacing-0 text-[11px]">
+            <thead className="sticky top-0 z-30">
+              <tr>
                 <th
-                  key={g.title}
-                  colSpan={g.fields.length}
+                  rowSpan={2}
                   className={cn(
-                    "border-b border-r px-2 py-2 text-center uppercase tracking-wider",
-                    g.headClass,
+                    "sticky left-0 top-0 z-40 min-w-[110px] border-b border-r px-3 py-2 text-center align-middle uppercase tracking-wider",
+                    MONITORING_THEME.headerPrimary,
                   )}
                 >
-                  {g.title}
+                  Reinspection
                 </th>
-              ))}
-              <th
-                rowSpan={2}
-                className={cn(
-                  "min-w-[90px] border-b border-l px-3 py-2 text-center align-middle uppercase tracking-wider",
-                  MONITORING_THEME.headerPrimary,
-                )}
-              >
-                Total
-              </th>
-            </tr>
-            <tr>
-              {groups.flatMap((g) =>
-                g.fields.map((f) => (
+                {groups.map((g) => (
                   <th
-                    key={f.key}
+                    key={g.title}
+                    colSpan={g.fields.length}
                     className={cn(
-                      "min-w-[80px] border-b border-r px-1.5 py-1 text-center text-[10px] font-bold uppercase",
-                      g.subHeadClass,
+                      "border-b border-r px-2 py-2 text-center uppercase tracking-wider",
+                      g.headClass,
                     )}
-                    title={f.tooltip}
                   >
-                    {shortLabel(f.label)}
+                    {g.title}
                   </th>
-                )),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {renderRow("MANUAL", manualValues, onManualChange, true)}
-            {renderRow("FSIS", fsisValues, onFsisChange, false)}
-            <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
-              <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
-                Total
-              </td>
-              {groups.flatMap((g) =>
-                g.fields.map((f) => (
-                  <td
-                    key={f.key}
-                    className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
-                  >
-                    {colTotal(f.key).toLocaleString()}
-                  </td>
-                )),
-              )}
-              <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
-                {grandTotal.toLocaleString()}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                ))}
+                <th
+                  rowSpan={2}
+                  className={cn(
+                    "min-w-[90px] border-b border-l px-3 py-2 text-center align-middle uppercase tracking-wider",
+                    MONITORING_THEME.headerPrimary,
+                  )}
+                >
+                  Total
+                </th>
+              </tr>
+              <tr>
+                {groups.flatMap((g) =>
+                  g.fields.map((f) => (
+                    <th
+                      key={f.key}
+                      className={cn(
+                        "min-w-[80px] border-b border-r px-1.5 py-1 text-center text-[10px] font-bold uppercase",
+                        g.subHeadClass,
+                      )}
+                      title={f.tooltip}
+                    >
+                      {shortLabel(f.label)}
+                    </th>
+                  )),
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {renderRow("MANUAL", manualValues, onManualChange, true)}
+              {renderRow("FSIS", fsisValues, onFsisChange, false)}
+              <tr className="border-t-2 border-border bg-accent font-bold text-foreground">
+                <td className="sticky left-0 z-20 border-r-2 border-t-2 border-border bg-accent px-3 py-2.5 text-left font-bold uppercase tracking-wide">
+                  Total
+                </td>
+                {groups.flatMap((g) =>
+                  g.fields.map((f) => (
+                    <td
+                      key={f.key}
+                      className="border-r border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums"
+                    >
+                      {colTotal(f.key).toLocaleString()}
+                    </td>
+                  )),
+                )}
+                <td className="border-t-2 border-border bg-accent px-3 py-2.5 text-center font-bold tabular-nums">
+                  {grandTotal.toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );

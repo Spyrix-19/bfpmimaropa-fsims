@@ -1,6 +1,14 @@
 import { StickyPageTop } from "@/components/shared/StickyPageTop";
 import * as React from "react";
-import { AlertTriangle, Download, Loader2, Eye, Plus, Radio, SlidersHorizontal } from "lucide-react";
+import {
+  AlertTriangle,
+  Download,
+  Loader2,
+  Eye,
+  Plus,
+  Radio,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
 import { Card } from "@/components/ui/card";
@@ -636,10 +644,7 @@ export default function IssuedBwcPage() {
               </Button>
               {/* Mobile-only: Add sits below the Filter | Export row */}
               {canManage && (
-                <Button
-                  onClick={openAdd}
-                  className="col-span-2 w-full justify-center gap-2"
-                >
+                <Button onClick={openAdd} className="col-span-2 w-full justify-center gap-2">
                   <Plus className="h-4 w-4" /> {ADD_LABEL}
                 </Button>
               )}

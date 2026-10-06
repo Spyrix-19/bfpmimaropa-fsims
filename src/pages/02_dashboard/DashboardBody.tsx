@@ -2044,75 +2044,78 @@ export function DashboardBody({
               setChartType={setMonthlySectorChartType}
               filters={
                 <>
-                <Select
-                  value={String(monthlySectorYear)}
-                  onValueChange={(v) => setMonthlySectorYear(Number(v))}
-                >
-                  <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {yoYYearOptions.map((year) => (
-                      <SelectItem key={year} value={String(year)}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <ChartScopeFilters
-                  isAuthenticated={isAuthenticated}
-                  scope={scope}
-                  value={monthlySectorScope}
-                  onChange={setMonthlySectorScope}
-                  reportyear={monthlySectorYear}
-                />
-              </>
-            }
-          />
-        }
-      >
-        {monthlySectorLoading ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground">
-            Loading…
-          </div>
-        ) : monthlySectorRows.length === 0 ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground">
-            No data for the selected year.
-          </div>
-        ) : monthlySectorChartType === "bar" ? (
-          <ResponsiveContainer>
-            <BarChart data={monthlySectorRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {SECTORS.map((s) => (
-                <Bar key={s} dataKey={s} fill={SECTOR_COLORS[s]} radius={[4, 4, 0, 0]} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <ResponsiveContainer>
-            <LineChart data={monthlySectorRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {SECTORS.map((s) => (
-                <Line
-                  key={s}
-                  type="monotone"
-                  dataKey={s}
-                  stroke={SECTOR_COLORS[s]}
-                  strokeWidth={2}
-                  dot={{ r: 2 }}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        )}
+                  <Select
+                    value={String(monthlySectorYear)}
+                    onValueChange={(v) => setMonthlySectorYear(Number(v))}
+                  >
+                    <SelectTrigger className="h-9 w-full shrink-0 sm:w-[96px]">
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {yoYYearOptions.map((year) => (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <ChartScopeFilters
+                    isAuthenticated={isAuthenticated}
+                    scope={scope}
+                    value={monthlySectorScope}
+                    onChange={setMonthlySectorScope}
+                    reportyear={monthlySectorYear}
+                  />
+                </>
+              }
+            />
+          }
+        >
+          {monthlySectorLoading ? (
+            <div className="grid h-full place-items-center text-sm text-muted-foreground">
+              Loading…
+            </div>
+          ) : monthlySectorRows.length === 0 ? (
+            <div className="grid h-full place-items-center text-sm text-muted-foreground">
+              No data for the selected year.
+            </div>
+          ) : monthlySectorChartType === "bar" ? (
+            <ResponsiveContainer>
+              <BarChart data={monthlySectorRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="name" {...axisProps} />
+                <YAxis {...axisProps} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                {SECTORS.map((s) => (
+                  <Bar key={s} dataKey={s} fill={SECTOR_COLORS[s]} radius={[4, 4, 0, 0]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer>
+              <LineChart
+                data={monthlySectorRows}
+                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="name" {...axisProps} />
+                <YAxis {...axisProps} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                {SECTORS.map((s) => (
+                  <Line
+                    key={s}
+                    type="monotone"
+                    dataKey={s}
+                    stroke={SECTOR_COLORS[s]}
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
       </div>
 

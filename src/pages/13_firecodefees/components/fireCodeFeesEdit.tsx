@@ -759,10 +759,7 @@ export function FireCodeFeesYearEditorBody({
                         showRevisionAction && "pl-0",
                       )}
                     >
-                      <DayLockIcon
-                        locked={lockInfo(m).locked}
-                        className="h-3.5 w-3.5"
-                      />
+                      <DayLockIcon locked={lockInfo(m).locked} className="h-3.5 w-3.5" />
                       <span className="text-sm font-semibold">{name}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider">

@@ -462,7 +462,9 @@ export default function UsersLedger({ variant, title, description }: Props) {
                       <StationSearchSelect
                         value={stationno}
                         valueName={stationname}
-                        provinceno={provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined}
+                        provinceno={
+                          provinceno && provinceno !== EMPTY_GUID ? provinceno : undefined
+                        }
                         showAllOption
                         readOnly={!stationEditable}
                         disabled={stationEditable && (!provinceno || provinceno === EMPTY_GUID)}

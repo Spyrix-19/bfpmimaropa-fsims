@@ -61,7 +61,10 @@ export const personnelAPI = {
     return await apiPost("/api/v1/Personnel/Profile/Upload", form, { ...NO_RETRY, ...options });
   },
 
-  async deleteProfilePhoto(params: RemoveMemberProfilePhotoParams, options?: import("@/lib/api").ApiOptions) {
+  async deleteProfilePhoto(
+    params: RemoveMemberProfilePhotoParams,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
     const query = {
       Memberno: String(params.memberno ?? ""),
       Badgeno: String(params.badgeno ?? ""),
@@ -74,7 +77,6 @@ export const personnelAPI = {
       ...options,
     });
   },
-
 
   async deleteProfile(params: MemberProfileDeleteParams, options?: import("@/lib/api").ApiOptions) {
     const query = {

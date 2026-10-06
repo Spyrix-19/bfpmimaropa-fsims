@@ -245,16 +245,19 @@ export default function TargetReferenceIndexPage() {
 
   const targetReferenceAllDateLocked = React.useMemo(() => {
     const provinceKey =
-      scope.provinceLocked && scope.provinceno ? scope.provinceno : user?.provinceno ?? "";
+      scope.provinceLocked && scope.provinceno ? scope.provinceno : (user?.provinceno ?? "");
     return isModuleLockedForAllDates("target-reference", provinceKey);
   }, [scope.provinceLocked, scope.provinceno, user?.provinceno]);
 
-  const promptAllDateLock = React.useCallback((action: "add" | "edit") => {
-    if (!targetReferenceAllDateLocked) return false;
-    void action;
-    setAllDateLockPromptOpen(true);
-    return true;
-  }, [targetReferenceAllDateLocked]);
+  const promptAllDateLock = React.useCallback(
+    (action: "add" | "edit") => {
+      if (!targetReferenceAllDateLocked) return false;
+      void action;
+      setAllDateLockPromptOpen(true);
+      return true;
+    },
+    [targetReferenceAllDateLocked],
+  );
 
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [detailsTarget, setDetailsTarget] = React.useState<{

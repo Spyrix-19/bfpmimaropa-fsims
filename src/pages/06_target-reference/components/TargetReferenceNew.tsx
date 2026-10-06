@@ -85,7 +85,12 @@ import type {
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import { resolveTargetScope, buildDays, formatDayLabel } from "../helpers";
 import { revisionRequestType } from "../revision/types";
-import { deriveRevisionLock, findRequest, useRevisionLedger } from "../revision/useRevisionRequests";
+import {
+  deriveRevisionLock,
+  findRequest,
+  isPendingRequest,
+  useRevisionLedger,
+} from "../revision/useRevisionRequests";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { isPastDateLockEnabled, isDateLocked } from "@/lib/past-date-lock";
@@ -780,7 +785,7 @@ export default function TargetReferenceForm({
     const wanted = String(selectedDate).slice(0, 10);
     return (
       revisionRequests.find((r) => {
-        if (r.statuscode?.toUpperCase() !== "PENDING") return false;
+        if (!isPendingRequest(r)) return false;
         if (existingTargetno && String(r.referencekey) === String(existingTargetno)) return true;
         return r.dateinspected ? String(r.dateinspected).slice(0, 10) === wanted : false;
       }) ?? null
@@ -967,7 +972,7 @@ export default function TargetReferenceForm({
   const activeReqByDay = React.useMemo(() => {
     const map = new Map<number, (typeof revisionRequests)[number]>();
     for (const req of revisionRequests) {
-      if (req.statuscode?.toUpperCase() !== "PENDING") continue;
+      if (!isPendingRequest(req)) continue;
       if (Number(req.reportmonth) !== Number(month)) continue;
       const day = Number((req as { reportday?: number }).reportday || 0);
       if (!map.has(day)) map.set(day, req);
@@ -1248,7 +1253,7 @@ export default function TargetReferenceForm({
                       {activeReq ? (
                         <RevisionStatusBadge
                           status={
-                            activeReq.statuscode?.toUpperCase() === "PENDING"
+                            isPendingRequest(activeReq)
                               ? "PENDING"
                               : activeReq.statuscode?.toUpperCase() === "APPROVED"
                                 ? "APPROVED"
@@ -1374,7 +1379,7 @@ export default function TargetReferenceForm({
                       <span className="mt-0.5 block">
                         <RevisionStatusBadge
                           status={
-                            activeReq.statuscode?.toUpperCase() === "PENDING"
+                            isPendingRequest(activeReq)
                               ? "PENDING"
                               : activeReq.statuscode?.toUpperCase() === "APPROVED"
                                 ? "APPROVED"
@@ -1794,82 +1799,82 @@ export default function TargetReferenceForm({
 
       {addRevisionOpen && (
         <React.Suspense fallback={null}>
-        <RevisionRequestDialog
-          open={addRevisionOpen}
-          onOpenChange={(v) => setAddRevisionOpen(v)}
-          station={{
-            stationno: stationNo,
-            stationcode: stationCode || "",
-            stationname: stationName || "",
-            provinceno: provinceno,
-            provincename: provincename,
-            cityname: station?.cityname ?? user?.cityname ?? "",
-          }}
-          year={selectedYear}
-          month={selectedMonth}
-          referencekey={existingTargetno || EMPTY_GUID}
-          dateinspected={selectedDate}
-          onSubmitted={() => setReloadNonce((n) => n + 1)}
-        />
+          <RevisionRequestDialog
+            open={addRevisionOpen}
+            onOpenChange={(v) => setAddRevisionOpen(v)}
+            station={{
+              stationno: stationNo,
+              stationcode: stationCode || "",
+              stationname: stationName || "",
+              provinceno: provinceno,
+              provincename: provincename,
+              cityname: station?.cityname ?? user?.cityname ?? "",
+            }}
+            year={selectedYear}
+            month={selectedMonth}
+            referencekey={existingTargetno || EMPTY_GUID}
+            dateinspected={selectedDate}
+            onSubmitted={() => setReloadNonce((n) => n + 1)}
+          />
         </React.Suspense>
       )}
 
       {revisionDay !== null && (
         <React.Suspense fallback={null}>
-        <RevisionRequestDialog
-          open={revisionDay !== null}
-          onOpenChange={(v) => !v && setRevisionDay(null)}
-          station={{
-            stationno: stationNo,
-            stationcode: stationCode || "",
-            stationname: stationName || "",
-            provinceno: provinceno,
-            provincename: provincename,
-            cityname: station?.cityname ?? user?.cityname ?? "",
-          }}
-          year={Number(year)}
-          month={Number(month)}
-          referencekey={
-            existingTargetNos[String(revisionDay)] &&
-            existingTargetNos[String(revisionDay)] !== EMPTY_GUID
-              ? existingTargetNos[String(revisionDay)]
-              : EMPTY_GUID
-          }
-          onSubmitted={() => setReloadNonce((n) => n + 1)}
-        />
+          <RevisionRequestDialog
+            open={revisionDay !== null}
+            onOpenChange={(v) => !v && setRevisionDay(null)}
+            station={{
+              stationno: stationNo,
+              stationcode: stationCode || "",
+              stationname: stationName || "",
+              provinceno: provinceno,
+              provincename: provincename,
+              cityname: station?.cityname ?? user?.cityname ?? "",
+            }}
+            year={Number(year)}
+            month={Number(month)}
+            referencekey={
+              existingTargetNos[String(revisionDay)] &&
+              existingTargetNos[String(revisionDay)] !== EMPTY_GUID
+                ? existingTargetNos[String(revisionDay)]
+                : EMPTY_GUID
+            }
+            onSubmitted={() => setReloadNonce((n) => n + 1)}
+          />
         </React.Suspense>
       )}
 
       {cancelRequestId && (
         <React.Suspense fallback={null}>
-        <ReasonRemarksDialog
-        open={!!cancelRequestId}
-        onOpenChange={(v) => !v && setCancelRequestId(null)}
-        title="Cancel Revision Request"
-        description="Provide the reason for cancelling this pending request."
-        reasonLabel="Cancellation Reason"
-        confirmLabel="Cancel Request"
-        confirmVariant="destructive"
-        onConfirm={async ({ reason, remarks }) => {
-          if (!cancelRequestId) return;
-          const resp = await revisionrequestAPI.status({
-            requestno: cancelRequestId,
-            stationno: stationNo || EMPTY_GUID,
-            requesttype: revisionRequestType("target-reference"),
-            remarks: [reason, remarks].filter(Boolean).join(" — "),
-            statusno: 155,
-            taggedby: user?.memberno ?? "",
-          });
-          const { ok, error } = unwrap(resp);
-          if (!ok) {
-            toast.error(error || "Unable to cancel revision request.");
-            return;
-          }
-          toast.success("Revision request cancelled.");
-          setCancelRequestId(null);
-          setReloadNonce((n) => n + 1);
-        }}
-        />
+          <ReasonRemarksDialog
+            open={!!cancelRequestId}
+            onOpenChange={(v) => !v && setCancelRequestId(null)}
+            title="Cancel Revision Request"
+            description="Provide the reason for cancelling this pending request."
+            reasonLabel="Cancellation Reason"
+            confirmLabel="Cancel Request"
+            confirmVariant="destructive"
+            onConfirm={async ({ reason, remarks }) => {
+              if (!cancelRequestId) return;
+              const resp = await revisionrequestAPI.status({
+                requestno: cancelRequestId,
+                stationno: stationNo || EMPTY_GUID,
+                requesttype: revisionRequestType("target-reference"),
+                remarks: [reason, remarks].filter(Boolean).join(" — "),
+                statusno: 155,
+                taggedby: user?.memberno ?? "",
+              });
+              const { ok, error } = unwrap(resp);
+              if (!ok) {
+                toast.error(error || "Unable to cancel revision request.");
+                return;
+              }
+              toast.success("Revision request cancelled.");
+              setCancelRequestId(null);
+              setReloadNonce((n) => n + 1);
+            }}
+          />
         </React.Suspense>
       )}
 

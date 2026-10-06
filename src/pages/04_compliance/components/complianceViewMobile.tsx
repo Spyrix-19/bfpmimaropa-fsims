@@ -94,20 +94,13 @@ function MobileValuePair({
 
 function MobileModePair({ manual, fsis }: { manual: number; fsis: number }) {
   return (
-    <MobileValuePair
-      leftLabel="Manual"
-      leftValue={manual}
-      rightLabel="FSIS"
-      rightValue={fsis}
-    />
+    <MobileValuePair leftLabel="Manual" leftValue={manual} rightLabel="FSIS" rightValue={fsis} />
   );
 }
 
 /** Group caption inside an expanded mobile row, e.g. "REINSPECTION". */
 function MobileGroupTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="pb-2 pt-4 text-xs font-bold uppercase text-primary">{children}</div>
-  );
+  return <div className="pb-2 pt-4 text-xs font-bold uppercase text-primary">{children}</div>;
 }
 
 /** One bordered item card inside an expanded mobile period. */
@@ -201,11 +194,7 @@ function MobileInspectionDetail({
               />
             ) : (
               plainCols.map((c) => (
-                <MobileDetailCard
-                  key={c.api}
-                  label={c.label}
-                  total={num(day.inspection[c.api])}
-                />
+                <MobileDetailCard key={c.api} label={c.label} total={num(day.inspection[c.api])} />
               ))
             )}
           </div>

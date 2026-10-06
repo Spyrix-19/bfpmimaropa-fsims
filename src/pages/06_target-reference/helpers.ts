@@ -16,7 +16,7 @@ import {
   type ModuleFilterState,
 } from "@/components/shared/ModuleFilterBar";
 import { fromISODate } from "@/lib/filters";
-import { isPastDateLockEnabled, isPastMonth } from "@/lib/past-date-lock";
+import { isDateLocked, type PastDateLockModule } from "@/lib/past-date-lock";
 
 /* ------------------------------------------------------------------ *
  * Ledger request builder (POST /FSISTargetReference/Ledger)
@@ -136,9 +136,10 @@ export function isReportMonthLocked(
   reportYear: number,
   reportMonth: number,
   now: Date = new Date(),
+  module: PastDateLockModule = "target-reference",
 ) {
-  if (!isPastDateLockEnabled("target-reference")) return false;
-  return isPastMonth(reportYear, reportMonth, now);
+  // Shared decision: Super Admin, lock-all, exempt module, province switch, cutoff.
+  return isDateLocked(`${reportYear}-${String(reportMonth).padStart(2, "0")}-01`, module, now);
 }
 
 /* ------------------------------------------------------------------ *
