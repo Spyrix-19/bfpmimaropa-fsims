@@ -59,6 +59,7 @@ import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
 import {
   deriveRevisionLock,
+  findRequest,
   useRevisionLedger,
 } from "@/pages/06_target-reference/revision/useRevisionRequests";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
@@ -778,9 +779,14 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
           editablestatus: Number(entry.editablestatus ?? 0),
         });
         const isPast = isDateLocked(reportingDate, "notice");
-        const unlocked = Number(entry.editablestatus ?? 0) === 153;
-        const pending = !unlocked && Boolean(entry.isrevisionrequest);
-        const locked = !unlocked && (isPast || pending);
+        const { fieldsLocked: locked } = deriveRevisionLock({
+          requests: revisionRequestsRef.current,
+          referencekey: String((entry as { noticeno?: unknown }).noticeno ?? "") || null,
+          dateKey: selectedDateKey,
+          isPast,
+          editablestatus: Number(entry.editablestatus ?? 0),
+          isrevisionrequest: Boolean(entry.isrevisionrequest),
+        });
         setExistingLocked(locked);
 
         const key = `${stationno}|${selectedDateKey}`;
@@ -818,6 +824,8 @@ export function NoticeAddModal({ open, onOpenChange, record, onSaved }: NoticeAd
     enabled: open,
     reloadNonce,
   });
+  const revisionRequestsRef = React.useRef(revisionRequests);
+  revisionRequestsRef.current = revisionRequests;
 
   /* ── Lock rules for the selected date ───────────────────────────────────── */
   const isPastSelectedDate = isDateLocked(reportingDate, "notice");

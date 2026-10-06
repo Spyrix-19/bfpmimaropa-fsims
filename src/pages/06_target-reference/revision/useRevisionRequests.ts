@@ -98,13 +98,41 @@ export interface RevisionMatch {
   report?: { year: number; month: number } | null;
 }
 
+/** Normalises an API date ("2026-09-15", "2026-09-15T00:00:00", "9/15/2026") to yyyy-MM-dd. */
+function toDateKey(value: unknown): string | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  const us = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (us) return `${us[3]}-${us[1].padStart(2, "0")}-${us[2].padStart(2, "0")}`;
+  return null;
+}
+
 function belongsTo(r: FSISEditRequestModel, match: RevisionMatch): boolean {
   if (match.referencekey && String(r.referencekey) === String(match.referencekey)) return true;
-  if (r.dateinspected)
-    return match.dateKey ? String(r.dateinspected).slice(0, 10) === match.dateKey : false;
-  return match.report
-    ? Number(r.reportmonth) === match.report.month && Number(r.reportyear) === match.report.year
-    : false;
+  const reqDate = toDateKey(r.dateinspected);
+  if (reqDate && match.dateKey && reqDate === toDateKey(match.dateKey)) return true;
+  // Month-based modules (Fire Code Fees) pass `report`: match by report month,
+  // or by the month of the request's date.
+  if (match.report) {
+    const { year, month } = match.report;
+    if (Number(r.reportmonth) === month && Number(r.reportyear) === year) return true;
+    if (reqDate && reqDate.slice(0, 7) === `${year}-${String(month).padStart(2, "0")}`) return true;
+  }
+  return false;
+}
+
+/** 153 = APPROVED, as tagged on the Revision Requests page. */
+const STATUS_NO_APPROVED = 153;
+
+function requestStatus(r: FSISEditRequestModel): string {
+  if (Number(r.statusno) === STATUS_NO_APPROVED) return "APPROVED";
+  const code = String(r.statuscode ?? "").trim().toUpperCase();
+  const name = String(r.statusname ?? "").trim().toUpperCase();
+  if (code.startsWith("APPROV") || name.startsWith("APPROV")) return "APPROVED";
+  if (code.startsWith("PEND") || name.startsWith("PEND")) return "PENDING";
+  return code;
 }
 
 /** Finds the request with `status` that belongs to a record, date or month. */
@@ -113,9 +141,7 @@ export function findRequest(
   status: "PENDING" | "APPROVED",
   match: RevisionMatch,
 ): FSISEditRequestModel | null {
-  return (
-    requests.find((r) => r.statuscode?.toUpperCase() === status && belongsTo(r, match)) ?? null
-  );
+  return requests.find((r) => requestStatus(r) === status && belongsTo(r, match)) ?? null;
 }
 
 /** Finds the request that belongs to a record, whatever its status. */
@@ -159,10 +185,27 @@ export interface RevisionLock {
   fieldsLocked: boolean;
 }
 
-/** 153 = "approved / temporarily unlocked" on the record itself. */
-const EDITABLE_STATUS_APPROVED = 153;
+/** Record-level `editablestatus` codes returned by the API. */
+export const EDITABLE_STATUS = {
+  PENDING: 152,
+  APPROVED: 153,
+  REJECTED: 154,
+  CANCELLED: 155,
+  DONE: 156,
+} as const;
 
-/** The single source of truth for the pending/approved/locked rules. */
+/**
+ * The single source of truth for the pending/approved/locked rules.
+ * Order:
+ *  1. editablestatus 153 (APPROVED) → always editable, regardless of any
+ *     date-lock rule (past-date, all-date, exemption) or role.
+ *  2. editablestatus 152 (PENDING) → locked; only this state shows the
+ *     Cancel / Remove revision request actions.
+ *  3. Any other editablestatus (154/155/156) → no revision effect; fall
+ *     through to the env date-lock rules (`isPast`).
+ *  When the record carries no editablestatus, `isrevisionrequest` and the
+ *  revision-request ledger are used instead.
+ */
 export function deriveRevisionLock({
   requests,
   referencekey,
@@ -174,14 +217,44 @@ export function deriveRevisionLock({
   readOnly = false,
 }: RevisionLockInput): RevisionLock {
   const match = { referencekey, dateKey, report };
-  const unlockedByApproval =
-    Number(editablestatus) === EDITABLE_STATUS_APPROVED ||
-    !!findRequest(requests, "APPROVED", match);
-  const activeRequest = findRequest(requests, "PENDING", match);
+  const status = Number(editablestatus) || 0;
+  const hasStatus = (Object.values(EDITABLE_STATUS) as number[]).includes(status);
+  const ledgerPending = findRequest(requests, "PENDING", match);
+
+  if (status === EDITABLE_STATUS.APPROVED) {
+    return {
+      activeRequest: null,
+      unlockedByApproval: true,
+      hasPendingRevision: false,
+      needsRevisionRequest: false,
+      fieldsLocked: false,
+    };
+  }
+  if (status === EDITABLE_STATUS.PENDING) {
+    return {
+      activeRequest: ledgerPending,
+      unlockedByApproval: false,
+      hasPendingRevision: true,
+      needsRevisionRequest: false,
+      fieldsLocked: true,
+    };
+  }
+  if (hasStatus) {
+    // Rejected / cancelled / done: the env date-lock rules decide.
+    return {
+      activeRequest: null,
+      unlockedByApproval: false,
+      hasPendingRevision: false,
+      needsRevisionRequest: !readOnly && isPast,
+      fieldsLocked: readOnly || isPast,
+    };
+  }
+
+  const unlockedByApproval = !!findRequest(requests, "APPROVED", match);
   // A pending request locks the record even when its date is not in the past.
-  const hasPendingRevision = !unlockedByApproval && (isrevisionrequest || !!activeRequest);
+  const hasPendingRevision = !unlockedByApproval && (isrevisionrequest || !!ledgerPending);
   return {
-    activeRequest,
+    activeRequest: ledgerPending,
     unlockedByApproval,
     hasPendingRevision,
     needsRevisionRequest: !readOnly && isPast && !unlockedByApproval && !hasPendingRevision,

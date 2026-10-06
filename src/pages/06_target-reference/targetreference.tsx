@@ -353,7 +353,8 @@ export default function TargetReferenceIndexPage() {
   };
 
   const handleEdit = (g: GroupItem) => {
-    if (promptAllDateLock("edit")) return;
+    // Edit always opens: the editor locks each day itself and lets an approved
+    // Revision Request reopen it (the all-date lock still blocks direct edits).
     setEditingGroup({ year: g.year, stationno: g.stationno });
     setFormOpen(true);
   };
@@ -614,7 +615,7 @@ export default function TargetReferenceIndexPage() {
         contentIconBgClass="tone-warning-soft"
         contentIconColorClass="text-warning"
         title="Target Reference is locked"
-        description="This feature is configured for all-date lock in this province. Add and edit actions are not allowed until the lock is removed."
+        description="This feature is configured for all-date lock in this province. Adding new records is not allowed. To change an existing record, open it with Edit and submit a revision request."
         confirmLabel="OK"
         showCancel={false}
         dismissible={false}

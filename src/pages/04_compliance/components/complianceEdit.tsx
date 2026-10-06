@@ -331,9 +331,8 @@ function hasPstLockActivated(
   reportmonth: number,
   now: Date = new Date(),
 ): boolean {
-  // Delegate to centralized month rule.
-  if (!isPastDateLockEnabled("monitoring")) return false;
-  return isPastMonth(reportyear, reportmonth, now);
+  // Same single decision every module uses (src/lib/past-date-lock.ts).
+  return isDateLocked(`${reportyear}-${String(reportmonth).padStart(2, "0")}-01`, "monitoring", now);
 }
 
 /** Check if a given date has already passed (is before today at midnight). */
@@ -421,8 +420,8 @@ function buildEditableDays(
 
     const editablestatus = num(rec?.editablestatus);
     const isrevisionrequest = Boolean(rec?.isrevisionrequest);
-    const isLocked =
-      editablestatus === 153 ? false : hasPstLockActivated(year, month) || isDayPassed(key);
+    // Raw date lock only — revision status is layered on by deriveRevisionLock.
+    const isLocked = hasPstLockActivated(year, month) || isDayPassed(key);
 
     map.set(key, {
       day: d,

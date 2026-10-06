@@ -19,7 +19,7 @@ import { unwrap } from "@/lib/api-envelope";
 import { buildYears, cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { EMPTY_GUID, MONTHS } from "@/lib/fsims-constants";
-import { isPastDateLockEnabled } from "@/lib/past-date-lock";
+import { isDateLocked } from "@/lib/past-date-lock";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,8 @@ export type { FeeEditorStation } from "./feeShared";
 interface MonthState {
   month: number;
   feeno: string | null;
+  editablestatus?: number;
+  isrevisionrequest?: boolean;
   accomplishNos: Record<string, string>;
   values: SectorValues;
   baseline: string;
@@ -211,6 +213,8 @@ function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthStat
   return {
     month,
     feeno: maybePrimaryGuid(rec.feeno),
+    editablestatus: Number(rec.editablestatus ?? 0) || 0,
+    isrevisionrequest: Boolean(rec.isrevisionrequest),
     accomplishNos,
     values,
     baseline: snapshot(values),
@@ -361,13 +365,15 @@ export function FireCodeFeesYearEditorBody({
   /** Per-month lock resolution — mirrors the compliance editor rules. */
   const lockInfo = React.useCallback(
     (m: MonthState) => {
-      const past = isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, m.month);
+      const past = isDateLocked(`${year}-${String(m.month).padStart(2, "0")}-01`, "fire-code-fees");
       const lock = deriveRevisionLock({
         requests: revisionRequests,
         referencekey: m.feeno || null,
         dateKey: monthKey(year, m.month),
         report: { year, month: m.month },
         isPast: past,
+        editablestatus: m.editablestatus,
+        isrevisionrequest: m.isrevisionrequest,
         readOnly,
       });
       return {
@@ -754,9 +760,7 @@ export function FireCodeFeesYearEditorBody({
                       )}
                     >
                       <DayLockIcon
-                        locked={
-                          isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, m.month)
-                        }
+                        locked={lockInfo(m).locked}
                         className="h-3.5 w-3.5"
                       />
                       <span className="text-sm font-semibold">{name}</span>

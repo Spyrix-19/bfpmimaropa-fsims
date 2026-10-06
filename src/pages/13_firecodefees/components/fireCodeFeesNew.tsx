@@ -20,7 +20,7 @@ import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { canManageTargetAndCompliance, canShowEditAction } from "@/lib/permissions";
 import { EMPTY_GUID, MIMAROPA_REGION_CODE, MONTHS } from "@/lib/fsims-constants";
 import { serializePhilippineDateTime } from "@/lib/date-format";
-import { isPastDateLockEnabled } from "@/lib/past-date-lock";
+import { isDateLocked } from "@/lib/past-date-lock";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -672,6 +672,7 @@ export function FireCodeFeesFormBody({
     setValues(emptyValues());
     setErrors({});
     setExistingFeeno(null);
+    setExistingMeta({ editablestatus: 0, isrevisionrequest: false });
     setExistingAccomplishNos({});
     setPendingRecord(null);
     setConfirmExistingOpen(false);
@@ -739,6 +740,7 @@ export function FireCodeFeesFormBody({
 
   /* Existing record detection -------------------------------------------- */
   const [existingFeeno, setExistingFeeno] = React.useState<string | null>(null);
+  const [existingMeta, setExistingMeta] = React.useState({ editablestatus: 0, isrevisionrequest: false });
   const [existingAccomplishNos, setExistingAccomplishNos] = React.useState<Record<string, string>>(
     {},
   );
@@ -756,6 +758,7 @@ export function FireCodeFeesFormBody({
 
   const resetExisting = React.useCallback(() => {
     setExistingFeeno(null);
+    setExistingMeta({ editablestatus: 0, isrevisionrequest: false });
     setExistingAccomplishNos({});
   }, []);
 
@@ -773,6 +776,10 @@ export function FireCodeFeesFormBody({
     setValues(next);
     setExistingAccomplishNos(accomplishNos);
     setExistingFeeno(maybePrimaryGuid(rec.feeno));
+    setExistingMeta({
+      editablestatus: Number(rec.editablestatus ?? 0) || 0,
+      isrevisionrequest: Boolean(rec.isrevisionrequest),
+    });
     setErrors({});
   }, []);
 
@@ -845,7 +852,7 @@ export function FireCodeFeesFormBody({
     reloadNonce,
   });
 
-  const isPastSelectedDate = isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, month);
+  const isPastSelectedDate = isDateLocked(`${year}-${String(month).padStart(2, "0")}-01`, "fire-code-fees");
   const {
     activeRequest,
     unlockedByApproval,
@@ -857,6 +864,8 @@ export function FireCodeFeesFormBody({
     referencekey: existingFeeno,
     dateKey: selectedDateKey,
     isPast: isPastSelectedDate,
+    editablestatus: existingMeta.editablestatus,
+    isrevisionrequest: existingMeta.isrevisionrequest,
     readOnly: !canManage,
   });
 

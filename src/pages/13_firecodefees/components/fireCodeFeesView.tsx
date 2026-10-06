@@ -16,7 +16,7 @@ import { unwrap } from "@/lib/api-envelope";
 import { buildYears, cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { EMPTY_GUID, MONTHS } from "@/lib/fsims-constants";
-import { isPastDateLockEnabled } from "@/lib/past-date-lock";
+import { isDateLocked } from "@/lib/past-date-lock";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,8 @@ import {
 interface MonthView {
   month: number;
   feeno: string | null;
+  editablestatus?: number;
+  isrevisionrequest?: boolean;
   values: SectorValues;
 }
 
@@ -100,6 +102,8 @@ function fromRecord(month: number, rec: FSISFeeCollectionDetailModel): MonthView
   return {
     month,
     feeno: rec.feeno && String(rec.feeno) !== EMPTY_GUID ? String(rec.feeno) : null,
+    editablestatus: Number(rec.editablestatus ?? 0) || 0,
+    isrevisionrequest: Boolean(rec.isrevisionrequest),
     values,
   };
 }
@@ -259,13 +263,15 @@ export function FireCodeFeesYearViewBody({
   /** Same lock resolution as the editor — surfaced as read-only badges. */
   const lockInfo = React.useCallback(
     (m: MonthView) => {
-      const past = isPastDateLockEnabled("fire-code-fees") && isPastMonth(year, m.month);
+      const past = isDateLocked(`${year}-${String(m.month).padStart(2, "0")}-01`, "fire-code-fees");
       const { unlockedByApproval, hasPendingRevision, fieldsLocked } = deriveRevisionLock({
         requests: revisionRequests,
         referencekey: m.feeno || null,
         dateKey: monthKey(year, m.month),
         report: { year, month: m.month },
         isPast: past,
+        editablestatus: m.editablestatus,
+        isrevisionrequest: m.isrevisionrequest,
       });
       return { locked: fieldsLocked, pending: hasPendingRevision, past, unlockedByApproval };
     },

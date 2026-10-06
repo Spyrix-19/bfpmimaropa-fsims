@@ -85,7 +85,7 @@ import type {
 import type { FSISEditRequestModel } from "@/types/revisionrequestType";
 import { resolveTargetScope, buildDays, formatDayLabel } from "../helpers";
 import { revisionRequestType } from "../revision/types";
-import { useRevisionLedger } from "../revision/useRevisionRequests";
+import { deriveRevisionLock, findRequest, useRevisionLedger } from "../revision/useRevisionRequests";
 import RevisionStatusBadge from "../revision/RevisionStatusBadge";
 import { revisionrequestAPI } from "@/services/revisionrequestAPI";
 import { isPastDateLockEnabled, isDateLocked } from "@/lib/past-date-lock";
@@ -152,7 +152,6 @@ function hasPstLockActivated(
   reportday: number,
   now: Date = new Date(),
 ): boolean {
-  if (!isPastDateLockEnabled("target-reference")) return false;
   const y = Number(reportyear);
   const m = Number(reportmonth);
   const d = Number(reportday);
@@ -406,6 +405,8 @@ export default function TargetReferenceForm({
     enabled: !!open,
     reloadNonce,
   });
+  const revisionRequestsRef = React.useRef(revisionRequests);
+  revisionRequestsRef.current = revisionRequests;
 
   // Reset baseline state when opening
   React.useEffect(() => {
@@ -574,9 +575,14 @@ export default function TargetReferenceForm({
         });
 
         const isPast = isDateLocked(parseDateInputValue(selectedDate), "target-reference");
-        const unlocked = Number(record.editablestatus ?? 0) === 153;
-        const pending = !unlocked && Boolean(record.isrevisionrequest);
-        const locked = !unlocked && (isPast || pending);
+        const { fieldsLocked: locked } = deriveRevisionLock({
+          requests: revisionRequestsRef.current,
+          referencekey: String(record.targetno),
+          dateKey: String(selectedDate).slice(0, 10),
+          isPast,
+          editablestatus: Number(record.editablestatus ?? 0),
+          isrevisionrequest: Boolean(record.isrevisionrequest),
+        });
         setExistingLocked(locked);
         // Always confirm first — whether the record will be opened for editing
         // or will require a revision request, the user must acknowledge that a
@@ -763,7 +769,12 @@ export default function TargetReferenceForm({
   /* ── Past-date lock rules (Add mode, single date) ───────────────────────── */
   const isPastSelectedDate =
     !!selectedDate && isDateLocked(parseDateInputValue(selectedDate), "target-reference");
-  const unlockedByApproval = Number(existingMeta.editablestatus) === 153;
+  const unlockedByApproval =
+    Number(existingMeta.editablestatus) === 153 ||
+    !!findRequest(revisionRequests, "APPROVED", {
+      referencekey: existingTargetno,
+      dateKey: String(selectedDate).slice(0, 10),
+    });
   /** Pending revision request for the selected date (used for cancel/delete). */
   const activeAddRequest = React.useMemo(() => {
     const wanted = String(selectedDate).slice(0, 10);
@@ -775,13 +786,21 @@ export default function TargetReferenceForm({
       }) ?? null
     );
   }, [revisionRequests, selectedDate, existingTargetno]);
-  const hasPendingRevision =
-    !isEdit && !unlockedByApproval && (existingMeta.isrevisionrequest || !!activeAddRequest);
+  const addLock = deriveRevisionLock({
+    requests: [
+      ...(activeAddRequest ? [activeAddRequest] : []),
+      ...(unlockedByApproval ? revisionRequests : []),
+    ],
+    referencekey: existingTargetno,
+    dateKey: String(selectedDate).slice(0, 10),
+    isPast: isPastSelectedDate,
+    editablestatus: existingMeta.editablestatus,
+    isrevisionrequest: existingMeta.isrevisionrequest || !!activeAddRequest,
+  });
+  const hasPendingRevision = !isEdit && addLock.hasPendingRevision;
   /** Locked past date with no approval and no pending request → request revision. */
-  const needsRevisionRequest =
-    !isEdit && isPastSelectedDate && !unlockedByApproval && !hasPendingRevision;
-  const addFieldsLocked =
-    !isEdit && !unlockedByApproval && (isPastSelectedDate || hasPendingRevision);
+  const needsRevisionRequest = !isEdit && addLock.needsRevisionRequest;
+  const addFieldsLocked = !isEdit && addLock.fieldsLocked;
 
   const handleSave = async () => {
     const submitStationNo = scope.stationLocked
@@ -1163,12 +1182,15 @@ export default function TargetReferenceForm({
               const activeReq = activeReqByDay.get(d) ?? activeReqByDay.get(0);
               const editablestatus = existingEditableStatus[String(d)];
               const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
-              const serverIsEditable = editablestatus === 153;
               const pstLockActive = hasPstLockActivated(year, Number(month), Number(d));
-              const isEditable = serverIsEditable || !pstLockActive;
-              const row = {
+              const dayLock = deriveRevisionLock({
+                requests: activeReq ? [activeReq] : [],
+                isPast: pstLockActive,
+                editablestatus,
                 isrevisionrequest: serverIsRevisionRequest || Boolean(activeReq),
-              };
+              });
+              const isEditable = !dayLock.fieldsLocked;
+              const row = { isrevisionrequest: dayLock.hasPendingRevision };
 
               return (
                 <tr key={d} className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}>
@@ -1314,12 +1336,15 @@ export default function TargetReferenceForm({
             const activeReq = activeReqByDay.get(d) ?? activeReqByDay.get(0);
             const editablestatus = existingEditableStatus[String(d)];
             const serverIsRevisionRequest = Boolean(existingIsRevisionRequest?.[String(d)]);
-            const serverIsEditable = editablestatus === 153;
             const pstLockActive = hasPstLockActivated(year, Number(month), Number(d));
-            const isEditable = serverIsEditable || !pstLockActive;
-            const row = {
+            const dayLock = deriveRevisionLock({
+              requests: activeReq ? [activeReq] : [],
+              isPast: pstLockActive,
+              editablestatus,
               isrevisionrequest: serverIsRevisionRequest || Boolean(activeReq),
-            };
+            });
+            const isEditable = !dayLock.fieldsLocked;
+            const row = { isrevisionrequest: dayLock.hasPendingRevision };
             const expanded = Boolean(mobileExpandedDates[d]);
             const total = dayTotal(d);
             const hasRecord = sectors.some((s) => Number(cells[`${d}-${s.detno}`] ?? 0) > 0);

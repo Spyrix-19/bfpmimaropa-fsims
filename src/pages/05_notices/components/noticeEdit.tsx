@@ -215,8 +215,8 @@ const SERIES = {
  * month is locked as soon as the past-date lock is enabled.
  */
 function hasPstLockActivated(year: number, month: number, now: Date = new Date()): boolean {
-  if (!isPastDateLockEnabled("notice")) return false;
-  return isPastMonth(year, month, now);
+  // Same single decision every module uses (src/lib/past-date-lock.ts).
+  return isDateLocked(`${year}-${String(month).padStart(2, "0")}-01`, "notice", now);
 }
 
 /** Check if a given date (YYYY-MM-DD) has already passed. */
@@ -614,7 +614,7 @@ export function NoticeEditModal({ open, onOpenChange, record, onSaved }: NoticeE
             day: "numeric",
             year: "numeric",
           }),
-          isLocked: editablestatus === 153 ? false : monthLocked || isDayPassed(date),
+          isLocked: monthLocked || isDayPassed(date),
           editablestatus,
           isrevisionrequest: Boolean(existing?.isrevisionrequest),
           remarks: existing?.remarks ?? "",

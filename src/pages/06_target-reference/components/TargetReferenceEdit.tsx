@@ -125,7 +125,6 @@ function hasPstLockActivated(
   reportday: number,
   now: Date = new Date(),
 ): boolean {
-  if (!isPastDateLockEnabled("target-reference")) return false;
   const y = Number(reportyear);
   const m = Number(reportmonth);
   const d = Number(reportday);
@@ -447,27 +446,22 @@ export default function TargetReferenceForm({
     [revisionRequests, existingEditableStatus, existingIsRevisionRequest, year, month],
   );
 
-  const hasAllDateLockForPeriod = React.useMemo(() => {
-    if (!days.length) return false;
-    return days.some((day) => isDateLocked(new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0), "target-reference"));
-  }, [days, month, year]);
-
   const hasLockedDaysInEditPeriod = React.useMemo(
     () =>
       days.some((day) => {
         const lock = rowRevisionLock(day);
-        return lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(day));
+        return lock.fieldsLocked;
       }),
-    [days, month, rowRevisionLock, year],
+    [days, rowRevisionLock],
   );
   const allLockedInPeriod = React.useMemo(
     () =>
       days.length > 0 &&
       days.every((day) => {
         const lock = rowRevisionLock(day);
-        return lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(day));
+        return lock.fieldsLocked;
       }),
-    [days, month, rowRevisionLock, year],
+    [days, rowRevisionLock],
   );
 
   const requestRevisionForCurrentPeriod = React.useCallback(() => {
@@ -927,7 +921,7 @@ export default function TargetReferenceForm({
                 const activeReq =
                   lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
                 const rowLocked =
-                  lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(d));
+                  lock.fieldsLocked;
                 const isEditable = !rowLocked;
                 const rowReferenceKey = existingTargetNos?.[String(d)] || "";
                 return (
@@ -1082,7 +1076,7 @@ export default function TargetReferenceForm({
               const activeReq =
                 lock.activeRequest ?? matchRequest(revisionRequests, { dateKey: rowDateKey });
               const rowLocked =
-                lock.fieldsLocked || hasPstLockActivated(Number(year), Number(month), Number(d));
+                lock.fieldsLocked;
               const isEditable = !rowLocked;
               const showRevisionAction = !isEditable && !lock.unlockedByApproval;
               const expanded = Boolean(mobileExpandedDates[d]);
@@ -1426,7 +1420,7 @@ export default function TargetReferenceForm({
             >
               <X className="h-4 w-4" /> Cancel
             </Button>
-            {hasAllDateLockForPeriod ? (
+            {allLockedInPeriod ? (
               <Button
                 onClick={requestRevisionForCurrentPeriod}
                 disabled={saving || loadingGrid || sectors.length === 0}

@@ -97,6 +97,9 @@ export interface FSISFeeCollectionDetailModel {
   feeno: string;
   dateaccomplish: string;
   accomfeelist: FSISFeeAccomDetailModel[];
+  /** 152 pending, 153 approved, 154 rejected, 155 cancelled, 156 done. */
+  editablestatus?: number;
+  isrevisionrequest?: boolean;
 }
 
 export interface FSISStationFeeDetailModel {

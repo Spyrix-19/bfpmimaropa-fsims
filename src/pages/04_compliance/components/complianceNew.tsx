@@ -71,6 +71,7 @@ import type {
 import { revisionRequestType } from "@/pages/06_target-reference/revision/types";
 import {
   deriveRevisionLock,
+  findRequest,
   useRevisionLedger,
 } from "@/pages/06_target-reference/revision/useRevisionRequests";
 import RevisionRequestDialog from "@/pages/06_target-reference/revision/RevisionRequestDialog";
@@ -692,9 +693,14 @@ function InspectionsNewBody({
           totalAccomplishmenttieza: Number(record.inspecttiezacount ?? 0),
         });
         const isPast = isDateLocked(reportingDate, "monitoring");
-        const unlocked = Number(record.editablestatus ?? 0) === 153;
-        const pending = !unlocked && Boolean(record.isrevisionrequest);
-        const locked = !unlocked && (isPast || pending);
+        const { fieldsLocked: locked } = deriveRevisionLock({
+          requests: revisionRequestsRef.current,
+          referencekey: String((record as { fsisno?: unknown }).fsisno ?? "") || null,
+          dateKey: selectedDateKey,
+          isPast,
+          editablestatus: Number(record.editablestatus ?? 0),
+          isrevisionrequest: Boolean(record.isrevisionrequest),
+        });
         setExistingLocked(locked);
 
         const key = `${activeStationNo}|${selectedDateKey}`;
@@ -750,6 +756,8 @@ function InspectionsNewBody({
     provinceno: province.no,
     reloadNonce,
   });
+  const revisionRequestsRef = React.useRef(revisionRequests);
+  revisionRequestsRef.current = revisionRequests;
 
   /* ── Lock rules for the selected (single) date ───────────────────────────── */
   const isPastSelectedDate = isDateLocked(reportingDate, "monitoring");
