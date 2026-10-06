@@ -1,3 +1,4 @@
+import { isPastMonth as isPastMonthShared } from "@/lib/past-date-lock";
 import * as React from "react";
 import { format } from "date-fns";
 import {
@@ -112,15 +113,7 @@ function startOfCurrentMonth(): number {
  * becomes past starting day 4 of current month; older months always past).
  */
 export function isPastMonth(year: number, month: number): boolean {
-  const now = new Date();
-  const startCurrent = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevY = prev.getFullYear();
-  const prevM = prev.getMonth() + 1;
-
-  if (year === now.getFullYear() && month === now.getMonth() + 1) return false;
-  if (year === prevY && month === prevM) return now.getDate() >= 4;
-  return new Date(year, month - 1, 1).getTime() < startCurrent;
+  return isPastMonthShared(year, month);
 }
 
 /**

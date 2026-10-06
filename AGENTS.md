@@ -1,0 +1,1 @@
+- Past-date lock decisions come only from src/lib/past-date-lock.ts (getDateLockDecision / isPastMonth); never re-implement month cutoffs in screens — the copies drifted before.
