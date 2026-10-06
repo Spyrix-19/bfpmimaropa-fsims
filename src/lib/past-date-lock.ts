@@ -187,51 +187,103 @@ export function isPastDateLockEnabled(module?: PastDateLockModule): boolean {
 
 export default isPastDateLockEnabled;
 
+/** Philippine Standard Time is a fixed UTC+8 (no DST). */
+const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
+
 /**
- * True when the given year/month should be considered past according to the
- * "4th-of-following-month" rule:
- * - current month is never past
- * - previous month becomes past starting on day 4 of the current month
- * - older months are always past
+ * Exact instant a month closes: 11:59 PM (Manila) on the 4th day of the
+ * following month. Date.UTC handles Dec → Jan rollover and leap years.
  */
-export function isPastMonth(year: number, month: number, now: Date = new Date()): boolean {
+export function getMonthlyLockCutoff(year: number, month: number): Date | null {
   const y = Number(year);
   const m = Number(month);
-  if (!y || !m || m < 1 || m > 12) return false;
-  const cy = now.getFullYear();
-  const cm = now.getMonth() + 1;
-  if (y === cy && m === cm) return false;
-  const prev = new Date(cy, cm - 2, 1); // cm-2 because Date months are 0-based
-  const prevY = prev.getFullYear();
-  const prevM = prev.getMonth() + 1;
-  if (y === prevY && m === prevM) return now.getDate() >= 4;
-  return new Date(y, m - 1, 1).getTime() < new Date(cy, cm - 1, 1).getTime();
+  if (!Number.isInteger(y) || !Number.isInteger(m) || y < 1 || m < 1 || m > 12) return null;
+  // Date.UTC month index `m` (0-based) is the month after `m` (1-based).
+  return new Date(Date.UTC(y, m, 4, 23, 59, 0, 0) - MANILA_OFFSET_MS);
 }
 
 /**
- * True when a specific calendar date should be locked for editing according
- * to the month-based rule. This ignores the day-of-month of the target date
- * and uses the target's month/year only.
+ * True once the year/month has reached its monthly closing cutoff. Current and
+ * future months are never past. Independent of the browser timezone.
  */
+export function isPastMonth(year: number, month: number, now: Date = new Date()): boolean {
+  const cutoff = getMonthlyLockCutoff(year, month);
+  if (!cutoff) return false;
+  return now.getTime() >= cutoff.getTime();
+}
+
+/** Reads the calendar year/month of a record date without timezone drift. */
+function recordYearMonth(value: string | Date): { y: number; m: number } | null {
+  if (typeof value === "string") {
+    const iso = value.trim().match(/^(\d{4})-(\d{1,2})/);
+    if (iso) return { y: Number(iso[1]), m: Number(iso[2]) };
+    const us = value.trim().match(/^(\d{1,2})\/\d{1,2}\/(\d{4})/);
+    if (us) return { y: Number(us[2]), m: Number(us[1]) };
+    return null;
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  // Date objects built by the app are local calendar dates (new Date(y, m-1, d)).
+  return { y: d.getFullYear(), m: d.getMonth() + 1 };
+}
+
+export type DateLockReason =
+  | "SUPER_ADMINISTRATOR"
+  | "ALL_DATE_LOCK"
+  | "MONTHLY_PAST_DATE_LOCK"
+  | "EXEMPT"
+  | "LOCK_DISABLED"
+  | "CURRENT_OR_FUTURE_MONTH"
+  | "BEFORE_CUTOFF"
+  | "INVALID_DATE";
+
+export interface DateLockDecision {
+  /** The record's period is closed for normal Add/Edit. */
+  locked: boolean;
+  reason: DateLockReason;
+  cutoffDate: Date | null;
+}
+
+/**
+ * The single authoritative lock decision. Precedence:
+ * Super Admin → All-Date (supreme) lock → exemption → province switch →
+ * monthly cutoff. Approved revisions are layered on top by
+ * `deriveRevisionLock` (revision/useRevisionRequests.ts).
+ */
+export function getDateLockDecision(
+  value: string | Date,
+  module?: PastDateLockModule,
+  now: Date = new Date(),
+): DateLockDecision {
+  if (context.roleno === SUPER_ADMIN_ROLE_NO)
+    return { locked: false, reason: "SUPER_ADMINISTRATOR", cutoffDate: null };
+  const provinceno = (context.provinceno || "").trim().toLowerCase();
+  if (module && isModuleLockedForAllDates(module, provinceno))
+    return { locked: true, reason: "ALL_DATE_LOCK", cutoffDate: null };
+  if (module && isModuleExempt(module, provinceno))
+    return { locked: false, reason: "EXEMPT", cutoffDate: null };
+  if (!isPastDateLockEnabled(module))
+    return { locked: false, reason: "LOCK_DISABLED", cutoffDate: null };
+  const ym = recordYearMonth(value);
+  const cutoffDate = ym ? getMonthlyLockCutoff(ym.y, ym.m) : null;
+  if (!ym || !cutoffDate) return { locked: false, reason: "INVALID_DATE", cutoffDate: null };
+  if (now.getTime() >= cutoffDate.getTime())
+    return { locked: true, reason: "MONTHLY_PAST_DATE_LOCK", cutoffDate };
+  const manilaNow = new Date(now.getTime() + MANILA_OFFSET_MS);
+  const nowIndex = manilaNow.getUTCFullYear() * 12 + manilaNow.getUTCMonth();
+  const recIndex = ym.y * 12 + (ym.m - 1);
+  return {
+    locked: false,
+    reason: recIndex >= nowIndex ? "CURRENT_OR_FUTURE_MONTH" : "BEFORE_CUTOFF",
+    cutoffDate,
+  };
+}
+
+/** True when a record date is locked (only its year/month matter). */
 export function isDateLocked(
   value: string | Date,
   module?: PastDateLockModule,
   now: Date = new Date(),
 ): boolean {
-  if (context.roleno === SUPER_ADMIN_ROLE_NO) return false;
-
-  const provinceno = (context.provinceno || "").trim().toLowerCase();
-  if (module && isModuleLockedForAllDates(module, provinceno)) return true;
-  if (!isPastDateLockEnabled(module)) return false;
-  let d: Date;
-  if (typeof value === "string") {
-    const iso = value.slice(0, 10);
-    d = new Date(`${iso}T00:00:00`);
-  } else {
-    d = new Date(value);
-  }
-  if (Number.isNaN(d.getTime())) return false;
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1;
-  return isPastMonth(y, m, now);
+  return getDateLockDecision(value, module, now).locked;
 }

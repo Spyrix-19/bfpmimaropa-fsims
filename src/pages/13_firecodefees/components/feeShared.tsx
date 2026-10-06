@@ -1,3 +1,4 @@
+import { isPastMonth as isPastMonthShared } from "@/lib/past-date-lock";
 /**
  * Shared building blocks for the Fire Code Fees screens.
  *
@@ -78,18 +79,7 @@ function startOfCurrentMonth(): number {
  * - older months are always past
  */
 export function isPastMonth(year: number, month: number): boolean {
-  const now = new Date();
-  const startCurrent = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevY = prev.getFullYear();
-  const prevM = prev.getMonth() + 1;
-
-  // current month => not past
-  if (year === now.getFullYear() && month === now.getMonth() + 1) return false;
-  // previous month => past only when today is day 4 or later
-  if (year === prevY && month === prevM) return now.getDate() >= 4;
-  // older months => compare first-of-month timestamp
-  return new Date(year, month - 1, 1).getTime() < startCurrent;
+  return isPastMonthShared(year, month);
 }
 
 /** Keeps digits and a single decimal point, max two decimals. */
