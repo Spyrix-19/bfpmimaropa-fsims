@@ -39,8 +39,11 @@ import {
 
 const SUPER_ADMIN_ROLE_NO = 1;
 
-const TRUTHY = new Set(["TRUE", "1", "YES", "ON", "ENABLED"]);
-
+/**
+ * Only the exact semantic value "TRUE" (trimmed, case-insensitive) enables the
+ * lock. Everything else — "FALSE", "0", "1", "yes", "enabled", garbage, empty —
+ * is disabled. Never use JavaScript truthiness here.
+ */
 function flag(name: string): boolean {
   const raw = String((import.meta.env?.[name] as string | undefined) ?? "")
     .trim()
@@ -48,7 +51,7 @@ function flag(name: string): boolean {
     .replace(/^["']|["']$/g, "")
     .trim()
     .toUpperCase();
-  return TRUTHY.has(raw);
+  return raw === "TRUE";
 }
 
 /** provinceno (lowercased) → whether the past-date lock is enabled there. */
