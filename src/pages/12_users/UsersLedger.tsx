@@ -17,6 +17,7 @@ import {
   UserPlus,
   UserCheck,
   SlidersHorizontal,
+  KeyRound,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -53,6 +54,7 @@ import { EMPTY_GUID } from "@/lib/fsims-constants";
 import { useAuth, resolveLocationScope } from "@/lib/auth";
 import { FSIMS_SYSTEMNO } from "@/lib/fsims-constants";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+import { personnelAPI } from "@/services/personnelAPI";
 import { userAPI } from "@/services/userAPI";
 import type { UserModel, UserParams } from "@/types/userType";
 import { subscribeUsers, emitUsersChanged } from "./usersBus";
@@ -111,6 +113,7 @@ export default function UsersLedger({ variant, title, description }: Props) {
 
   const [target, setTarget] = React.useState<UserModel | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [resetTarget, setResetTarget] = React.useState<UserModel | null>(null);
   const [activateTarget, setActivateTarget] = React.useState<UserModel | null>(null);
   const [selectedRole, setSelectedRole] = React.useState<string>("");
   const [selectedRoleName, setSelectedRoleName] = React.useState<string>("");
@@ -363,6 +366,27 @@ export default function UsersLedger({ variant, title, description }: Props) {
     }
   };
 
+  const resetPasswordConfirmed = async () => {
+    if (!resetTarget || !user) return;
+    setBusy(true);
+    try {
+      const resp = await personnelAPI.resetPassword({
+        memberno: String(resetTarget.memberno),
+        updatedby: String(user.memberno),
+      });
+      const { ok, error } = unwrap(resp);
+      if (!ok) {
+        toast.error(error || "Unable to reset password.");
+        return;
+      }
+      toast.success(`Password reset for ${resetTarget.fullname}.`);
+      setResetTarget(null);
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (!user) return null;
 
   const actionLabel = variant === "available" ? "Activate" : "Deactivate";
@@ -386,6 +410,10 @@ export default function UsersLedger({ variant, title, description }: Props) {
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="text-xs">Manage user</DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => setResetTarget(r)} className="gap-2">
+          <KeyRound className="h-4 w-4" />
+          Reset Password
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => openRoleDialog(r)} className="gap-2">
           <UserCog className="h-4 w-4" />
           Update Account Role
@@ -912,6 +940,23 @@ export default function UsersLedger({ variant, title, description }: Props) {
         confirmLabel={busy ? "Activating…" : "Activate"}
         confirmVariant="success"
         onConfirm={activateConfirmed}
+      />
+
+      <ConfirmDialog
+        open={!!resetTarget}
+        onOpenChange={(o) => !o && setResetTarget(null)}
+        ContentIcon={KeyRound}
+        contentIconBgClass="tone-warning-soft"
+        contentIconColorClass="text-warning"
+        title={resetTarget ? `Reset ${resetTarget.fullname}'s Password?` : "Reset Password?"}
+        description={
+          resetTarget
+            ? `This will reset ${resetTarget.fullname}'s password and require a new one on the next sign-in.`
+            : "Confirm password reset."
+        }
+        confirmLabel={busy ? "Resetting…" : "Reset Password"}
+        confirmVariant="default"
+        onConfirm={resetPasswordConfirmed}
       />
 
       {/* Update Account Role */}
