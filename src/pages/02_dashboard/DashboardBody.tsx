@@ -88,7 +88,7 @@ import {
   provincesPayloadKey,
 } from "@/pages/02_dashboard/buildProvincesPayload";
 import type { JournalModel } from "@/types/journalType";
-import type { DashboardComplianceModel, DashboardNTCVStationModel } from "@/types/dashboardType";
+import type { DashboardComplianceModel, DashboardNTCVStationModel, DashboardStationSummaryComplianceModel } from "@/types/dashboardType";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
@@ -299,57 +299,124 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
       <StationBreakdownModal
         open={showStationBreakdown}
         onOpenChange={setShowStationBreakdown}
-        rows={[]}
       />
     </>
   );
 }
 
-type StationBreakdownRow = {
-  station: string;
-  totalTarget: number;
-  totalAccomplished: number;
-  remaining?: number;
-  positiveListing?: number;
-};
+function getStationTotalTarget(row: DashboardStationSummaryComplianceModel): number {
+  return row.totaltargetbplo + row.totaltargetgov + row.totaltargetpeza + row.totaltargettieza;
+}
+
+function getStationTotalAccomplished(row: DashboardStationSummaryComplianceModel): number {
+  return row.totalAccomplishmentbplo + row.totalAccomplishmentgov + row.totalAccomplishmentpeza + row.totalAccomplishmenttieza;
+}
 
 function StationBreakdownModal({
   open,
   onOpenChange,
-  rows,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  rows: StationBreakdownRow[];
 }) {
-  const dataset = rows.length ? rows : [];
+  const { filters } = useFilters();
+  const [rows, setRows] = useState<DashboardStationSummaryComplianceModel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const reportyear = Number(filters.year) || new Date().getFullYear();
+  const range = useMemo(
+    () => resolveDateRange(reportyear, filters.interval, filters.period),
+    [reportyear, filters.interval, filters.period],
+  );
+  const provinces = useMemo(
+    () => buildDashboardProvinces(filters.provinces, filters.stations),
+    [filters.provinces, filters.stations],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    setRows([]);
+
+    async function loadStations() {
+      try {
+        const response = await dashboardAPI.getStationComplianceSummary(
+          { reportyear, ...range, provinces },
+          {
+            signal: controller.signal,
+            suppressGlobalLoading: true,
+            suppressErrorToast: true,
+          },
+        );
+        const result = unwrap<DashboardStationSummaryComplianceModel[]>(response);
+        if (cancelled || result.canceled) return;
+        if (!result.ok) {
+          setError(result.error || "Unable to load station performance.");
+        } else if (result.data !== null && !Array.isArray(result.data)) {
+          setError("Unable to load station performance.");
+        } else {
+          setRows(result.data ?? []);
+        }
+      } catch {
+        if (!cancelled) setError("Unable to load station performance.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadStations();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [open, reportyear, range, provinces, retry]);
+
+  const dataset = useMemo(
+    () => [...rows].sort((a, b) =>
+      getStationTotalAccomplished(b) - getStationTotalAccomplished(a) ||
+      a.stationname.localeCompare(b.stationname) || a.stationno.localeCompare(b.stationno),
+    ),
+    [rows],
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl border-border/60 bg-card p-0 shadow-soft sm:rounded-xl">
+      <DialogContent className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-border/60 bg-card p-0 shadow-soft">
         <div className="border-b border-border/60 px-5 py-4">
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-lg font-semibold">Station Breakdown</DialogTitle>
+            <DialogTitle className="pr-6 text-lg font-semibold">Station Performance</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
               Inspection totals by station for the current dashboard filters.
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="px-4 pb-5 pt-4 sm:px-5">
-          {dataset.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-5 text-center">
-              <div className="text-base font-semibold text-foreground">No station data available yet.</div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                The station-by-station breakdown will be populated once the API is connected.
-              </p>
+        <div className="min-h-0 overflow-y-auto px-4 pb-5 pt-4 sm:px-5" aria-busy={loading}>
+          {loading ? (
+            <div role="status" className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading station performance…
+            </div>
+          ) : error ? (
+            <div role="alert" className="space-y-3 py-8 text-center">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button variant="outline" size="sm" onClick={() => setRetry((value) => value + 1)}>Retry</Button>
+            </div>
+          ) : dataset.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-5 text-center">
+              <div className="text-base font-semibold text-foreground">No station data for the selected filters.</div>
+
             </div>
           ) : (
             <>
-              <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-background md:block">
+              <div className="hidden overflow-x-auto rounded-lg border border-border/70 bg-background lg:block">
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="bg-muted/40">
-                    <tr className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    <tr className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
                       <th className="px-3 py-3 font-semibold">Station</th>
                       <th className="px-3 py-3 text-center font-semibold">Total Target</th>
                       <th className="px-3 py-3 text-center font-semibold">Total Accomplished</th>
@@ -359,18 +426,24 @@ function StationBreakdownModal({
                   </thead>
                   <tbody>
                     {dataset.map((row) => {
-                      const remaining = row.remaining ?? Math.max(row.totalTarget - row.totalAccomplished, 0);
+                      const remaining = Math.max(getStationTotalTarget(row) - getStationTotalAccomplished(row), 0);
                       const positiveListing =
-                        row.positiveListing ?? Math.max(row.totalAccomplished - row.totalTarget, 0);
+                        Math.max(getStationTotalAccomplished(row) - getStationTotalTarget(row), 0);
 
                       return (
-                        <tr key={row.station} className="border-t border-border/60">
-                          <td className="px-3 py-3 font-medium text-foreground">{row.station}</td>
+                        <tr key={row.stationno} className="border-t border-border/60">
+                          <td className="w-[36%] px-3 py-3"><div className="flex min-w-0 items-center gap-3">
+                            <AvatarWithFallback src={row.logourl} name={row.stationname} className="h-10 w-10 shrink-0" />
+                            <div className="min-w-0">
+                              <div className="break-words font-semibold text-foreground">{row.stationname}</div>
+                              <div className="break-words text-xs text-muted-foreground">{row.stationcode} · {row.provincename}</div>
+                            </div>
+                          </div></td>
                           <td className="px-3 py-3 text-center tabular-nums">
-                            {row.totalTarget.toLocaleString()}
+                            {getStationTotalTarget(row).toLocaleString()}
                           </td>
                           <td className="px-3 py-3 text-center font-semibold tabular-nums text-success">
-                            {row.totalAccomplished.toLocaleString()}
+                            {getStationTotalAccomplished(row).toLocaleString()}
                           </td>
                           <td className="px-3 py-3 text-center tabular-nums text-warning">
                             {remaining.toLocaleString()}
@@ -385,34 +458,40 @@ function StationBreakdownModal({
                 </table>
               </div>
 
-              <div className="space-y-3 md:hidden">
+              <div className="space-y-3 lg:hidden">
                 {dataset.map((row) => {
-                  const remaining = row.remaining ?? Math.max(row.totalTarget - row.totalAccomplished, 0);
+                  const remaining = Math.max(getStationTotalTarget(row) - getStationTotalAccomplished(row), 0);
                   const positiveListing =
-                    row.positiveListing ?? Math.max(row.totalAccomplished - row.totalTarget, 0);
+                    Math.max(getStationTotalAccomplished(row) - getStationTotalTarget(row), 0);
 
                   return (
-                    <Card key={row.station} className="border-border/60 bg-card p-4 shadow-soft">
-                      <div className="text-sm font-semibold text-foreground">{row.station}</div>
+                    <Card key={row.stationno} className="border-border/60 bg-card p-4 shadow-soft">
+                      <div className="flex min-w-0 items-center gap-3">
+                            <AvatarWithFallback src={row.logourl} name={row.stationname} className="h-10 w-10 shrink-0" />
+                            <div className="min-w-0">
+                              <div className="break-words font-semibold text-foreground">{row.stationname}</div>
+                              <div className="break-words text-xs text-muted-foreground">{row.stationcode} · {row.provincename}</div>
+                            </div>
+                          </div>
                       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                         <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
                             Total Target
                           </div>
                           <div className="mt-1 font-semibold tabular-nums">
-                            {row.totalTarget.toLocaleString()}
+                            {getStationTotalTarget(row).toLocaleString()}
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
                             Total Accomplished
                           </div>
                           <div className="mt-1 font-semibold tabular-nums text-success">
-                            {row.totalAccomplished.toLocaleString()}
+                            {getStationTotalAccomplished(row).toLocaleString()}
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
                             Remaining
                           </div>
                           <div className="mt-1 font-semibold tabular-nums text-warning">
@@ -420,7 +499,7 @@ function StationBreakdownModal({
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
                             Positive Listing
                           </div>
                           <div className="mt-1 font-semibold tabular-nums text-success">

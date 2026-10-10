@@ -61,10 +61,10 @@ export interface DashboardStationSummaryComplianceModel {
   totaltargetgov: number;
   totaltargetpeza: number;
   totaltargettieza: number;
-  totalaccomplishmentbplo: number;
-  totalaccomplishmentgov: number;
-  totalaccomplishmentpeza: number;
-  totalaccomplishmenttieza: number;
+  totalAccomplishmentbplo: number;
+  totalAccomplishmentgov: number;
+  totalAccomplishmentpeza: number;
+  totalAccomplishmenttieza: number;
 }
 
 export interface DashboardInspectionModel {

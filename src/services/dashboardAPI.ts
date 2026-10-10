@@ -31,7 +31,7 @@ export const dashboardAPI = {
   },
 
   async getStationComplianceSummary(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
-    return await apiPost<DashboardStationSummaryComplianceModel>(
+    return await apiPost<DashboardStationSummaryComplianceModel[]>(
       "/api/v1/Dashboard/FSIMS/Station/Compliance/Summary",
       body,
       {
