@@ -50,6 +50,23 @@ export interface DashboardComplianceModel {
   noticeList: DashboardNoticeModel[];
 }
 
+export interface DashboardStationSummaryComplianceModel {
+  year: number;
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  provincename: string;
+  logourl: string;
+  totaltargetbplo: number;
+  totaltargetgov: number;
+  totaltargetpeza: number;
+  totaltargettieza: number;
+  totalaccomplishmentbplo: number;
+  totalaccomplishmentgov: number;
+  totalaccomplishmentpeza: number;
+  totalaccomplishmenttieza: number;
+}
+
 export interface DashboardInspectionModel {
   year: number;
   totalduring: number;

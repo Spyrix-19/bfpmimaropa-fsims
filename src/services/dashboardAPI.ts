@@ -15,12 +15,24 @@ import {
   DashboardFCFYearToYearDTO,
   DashboardFireCodeFeeVarianceModel,
   DashboardYearToYearFCFDTO,
+  DashboardStationSummaryComplianceModel,
 } from "@/types/dashboardType";
 
 export const dashboardAPI = {
   async getComplianceSummary(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
     return await apiPost<DashboardComplianceModel>(
       "/api/v1/Dashboard/FSIMS/Compliance/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
+  },
+
+  async getStationComplianceSummary(body: DashboardDTO, options?: import("@/lib/api").ApiOptions) {
+    return await apiPost<DashboardStationSummaryComplianceModel>(
+      "/api/v1/Dashboard/FSIMS/Station/Compliance/Summary",
       body,
       {
         ...MUTATION_RETRY_LIGHT,
