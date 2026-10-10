@@ -376,10 +376,16 @@ function StationBreakdownModal({
   }, [open, reportyear, range, provinces, retry]);
 
   const dataset = useMemo(
-    () => [...rows].sort((a, b) =>
-      getStationTotalAccomplished(b) - getStationTotalAccomplished(a) ||
-      a.stationname.localeCompare(b.stationname) || a.stationno.localeCompare(b.stationno),
-    ),
+    () =>
+      [...rows].sort((a, b) => {
+        const accomplishedDiff = getStationTotalAccomplished(b) - getStationTotalAccomplished(a);
+        if (accomplishedDiff !== 0) return accomplishedDiff;
+
+        const targetDiff = getStationTotalTarget(b) - getStationTotalTarget(a);
+        if (targetDiff !== 0) return targetDiff;
+
+        return a.stationname.localeCompare(b.stationname) || a.stationno.localeCompare(b.stationno);
+      }),
     [rows],
   );
 
