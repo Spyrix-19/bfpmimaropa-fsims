@@ -144,6 +144,7 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
   const positive = Math.max(sectorTotals.accomplished - sectorTotals.target, 0);
 
   const [expanded, setExpanded] = useState(false);
+  const [showStationBreakdown, setShowStationBreakdown] = useState(false);
 
   const metrics = [
     { label: "Total Target", value: sectorTotals.target.toLocaleString(), tone: "text-foreground" },
@@ -165,117 +166,277 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
   ];
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-card p-0 shadow-soft transition-shadow hover:shadow-elegant">
-      <button
-        type="button"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-start justify-between gap-4 px-5 pb-4 pt-4 text-left"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted text-foreground shadow-soft ring-1 ring-border/60">
-              <Target className="h-4.5 w-4.5" />
-            </div>
-            <div className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Inspections
-            </div>
-            <span
-              className={`ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
-                completion >= 100 ? "tone-success-soft" : "tone-info-soft"
-              }`}
-            >
-              {completion}%
-            </span>
-          </div>
-
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary/80 transition-[width] duration-500"
-              style={{ width: `${Math.min(completion, 100)}%` }}
-            />
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {metrics.map((m) => (
-              <div
-                key={m.label}
-                className="rounded-lg border border-border/60 bg-card p-3 shadow-soft"
-              >
-                <div className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {m.label}
+    <>
+      <Card className="overflow-hidden border-border/60 bg-card p-0 shadow-soft transition-shadow hover:shadow-elegant">
+        <div className="px-5 pb-4 pt-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted text-foreground shadow-soft ring-1 ring-border/60">
+                  <Target className="h-4.5 w-4.5" />
                 </div>
-                <div className={`mt-1 text-base font-semibold tabular-nums ${m.tone}`}>
-                  {m.value}
+                <div className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Inspections
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-border/80 bg-background px-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-foreground shadow-sm hover:bg-muted/60"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setShowStationBreakdown(true);
+                    }}
+                  >
+                    View Station Performance
+                  </Button>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
+                      completion >= 100 ? "tone-success-soft" : "tone-info-soft"
+                    }`}
+                  >
+                    {completion}%
+                  </span>
                 </div>
               </div>
-            ))}
+
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary/80 transition-[width] duration-500"
+                  style={{ width: `${Math.min(completion, 100)}%` }}
+                />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {metrics.map((m) => (
+                  <div
+                    key={m.label}
+                    className="rounded-lg border border-border/60 bg-card p-3 shadow-soft"
+                  >
+                    <div className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {m.label}
+                    </div>
+                    <div className={`mt-1 text-base font-semibold tabular-nums ${m.tone}`}>
+                      {m.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
+              className="mt-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted"
+            >
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
           </div>
         </div>
-        <div className="mt-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted">
-          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </div>
-      </button>
 
-      {expanded && (
-        <div className="border-t border-border/60 bg-muted/20 px-3 py-3 sm:px-5">
-          <table className="w-full table-fixed text-[11px] sm:text-sm">
-            <thead>
-              <tr className="text-[9px] font-semibold uppercase leading-tight tracking-tight text-muted-foreground sm:text-[10px] sm:tracking-wider">
-                <th className="w-[22%] px-0.5 py-1 text-left">Sector</th>
-                <th className="px-0.5 py-1 text-center">Target</th>
-                <th className="px-0.5 py-1 text-center">Accompl.</th>
-                <th className="px-0.5 py-1 text-center">Remain.</th>
-                <th className="px-0.5 py-1 text-center">Positive</th>
-                <th className="w-[12%] px-0.5 py-1 text-center">%</th>
-              </tr>
-            </thead>
+        {expanded && (
+          <div className="border-t border-border/60 bg-muted/20 px-3 py-3 sm:px-5">
+            <table className="w-full table-fixed text-[11px] sm:text-sm">
+              <thead>
+                <tr className="text-[9px] font-semibold uppercase leading-tight tracking-tight text-muted-foreground sm:text-[10px] sm:tracking-wider">
+                  <th className="w-[22%] px-0.5 py-1 text-left">Sector</th>
+                  <th className="px-0.5 py-1 text-center">Target</th>
+                  <th className="px-0.5 py-1 text-center">Accompl.</th>
+                  <th className="px-0.5 py-1 text-center">Remain.</th>
+                  <th className="px-0.5 py-1 text-center">Positive</th>
+                  <th className="w-[12%] px-0.5 py-1 text-center">%</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {sectorProgress.map((s) => {
-                const remaining = Math.max(s.target - s.accomplished, 0);
-                const positive = Math.max(s.accomplished - s.target, 0);
-                const pct = s.target ? Math.round((s.accomplished / s.target) * 100) : 0;
-                return (
-                  <tr key={s.name} className="border-t border-border/40">
-                    <td className="py-1.5 text-left font-semibold">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ background: SECTOR_COLORS[s.name] }}
-                        />
-                        {s.name}
-                      </span>
-                    </td>
-                    <td className="py-1.5 text-center tabular-nums">{s.target.toLocaleString()}</td>
-                    <td className="py-1.5 text-center font-semibold tabular-nums text-success">
-                      {s.accomplished.toLocaleString()}
-                    </td>
-                    <td
-                      className={`py-1.5 text-center tabular-nums ${
-                        remaining > 0 ? "text-warning" : "text-success"
-                      }`}
-                    >
-                      {remaining.toLocaleString()}
-                    </td>
-                    <td className="py-1.5 text-center tabular-nums text-success">
-                      {positive ? positive.toLocaleString() : "—"}
-                    </td>
-                    <td
-                      className={`py-1.5 text-center font-semibold tabular-nums ${
-                        pct >= 100 ? "text-success" : ""
-                      }`}
-                    >
-                      {pct}%
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+              <tbody>
+                {sectorProgress.map((s) => {
+                  const remaining = Math.max(s.target - s.accomplished, 0);
+                  const positive = Math.max(s.accomplished - s.target, 0);
+                  const pct = s.target ? Math.round((s.accomplished / s.target) * 100) : 0;
+                  return (
+                    <tr key={s.name} className="border-t border-border/40">
+                      <td className="py-1.5 text-left font-semibold">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ background: SECTOR_COLORS[s.name] }}
+                          />
+                          {s.name}
+                        </span>
+                      </td>
+                      <td className="py-1.5 text-center tabular-nums">{s.target.toLocaleString()}</td>
+                      <td className="py-1.5 text-center font-semibold tabular-nums text-success">
+                        {s.accomplished.toLocaleString()}
+                      </td>
+                      <td
+                        className={`py-1.5 text-center tabular-nums ${
+                          remaining > 0 ? "text-warning" : "text-success"
+                        }`}
+                      >
+                        {remaining.toLocaleString()}
+                      </td>
+                      <td className="py-1.5 text-center tabular-nums text-success">
+                        {positive ? positive.toLocaleString() : "—"}
+                      </td>
+                      <td
+                        className={`py-1.5 text-center font-semibold tabular-nums ${
+                          pct >= 100 ? "text-success" : ""
+                        }`}
+                      >
+                        {pct}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <StationBreakdownModal
+        open={showStationBreakdown}
+        onOpenChange={setShowStationBreakdown}
+        rows={[]}
+      />
+    </>
+  );
+}
+
+type StationBreakdownRow = {
+  station: string;
+  totalTarget: number;
+  totalAccomplished: number;
+  remaining?: number;
+  positiveListing?: number;
+};
+
+function StationBreakdownModal({
+  open,
+  onOpenChange,
+  rows,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rows: StationBreakdownRow[];
+}) {
+  const dataset = rows.length ? rows : [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl border-border/60 bg-card p-0 shadow-soft sm:rounded-xl">
+        <div className="border-b border-border/60 px-5 py-4">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-lg font-semibold">Station Breakdown</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Inspection totals by station for the current dashboard filters.
+            </DialogDescription>
+          </DialogHeader>
         </div>
-      )}
-    </Card>
+
+        <div className="px-4 pb-5 pt-4 sm:px-5">
+          {dataset.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-5 text-center">
+              <div className="text-base font-semibold text-foreground">No station data available yet.</div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                The station-by-station breakdown will be populated once the API is connected.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-background md:block">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="bg-muted/40">
+                    <tr className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      <th className="px-3 py-3 font-semibold">Station</th>
+                      <th className="px-3 py-3 text-center font-semibold">Total Target</th>
+                      <th className="px-3 py-3 text-center font-semibold">Total Accomplished</th>
+                      <th className="px-3 py-3 text-center font-semibold">Remaining</th>
+                      <th className="px-3 py-3 text-center font-semibold">Positive Listing</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dataset.map((row) => {
+                      const remaining = row.remaining ?? Math.max(row.totalTarget - row.totalAccomplished, 0);
+                      const positiveListing =
+                        row.positiveListing ?? Math.max(row.totalAccomplished - row.totalTarget, 0);
+
+                      return (
+                        <tr key={row.station} className="border-t border-border/60">
+                          <td className="px-3 py-3 font-medium text-foreground">{row.station}</td>
+                          <td className="px-3 py-3 text-center tabular-nums">
+                            {row.totalTarget.toLocaleString()}
+                          </td>
+                          <td className="px-3 py-3 text-center font-semibold tabular-nums text-success">
+                            {row.totalAccomplished.toLocaleString()}
+                          </td>
+                          <td className="px-3 py-3 text-center tabular-nums text-warning">
+                            {remaining.toLocaleString()}
+                          </td>
+                          <td className="px-3 py-3 text-center font-semibold tabular-nums text-success">
+                            {positiveListing.toLocaleString()}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="space-y-3 md:hidden">
+                {dataset.map((row) => {
+                  const remaining = row.remaining ?? Math.max(row.totalTarget - row.totalAccomplished, 0);
+                  const positiveListing =
+                    row.positiveListing ?? Math.max(row.totalAccomplished - row.totalTarget, 0);
+
+                  return (
+                    <Card key={row.station} className="border-border/60 bg-card p-4 shadow-soft">
+                      <div className="text-sm font-semibold text-foreground">{row.station}</div>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            Total Target
+                          </div>
+                          <div className="mt-1 font-semibold tabular-nums">
+                            {row.totalTarget.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            Total Accomplished
+                          </div>
+                          <div className="mt-1 font-semibold tabular-nums text-success">
+                            {row.totalAccomplished.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            Remaining
+                          </div>
+                          <div className="mt-1 font-semibold tabular-nums text-warning">
+                            {remaining.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            Positive Listing
+                          </div>
+                          <div className="mt-1 font-semibold tabular-nums text-success">
+                            {positiveListing.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
