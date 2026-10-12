@@ -392,7 +392,7 @@ function StationBreakdownModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-border/60 bg-card p-0 shadow-soft">
-        <div className="border-b border-border/60 px-5 py-4">
+        <div className="border-b border-border/60 bg-background/95 px-5 py-4">
           <DialogHeader className="space-y-1">
             <DialogTitle className="pr-6 text-lg font-semibold">Station Performance</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
@@ -420,22 +420,24 @@ function StationBreakdownModal({
           ) : (
             <>
               <div className="hidden rounded-lg border border-border/70 bg-background lg:block">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-left text-sm">
-                    <thead className="bg-muted/40">
+                <div className="max-h-[52vh] overflow-y-auto overflow-x-auto">
+                  <table className="w-full min-w-[720px] table-fixed border-separate border-spacing-0 text-left text-sm">
+                    <colgroup>
+                      <col className="w-[36%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[16%]" />
+                    </colgroup>
+                    <thead className="sticky top-0 z-10 bg-background">
                       <tr className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
-                        <th className="px-3 py-3 font-semibold">Station</th>
+                        <th className="px-3 py-3 text-left font-semibold">Station</th>
                         <th className="px-3 py-3 text-center font-semibold">Total Target</th>
                         <th className="px-3 py-3 text-center font-semibold">Total Accomplished</th>
                         <th className="px-3 py-3 text-center font-semibold">Remaining</th>
                         <th className="px-3 py-3 text-center font-semibold">Positive Listing</th>
                       </tr>
                     </thead>
-                  </table>
-                </div>
-
-                <div className="max-h-[52vh] overflow-y-auto overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-left text-sm">
                     <tbody>
                       {dataset.map((row) => {
                         const remaining = Math.max(getStationTotalTarget(row) - getStationTotalAccomplished(row), 0);
@@ -443,24 +445,26 @@ function StationBreakdownModal({
                           Math.max(getStationTotalAccomplished(row) - getStationTotalTarget(row), 0);
 
                         return (
-                          <tr key={row.stationno} className="border-t border-border/60">
-                            <td className="w-[36%] px-3 py-3"><div className="flex min-w-0 items-center gap-3">
-                              <AvatarWithFallback src={row.logourl} name={row.stationname} className="h-10 w-10 shrink-0" />
-                              <div className="min-w-0">
-                                <div className="break-words font-semibold text-foreground">{row.stationname}</div>
-                                <div className="break-words text-xs text-muted-foreground">{row.stationcode} · {row.provincename}</div>
+                          <tr key={row.stationno} className="border-t border-border/60 align-middle">
+                            <td className="px-3 py-3 align-middle">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <AvatarWithFallback src={row.logourl} name={row.stationname} className="h-10 w-10 shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="break-words font-semibold text-foreground">{row.stationname}</div>
+                                  <div className="break-words text-xs text-muted-foreground">{row.stationcode} · {row.provincename}</div>
+                                </div>
                               </div>
-                            </div></td>
-                            <td className="px-3 py-3 text-center tabular-nums">
+                            </td>
+                            <td className="px-3 py-3 text-center align-middle tabular-nums">
                               {getStationTotalTarget(row).toLocaleString()}
                             </td>
-                            <td className="px-3 py-3 text-center font-semibold tabular-nums text-success">
+                            <td className="px-3 py-3 text-center align-middle font-semibold tabular-nums text-success">
                               {getStationTotalAccomplished(row).toLocaleString()}
                             </td>
-                            <td className="px-3 py-3 text-center tabular-nums text-warning">
+                            <td className="px-3 py-3 text-center align-middle tabular-nums text-warning">
                               {remaining.toLocaleString()}
                             </td>
-                            <td className="px-3 py-3 text-center font-semibold tabular-nums text-success">
+                            <td className="px-3 py-3 text-center align-middle font-semibold tabular-nums text-success">
                               {positiveListing.toLocaleString()}
                             </td>
                           </tr>
