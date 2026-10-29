@@ -12,6 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { buildYears, cn } from "@/lib/utils";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
@@ -80,6 +87,17 @@ const SUB_OPTIONS: Record<Interval, { value: string; label: string }[]> = {
   ],
   ANNUAL: [],
 };
+
+export const FIRE_CODE_FEES_VARIANCE_STATION_HEADERS = [
+  "STATION",
+  "FCCT + Filing Fees",
+  "FSI Fee (Business)",
+  "FSI Fee (Occupancy)",
+  "Fire Code Tax & Clearances",
+  "Administrative Fines",
+  "Other Fees",
+  "TOTAL",
+] as const;
 
 const VARIANCE_GROUPS = [
   { code: "FCCT", label: "FCCT + Filing Fees", categoryNos: [541, 560] },
@@ -220,6 +238,7 @@ export default function FireCodeFeesVarianceSection() {
   const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [stationModalOpen, setStationModalOpen] = React.useState(false);
   const [groupTotals, setGroupTotals] = React.useState<Record<number, Record<string, number>>>({});
 
   React.useEffect(() => {
@@ -452,7 +471,7 @@ export default function FireCodeFeesVarianceSection() {
       <div className="border-b border-border/60 p-3 sm:p-4">
         <div className="space-y-3">
           <div className="min-w-0 border-b border-border/60 pb-2.5">
-            <div className="mb-1 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
                 <Coins className="h-4 w-4" />
               </div>
@@ -460,7 +479,7 @@ export default function FireCodeFeesVarianceSection() {
                 Fire Code Fees Variance Comparison
               </h3>
             </div>
-            <p className="pl-10 text-sm text-muted-foreground">
+            <p className="mt-2 pl-10 text-sm text-muted-foreground">
               Combination of Manual Collection and Online Collection
             </p>
           </div>
@@ -491,6 +510,48 @@ export default function FireCodeFeesVarianceSection() {
           </div>
         </div>
       </div>
+
+      <Dialog open={stationModalOpen} onOpenChange={setStationModalOpen}>
+        <DialogContent className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-lg border-border/60 bg-card p-0 shadow-soft">
+          <div className="border-b border-border/60 bg-background/95 px-5 py-4">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="pr-6 text-lg font-semibold">Station Detail</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Fire Code Fees variance by station for the current dashboard filters.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="min-h-0 overflow-auto px-4 pb-5 pt-4 sm:px-5">
+            <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
+              <table className="min-w-full border-separate border-spacing-0 text-xs">
+                <thead className="bg-muted/60 text-foreground/90">
+                  <tr>
+                    {FIRE_CODE_FEES_VARIANCE_STATION_HEADERS.map((header) => (
+                      <th
+                        key={header}
+                        className="border-b border-r border-border/60 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider last:border-r-0"
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td
+                      colSpan={FIRE_CODE_FEES_VARIANCE_STATION_HEADERS.length}
+                      className="px-4 py-10 text-center text-sm text-muted-foreground"
+                    >
+                      No station data available for this view.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {loading ? (
         <div className="m-4 flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-card p-8 text-sm text-muted-foreground">
@@ -588,9 +649,22 @@ export default function FireCodeFeesVarianceSection() {
                       </th>
                       <th
                         colSpan={5}
-                        className="border-l border-grid bg-[var(--head-soft)] px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] sm:px-4"
+                        className="border-l border-grid bg-[var(--head-soft)] px-3 py-3 text-[10px] font-bold uppercase tracking-[0.12em] sm:px-4"
                       >
-                        Combination of Manual Collection and Online Collection
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex-1 text-center">
+                            Combination of Manual Collection and Online Collection
+                          </span>
+                          <Button
+                            type="button"
+                            variant="default"
+                            size="sm"
+                            className="h-8 shrink-0 bg-primary/90 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary-foreground shadow-sm hover:bg-primary"
+                            onClick={() => setStationModalOpen(true)}
+                          >
+                            View Station Performance
+                          </Button>
+                        </div>
                       </th>
                     </tr>
                     <tr>
