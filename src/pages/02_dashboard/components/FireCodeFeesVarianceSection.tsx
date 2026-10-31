@@ -33,21 +33,13 @@ import {
   provincesPayloadKey,
 } from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
-import type {
-  DashboardFireCodeFeeVarianceModel,
-  DashboardStationFeeCollectionModel,
-} from "@/types/dashboardType";
-import AvatarWithFallback from "@/components/avatar-with-fallback";
-import { resolveReportMonths, toISODate } from "@/lib/filters";
+import type { DashboardFireCodeFeeVarianceModel } from "@/types/dashboardType";
+import { resolveReportMonths } from "@/lib/filters";
 import { REPORT_INTERVAL_CODES } from "@/lib/fsims-constants";
 import type { DashInterval } from "@/lib/filters";
-import {
-  ModuleFilterBar,
-  type ModuleFilterState,
-} from "@/components/shared/ModuleFilterBar";
-import FilterField from "@/components/filter-field";
 
 import { peso } from "./fees/feeColumns";
+import { FireCodeFeesVarianceStationDetailModal } from "./FireCodeFeesVarianceStationDetailModal";
 
 /* -------------------------------------------------------------------------- */
 /*  Period filters                                                             */
@@ -164,60 +156,6 @@ interface StationVarianceRow {
   total: number;
 }
 
-/**
- * Aggregates the PerStation payload into one row per station for `year`,
- * summing collection amounts into the same VARIANCE_GROUPS used by the
- * main comparison table. Category numbers not in a group are ignored, so
- * the row totals stay comparable with the main table.
- */
-export function buildStationVarianceRows(
-  payload: DashboardStationFeeCollectionModel[] | null,
-  year: number,
-): StationVarianceRow[] {
-  const rows: StationVarianceRow[] = [];
-
-  for (const station of (payload ?? []) as unknown as Record<string, unknown>[]) {
-    const stationno = String(station?.Stationno ?? station?.stationno ?? "");
-    const stationname = String(station?.Stationname ?? station?.stationname ?? "");
-    const yearlyList = (station?.yearlyFeeList ?? []) as Record<string, unknown>[];
-
-    const amounts: Record<string, number> = {};
-    for (const group of VARIANCE_GROUPS) amounts[group.code] = 0;
-    let total = 0;
-
-    for (const yearEntry of yearlyList) {
-      if (Number(yearEntry?.reportyear) !== year) continue;
-      for (const fee of (yearEntry?.feeList ?? []) as Record<string, unknown>[]) {
-        const categoryNo = Number(fee?.feecateg ?? 0) || 0;
-        const amount = Number(fee?.collectionamount ?? 0) || 0;
-        const group = VARIANCE_GROUPS.find((item) =>
-          (item.categoryNos as readonly number[]).includes(categoryNo),
-        );
-        if (!group) continue;
-        amounts[group.code] += amount;
-        total += amount;
-      }
-    }
-
-    rows.push({
-      stationno,
-      stationcode: String(station?.Stationcode ?? station?.stationcode ?? ""),
-      stationname,
-      provincename: String(station?.Provincename ?? station?.provincename ?? ""),
-      logourl: String(station?.Logourl ?? station?.logourl ?? ""),
-      amounts,
-      total,
-    });
-  }
-
-  return rows.sort(
-    (a, b) =>
-      a.provincename.localeCompare(b.provincename) ||
-      a.stationname.localeCompare(b.stationname) ||
-      a.stationno.localeCompare(b.stationno),
-  );
-}
-
 /** Column caption, e.g. "1st Semester 2026". */
 function periodLabel(interval: Interval, sub: string, year: number) {
   if (interval === "ANNUAL") return `Annual ${year}`;
@@ -228,19 +166,6 @@ function periodLabel(interval: Interval, sub: string, year: number) {
 /* -------------------------------------------------------------------------- */
 /*  Station Detail dialog filters                                              */
 /* -------------------------------------------------------------------------- */
-
-/**
- * Filter state owned by the Station Detail dialog. It is seeded from the
- * section's own filters when the dialog opens and never writes back, so
- * tweaking the dialog does not disturb the year-over-year comparison.
- */
-interface StationDialogFilters {
-  year: string;
-  interval: Interval;
-  period: string;
-  provinces: SelectedLocation[];
-  stations: SelectedStation[];
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Year selector — exactly two years                                          */
@@ -334,18 +259,6 @@ export default function FireCodeFeesVarianceSection() {
   const [loading, setLoading] = React.useState(false);
   const [stationModalOpen, setStationModalOpen] = React.useState(false);
   const [groupTotals, setGroupTotals] = React.useState<Record<number, Record<string, number>>>({});
-  const [stationPayload, setStationPayload] = React.useState<
-    DashboardStationFeeCollectionModel[] | null
-  >(null);
-  const [stationLoading, setStationLoading] = React.useState(false);
-  /** Filters owned by the Station Detail dialog; seeded from the section on open. */
-  const [stationFilters, setStationFilters] = React.useState<StationDialogFilters>({
-    year: "",
-    interval: "SEMESTER",
-    period: "all",
-    provinces: [],
-    stations: [],
-  });
 
   React.useEffect(() => {
     if (!isAuthenticated) return;
@@ -455,105 +368,9 @@ export default function FireCodeFeesVarianceSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearsKey, scopeKey, periodKey]);
 
-  /* --- Station Detail dialog filter wiring ----------------------------- */
-  const stationSeedRef = React.useRef<StationDialogFilters | null>(null);
-
-  /** Opens the dialog and seeds its filters from the section's current filters. */
   const openStationDialog = React.useCallback(() => {
-    const seed: StationDialogFilters = {
-      year: String(compareYear),
-      interval,
-      period: subPeriod,
-      provinces,
-      stations,
-    };
-    stationSeedRef.current = seed;
-    setStationFilters(seed);
     setStationModalOpen(true);
-  }, [compareYear, interval, subPeriod, provinces, stations]);
-
-  const resetStationFilters = React.useCallback(() => {
-    if (stationSeedRef.current) setStationFilters(stationSeedRef.current);
   }, []);
-
-  const stationFilterYear = Number(stationFilters.year) || compareYear;
-  const stationProvincesPayload = React.useMemo(
-    () => buildDashboardProvinces(stationFilters.provinces, stationFilters.stations),
-    [stationFilters.provinces, stationFilters.stations],
-  );
-  const stationScopeKey = provincesPayloadKey(stationProvincesPayload);
-
-  // Shared bar state <-> dialog filter state adapter (MONTHLY / QUARTERLY /
-  // SEMESTER / ANNUAL only — the dialog bar does not offer daily or weekly).
-  const stationFilterState: ModuleFilterState = React.useMemo(() => {
-    const months =
-      stationFilters.interval === "MONTHLY"
-        ? (stationFilters.period ?? "")
-            .split(",")
-            .map((v) => Number(v.trim()))
-            .filter((m) => m >= 1 && m <= 12)
-        : [];
-    return {
-      year: stationFilters.year,
-      interval: stationFilters.interval,
-      date: `all:${toISODate(new Date())}`,
-      months,
-      week: "all",
-      quarter: stationFilters.interval === "QUARTERLY" ? stationFilters.period || "all" : "all",
-      semester: stationFilters.interval === "SEMESTER" ? stationFilters.period || "all" : "all",
-    };
-  }, [stationFilters]);
-
-  const handleStationFilterChange = (patch: Partial<ModuleFilterState>) => {
-    const next = { ...stationFilterState, ...patch };
-    const nextInterval = next.interval as Interval;
-    const periodFor = (it: Interval): string => {
-      if (it === "MONTHLY") {
-        const months = [...new Set(next.months)].sort((a, b) => a - b);
-        return months.length === 0 || months.length === 12 ? "all" : months.join(",");
-      }
-      if (it === "QUARTERLY") return next.quarter || "all";
-      if (it === "SEMESTER") return next.semester || "all";
-      return "all";
-    };
-    setStationFilters((prev) => ({
-      ...prev,
-      year: next.year,
-      interval: nextInterval,
-      period: periodFor(nextInterval),
-    }));
-  };
-
-  // Station performance — fetched when the dialog opens (or its own
-  // year/station filters change). The PerStation endpoint takes years and
-  // provinces only, so amounts are full-year totals regardless of the period.
-  React.useEffect(() => {
-    if (!stationModalOpen) return;
-    let cancelled = false;
-    (async () => {
-      setStationLoading(true);
-      try {
-        const resp = await dashboardAPI.getYearlyFireCodeFeeStation(
-          {
-            reportyear: [stationFilterYear].filter(Boolean),
-            feeparentno: [],
-            provinces: stationProvincesPayload,
-          },
-          { suppressGlobalLoading: true, suppressErrorToast: true },
-        );
-        const { ok, data: payload } = unwrap<DashboardStationFeeCollectionModel[]>(resp);
-        if (!cancelled) setStationPayload(ok ? (payload ?? null) : null);
-      } catch {
-        if (!cancelled) setStationPayload(null);
-      } finally {
-        if (!cancelled) setStationLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stationModalOpen, stationFilterYear, stationScopeKey]);
 
   const baseTotals =
     groupTotals[baseYear] ?? Object.fromEntries(VARIANCE_GROUPS.map((g) => [g.code, 0]));
@@ -597,22 +414,6 @@ export default function FireCodeFeesVarianceSection() {
       percentage: percentOf(baseAmt, compareAmt),
     };
   });
-
-  const stationRows = React.useMemo(
-    () => buildStationVarianceRows(stationPayload, stationFilterYear),
-    [stationPayload, stationFilterYear],
-  );
-  const stationTotals = React.useMemo(() => {
-    const totals: Record<string, number> = {};
-    for (const group of VARIANCE_GROUPS) totals[group.code] = 0;
-    let total = 0;
-    for (const row of stationRows) {
-      for (const group of VARIANCE_GROUPS) totals[group.code] += row.amounts[group.code] ?? 0;
-      total += row.total;
-    }
-    return { totals, total };
-  }, [stationRows]);
-
 
   const filterControls = (
     <>
@@ -733,191 +534,19 @@ export default function FireCodeFeesVarianceSection() {
         </div>
       </div>
 
-      <Dialog open={stationModalOpen} onOpenChange={setStationModalOpen}>
-        <DialogContent className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-lg border-border/60 bg-card p-0 shadow-soft">
-          <div className="border-b border-border/60 bg-background/95 px-5 py-4">
-            <DialogHeader className="space-y-1">
-              <DialogTitle className="pr-6 text-lg font-semibold">Station Detail</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                Fire Code Fees variance by station for the selected year. Collections are
-                full-year totals for the selected year.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <div className="min-h-0 overflow-auto px-4 pb-5 pt-4 sm:px-5">
-            {/* Dialog-owned filters — seeded from the section when it opens. */}
-            <ModuleFilterBar
-              title="Station Detail Filters"
-              years={buildYears()}
-              state={stationFilterState}
-              onChange={handleStationFilterChange}
-              onReset={resetStationFilters}
-              intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-              className="mb-3 rounded-xl bg-card/70"
-            >
-              <FilterField label="Provinces">
-                {scope.provinceLocked ? (
-                  <ReadOnlyField
-                    value={scope.provincename}
-                    placeholder="All provinces"
-                    title="Restricted to your assigned province"
-                  />
-                ) : (
-                  <LocationMultiSelect
-                    mode="location"
-                    value={stationFilters.provinces}
-                    locationtype="PROVINCE"
-                    parentcode={MIMAROPA_REGION_CODE}
-                    onChange={(next) => {
-                      setStationFilters((prev) => {
-                        if (next.length === 0) return { ...prev, provinces: [], stations: [] };
-                        const allowed = new Set(next.map((p) => p.locationno));
-                        return {
-                          ...prev,
-                          provinces: next,
-                          stations: prev.stations.filter((s) => allowed.has(s.provinceno)),
-                        };
-                      });
-                    }}
-                    placeholder="All provinces"
-                    hideCode
-                    className="w-full"
-                  />
-                )}
-              </FilterField>
-
-              <FilterField label="Stations">
-                {scope.stationLocked ? (
-                  <ReadOnlyField
-                    value={scope.stationname}
-                    placeholder="All stations"
-                    title="Restricted to your assigned station"
-                  />
-                ) : (
-                  <StationMultiSelect
-                    mode="station"
-                    value={stationFilters.stations}
-                    provinces={stationFilters.provinces.map((p) => ({
-                      provinceno: p.locationno,
-                    }))}
-                    reportyear={stationFilterYear}
-                    onChange={(next) => {
-                      setStationFilters((prev) => {
-                        const merged = [...prev.provinces];
-                        const known = new Set(merged.map((p) => p.locationno));
-                        next.forEach((s) => {
-                          if (!s.provinceno || known.has(s.provinceno)) return;
-                          known.add(s.provinceno);
-                          merged.push({
-                            locationno: s.provinceno,
-                            locationname: s.provincename,
-                          });
-                        });
-                        return { ...prev, stations: next, provinces: merged };
-                      });
-                    }}
-                    placeholder="All stations"
-                    alwaysEnabled
-                    className="w-full"
-                  />
-                )}
-              </FilterField>
-            </ModuleFilterBar>
-
-
-            {stationLoading ? (
-              <div className="flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-card p-8 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading station performance…
-              </div>
-            ) : stationRows.length === 0 ? (
-              <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-                No station data available for this view.
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px] border-separate border-spacing-0 text-xs">
-                    <thead className="bg-muted/60 text-foreground/90">
-                      <tr>
-                        <th className="sticky left-0 z-20 w-56 min-w-56 border-b border-r border-border/60 bg-muted/60 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider">
-                          Station
-                        </th>
-                        {VARIANCE_GROUPS.map((group) => (
-                          <th
-                            key={group.code}
-                            className="border-b border-r border-border/60 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider last:border-r-0"
-                          >
-                            {group.label}
-                          </th>
-                        ))}
-                        <th className="border-b border-border/60 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stationRows.map((row, index) => (
-                        <tr
-                          key={row.stationno || `${row.stationname}-${index}`}
-                          className="transition-colors hover:bg-muted/20"
-                        >
-                          <td className="sticky left-0 z-10 w-56 min-w-56 border-b border-r border-border/60 bg-card px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <AvatarWithFallback
-                                src={row.logourl}
-                                name={row.stationname}
-                                className="h-6 w-6 shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <div className="truncate font-medium text-foreground/90">
-                                  {row.stationname || "—"}
-                                </div>
-                                <div className="truncate text-[10px] text-muted-foreground">
-                                  {row.provincename}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          {VARIANCE_GROUPS.map((group) => (
-                            <td
-                              key={group.code}
-                              className="border-b border-r border-border/60 px-3 py-2 text-right tabular-nums text-muted-foreground"
-                            >
-                              {peso(row.amounts[group.code] ?? 0)}
-                            </td>
-                          ))}
-                          <td className="border-b border-border/60 px-3 py-2 text-right font-semibold tabular-nums text-foreground">
-                            {peso(row.total)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-[var(--total-row)] text-[var(--total-row-foreground)]">
-                        <td className="sticky left-0 z-20 w-56 min-w-56 border-r border-border/60 bg-[var(--total-row)] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider">
-                          Total
-                        </td>
-                        {VARIANCE_GROUPS.map((group) => (
-                          <td
-                            key={group.code}
-                            className="border-r border-border/60 px-3 py-2.5 text-right font-bold tabular-nums"
-                          >
-                            {peso(stationTotals.totals[group.code] ?? 0)}
-                          </td>
-                        ))}
-                        <td className="px-3 py-2.5 text-right font-bold tabular-nums">
-                          {peso(stationTotals.total)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FireCodeFeesVarianceStationDetailModal
+        open={stationModalOpen}
+        onOpenChange={setStationModalOpen}
+        compareYear={compareYear}
+        initialInterval={interval}
+        initialPeriod={subPeriod}
+        initialProvinces={provinces}
+        initialStations={stations}
+        provinceLocked={scope.provinceLocked}
+        provincename={scope.provincename}
+        stationLocked={scope.stationLocked}
+        stationname={scope.stationname}
+      />
 
       {loading ? (
         <div className="m-4 flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-card p-8 text-sm text-muted-foreground">
