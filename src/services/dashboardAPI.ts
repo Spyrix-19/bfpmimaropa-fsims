@@ -16,6 +16,7 @@ import {
   DashboardFireCodeFeeVarianceModel,
   DashboardYearToYearFCFDTO,
   DashboardStationSummaryComplianceModel,
+  DashboardStationFeeCollectionModel,
 } from "@/types/dashboardType";
 
 export const dashboardAPI = {
@@ -138,6 +139,20 @@ export const dashboardAPI = {
   ) {
     return await apiPost<DashboardFeeCollectionModel[]>(
       "/api/v1/Dashboard/FSIMS/FireCodeFee/Summary",
+      body,
+      {
+        ...MUTATION_RETRY_LIGHT,
+        ...options,
+      },
+    );
+  },
+
+  async getYearlyFireCodeFeeStation(
+    body: DashboardYearToYearFCFDTO,
+    options?: import("@/lib/api").ApiOptions,
+  ) {
+    return await apiPost<DashboardStationFeeCollectionModel[]>(
+      "/api/v1/Dashboard/FSIMS/FireCodeFee/PerStation",
       body,
       {
         ...MUTATION_RETRY_LIGHT,
