@@ -8,6 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { type SelectedLocation } from "@/components/location-multi-select";
+import { type SelectedStation } from "@/components/station-multi-select";
 import { unwrap } from "@/lib/api-envelope";
 import { buildDashboardProvinces, provincesPayloadKey } from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
