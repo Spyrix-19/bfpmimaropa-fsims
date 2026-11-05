@@ -8,59 +8,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
-import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
-import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
-import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { unwrap } from "@/lib/api-envelope";
 import { buildDashboardProvinces, provincesPayloadKey } from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
 import type { DashboardStationFeeCollectionModel } from "@/types/dashboardType";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import { toISODate } from "@/lib/filters";
 import type { DashInterval } from "@/lib/filters";
-import { ModuleFilterBar, type ModuleFilterState } from "@/components/shared/ModuleFilterBar";
 import FilterField from "@/components/filter-field";
 import { buildYears } from "@/lib/utils";
+import ResetFiltersButton from "@/components/reset-filters-button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { peso } from "./fees/feeColumns";
 
 type Interval = Extract<DashInterval, "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL">;
-
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const SUB_OPTIONS: Record<Interval, { value: string; label: string }[]> = {
-  MONTHLY: [
-    { value: "all", label: "All Month" },
-    ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m })),
-  ],
-  QUARTERLY: [
-    { value: "all", label: "All Quarter" },
-    { value: "1", label: "1st Quarter" },
-    { value: "2", label: "2nd Quarter" },
-    { value: "3", label: "3rd Quarter" },
-    { value: "4", label: "4th Quarter" },
-  ],
-  SEMESTER: [
-    { value: "all", label: "All Semester" },
-    { value: "1", label: "1st Semester" },
-    { value: "2", label: "2nd Semester" },
-  ],
-  ANNUAL: [],
-};
 
 export const VARIANCE_GROUPS = [
   { code: "FCCT", label: "FCCT + Filing Fees", categoryNos: [541, 560] },
@@ -95,38 +62,6 @@ interface StationDialogFilters {
   period: string;
   provinces: SelectedLocation[];
   stations: SelectedStation[];
-}
-
-function toModuleQuarter(period: string): string {
-  if (!period || period === "all") return "all";
-  if (period === "1") return "q1";
-  if (period === "2") return "q2";
-  if (period === "3") return "q3";
-  if (period === "4") return "q4";
-  return period;
-}
-
-function fromModuleQuarter(period: string): string {
-  if (!period || period === "all") return "all";
-  if (period === "q1") return "1";
-  if (period === "q2") return "2";
-  if (period === "q3") return "3";
-  if (period === "q4") return "4";
-  return period;
-}
-
-function toModuleSemester(period: string): string {
-  if (!period || period === "all") return "all";
-  if (period === "1") return "s1";
-  if (period === "2") return "s2";
-  return period;
-}
-
-function fromModuleSemester(period: string): string {
-  if (!period || period === "all") return "all";
-  if (period === "s1") return "1";
-  if (period === "s2") return "2";
-  return period;
 }
 
 export function buildStationVarianceRows(
@@ -235,53 +170,6 @@ export function FireCodeFeesVarianceStationDetailModal({
   );
   const stationScopeKey = provincesPayloadKey(stationProvincesPayload);
 
-  const stationFilterState: ModuleFilterState = React.useMemo(() => {
-    const months =
-      stationFilters.interval === "MONTHLY"
-        ? (stationFilters.period ?? "")
-            .split(",")
-            .map((v) => Number(v.trim()))
-            .filter((m) => m >= 1 && m <= 12)
-        : [];
-
-    return {
-      year: stationFilters.year,
-      interval: stationFilters.interval,
-      date: `all:${toISODate(new Date())}`,
-      months,
-      week: "all",
-      quarter:
-        stationFilters.interval === "QUARTERLY"
-          ? toModuleQuarter(stationFilters.period || "all")
-          : "all",
-      semester:
-        stationFilters.interval === "SEMESTER"
-          ? toModuleSemester(stationFilters.period || "all")
-          : "all",
-    };
-  }, [stationFilters]);
-
-  const handleStationFilterChange = (patch: Partial<ModuleFilterState>) => {
-    const next = { ...stationFilterState, ...patch };
-    const nextInterval = next.interval as Interval;
-    const periodFor = (it: Interval): string => {
-      if (it === "MONTHLY") {
-        const months = [...new Set(next.months)].sort((a, b) => a - b);
-        return months.length === 0 || months.length === 12 ? "all" : months.join(",");
-      }
-      if (it === "QUARTERLY") return fromModuleQuarter(next.quarter || "all");
-      if (it === "SEMESTER") return fromModuleSemester(next.semester || "all");
-      return "all";
-    };
-
-    setStationFilters((prev) => ({
-      ...prev,
-      year: next.year,
-      interval: nextInterval,
-      period: periodFor(nextInterval),
-    }));
-  };
-
   React.useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -344,89 +232,42 @@ export function FireCodeFeesVarianceStationDetailModal({
         </div>
 
         <div className="min-h-0 overflow-auto px-4 pb-5 pt-4 sm:px-5">
-          <ModuleFilterBar
-            title="Station Performance Filters"
-            years={buildYears()}
-            state={stationFilterState}
-            onChange={handleStationFilterChange}
-            onReset={() =>
-              setStationFilters({
-                year: String(compareYear),
-                interval: initialInterval,
-                period: initialPeriod,
-                provinces: initialProvinces,
-                stations: initialStations,
-              })
-            }
-            intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-            className="mb-3 rounded-xl bg-card/70"
-          >
-            <FilterField label="Provinces">
-              {provinceLocked ? (
-                <ReadOnlyField
-                  value={provincename ?? ""}
-                  placeholder="All provinces"
-                  title="Restricted to your assigned province"
-                />
-              ) : (
-                <LocationMultiSelect
-                  mode="location"
-                  value={stationFilters.provinces}
-                  locationtype="PROVINCE"
-                  parentcode={MIMAROPA_REGION_CODE}
-                  onChange={(next) => {
-                    setStationFilters((prev) => {
-                      if (next.length === 0) return { ...prev, provinces: [], stations: [] };
-                      const allowed = new Set(next.map((p) => p.locationno));
-                      return {
-                        ...prev,
-                        provinces: next,
-                        stations: prev.stations.filter((s) => allowed.has(s.provinceno)),
-                      };
-                    });
+          <div className="mb-3 flex items-end justify-between gap-3 rounded-xl border border-border/60 bg-card/70 p-3">
+            <div className="w-full max-w-xs">
+              <FilterField label="Year">
+                <Select
+                  value={stationFilters.year}
+                  onValueChange={(year) => {
+                    setStationFilters((prev) => ({ ...prev, year }));
                   }}
-                  placeholder="All provinces"
-                  hideCode
-                  className="w-full"
-                />
-              )}
-            </FilterField>
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buildYears().map((year) => (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FilterField>
+            </div>
 
-            <FilterField label="Stations">
-              {stationLocked ? (
-                <ReadOnlyField
-                  value={stationname ?? ""}
-                  placeholder="All stations"
-                  title="Restricted to your assigned station"
-                />
-              ) : (
-                <StationMultiSelect
-                  mode="station"
-                  value={stationFilters.stations}
-                  provinces={stationFilters.provinces.map((p) => ({ provinceno: p.locationno }))}
-                  reportyear={stationFilterYear}
-                  onChange={(next) => {
-                    setStationFilters((prev) => {
-                      const merged = [...prev.provinces];
-                      const known = new Set(merged.map((p) => p.locationno));
-                      next.forEach((s) => {
-                        if (!s.provinceno || known.has(s.provinceno)) return;
-                        known.add(s.provinceno);
-                        merged.push({
-                          locationno: s.provinceno,
-                          locationname: s.provincename,
-                        });
-                      });
-                      return { ...prev, stations: next, provinces: merged };
-                    });
-                  }}
-                  placeholder="All stations"
-                  alwaysEnabled
-                  className="w-full"
-                />
-              )}
-            </FilterField>
-          </ModuleFilterBar>
+            <ResetFiltersButton
+              onReset={() =>
+                setStationFilters({
+                  year: String(compareYear),
+                  interval: initialInterval,
+                  period: initialPeriod,
+                  provinces: initialProvinces,
+                  stations: initialStations,
+                })
+              }
+              className="shrink-0"
+            />
+          </div>
 
           {stationLoading ? (
             <div className="flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-card p-8 text-sm text-muted-foreground">
@@ -476,7 +317,7 @@ export function FireCodeFeesVarianceStationDetailModal({
                                 {row.stationname || "—"}
                               </div>
                               <div className="truncate text-[10px] text-muted-foreground">
-                                {row.provincename}
+                                {row.stationcode ? `${row.stationcode} - ${row.provincename}` : row.provincename}
                               </div>
                             </div>
                           </div>
