@@ -84,6 +84,15 @@ import FireCodeFeesVarianceSection from "@/pages/02_dashboard/components/FireCod
 import PaginationControls from "@/components/pagination";
 import FilterField from "@/components/filter-field";
 import {
+  getStationPercentage,
+  getStationPositiveListing,
+  getStationRemaining,
+  getStationTotalAccomplished,
+  getStationTotalTarget,
+  sortStationPerformanceRows,
+  type StationPerformanceSortKey,
+} from "@/pages/02_dashboard/stationPerformanceSort";
+import {
   buildDashboardProvinces,
   provincesPayloadKey,
 } from "@/pages/02_dashboard/buildProvincesPayload";
@@ -304,14 +313,6 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
   );
 }
 
-function getStationTotalTarget(row: DashboardStationSummaryComplianceModel): number {
-  return row.totaltargetbplo + row.totaltargetgov + row.totaltargetpeza + row.totaltargettieza;
-}
-
-function getStationTotalAccomplished(row: DashboardStationSummaryComplianceModel): number {
-  return row.totalAccomplishmentbplo + row.totalAccomplishmentgov + row.totalAccomplishmentpeza + row.totalAccomplishmenttieza;
-}
-
 function StationBreakdownModal({
   open,
   onOpenChange,
@@ -324,6 +325,7 @@ function StationBreakdownModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [sortKey, setSortKey] = useState<StationPerformanceSortKey>("totalAccomplished");
   const reportyear = Number(filters.year) || new Date().getFullYear();
   const range = useMemo(
     () => resolveDateRange(reportyear, filters.interval, filters.period),
@@ -375,19 +377,15 @@ function StationBreakdownModal({
     };
   }, [open, reportyear, range, provinces, retry]);
 
-  const dataset = useMemo(
-    () =>
-      [...rows].sort((a, b) => {
-        const accomplishedDiff = getStationTotalAccomplished(b) - getStationTotalAccomplished(a);
-        if (accomplishedDiff !== 0) return accomplishedDiff;
+  const dataset = useMemo(() => sortStationPerformanceRows(rows, sortKey), [rows, sortKey]);
 
-        const targetDiff = getStationTotalTarget(b) - getStationTotalTarget(a);
-        if (targetDiff !== 0) return targetDiff;
-
-        return a.stationname.localeCompare(b.stationname) || a.stationno.localeCompare(b.stationno);
-      }),
-    [rows],
-  );
+  const metricColumns: Array<{ key: StationPerformanceSortKey; label: string }> = [
+    { key: "totalTarget", label: "Total Target" },
+    { key: "totalAccomplished", label: "Total Accomplished" },
+    { key: "remaining", label: "Remaining" },
+    { key: "positiveListing", label: "Positive Listing" },
+    { key: "percentage", label: "Percentage" },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -423,26 +421,46 @@ function StationBreakdownModal({
                 <div className="max-h-[52vh] overflow-y-auto overflow-x-auto">
                   <table className="w-full min-w-[720px] table-fixed border-separate border-spacing-0 text-left text-sm">
                     <colgroup>
-                      <col className="w-[36%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[16%]" />
+                      <col className="w-[30%]" />
+                      <col className="w-[14%]" />
+                      <col className="w-[14%]" />
+                      <col className="w-[14%]" />
+                      <col className="w-[14%]" />
+                      <col className="w-[14%]" />
                     </colgroup>
                     <thead className="sticky top-0 z-10 bg-background">
                       <tr className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
                         <th className="px-3 py-3 text-left font-semibold">Station</th>
-                        <th className="px-3 py-3 text-center font-semibold">Total Target</th>
-                        <th className="px-3 py-3 text-center font-semibold">Total Accomplished</th>
-                        <th className="px-3 py-3 text-center font-semibold">Remaining</th>
-                        <th className="px-3 py-3 text-center font-semibold">Positive Listing</th>
+                        {metricColumns.map((column) => {
+                          const isActive = sortKey === column.key;
+                          return (
+                            <th
+                              key={column.key}
+                              aria-sort={isActive ? "descending" : "none"}
+                              className="px-3 py-3 text-center font-semibold"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setSortKey(column.key)}
+                                className="inline-flex items-center justify-center gap-1.5 text-center transition-colors hover:text-foreground"
+                              >
+                                <span>{column.label}</span>
+                                {isActive ? (
+                                  <ChevronUp className="h-3.5 w-3.5 text-foreground" />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+                                )}
+                              </button>
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
                       {dataset.map((row) => {
-                        const remaining = Math.max(getStationTotalTarget(row) - getStationTotalAccomplished(row), 0);
-                        const positiveListing =
-                          Math.max(getStationTotalAccomplished(row) - getStationTotalTarget(row), 0);
+                        const remaining = getStationRemaining(row);
+                        const positiveListing = getStationPositiveListing(row);
+                        const percentage = getStationPercentage(row);
 
                         return (
                           <tr key={row.stationno} className="border-t border-border/60 align-middle">
@@ -467,6 +485,9 @@ function StationBreakdownModal({
                             <td className="px-3 py-3 text-center align-middle font-semibold tabular-nums text-success">
                               {positiveListing.toLocaleString()}
                             </td>
+                            <td className="px-3 py-3 text-center align-middle font-semibold tabular-nums text-success">
+                              {`${percentage.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`}
+                            </td>
                           </tr>
                         );
                       })}
@@ -477,9 +498,9 @@ function StationBreakdownModal({
 
               <div className="space-y-3 lg:hidden">
                 {dataset.map((row) => {
-                  const remaining = Math.max(getStationTotalTarget(row) - getStationTotalAccomplished(row), 0);
-                  const positiveListing =
-                    Math.max(getStationTotalAccomplished(row) - getStationTotalTarget(row), 0);
+                  const remaining = getStationRemaining(row);
+                  const positiveListing = getStationPositiveListing(row);
+                  const percentage = getStationPercentage(row);
 
                   return (
                     <Card key={row.stationno} className="border-border/60 bg-card p-4 shadow-soft">
@@ -521,6 +542,14 @@ function StationBreakdownModal({
                           </div>
                           <div className="mt-1 font-semibold tabular-nums text-success">
                             {positiveListing.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
+                            Percentage
+                          </div>
+                          <div className="mt-1 font-semibold tabular-nums text-success">
+                            {`${percentage.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`}
                           </div>
                         </div>
                       </div>
