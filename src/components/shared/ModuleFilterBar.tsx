@@ -646,6 +646,7 @@ export function ModuleFilterBar({
   intervals,
   allowAllDays = true,
   className,
+  footer,
 }: {
   title?: string;
   years: number[];
@@ -662,6 +663,8 @@ export function ModuleFilterBar({
   allowAllDays?: boolean;
   /** Optional wrapper classes (useful for embedding inside popovers/drawers). */
   className?: string;
+  /** Extra controls shown inside the panel, below the filters (e.g. a status filter). */
+  footer?: React.ReactNode;
 }) {
   const subFilterLabel: Record<string, string> = {
     DAILY: "Date",
@@ -708,6 +711,7 @@ export function ModuleFilterBar({
 
         <ResetFiltersButton onReset={onReset} className="self-end md:shrink-0" />
       </div>
+      {footer ? <div className="mt-3 border-t border-border/60 pt-3">{footer}</div> : null}
     </div>
   );
 }

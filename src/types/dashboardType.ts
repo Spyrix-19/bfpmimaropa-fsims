@@ -197,6 +197,9 @@ export interface DashboardYearToYearFCFDTO {
   reportyear: number[];
   feeparentno: number[];
   provinces: DashboardClass[];
+  /** Optional period scope (same meaning as the Variance endpoint). */
+  reportmonth?: number[];
+  interval?: number;
 }
 
 export interface DashboardFeeCollectionModel {
