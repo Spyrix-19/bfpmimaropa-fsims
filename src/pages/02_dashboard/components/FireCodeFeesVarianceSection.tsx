@@ -539,8 +539,6 @@ export default function FireCodeFeesVarianceSection() {
         onOpenChange={setStationModalOpen}
         baseYear={baseYear}
         compareYear={compareYear}
-        initialInterval={interval}
-        initialPeriod={subPeriod}
         initialProvinces={provinces}
         initialStations={stations}
         provinceLocked={scope.provinceLocked}
