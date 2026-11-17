@@ -17,6 +17,7 @@ import {
   DashboardYearToYearFCFDTO,
   DashboardStationSummaryComplianceModel,
   DashboardStationFeeCollectionModel,
+  DashboardFireCodeFeeStationModel,
 } from "@/types/dashboardType";
 
 export const dashboardAPI = {
@@ -151,7 +152,7 @@ export const dashboardAPI = {
     body: DashboardYearToYearFCFDTO,
     options?: import("@/lib/api").ApiOptions,
   ) {
-    return await apiPost<DashboardStationFeeCollectionModel[]>(
+    return await apiPost<DashboardFireCodeFeeStationModel[]>(
       "/api/v1/Dashboard/FSIMS/FireCodeFee/PerStation",
       body,
       {

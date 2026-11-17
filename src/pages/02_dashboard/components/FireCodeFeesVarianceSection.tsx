@@ -537,6 +537,7 @@ export default function FireCodeFeesVarianceSection() {
       <FireCodeFeesVarianceStationDetailModal
         open={stationModalOpen}
         onOpenChange={setStationModalOpen}
+        baseYear={baseYear}
         compareYear={compareYear}
         initialInterval={interval}
         initialPeriod={subPeriod}

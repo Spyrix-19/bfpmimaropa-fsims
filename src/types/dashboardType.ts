@@ -214,6 +214,16 @@ export interface DashboardStationFeeCollectionModel {
   yearlyFeeList: DashboardFeeCollectionModel[];
 }
 
+export interface DashboardFireCodeFeeStationModel {
+  stationno: string;
+  stationcode: string;
+  stationname: string;
+  logourl: string;
+  provinceno: string;
+  provincename: string;
+  years: Record<string, number>;
+}
+
 export interface DashboardFeeItemModel {
   feecateg: number;
   feecategcode: string;
