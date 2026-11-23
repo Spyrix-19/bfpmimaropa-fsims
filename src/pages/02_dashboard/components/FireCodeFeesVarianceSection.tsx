@@ -1,31 +1,12 @@
 import * as React from "react";
-import { ChevronDown, Coins, Filter, Loader2 } from "lucide-react";
+import { Building2, Coins, Loader2 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
-import { buildYears, cn } from "@/lib/utils";
-import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
-import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
-import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
+import { cn } from "@/lib/utils";
+import type { SelectedLocation } from "@/components/location-multi-select";
+import type { SelectedStation } from "@/components/station-multi-select";
 import { resolveLocationScope, useAuth } from "@/lib/auth";
-import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 
 import { unwrap } from "@/lib/api-envelope";
 import {
@@ -40,54 +21,17 @@ import type { DashInterval } from "@/lib/filters";
 
 import { peso } from "./fees/feeColumns";
 import { FireCodeFeesVarianceStationDetailModal } from "./FireCodeFeesVarianceStationDetailModal";
-
-/* -------------------------------------------------------------------------- */
-/*  Period filters                                                             */
-/* -------------------------------------------------------------------------- */
-
-type Interval = Extract<DashInterval, "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL">;
-
-const INTERVALS: { value: Interval; label: string }[] = [
-  { value: "MONTHLY", label: "Monthly" },
-  { value: "QUARTERLY", label: "Quarterly" },
-  { value: "SEMESTER", label: "Semester" },
-  { value: "ANNUAL", label: "Annual" },
-];
-
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const SUB_OPTIONS: Record<Interval, { value: string; label: string }[]> = {
-  MONTHLY: [
-    { value: "all", label: "All Month" },
-    ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m })),
-  ],
-  QUARTERLY: [
-    { value: "all", label: "All Quarter" },
-    { value: "1", label: "1st Quarter" },
-    { value: "2", label: "2nd Quarter" },
-    { value: "3", label: "3rd Quarter" },
-    { value: "4", label: "4th Quarter" },
-  ],
-  SEMESTER: [
-    { value: "all", label: "All Semester" },
-    { value: "1", label: "1st Semester" },
-    { value: "2", label: "2nd Semester" },
-  ],
-  ANNUAL: [],
-};
+import {
+  DEFAULT_VARIANCE_INTERVAL,
+  DEFAULT_VARIANCE_SUB_PERIOD,
+  VarianceFilterBar,
+  defaultVarianceYears,
+  firstSubOption,
+  periodLabel,
+  provincesIncludingStations,
+  stationsWithinProvinces,
+  type VarianceInterval as Interval,
+} from "./fees/varianceFilters";
 
 export const FIRE_CODE_FEES_VARIANCE_STATION_HEADERS = [
   "STATION",
@@ -143,104 +87,6 @@ function buildVarianceTotals(
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Station performance — per-station totals for the same fee groups           */
-/* -------------------------------------------------------------------------- */
-
-interface StationVarianceRow {
-  stationno: string;
-  stationcode: string;
-  stationname: string;
-  provincename: string;
-  logourl: string;
-  amounts: Record<string, number>;
-  total: number;
-}
-
-/** Column caption, e.g. "1st Semester 2026". */
-function periodLabel(interval: Interval, sub: string, year: number) {
-  if (interval === "ANNUAL") return `Annual ${year}`;
-  const option = SUB_OPTIONS[interval].find((o) => o.value === sub);
-  return `${option?.label ?? ""} ${year}`.trim();
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Station Detail dialog filters                                              */
-/* -------------------------------------------------------------------------- */
-
-/* -------------------------------------------------------------------------- */
-/*  Year selector — exactly two years                                          */
-/* -------------------------------------------------------------------------- */
-
-const REQUIRED_YEARS = 2;
-
-function defaultYears(): number[] {
-  const now = new Date().getFullYear();
-  return [now - 1, now];
-}
-
-function TwoYearSelect({
-  value,
-  onChange,
-}: {
-  value: number[];
-  onChange: (next: number[]) => void;
-}) {
-  const options = React.useMemo(() => buildYears(), []);
-  const label = value.length > 0 ? value.join(" vs ") : "Select 2 years";
-
-  const toggleYear = (year: number) => {
-    if (value.includes(year)) return; // always keep exactly two
-    // Replace the oldest year so the picked one becomes part of the pair.
-    const next = [...value.slice(1), year].sort((a, b) => a - b);
-    onChange(next.slice(-REQUIRED_YEARS));
-  };
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-11 w-full shrink-0 justify-between rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm font-medium text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:w-[180px] md:rounded-md"
-        >
-          <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4 text-primary" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[240px] p-3">
-        <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Choose years
-          </div>
-          <div className="space-y-1">
-            {options.map((year) => (
-              <label
-                key={year}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-muted"
-              >
-                <Checkbox
-                  checked={value.includes(year)}
-                  onCheckedChange={(checkedState: boolean | "indeterminate") => {
-                    if (checkedState === "indeterminate") return;
-                    toggleYear(year);
-                  }}
-                  aria-label={`Toggle ${year}`}
-                />
-                <span className="text-sm">{year}</span>
-              </label>
-            ))}
-          </div>
-          <div className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
-            Only {REQUIRED_YEARS} years can be compared. Picking another year replaces the earlier
-            one.
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /*  Section                                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -251,9 +97,9 @@ export default function FireCodeFeesVarianceSection() {
     [user, systemAccess?.roleno],
   );
 
-  const [years, setYears] = React.useState<number[]>(defaultYears);
-  const [interval, setInterval] = React.useState<Interval>("SEMESTER");
-  const [subPeriod, setSubPeriod] = React.useState<string>("1");
+  const [years, setYears] = React.useState<number[]>(defaultVarianceYears);
+  const [interval, setInterval] = React.useState<Interval>(DEFAULT_VARIANCE_INTERVAL);
+  const [subPeriod, setSubPeriod] = React.useState<string>(DEFAULT_VARIANCE_SUB_PERIOD);
   const [provinces, setProvinces] = React.useState<SelectedLocation[]>([]);
   const [stations, setStations] = React.useState<SelectedStation[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -294,31 +140,17 @@ export default function FireCodeFeesVarianceSection() {
 
   const handleProvincesChange = (next: SelectedLocation[]) => {
     setProvinces(next);
-    if (next.length === 0) {
-      setStations([]);
-      return;
-    }
-    const allowed = new Set(next.map((p) => p.locationno));
-    setStations((prev) => prev.filter((s) => allowed.has(s.provinceno)));
+    setStations((prev) => stationsWithinProvinces(next, prev));
   };
 
   const handleStationsChange = (next: SelectedStation[]) => {
     setStations(next);
-    setProvinces((prev) => {
-      const merged = [...prev];
-      const known = new Set(merged.map((p) => p.locationno));
-      next.forEach((s) => {
-        if (!s.provinceno || known.has(s.provinceno)) return;
-        known.add(s.provinceno);
-        merged.push({ locationno: s.provinceno, locationname: s.provincename });
-      });
-      return merged;
-    });
+    setProvinces((prev) => provincesIncludingStations(prev, next));
   };
 
   const handleIntervalChange = (next: Interval) => {
     setInterval(next);
-    setSubPeriod(SUB_OPTIONS[next][0]?.value ?? "all");
+    setSubPeriod(firstSubOption(next));
   };
 
   const sortedYears = React.useMemo(() => [...years].sort((a, b) => a - b), [years]);
@@ -415,131 +247,62 @@ export default function FireCodeFeesVarianceSection() {
     };
   });
 
-  const filterControls = (
-    <>
-      <TwoYearSelect value={years} onChange={setYears} />
-
-      <Select value={interval} onValueChange={(v) => handleIntervalChange(v as Interval)}>
-        <SelectTrigger className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[140px] md:w-[150px] md:rounded-md">
-          <SelectValue placeholder="Period" />
-        </SelectTrigger>
-        <SelectContent>
-          {INTERVALS.map((i) => (
-            <SelectItem key={i.value} value={i.value}>
-              {i.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {interval !== "ANNUAL" && (
-        <Select value={subPeriod} onValueChange={setSubPeriod}>
-          <SelectTrigger className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 px-3.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary/30 md:h-10 md:min-w-[150px] md:w-[160px] md:rounded-md">
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            {SUB_OPTIONS[interval].map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
-      {scope.provinceLocked ? (
-        <ReadOnlyField
-          value={scope.provincename}
-          placeholder="All provinces"
-          title="Restricted to your assigned province"
-          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-        />
-      ) : (
-        <LocationMultiSelect
-          mode="location"
-          value={provinces}
-          locationtype="PROVINCE"
-          parentcode={MIMAROPA_REGION_CODE}
-          onChange={handleProvincesChange}
-          placeholder="All provinces"
-          hideCode
-          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-        />
-      )}
-
-      {scope.stationLocked ? (
-        <ReadOnlyField
-          value={scope.stationname}
-          placeholder="All stations"
-          title="Restricted to your assigned station"
-          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-        />
-      ) : (
-        <StationMultiSelect
-          mode="station"
-          value={stations}
-          provinces={provinces.map((p) => ({ provinceno: p.locationno }))}
-          reportyear={compareYear}
-          onChange={handleStationsChange}
-          placeholder="All stations"
-          alwaysEnabled
-          className="h-11 w-full shrink-0 rounded-lg border border-border/70 bg-card/80 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:border-primary/40 hover:bg-accent/30 md:h-10 md:min-w-[180px] md:w-[220px] md:rounded-md"
-        />
-      )}
-    </>
-  );
-
   return (
     <Card className="overflow-hidden border-border/60 bg-card shadow-soft">
       <div className="border-b border-border/60 p-3 sm:p-4">
         <div className="space-y-3">
           <div className="min-w-0 border-b border-border/60 pb-2.5">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
-                <Coins className="h-4 w-4" />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/15">
+                  <Coins className="h-4 w-4" />
+                </div>
+                <h3 className="text-base font-semibold leading-tight tracking-tight">
+                  Fire Code Fees Variance Comparison
+                </h3>
               </div>
-              <h3 className="text-base font-semibold leading-tight tracking-tight">
-                Fire Code Fees Variance Comparison
-              </h3>
+              <Button
+                type="button"
+                size="sm"
+                onClick={openStationDialog}
+                className="h-9 w-full gap-1.5 sm:w-auto"
+              >
+                <Building2 className="h-4 w-4" />
+                View Station Performance
+              </Button>
             </div>
             <p className="mt-2 pl-10 text-sm text-muted-foreground">
               Combination of Manual Collection and Online Collection
             </p>
           </div>
 
-          {/* Desktop: inline filters (unchanged on large screens) */}
-          <div className="hidden rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:block md:bg-muted/20 md:p-2">
-            <div className="flex w-full flex-wrap items-center justify-end gap-2">
-              {filterControls}
-            </div>
-          </div>
-
-          {/* Mobile: all filters inside a popover */}
-          <div className="md:hidden">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-between gap-2">
-                  <span className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 shrink-0" />
-                    Filters
-                  </span>
-                  <ChevronDown className="h-4 w-4 shrink-0" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[calc(100vw-2rem)] p-3" align="start">
-                <div className="grid grid-cols-1 gap-2">{filterControls}</div>
-              </PopoverContent>
-            </Popover>
-          </div>
+          <VarianceFilterBar
+            years={years}
+            onYearsChange={setYears}
+            interval={interval}
+            onIntervalChange={handleIntervalChange}
+            subPeriod={subPeriod}
+            onSubPeriodChange={setSubPeriod}
+            provinces={provinces}
+            onProvincesChange={handleProvincesChange}
+            stations={stations}
+            onStationsChange={handleStationsChange}
+            stationYear={compareYear}
+            provinceLocked={scope.provinceLocked}
+            provincename={scope.provincename}
+            stationLocked={scope.stationLocked}
+            stationname={scope.stationname}
+          />
         </div>
       </div>
 
       <FireCodeFeesVarianceStationDetailModal
         open={stationModalOpen}
         onOpenChange={setStationModalOpen}
+        baseYear={baseYear}
         compareYear={compareYear}
         initialInterval={interval}
-        initialPeriod={subPeriod}
+        initialSubPeriod={subPeriod}
         initialProvinces={provinces}
         initialStations={stations}
         provinceLocked={scope.provinceLocked}
@@ -646,20 +409,7 @@ export default function FireCodeFeesVarianceSection() {
                         colSpan={5}
                         className="border-l border-grid bg-[var(--head-soft)] px-3 py-3 text-[10px] font-bold uppercase tracking-[0.12em] sm:px-4"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="flex-1 text-center">
-                            Combination of Manual Collection and Online Collection
-                          </span>
-                          <Button
-                            type="button"
-                            variant="default"
-                            size="sm"
-                            className="h-8 shrink-0 bg-primary/90 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary-foreground shadow-sm hover:bg-primary"
-                            onClick={openStationDialog}
-                          >
-                            View Station Performance
-                          </Button>
-                        </div>
+                        Combination of Manual Collection and Online Collection
                       </th>
                     </tr>
                     <tr>

@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Filter, ChevronDown } from "lucide-react";
-import { useFilters, toISODate } from "@/lib/filters";
+import { useFilters, toISODate, type DashFilters } from "@/lib/filters";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import { buildYears } from "@/lib/utils";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
@@ -36,8 +36,71 @@ export function FilterBar() {
     () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
     [user, systemAccess?.roleno],
   );
+
+  // Enforce role-based scope: seed locked province/station into the filter
+  // state so all dashboard queries respect the user's assigned scope.
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    const patch: Partial<typeof filters> = {};
+    if (scope.provinceLocked && scope.provinceno) {
+      const locked: SelectedLocation = {
+        locationno: scope.provinceno,
+        locationname: scope.provincename,
+      };
+      const same =
+        filters.provinces.length === 1 && filters.provinces[0].locationno === locked.locationno;
+      if (!same) patch.provinces = [locked];
+    }
+    if (scope.stationLocked && scope.stationno) {
+      const locked: SelectedStation = {
+        stationno: scope.stationno,
+        stationname: scope.stationname,
+        provinceno: scope.provinceno,
+        provincename: scope.provincename,
+      };
+      const same =
+        filters.stations.length === 1 && filters.stations[0].stationno === locked.stationno;
+      if (!same) patch.stations = [locked];
+    }
+    if (Object.keys(patch).length) setFilters({ ...filters, ...patch });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isAuthenticated,
+    scope.provinceLocked,
+    scope.stationLocked,
+    scope.provinceno,
+    scope.stationno,
+  ]);
+
+  return <DashboardFilterControls filters={filters} onChange={setFilters} onReset={reset} />;
+}
+
+/**
+ * The dashboard's Year / Period / Sub-period / Provinces / Stations controls,
+ * driven by whatever filter state is passed in. The dashboard feeds it the
+ * global filters; popups feed it their own copy so they look identical.
+ */
+export function DashboardFilterControls({
+  filters,
+  onChange,
+  onReset,
+  title = "Dashboard Filters",
+  footer,
+}: {
+  filters: DashFilters;
+  onChange: (next: DashFilters) => void;
+  onReset: () => void;
+  title?: string;
+  /** Extra controls shown inside the filter panel (e.g. a status filter). */
+  footer?: React.ReactNode;
+}) {
+  const { user, systemAccess } = useAuth();
+  const scope = React.useMemo(
+    () => resolveLocationScope(user, systemAccess?.roleno ?? 0),
+    [user, systemAccess?.roleno],
+  );
   const YEARS = React.useMemo(buildYears, []);
-  const set = (patch: Partial<typeof filters>) => setFilters({ ...filters, ...patch });
+  const set = (patch: Partial<DashFilters>) => onChange({ ...filters, ...patch });
 
   /* --- Adapter: DashFilters <-> ModuleFilterState ------------------- */
   const today = React.useMemo(() => new Date(), []);
@@ -135,41 +198,6 @@ export function FilterBar() {
     set({ year: next.year, interval: next.interval, period });
   };
 
-  // Enforce role-based scope: seed locked province/station into the filter
-  // state so all dashboard queries respect the user's assigned scope.
-  React.useEffect(() => {
-    if (!isAuthenticated) return;
-    const patch: Partial<typeof filters> = {};
-    if (scope.provinceLocked && scope.provinceno) {
-      const locked: SelectedLocation = {
-        locationno: scope.provinceno,
-        locationname: scope.provincename,
-      };
-      const same =
-        filters.provinces.length === 1 && filters.provinces[0].locationno === locked.locationno;
-      if (!same) patch.provinces = [locked];
-    }
-    if (scope.stationLocked && scope.stationno) {
-      const locked: SelectedStation = {
-        stationno: scope.stationno,
-        stationname: scope.stationname,
-        provinceno: scope.provinceno,
-        provincename: scope.provincename,
-      };
-      const same =
-        filters.stations.length === 1 && filters.stations[0].stationno === locked.stationno;
-      if (!same) patch.stations = [locked];
-    }
-    if (Object.keys(patch).length) setFilters({ ...filters, ...patch });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isAuthenticated,
-    scope.provinceLocked,
-    scope.stationLocked,
-    scope.provinceno,
-    scope.stationno,
-  ]);
-
   const handleProvincesChange = (next: SelectedLocation[]) => {
     if (next.length === 0) {
       set({ provinces: [], stations: [] });
@@ -200,11 +228,11 @@ export function FilterBar() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const sharedProps = {
-    title: "Dashboard Filters",
+    title,
     years: YEARS,
     state: filterState,
     onChange: handleFilterChange,
-    onReset: reset,
+    onReset,
     intervals: [
       "DAILY",
       "WEEKLY",
@@ -264,7 +292,9 @@ export function FilterBar() {
     <>
       {/* Desktop: unchanged filter bar */}
       <div className="hidden md:block">
-        <ModuleFilterBar {...sharedProps}>{locationFilters}</ModuleFilterBar>
+        <ModuleFilterBar {...sharedProps} footer={footer}>
+          {locationFilters}
+        </ModuleFilterBar>
       </div>
 
       {/* Mobile: full-width filter button that opens a popover */}
@@ -274,13 +304,17 @@ export function FilterBar() {
             <Button variant="outline" className="w-full justify-between gap-2">
               <span className="flex items-center gap-2">
                 <Filter className="h-4 w-4 shrink-0" />
-                Dashboard Filters
+                {title}
               </span>
               <ChevronDown className="h-4 w-4 shrink-0" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[calc(100vw-2rem)] p-0" align="start">
-            <ModuleFilterBar {...sharedProps} className="border-0 bg-transparent shadow-none">
+            <ModuleFilterBar
+              {...sharedProps}
+              footer={footer}
+              className="border-0 bg-transparent shadow-none"
+            >
               {locationFilters}
             </ModuleFilterBar>
           </PopoverContent>

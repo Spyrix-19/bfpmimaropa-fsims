@@ -1,6 +1,15 @@
 import * as React from "react";
-import { Loader2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Loader2,
+  RotateCw,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,182 +17,52 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
-import { StationMultiSelect, type SelectedStation } from "@/components/station-multi-select";
-import ReadOnlyField from "@/pages/06_target-reference/components/ReadOnlyField";
-import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
+import type { SelectedLocation } from "@/components/location-multi-select";
+import type { SelectedStation } from "@/components/station-multi-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { REPORT_INTERVAL_CODES } from "@/lib/fsims-constants";
+import { resolveReportMonths, type DashInterval } from "@/lib/filters";
 import { unwrap } from "@/lib/api-envelope";
-import { buildDashboardProvinces, provincesPayloadKey } from "@/pages/02_dashboard/buildProvincesPayload";
+import {
+  buildDashboardProvinces,
+  provincesPayloadKey,
+} from "@/pages/02_dashboard/buildProvincesPayload";
 import { dashboardAPI } from "@/services/dashboardAPI";
-import type { DashboardStationFeeCollectionModel } from "@/types/dashboardType";
+import type { DashboardFireCodeFeeStationModel } from "@/types/dashboardType";
 import AvatarWithFallback from "@/components/avatar-with-fallback";
-import { toISODate } from "@/lib/filters";
-import type { DashInterval } from "@/lib/filters";
-import { ModuleFilterBar, type ModuleFilterState } from "@/components/shared/ModuleFilterBar";
-import FilterField from "@/components/filter-field";
-import { buildYears } from "@/lib/utils";
-
+import { cn } from "@/lib/utils";
 import { peso } from "./fees/feeColumns";
-
-type Interval = Extract<DashInterval, "MONTHLY" | "QUARTERLY" | "SEMESTER" | "ANNUAL">;
-
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const SUB_OPTIONS: Record<Interval, { value: string; label: string }[]> = {
-  MONTHLY: [
-    { value: "all", label: "All Month" },
-    ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m })),
-  ],
-  QUARTERLY: [
-    { value: "all", label: "All Quarter" },
-    { value: "1", label: "1st Quarter" },
-    { value: "2", label: "2nd Quarter" },
-    { value: "3", label: "3rd Quarter" },
-    { value: "4", label: "4th Quarter" },
-  ],
-  SEMESTER: [
-    { value: "all", label: "All Semester" },
-    { value: "1", label: "1st Semester" },
-    { value: "2", label: "2nd Semester" },
-  ],
-  ANNUAL: [],
-};
-
-export const VARIANCE_GROUPS = [
-  { code: "FCCT", label: "FCCT + Filing Fees", categoryNos: [541, 560] },
-  { code: "FSIB", label: "FSI Fee (Business)", categoryNos: [547] },
-  { code: "FSIO", label: "FSI Fee (Occupancy)", categoryNos: [546] },
-  {
-    code: "FCTC",
-    label: "Fire Code Tax & Clearances",
-    categoryNos: [542, 543, 544, 545, 548, 549, 550, 551, 552, 553, 554, 555, 556],
-  },
-  { code: "AF", label: "Administrative Fines", categoryNos: [557] },
-  {
-    code: "OF",
-    label: "Other Fees",
-    categoryNos: [558, 559, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572],
-  },
-] as const;
-
-interface StationVarianceRow {
-  stationno: string;
-  stationcode: string;
-  stationname: string;
-  provincename: string;
-  logourl: string;
-  amounts: Record<string, number>;
-  total: number;
-}
-
-interface StationDialogFilters {
-  year: string;
-  interval: Interval;
-  period: string;
-  provinces: SelectedLocation[];
-  stations: SelectedStation[];
-}
-
-function toModuleQuarter(period: string): string {
-  if (!period || period === "all") return "all";
-  if (period === "1") return "q1";
-  if (period === "2") return "q2";
-  if (period === "3") return "q3";
-  if (period === "4") return "q4";
-  return period;
-}
-
-function fromModuleQuarter(period: string): string {
-  if (!period || period === "all") return "all";
-  if (period === "q1") return "1";
-  if (period === "q2") return "2";
-  if (period === "q3") return "3";
-  if (period === "q4") return "4";
-  return period;
-}
-
-function toModuleSemester(period: string): string {
-  if (!period || period === "all") return "all";
-  if (period === "1") return "s1";
-  if (period === "2") return "s2";
-  return period;
-}
-
-function fromModuleSemester(period: string): string {
-  if (!period || period === "all") return "all";
-  if (period === "s1") return "1";
-  if (period === "s2") return "2";
-  return period;
-}
-
-export function buildStationVarianceRows(
-  payload: DashboardStationFeeCollectionModel[] | null,
-  year: number,
-): StationVarianceRow[] {
-  const rows: StationVarianceRow[] = [];
-
-  for (const station of (payload ?? []) as unknown as Record<string, unknown>[]) {
-    const stationno = String(station?.Stationno ?? station?.stationno ?? "");
-    const stationname = String(station?.Stationname ?? station?.stationname ?? "");
-    const yearlyList = (station?.yearlyFeeList ?? []) as Record<string, unknown>[];
-
-    const amounts: Record<string, number> = {};
-    for (const group of VARIANCE_GROUPS) amounts[group.code] = 0;
-    let total = 0;
-
-    for (const yearEntry of yearlyList) {
-      if (Number(yearEntry?.reportyear) !== year) continue;
-      for (const fee of (yearEntry?.feeList ?? []) as Record<string, unknown>[]) {
-        const categoryNo = Number(fee?.feecateg ?? 0) || 0;
-        const amount = Number(fee?.collectionamount ?? 0) || 0;
-        const group = VARIANCE_GROUPS.find((item) =>
-          (item.categoryNos as readonly number[]).includes(categoryNo),
-        );
-        if (!group) continue;
-        amounts[group.code] += amount;
-        total += amount;
-      }
-    }
-
-    rows.push({
-      stationno,
-      stationcode: String(station?.Stationcode ?? station?.stationcode ?? ""),
-      stationname,
-      provincename: String(station?.Provincename ?? station?.provincename ?? ""),
-      logourl: String(station?.Logourl ?? station?.logourl ?? ""),
-      amounts,
-      total,
-    });
-  }
-
-  return rows.sort(
-    (a, b) =>
-      b.total - a.total ||
-      a.provincename.localeCompare(b.provincename) ||
-      a.stationname.localeCompare(b.stationname) ||
-      a.stationno.localeCompare(b.stationno),
-  );
-}
+import {
+  filterStationRows,
+  sortStationRows,
+  summarizeStationRows,
+  toStationVarianceRows,
+  type SortDirection,
+  type StationSortKey,
+  type StationStatusFilter,
+} from "./fees/stationVariance";
+import {
+  VarianceFilterBar,
+  firstSubOption,
+  periodLabel,
+  provincesIncludingStations,
+  stationsWithinProvinces,
+  type VarianceInterval,
+} from "./fees/varianceFilters";
 
 interface FireCodeFeesVarianceStationDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  baseYear: number;
   compareYear: number;
-  initialInterval: Interval;
-  initialPeriod: string;
+  initialInterval: VarianceInterval;
+  initialSubPeriod: string;
   initialProvinces: SelectedLocation[];
   initialStations: SelectedStation[];
   provinceLocked: boolean;
@@ -192,12 +71,74 @@ interface FireCodeFeesVarianceStationDetailModalProps {
   stationname?: string;
 }
 
+const STATUS_OPTIONS: { value: StationStatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "improved", label: "Improved" },
+  { value: "declined", label: "Declined" },
+  { value: "same", label: "No change" },
+];
+
+const DEFAULT_SORT: { key: StationSortKey; direction: SortDirection } = {
+  key: "second",
+  direction: "desc",
+};
+
+const percentText = (pct: number | null) =>
+  pct === null ? "—" : `${pct.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+
+const percentTone = (pct: number | null) =>
+  pct === null ? "text-muted-foreground" : pct >= 100 ? "text-success" : "text-destructive";
+
+/** Popovers portal outside the dialog; keep wheel/touch scrolling inside them working. */
+const stopScrollLock = {
+  onWheelCapture: (event: React.WheelEvent) => event.stopPropagation(),
+  onTouchMoveCapture: (event: React.TouchEvent) => event.stopPropagation(),
+};
+
+function SortHeader({
+  label,
+  column,
+  sort,
+  onSort,
+  align = "right",
+}: {
+  label: React.ReactNode;
+  column: StationSortKey;
+  sort: { key: StationSortKey; direction: SortDirection };
+  onSort: (key: StationSortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = sort.key === column;
+  const Icon = !active ? ArrowUpDown : sort.direction === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(column)}
+      className={cn(
+        "group inline-flex w-full items-center gap-1.5 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        align === "right" ? "justify-end text-right" : "justify-start text-left",
+        active && "text-primary",
+      )}
+      title={`Sort by ${typeof label === "string" ? label : column}`}
+    >
+      <span>{label}</span>
+      <Icon
+        className={cn(
+          "h-3.5 w-3.5 shrink-0",
+          active ? "opacity-100" : "opacity-40 group-hover:opacity-80",
+        )}
+      />
+    </button>
+  );
+}
+
 export function FireCodeFeesVarianceStationDetailModal({
   open,
   onOpenChange,
+  baseYear,
   compareYear,
   initialInterval,
-  initialPeriod,
+  initialSubPeriod,
   initialProvinces,
   initialStations,
   provinceLocked,
@@ -205,317 +146,453 @@ export function FireCodeFeesVarianceStationDetailModal({
   stationLocked,
   stationname,
 }: FireCodeFeesVarianceStationDetailModalProps) {
-  const [stationFilters, setStationFilters] = React.useState<StationDialogFilters>({
-    year: String(compareYear),
-    interval: initialInterval,
-    period: initialPeriod,
-    provinces: initialProvinces,
-    stations: initialStations,
-  });
-  const [stationPayload, setStationPayload] = React.useState<
-    DashboardStationFeeCollectionModel[] | null
-  >(null);
-  const [stationLoading, setStationLoading] = React.useState(false);
+  const [years, setYears] = React.useState<number[]>([baseYear, compareYear]);
+  const [interval, setInterval] = React.useState<VarianceInterval>(initialInterval);
+  const [subPeriod, setSubPeriod] = React.useState<string>(initialSubPeriod);
+  const [provinces, setProvinces] = React.useState<SelectedLocation[]>(initialProvinces);
+  const [stations, setStations] = React.useState<SelectedStation[]>(initialStations);
+  const [status, setStatus] = React.useState<StationStatusFilter>("all");
+  const [sort, setSort] = React.useState(DEFAULT_SORT);
+  const [rows, setRows] = React.useState<DashboardFireCodeFeeStationModel[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const [retry, setRetry] = React.useState(0);
+  const sortedYears = React.useMemo(() => [...years].sort((a, b) => a - b), [years]);
+  const [firstYear, secondYear] = sortedYears;
+  const firstLabel = periodLabel(interval, subPeriod, firstYear);
+  const secondLabel = periodLabel(interval, subPeriod, secondYear);
+
+  const resetFilters = React.useCallback(() => {
+    setYears([baseYear, compareYear]);
+    setInterval(initialInterval);
+    setSubPeriod(initialSubPeriod);
+    setProvinces(initialProvinces);
+    setStations(initialStations);
+    setStatus("all");
+    setSort(DEFAULT_SORT);
+  }, [baseYear, compareYear, initialInterval, initialSubPeriod, initialProvinces, initialStations]);
 
   React.useEffect(() => {
     if (!open) return;
-    setStationFilters({
-      year: String(compareYear),
-      interval: initialInterval,
-      period: initialPeriod,
-      provinces: initialProvinces,
-      stations: initialStations,
-    });
-  }, [open, compareYear, initialInterval, initialPeriod, initialProvinces, initialStations]);
+    resetFilters();
+    setError("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
-  const stationFilterYear = Number(stationFilters.year) || compareYear;
-  const stationProvincesPayload = React.useMemo(
-    () => buildDashboardProvinces(stationFilters.provinces, stationFilters.stations),
-    [stationFilters.provinces, stationFilters.stations],
-  );
-  const stationScopeKey = provincesPayloadKey(stationProvincesPayload);
-
-  const stationFilterState: ModuleFilterState = React.useMemo(() => {
-    const months =
-      stationFilters.interval === "MONTHLY"
-        ? (stationFilters.period ?? "")
-            .split(",")
-            .map((v) => Number(v.trim()))
-            .filter((m) => m >= 1 && m <= 12)
-        : [];
-
-    return {
-      year: stationFilters.year,
-      interval: stationFilters.interval,
-      date: `all:${toISODate(new Date())}`,
-      months,
-      week: "all",
-      quarter:
-        stationFilters.interval === "QUARTERLY"
-          ? toModuleQuarter(stationFilters.period || "all")
-          : "all",
-      semester:
-        stationFilters.interval === "SEMESTER"
-          ? toModuleSemester(stationFilters.period || "all")
-          : "all",
-    };
-  }, [stationFilters]);
-
-  const handleStationFilterChange = (patch: Partial<ModuleFilterState>) => {
-    const next = { ...stationFilterState, ...patch };
-    const nextInterval = next.interval as Interval;
-    const periodFor = (it: Interval): string => {
-      if (it === "MONTHLY") {
-        const months = [...new Set(next.months)].sort((a, b) => a - b);
-        return months.length === 0 || months.length === 12 ? "all" : months.join(",");
-      }
-      if (it === "QUARTERLY") return fromModuleQuarter(next.quarter || "all");
-      if (it === "SEMESTER") return fromModuleSemester(next.semester || "all");
-      return "all";
-    };
-
-    setStationFilters((prev) => ({
-      ...prev,
-      year: next.year,
-      interval: nextInterval,
-      period: periodFor(nextInterval),
-    }));
+  const handleProvincesChange = (next: SelectedLocation[]) => {
+    setProvinces(next);
+    setStations((current) => stationsWithinProvinces(next, current));
   };
 
+  const handleStationsChange = (next: SelectedStation[]) => {
+    setStations(next);
+    setProvinces((current) => provincesIncludingStations(current, next));
+  };
+
+  const handleIntervalChange = (next: VarianceInterval) => {
+    setInterval(next);
+    setSubPeriod(firstSubOption(next));
+  };
+
+  const provincePayload = React.useMemo(
+    () => buildDashboardProvinces(provinces, stations),
+    [provinces, stations],
+  );
+  const scopeKey = provincesPayloadKey(provincePayload);
+
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || !firstYear || !secondYear) return;
     let cancelled = false;
+    const controller = new AbortController();
 
-    (async () => {
-      setStationLoading(true);
+    const loadStations = async () => {
+      setLoading(true);
+      setError("");
       try {
-        const resp = await dashboardAPI.getYearlyFireCodeFeeStation(
+        const response = await dashboardAPI.getYearlyFireCodeFeeStation(
           {
-            reportyear: [stationFilterYear].filter(Boolean),
+            reportyear: [firstYear, secondYear],
+            reportmonth: resolveReportMonths(interval as DashInterval, subPeriod),
+            interval: REPORT_INTERVAL_CODES[interval] ?? 6,
             feeparentno: [],
-            provinces: stationProvincesPayload,
+            provinces: provincePayload,
           },
-          { suppressGlobalLoading: true, suppressErrorToast: true },
+          {
+            signal: controller.signal,
+            suppressGlobalLoading: true,
+            suppressErrorToast: true,
+          },
         );
-        const { ok, data: payload } = unwrap<DashboardStationFeeCollectionModel[]>(resp);
-        if (!cancelled) setStationPayload(ok ? (payload ?? null) : null);
+        const result = unwrap<DashboardFireCodeFeeStationModel[]>(response);
+        if (cancelled || result.canceled) return;
+        if (!result.ok || (result.data !== null && !Array.isArray(result.data))) {
+          setRows([]);
+          setError(result.error || "Unable to load station performance.");
+          return;
+        }
+        setRows(result.data ?? []);
       } catch {
-        if (!cancelled) setStationPayload(null);
+        if (!cancelled) {
+          setRows([]);
+          setError("Unable to load station performance.");
+        }
       } finally {
-        if (!cancelled) setStationLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    })();
+    };
 
+    void loadStations();
     return () => {
       cancelled = true;
+      controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, stationFilterYear, stationScopeKey]);
+  }, [open, firstYear, secondYear, interval, subPeriod, scopeKey, retry]);
 
-  const stationRows = React.useMemo(
-    () => buildStationVarianceRows(stationPayload, stationFilterYear),
-    [stationPayload, stationFilterYear],
+  const allRows = React.useMemo(
+    () => toStationVarianceRows(rows, firstYear, secondYear),
+    [rows, firstYear, secondYear],
   );
+  const visibleRows = React.useMemo(
+    () => sortStationRows(filterStationRows(allRows, "", status), sort.key, sort.direction),
+    [allRows, status, sort],
+  );
+  const totals = React.useMemo(() => summarizeStationRows(visibleRows), [visibleRows]);
+  const tableScrollRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    tableScrollRef.current?.scrollTo({ top: 0 });
+  }, [status, sort, rows]);
+  const overall = React.useMemo(() => summarizeStationRows(allRows), [allRows]);
 
-  const stationTotals = React.useMemo(() => {
-    const totals: Record<string, number> = {};
-    for (const group of VARIANCE_GROUPS) totals[group.code] = 0;
-    let total = 0;
+  const handleSort = (key: StationSortKey) => {
+    setSort((current) =>
+      current.key === key
+        ? { key, direction: current.direction === "desc" ? "asc" : "desc" }
+        : { key, direction: key === "station" ? "asc" : "desc" },
+    );
+  };
 
-    for (const row of stationRows) {
-      for (const group of VARIANCE_GROUPS) totals[group.code] += row.amounts[group.code] ?? 0;
-      total += row.total;
-    }
+  const statusCount = (value: StationStatusFilter) =>
+    value === "all"
+      ? allRows.length
+      : value === "improved"
+        ? overall.improved
+        : value === "declined"
+          ? overall.declined
+          : allRows.length - overall.improved - overall.declined;
 
-    return { totals, total };
-  }, [stationRows]);
+  const net = totals.second - totals.first;
+
+  const th =
+    "sticky top-0 z-20 border-b border-r border-grid bg-[var(--head-soft)] px-3 py-3 text-[var(--head-soft-foreground)]";
+  const td = "border-b border-r border-grid px-3 py-2.5 text-right tabular-nums";
+  const tf =
+    "sticky bottom-0 z-20 border-r border-t border-grid bg-[var(--total-row)] px-3 py-3 text-right font-bold tabular-nums text-[var(--total-row-foreground)]";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-lg border-border/60 bg-card p-0 shadow-soft">
-        <div className="border-b border-border/60 bg-background/95 px-5 py-4">
-          <DialogHeader className="space-y-1">
-            <DialogTitle className="pr-6 text-lg font-semibold">Station Performance</DialogTitle>
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-lg border-border/60 bg-card p-0 shadow-soft">
+        <div className="shrink-0 border-b border-border/60 bg-card px-5 py-4">
+          <DialogHeader className="space-y-1 text-left">
+            <DialogTitle className="pr-6 text-lg font-semibold">
+              Fire Code Fees Variance Comparison · Station Performance
+            </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Fire Code Fee collections by station for the selected year. Totals shown are for the
-              selected year and current station scope.
+              Station collections for {firstLabel} vs {secondLabel}.{" "}
+              <span className="hidden md:inline">Click a column header to sort.</span>
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="min-h-0 overflow-auto px-4 pb-5 pt-4 sm:px-5">
-          <ModuleFilterBar
-            title="Station Performance Filters"
-            years={buildYears()}
-            state={stationFilterState}
-            onChange={handleStationFilterChange}
-            onReset={() =>
-              setStationFilters({
-                year: String(compareYear),
-                interval: initialInterval,
-                period: initialPeriod,
-                provinces: initialProvinces,
-                stations: initialStations,
-              })
-            }
-            intervals={["MONTHLY", "QUARTERLY", "SEMESTER", "ANNUAL"]}
-            className="mb-3 rounded-xl bg-card/70"
-          >
-            <FilterField label="Provinces">
-              {provinceLocked ? (
-                <ReadOnlyField
-                  value={provincename ?? ""}
-                  placeholder="All provinces"
-                  title="Restricted to your assigned province"
-                />
-              ) : (
-                <LocationMultiSelect
-                  mode="location"
-                  value={stationFilters.provinces}
-                  locationtype="PROVINCE"
-                  parentcode={MIMAROPA_REGION_CODE}
-                  onChange={(next) => {
-                    setStationFilters((prev) => {
-                      if (next.length === 0) return { ...prev, provinces: [], stations: [] };
-                      const allowed = new Set(next.map((p) => p.locationno));
-                      return {
-                        ...prev,
-                        provinces: next,
-                        stations: prev.stations.filter((s) => allowed.has(s.provinceno)),
-                      };
-                    });
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-4 sm:px-5 md:overflow-hidden">
+          {/* Filters — same controls as the dashboard section */}
+          <section aria-label="Station performance filters" className="shrink-0 space-y-2.5" {...stopScrollLock}>
+            <VarianceFilterBar
+              years={sortedYears}
+              onYearsChange={setYears}
+              interval={interval}
+              onIntervalChange={handleIntervalChange}
+              subPeriod={subPeriod}
+              onSubPeriodChange={setSubPeriod}
+              provinces={provinces}
+              onProvincesChange={handleProvincesChange}
+              stations={stations}
+              onStationsChange={handleStationsChange}
+              stationYear={secondYear}
+              provinceLocked={provinceLocked}
+              provincename={provincename}
+              stationLocked={stationLocked}
+              stationname={stationname}
+            >
+            <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Performance status">
+              <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                Status
+              </span>
+              {STATUS_OPTIONS.map((option) => {
+                const active = status === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setStatus(option.value)}
+                    className={cn(
+                      "inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                      active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-foreground/80 hover:border-primary/50 hover:text-primary",
+                    )}
+                  >
+                    {option.label}
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 text-[10px] tabular-nums",
+                        active ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {statusCount(option.value)}
+                    </span>
+                  </button>
+                );
+              })}
+              <div className="ml-auto flex items-center gap-2">
+                <div className="md:hidden">
+                <Select
+                  value={`${sort.key}:${sort.direction}`}
+                  onValueChange={(value) => {
+                    const [key, direction] = value.split(":") as [StationSortKey, SortDirection];
+                    setSort({ key, direction });
                   }}
-                  placeholder="All provinces"
-                  hideCode
-                  className="w-full"
-                />
-              )}
-            </FilterField>
-
-            <FilterField label="Stations">
-              {stationLocked ? (
-                <ReadOnlyField
-                  value={stationname ?? ""}
-                  placeholder="All stations"
-                  title="Restricted to your assigned station"
-                />
-              ) : (
-                <StationMultiSelect
-                  mode="station"
-                  value={stationFilters.stations}
-                  provinces={stationFilters.provinces.map((p) => ({ provinceno: p.locationno }))}
-                  reportyear={stationFilterYear}
-                  onChange={(next) => {
-                    setStationFilters((prev) => {
-                      const merged = [...prev.provinces];
-                      const known = new Set(merged.map((p) => p.locationno));
-                      next.forEach((s) => {
-                        if (!s.provinceno || known.has(s.provinceno)) return;
-                        known.add(s.provinceno);
-                        merged.push({
-                          locationno: s.provinceno,
-                          locationname: s.provincename,
-                        });
-                      });
-                      return { ...prev, stations: next, provinces: merged };
-                    });
-                  }}
-                  placeholder="All stations"
-                  alwaysEnabled
-                  className="w-full"
-                />
-              )}
-            </FilterField>
-          </ModuleFilterBar>
-
-          {stationLoading ? (
-            <div className="flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-card p-8 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading station performance…
-            </div>
-          ) : stationRows.length === 0 ? (
-            <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-              No station data available for this view.
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] border-separate border-spacing-0 text-xs">
-                  <thead className="bg-muted/60 text-foreground/90">
-                    <tr>
-                      <th className="sticky left-0 z-20 w-56 min-w-56 border-b border-r border-border/60 bg-muted/60 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider">
-                        Station
-                      </th>
-                      {VARIANCE_GROUPS.map((group) => (
-                        <th
-                          key={group.code}
-                          className="border-b border-r border-border/60 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider last:border-r-0"
-                        >
-                          {group.label}
-                        </th>
-                      ))}
-                      <th className="border-b border-border/60 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">
-                        Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stationRows.map((row, index) => (
-                      <tr
-                        key={row.stationno || `${row.stationname}-${index}`}
-                        className="transition-colors hover:bg-muted/20"
-                      >
-                        <td className="sticky left-0 z-10 w-56 min-w-56 border-b border-r border-border/60 bg-card px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            <AvatarWithFallback
-                              src={row.logourl}
-                              name={row.stationname}
-                              className="h-6 w-6 shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <div className="truncate font-medium text-foreground/90">
-                                {row.stationname || "—"}
-                              </div>
-                              <div className="truncate text-[10px] text-muted-foreground">
-                                {row.provincename}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        {VARIANCE_GROUPS.map((group) => (
-                          <td
-                            key={group.code}
-                            className="border-b border-r border-border/60 px-3 py-2 text-right tabular-nums text-muted-foreground"
-                          >
-                            {peso(row.amounts[group.code] ?? 0)}
-                          </td>
-                        ))}
-                        <td className="border-b border-border/60 px-3 py-2 text-right font-semibold tabular-nums text-foreground">
-                          {peso(row.total)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-[var(--total-row)] text-[var(--total-row-foreground)]">
-                      <td className="sticky left-0 z-20 w-56 min-w-56 border-r border-border/60 bg-[var(--total-row)] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider">
-                        Total
-                      </td>
-                      {VARIANCE_GROUPS.map((group) => (
-                        <td
-                          key={group.code}
-                          className="border-r border-border/60 px-3 py-2.5 text-right font-bold tabular-nums"
-                        >
-                          {peso(stationTotals.totals[group.code] ?? 0)}
-                        </td>
-                      ))}
-                      <td className="px-3 py-2.5 text-right font-bold tabular-nums">
-                        {peso(stationTotals.total)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                >
+                  <SelectTrigger className="h-7 w-[170px] bg-background text-xs" aria-label="Sort stations">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="second:desc">{secondLabel} · highest</SelectItem>
+                    <SelectItem value="first:desc">{firstLabel} · highest</SelectItem>
+                    <SelectItem value="variance:desc">Variance · highest</SelectItem>
+                    <SelectItem value="variance:asc">Variance · lowest</SelectItem>
+                    <SelectItem value="positive:desc">Positive listing · highest</SelectItem>
+                    <SelectItem value="positive:asc">Positive listing · lowest</SelectItem>
+                    <SelectItem value="percentage:desc">% · highest</SelectItem>
+                    <SelectItem value="percentage:asc">% · lowest</SelectItem>
+                    <SelectItem value="station:asc">Station · A–Z</SelectItem>
+                  </SelectContent>
+                </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFilters}
+                  className="h-7 gap-1.5 px-2 text-xs text-primary hover:text-primary"
+                >
+                  <RotateCw className="h-3.5 w-3.5" /> Reset
+                </Button>
               </div>
             </div>
+            </VarianceFilterBar>
+          </section>
+
+          {/* Summary */}
+          {!loading && !error && allRows.length > 0 ? (
+            <div className="grid shrink-0 grid-cols-2 gap-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {firstLabel} total
+                </div>
+                <div className="mt-0.5 text-sm font-bold tabular-nums">{peso(totals.first)}</div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {secondLabel} total
+                </div>
+                <div className="mt-0.5 text-sm font-bold tabular-nums">{peso(totals.second)}</div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Net change
+                </div>
+                <div
+                  className={cn(
+                    "mt-0.5 flex items-center gap-1 text-sm font-bold tabular-nums",
+                    net >= 0 ? "text-success" : "text-destructive",
+                  )}
+                >
+                  {net >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                  {net >= 0 ? "+" : "−"}
+                  {peso(Math.abs(net))}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Performance · {visibleRows.length} of {allRows.length} stations
+                </div>
+                <div className="mt-0.5 flex items-baseline gap-2">
+                  <span className={cn("text-sm font-bold tabular-nums", percentTone(totals.percentage))}>
+                    {percentText(totals.percentage)}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground" title="Stations up / down / unchanged">
+                    <span className="text-success">{totals.improved}↑</span>{" "}
+                    <span className="text-destructive">{totals.declined}↓</span>{" "}
+                    <span>{totals.same}=</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {loading ? (
+            <div
+              role="status"
+              className="flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-card p-8 text-sm text-muted-foreground"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading station performance…
+            </div>
+          ) : error ? (
+            <div role="alert" className="space-y-3 rounded-lg border border-border/60 bg-card px-4 py-8 text-center">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button variant="outline" size="sm" onClick={() => setRetry((value) => value + 1)}>
+                Retry
+              </Button>
+            </div>
+          ) : visibleRows.length === 0 ? (
+            <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+              {allRows.length === 0
+                ? "No station data available for this view."
+                : "No stations match these filters."}
+            </div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden min-h-0 flex-1 overflow-hidden rounded-lg border border-border/60 bg-card md:flex">
+                <div ref={tableScrollRef} className="min-h-0 w-full overflow-auto">
+                  <table className="w-full min-w-[860px] border-separate border-spacing-0 text-sm">
+                    <thead>
+                      <tr>
+                        <th
+                          aria-sort={sort.key === "station" ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}
+                          className={cn(th, "left-0 z-30 w-[34%] min-w-[280px] text-left")}
+                        >
+                          <SortHeader label="Station" column="station" sort={sort} onSort={handleSort} align="left" />
+                        </th>
+                        {(
+                          [
+                            ["first", firstLabel],
+                            ["second", secondLabel],
+                            ["variance", "Variance"],
+                            ["positive", "Positive Listing"],
+                            ["percentage", "%"],
+                          ] as [StationSortKey, string][]
+                        ).map(([key, label], i, list) => (
+                          <th
+                            key={key}
+                            aria-sort={sort.key === key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}
+                            className={cn(th, i === list.length - 1 && "border-r-0", key === "percentage" ? "w-[120px]" : "w-[150px]")}
+                          >
+                            <SortHeader label={label} column={key} sort={sort} onSort={handleSort} />
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleRows.map((row, index) => (
+                        <tr key={row.key} className="group">
+                          <td className="sticky left-0 z-10 border-b border-r border-grid bg-card px-3 py-2.5 group-hover:bg-muted">
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                                {index + 1}
+                              </span>
+                              <AvatarWithFallback src={row.logourl} name={row.stationname} className="h-8 w-8 shrink-0" />
+                              <div className="min-w-0">
+                                <div className="break-words font-medium text-foreground">{row.stationname || "—"}</div>
+                                <div className="break-words text-xs text-muted-foreground">
+                                  {row.stationcode} · {row.provincename}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className={cn(td, "bg-card group-hover:bg-muted/60")}>{peso(row.first)}</td>
+                          <td className={cn(td, "bg-card font-semibold group-hover:bg-muted/60")}>{peso(row.second)}</td>
+                          <td className={cn(td, "bg-card group-hover:bg-muted/60", row.variance > 0 ? "text-destructive" : "text-muted-foreground")}>
+                            {peso(row.variance)}
+                          </td>
+                          <td className={cn(td, "bg-card group-hover:bg-muted/60", row.positive > 0 ? "text-success" : "text-muted-foreground")}>
+                            {peso(row.positive)}
+                          </td>
+                          <td className={cn(td, "border-r-0 bg-card font-semibold group-hover:bg-muted/60", percentTone(row.percentage))}>
+                            {percentText(row.percentage)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td className={cn(tf, "left-0 z-30 text-left text-xs uppercase")}>
+                          Total · {visibleRows.length} station{visibleRows.length === 1 ? "" : "s"}
+                        </td>
+                        <td className={tf}>{peso(totals.first)}</td>
+                        <td className={tf}>{peso(totals.second)}</td>
+                        <td className={tf}>{peso(totals.variance)}</td>
+                        <td className={tf}>{peso(totals.positive)}</td>
+                        <td className={cn(tf, "border-r-0")}>{percentText(totals.percentage)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="space-y-3 md:hidden">
+                {visibleRows.map((row, index) => (
+                  <article key={row.key} className="overflow-hidden rounded-lg border border-border/60 bg-card">
+                    <div className="flex items-center gap-2.5 border-b border-border/60 p-3">
+                      <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                        {index + 1}
+                      </span>
+                      <AvatarWithFallback src={row.logourl} name={row.stationname} className="h-9 w-9 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="break-words text-sm font-semibold">{row.stationname || "—"}</h3>
+                        <p className="break-words text-xs text-muted-foreground">
+                          {row.stationcode} · {row.provincename}
+                        </p>
+                      </div>
+                      <span className={cn("text-sm font-bold tabular-nums", percentTone(row.percentage))}>
+                        {percentText(row.percentage)}
+                      </span>
+                    </div>
+                    <dl className="grid grid-cols-2 gap-px bg-border/60 text-xs">
+                      <div className="bg-card p-3">
+                        <dt className="text-muted-foreground">{firstLabel}</dt>
+                        <dd className="mt-1 font-semibold tabular-nums">{peso(row.first)}</dd>
+                      </div>
+                      <div className="bg-card p-3 text-right">
+                        <dt className="text-muted-foreground">{secondLabel}</dt>
+                        <dd className="mt-1 font-semibold tabular-nums">{peso(row.second)}</dd>
+                      </div>
+                      <div className="bg-card p-3">
+                        <dt className="text-muted-foreground">Variance</dt>
+                        <dd className={cn("mt-1 tabular-nums", row.variance > 0 && "text-destructive")}>{peso(row.variance)}</dd>
+                      </div>
+                      <div className="bg-card p-3 text-right">
+                        <dt className="text-muted-foreground">Positive Listing</dt>
+                        <dd className={cn("mt-1 tabular-nums", row.positive > 0 && "text-success")}>{peso(row.positive)}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+                <div className="rounded-lg border border-border/60 bg-[var(--total-row)] p-3 text-xs text-[var(--total-row-foreground)]">
+                  <div className="mb-2 font-bold uppercase">Total · {visibleRows.length} stations</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><span className="block opacity-80">{firstLabel}</span><strong className="tabular-nums">{peso(totals.first)}</strong></div>
+                    <div className="text-right"><span className="block opacity-80">{secondLabel}</span><strong className="tabular-nums">{peso(totals.second)}</strong></div>
+                    <div><span className="block opacity-80">Variance</span><strong className="tabular-nums">{peso(totals.variance)}</strong></div>
+                    <div className="text-right"><span className="block opacity-80">Positive Listing</span><strong className="tabular-nums">{peso(totals.positive)}</strong></div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </DialogContent>

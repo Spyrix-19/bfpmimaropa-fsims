@@ -79,16 +79,17 @@ import { StationMultiSelect } from "@/components/station-multi-select";
 import { LocationMultiSelect, type SelectedLocation } from "@/components/location-multi-select";
 import { MIMAROPA_REGION_CODE } from "@/lib/fsims-constants";
 import StationPerformanceSections from "@/pages/02_dashboard/components/StationPerformanceSections";
-import FireCodeFeesSection from "@/pages/02_dashboard/components/FireCodeFeesSection";
+// import FireCodeFeesSection from "@/pages/02_dashboard/components/FireCodeFeesSection"; // hidden for now
 import FireCodeFeesVarianceSection from "@/pages/02_dashboard/components/FireCodeFeesVarianceSection";
 import PaginationControls from "@/components/pagination";
 import FilterField from "@/components/filter-field";
+import { InspectionStationPerformanceModal } from "@/pages/02_dashboard/components/inspection/InspectionStationPerformanceModal";
 import {
   buildDashboardProvinces,
   provincesPayloadKey,
 } from "@/pages/02_dashboard/buildProvincesPayload";
 import type { JournalModel } from "@/types/journalType";
-import type { DashboardComplianceModel, DashboardNTCVStationModel, DashboardStationSummaryComplianceModel } from "@/types/dashboardType";
+import type { DashboardComplianceModel, DashboardNTCVStationModel } from "@/types/dashboardType";
 
 import { resolveLocationScope, useAuth } from "@/lib/auth";
 import { buildYears } from "@/lib/utils";
@@ -296,243 +297,11 @@ function SectorProgressCard({ compliance }: { compliance: DashboardComplianceMod
         )}
       </Card>
 
-      <StationBreakdownModal
+      <InspectionStationPerformanceModal
         open={showStationBreakdown}
         onOpenChange={setShowStationBreakdown}
       />
     </>
-  );
-}
-
-function getStationTotalTarget(row: DashboardStationSummaryComplianceModel): number {
-  return row.totaltargetbplo + row.totaltargetgov + row.totaltargetpeza + row.totaltargettieza;
-}
-
-function getStationTotalAccomplished(row: DashboardStationSummaryComplianceModel): number {
-  return row.totalAccomplishmentbplo + row.totalAccomplishmentgov + row.totalAccomplishmentpeza + row.totalAccomplishmenttieza;
-}
-
-function StationBreakdownModal({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { filters } = useFilters();
-  const [rows, setRows] = useState<DashboardStationSummaryComplianceModel[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [retry, setRetry] = useState(0);
-  const reportyear = Number(filters.year) || new Date().getFullYear();
-  const range = useMemo(
-    () => resolveDateRange(reportyear, filters.interval, filters.period),
-    [reportyear, filters.interval, filters.period],
-  );
-  const provinces = useMemo(
-    () => buildDashboardProvinces(filters.provinces, filters.stations),
-    [filters.provinces, filters.stations],
-  );
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    setRows([]);
-
-    async function loadStations() {
-      try {
-        const response = await dashboardAPI.getStationComplianceSummary(
-          { reportyear, ...range, provinces },
-          {
-            signal: controller.signal,
-            suppressGlobalLoading: true,
-            suppressErrorToast: true,
-          },
-        );
-        const result = unwrap<DashboardStationSummaryComplianceModel[]>(response);
-        if (cancelled || result.canceled) return;
-        if (!result.ok) {
-          setError(result.error || "Unable to load station performance.");
-        } else if (result.data !== null && !Array.isArray(result.data)) {
-          setError("Unable to load station performance.");
-        } else {
-          setRows(result.data ?? []);
-        }
-      } catch {
-        if (!cancelled) setError("Unable to load station performance.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void loadStations();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [open, reportyear, range, provinces, retry]);
-
-  const dataset = useMemo(
-    () =>
-      [...rows].sort((a, b) => {
-        const accomplishedDiff = getStationTotalAccomplished(b) - getStationTotalAccomplished(a);
-        if (accomplishedDiff !== 0) return accomplishedDiff;
-
-        const targetDiff = getStationTotalTarget(b) - getStationTotalTarget(a);
-        if (targetDiff !== 0) return targetDiff;
-
-        return a.stationname.localeCompare(b.stationname) || a.stationno.localeCompare(b.stationno);
-      }),
-    [rows],
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-border/60 bg-card p-0 shadow-soft">
-        <div className="border-b border-border/60 bg-background/95 px-5 py-4">
-          <DialogHeader className="space-y-1">
-            <DialogTitle className="pr-6 text-lg font-semibold">Station Performance</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Inspection totals by station for the current dashboard filters.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-
-        <div className="min-h-0 overflow-y-auto px-4 pb-5 pt-4 sm:px-5" aria-busy={loading}>
-          {loading ? (
-            <div role="status" className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading station performance…
-            </div>
-          ) : error ? (
-            <div role="alert" className="space-y-3 py-8 text-center">
-              <p className="text-sm text-destructive">{error}</p>
-              <Button variant="outline" size="sm" onClick={() => setRetry((value) => value + 1)}>Retry</Button>
-            </div>
-          ) : dataset.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-5 text-center">
-              <div className="text-base font-semibold text-foreground">No station data for the selected filters.</div>
-
-            </div>
-          ) : (
-            <>
-              <div className="hidden rounded-lg border border-border/70 bg-background lg:block">
-                <div className="max-h-[52vh] overflow-y-auto overflow-x-auto">
-                  <table className="w-full min-w-[720px] table-fixed border-separate border-spacing-0 text-left text-sm">
-                    <colgroup>
-                      <col className="w-[36%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[16%]" />
-                    </colgroup>
-                    <thead className="sticky top-0 z-10 bg-background">
-                      <tr className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
-                        <th className="px-3 py-3 text-left font-semibold">Station</th>
-                        <th className="px-3 py-3 text-center font-semibold">Total Target</th>
-                        <th className="px-3 py-3 text-center font-semibold">Total Accomplished</th>
-                        <th className="px-3 py-3 text-center font-semibold">Remaining</th>
-                        <th className="px-3 py-3 text-center font-semibold">Positive Listing</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dataset.map((row) => {
-                        const remaining = Math.max(getStationTotalTarget(row) - getStationTotalAccomplished(row), 0);
-                        const positiveListing =
-                          Math.max(getStationTotalAccomplished(row) - getStationTotalTarget(row), 0);
-
-                        return (
-                          <tr key={row.stationno} className="border-t border-border/60 align-middle">
-                            <td className="px-3 py-3 align-middle">
-                              <div className="flex min-w-0 items-center gap-3">
-                                <AvatarWithFallback src={row.logourl} name={row.stationname} className="h-10 w-10 shrink-0" />
-                                <div className="min-w-0">
-                                  <div className="break-words font-semibold text-foreground">{row.stationname}</div>
-                                  <div className="break-words text-xs text-muted-foreground">{row.stationcode} · {row.provincename}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 text-center align-middle tabular-nums">
-                              {getStationTotalTarget(row).toLocaleString()}
-                            </td>
-                            <td className="px-3 py-3 text-center align-middle font-semibold tabular-nums text-success">
-                              {getStationTotalAccomplished(row).toLocaleString()}
-                            </td>
-                            <td className="px-3 py-3 text-center align-middle tabular-nums text-warning">
-                              {remaining.toLocaleString()}
-                            </td>
-                            <td className="px-3 py-3 text-center align-middle font-semibold tabular-nums text-success">
-                              {positiveListing.toLocaleString()}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="space-y-3 lg:hidden">
-                {dataset.map((row) => {
-                  const remaining = Math.max(getStationTotalTarget(row) - getStationTotalAccomplished(row), 0);
-                  const positiveListing =
-                    Math.max(getStationTotalAccomplished(row) - getStationTotalTarget(row), 0);
-
-                  return (
-                    <Card key={row.stationno} className="border-border/60 bg-card p-4 shadow-soft">
-                      <div className="flex min-w-0 items-center gap-3">
-                            <AvatarWithFallback src={row.logourl} name={row.stationname} className="h-10 w-10 shrink-0" />
-                            <div className="min-w-0">
-                              <div className="break-words font-semibold text-foreground">{row.stationname}</div>
-                              <div className="break-words text-xs text-muted-foreground">{row.stationcode} · {row.provincename}</div>
-                            </div>
-                          </div>
-                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
-                            Total Target
-                          </div>
-                          <div className="mt-1 font-semibold tabular-nums">
-                            {getStationTotalTarget(row).toLocaleString()}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
-                            Total Accomplished
-                          </div>
-                          <div className="mt-1 font-semibold tabular-nums text-success">
-                            {getStationTotalAccomplished(row).toLocaleString()}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
-                            Remaining
-                          </div>
-                          <div className="mt-1 font-semibold tabular-nums text-warning">
-                            {remaining.toLocaleString()}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
-                            Positive Listing
-                          </div>
-                          <div className="mt-1 font-semibold tabular-nums text-success">
-                            {positiveListing.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -2469,8 +2238,8 @@ export function DashboardBody({
       {/* Row 6: Fire Code Fees variance comparison (under development) */}
       <FireCodeFeesVarianceSection key="fire-code-fees-variance-panel" />
 
-      {/* Row 6b: Fire Code Fees collection */}
-      <FireCodeFeesSection key="fire-code-fees-collection-panel" />
+      {/* Row 6b: Fire Code Fees collection — hidden for now */}
+      {/* <FireCodeFeesSection key="fire-code-fees-collection-panel" /> */}
 
       {/* Row 7: Station performance leaderboards */}
       <StationPerformanceSections selectedYear={currentYear} />
