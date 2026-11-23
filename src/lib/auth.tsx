@@ -25,6 +25,7 @@ import { FSIMS_SYSTEMNO, FSIMS_SYSTEMCODE, SUPER, ADMIN, PERSONNEL } from "@/lib
 import { encryptPayload, decryptPayload, destroySessionKey } from "@/lib/secure-session";
 import { setAccessToken, setCachedRoleCode, getCachedRoleCode } from "@/lib/auth-token";
 import { setPastDateLockContext } from "@/lib/past-date-lock";
+import { canAccessEstablishment } from "@/lib/permissions";
 
 /** Modules a user may be authorized against. Drives sidebar + route guards. */
 export type AppModule =
@@ -38,6 +39,7 @@ export type AppModule =
   | "settings"
   | "users"
   | "logistics"
+  | "establishment"
   | "target-revisions";
 
 // All authenticated roles share page-level access to the common modules. The
@@ -64,6 +66,7 @@ const ROUTE_MODULE: { prefix: string; module: AppModule }[] = [
   { prefix: "/collection", module: "collection" },
   { prefix: "/duplicate-data", module: "duplicate-data" },
   { prefix: "/reports", module: "reports" },
+  { prefix: "/logistics/establishment", module: "establishment" },
   { prefix: "/logistics", module: "logistics" },
   { prefix: "/settings", module: "settings" },
   { prefix: "/users", module: "users" },
@@ -683,6 +686,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const rn = sa?.roleno ?? 0;
         const st = Number(session.user.stationtype ?? 0);
         return (rn === 1 || rn === 2) && (st === 25 || st === 26);
+      }
+      if (module === "establishment") {
+        return canAccessEstablishment(session.user, sa);
       }
       if (SUPER_ADMIN_MODULES.has(module)) {
         return (sa?.roleno ?? 0) === 1;

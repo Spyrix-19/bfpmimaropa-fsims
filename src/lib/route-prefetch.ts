@@ -15,6 +15,7 @@ const LOADERS: Record<string, () => Promise<unknown>> = {
   "/logistics": () => import("@/pages/08_bwc/IssuedBwc.tsx"),
   "/logistics/issued-bwc": () => import("@/pages/08_bwc/IssuedBwc.tsx"),
   "/logistics/fire-safety-inspector": () => import("@/pages/09_inspector/FireSafetyInspector.tsx"),
+  "/logistics/establishment": () => import("@/pages/10_establishment/Establishment.tsx"),
   "/settings": () => import("@/pages/11_settings/Settings.tsx"),
   "/users/available": () => import("@/pages/12_users/AvailableUsers.tsx"),
   "/users/active": () => import("@/pages/12_users/ActiveUsers.tsx"),

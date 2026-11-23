@@ -27,6 +27,7 @@ const Reports = lazy(() => import("@/pages/10_reports/MatrixReports.tsx"));
 const FireCodeFees = lazy(() => import("@/pages/13_firecodefees/FireCodeFees.tsx"));
 const IssuedBwc = lazy(() => import("@/pages/08_bwc/IssuedBwc.tsx"));
 const FireSafetyInspector = lazy(() => import("@/pages/09_inspector/FireSafetyInspector.tsx"));
+const Establishment = lazy(() => import("@/pages/10_establishment/Establishment.tsx"));
 const InspectionsNew = lazy(() => import("./pages/04_compliance/components/complianceNew.tsx"));
 const Profile = lazy(() => import("@/pages/03_profile/Profile"));
 const SettingsPage = lazy(() => import("@/pages/11_settings/Settings.tsx"));
@@ -263,6 +264,14 @@ function AppContent({
         element={
           <RequireAccess module="logistics">
             <FireSafetyInspector />
+          </RequireAccess>
+        }
+      />
+      <Route
+        path="/logistics/establishment"
+        element={
+          <RequireAccess module="establishment">
+            <Establishment />
           </RequireAccess>
         }
       />

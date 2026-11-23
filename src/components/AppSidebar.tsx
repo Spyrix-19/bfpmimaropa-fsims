@@ -15,6 +15,7 @@ import {
   Radio,
   ShieldCheck,
   DatabaseZap,
+  Building2,
 } from "lucide-react";
 
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -124,6 +125,12 @@ const GROUPS: NavGroup[] = [
   {
     label: "Logistics & Capability",
     items: [
+      {
+        to: "/logistics/establishment",
+        label: "Establishment",
+        icon: <Building2 className="h-4 w-4" />,
+        module: "establishment",
+      },
       {
         to: "/logistics/issued-bwc",
         label: "Issued BWC",

@@ -55,3 +55,13 @@ export function canShowEditAction(
 ): boolean {
   return !isEditRestricted(user, systemAccess);
 }
+
+/** Establishment access is limited to Super/Admin at MIMAROPA HQ (25) or NCR HQ (26). */
+export function canAccessEstablishment(
+  user: AuthUser | null | undefined,
+  systemAccess: FsimsAccess | null | undefined,
+): boolean {
+  const roleno = Number(systemAccess?.roleno ?? 0) || 0;
+  const stationtype = Number(user?.stationtype ?? 0) || 0;
+  return (roleno === 1 || roleno === 2) && (stationtype === 25 || stationtype === 26);
+}
