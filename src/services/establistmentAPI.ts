@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT } from "@/lib/api";
+import { apiGet, apiPost, apiDelete, NO_RETRY, GET_RETRY, MUTATION_RETRY_LIGHT, type ApiOptions } from "@/lib/api";
 import { BusinessEstablishmentDeleteParams, BusinessEstablishmentDetailModel, BusinessEstablishmentDetailParams, BusinessEstablishmentDTO, BusinessEstablishmentLedgerParams, BusinessEstablishmentModel, SearchBusinessEstablishmentParams } from "@/types/establishmentType";
 
 
@@ -19,10 +19,13 @@ export const businessAPI = {
     });
   },
 
-  async getLedger(params: BusinessEstablishmentLedgerParams) {
+  async getLedger(params: BusinessEstablishmentLedgerParams, options?: ApiOptions) {
     return await apiGet<BusinessEstablishmentModel[]>("/api/v1/BusinessEstablishment/Ledger", {
       params,
-      ...GET_RETRY,
+      retries: 1,
+      retryDelayMs: 400,
+      timeout: 20000,
+      ...options,
     });
   },
 

@@ -23,6 +23,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { toast } from "@/lib/toast";
 import { useAuth, resolveLocationScope } from "@/lib/auth";
 import { MIMAROPA_REGION_CODE, EMPTY_GUID } from "@/lib/fsims-constants";
+import { unwrap } from "@/lib/api-envelope";
 import { businessAPI } from "@/services/establistmentAPI";
 import type { BusinessEstablishmentModel } from "@/types/establishmentType";
 import BusinessFormModal from "./components/newestablishmentmodal";
@@ -68,23 +69,55 @@ export default function BusinessEstablishments() {
   React.useEffect(() => setPage(1), [search, pageSize, statusno, provinceno, stationno, setPage]);
 
   React.useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
+
     (async () => {
-      setLoading(true); setLoadError("");
-      const resp = await businessAPI.getLedger({
-        searchkey: search.trim() || undefined,
-        stationno: hasStation ? stationno : undefined,
-        provinceno: hasProvince ? provinceno : undefined,
-        statusno: statusno > 0 ? String(statusno) : undefined,
-        pagenumber: page, pagesize: pageSize,
-      });
-      const { ok, data, total: t, canceled, error } = unwrap<BusinessEstablishmentModel[]>(resp);
-      if (cancelled || canceled) return;
-      if (!ok) { setRows([]); setTotal(0); setLoadError(error || "Unable to load business establishment records."); }
-      else { setRows(Array.isArray(data) ? data : []); setTotal(typeof t === "number" ? t : Array.isArray(data) ? data.length : 0); }
-      setLoading(false);
+      setLoading(true);
+      setLoadError("");
+
+      try {
+        const resp = await businessAPI.getLedger({
+          searchkey: search.trim() || undefined,
+          stationno: hasStation ? stationno : undefined,
+          provinceno: hasProvince ? provinceno : undefined,
+          statusno: statusno > 0 ? String(statusno) : undefined,
+          pagenumber: page,
+          pagesize: pageSize,
+        }, {
+          signal: controller.signal,
+          suppressGlobalLoading: true,
+          suppressErrorToast: true,
+        });
+
+        const { ok, data, total: t, canceled: requestCanceled, error } = unwrap<BusinessEstablishmentModel[]>(resp);
+        if (cancelled || requestCanceled) return;
+
+        if (!ok) {
+          setRows([]);
+          setTotal(0);
+          setLoadError(error || "Unable to load business establishment records.");
+        } else {
+          const emptyRows = Array.isArray(data) ? data : [];
+          setRows(emptyRows);
+          setTotal(typeof t === "number" ? t : emptyRows.length);
+          setLoadError("");
+        }
+      } catch {
+        if (!cancelled) {
+          setRows([]);
+          setTotal(0);
+          setLoadError("Unable to load business establishment records.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [search, statusno, provinceno, stationno, page, pageSize, refreshTick, hasProvince, hasStation]);
 
   const openAdd = () => { setEditing(null); setFormOpen(true); };
