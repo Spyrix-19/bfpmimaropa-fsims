@@ -34,6 +34,7 @@ const SettingsPage = lazy(() => import("@/pages/11_settings/Settings.tsx"));
 const AvailableUsers = lazy(() => import("@/pages/12_users/AvailableUsers.tsx"));
 const ActiveUsers = lazy(() => import("@/pages/12_users/ActiveUsers.tsx"));
 const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
+const IndexPage = lazy(() => import("@/pages/01_index/Index"));
 const TargetRevisionRequests = lazy(
   () => import("@/pages/07_revisionrequest/RevisionRequests.tsx"),
 );
@@ -133,7 +134,16 @@ function AppContent({
 
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
+      <Route path="/" element={<IndexPage />} />
+      <Route path="/login" element={<IndexPage />} />
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAccess module="dashboard">
+            <Dashboard />
+          </RequireAccess>
+        }
+      />
       <Route
         path="/profile"
         element={

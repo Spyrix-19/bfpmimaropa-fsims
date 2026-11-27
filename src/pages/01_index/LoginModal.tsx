@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth";
 import bfpLogo from "@/assets/bfp-mimaropa.svg";
 import ForgotPasswordModal from "./forgotpasswordmodal";
 import SetNewPasswordModal from "./newpasswordmodal";
+import { isValidBadgeNumber, sanitizeBadge } from "@/lib/badge";
 
 /**
  * Only same-origin, single-slash paths are followed after sign-in, so a crafted
@@ -67,12 +68,28 @@ export function LoginModal({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
+
+    const normalizedBadge = badgeno.trim();
+    if (!normalizedBadge || !password) {
+      toast.error("Badge number and password are required.");
+      return;
+    }
+    if (!isValidBadgeNumber(normalizedBadge)) {
+      toast.error("Badge number can only contain letters, numbers, and a single hyphen.");
+      return;
+    }
+
     if (maintenance) onLoginAttempt?.();
     setBusy(true);
-    const res = await login(badgeno, password, remember);
+    const res = await login(normalizedBadge, password, remember);
     setBusy(false);
+
     if (!res.ok) {
-      toast.error(res.error ?? "Login failed");
+      toast.error(
+        res.maintenanceRestricted
+          ? res.error ?? "Access restricted: Super Admin access required during maintenance."
+          : res.error ?? "Login failed",
+      );
       return;
     }
     if (res.requiresPasswordChange) {
@@ -158,14 +175,7 @@ export function LoginModal({
                     required
                     value={badgeno}
                     onChange={(e) => {
-                      let nextValue = e.target.value.replace(/[^a-zA-Z0-9-]/g, "");
-                      const firstHyphen = nextValue.indexOf("-");
-                      if (firstHyphen !== -1) {
-                        nextValue =
-                          nextValue.slice(0, firstHyphen + 1) +
-                          nextValue.slice(firstHyphen + 1).replace(/-/g, "");
-                      }
-                      setBadgeno(nextValue);
+                      setBadgeno(sanitizeBadge(e.target.value));
                     }}
                     placeholder="e.g. O-L21210 or AB123"
                     autoFocus

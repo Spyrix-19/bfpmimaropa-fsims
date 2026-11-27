@@ -26,6 +26,7 @@ import { encryptPayload, decryptPayload, destroySessionKey } from "@/lib/secure-
 import { setAccessToken, setCachedRoleCode, getCachedRoleCode } from "@/lib/auth-token";
 import { setPastDateLockContext } from "@/lib/past-date-lock";
 import { canAccessEstablishment } from "@/lib/permissions";
+import { isMaintenanceMode } from "@/lib/maintenance";
 
 /** Modules a user may be authorized against. Drives sidebar + route guards. */
 export type AppModule =
@@ -108,6 +109,7 @@ interface AuthCtx {
     error?: string;
     requiresPasswordChange?: boolean;
     isSuperAdmin?: boolean;
+    maintenanceRestricted?: boolean;
   }>;
   logout: () => void;
   restoreSession: () => Promise<void>;
@@ -628,6 +630,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           const fsims = toFsimsAccess(fsimsEntry);
+          const superAdmin = Number(fsims.roleno ?? 0) === 1;
+
+          if (isMaintenanceMode() && !superAdmin) {
+            return {
+              ok: false,
+              isSuperAdmin: false,
+              maintenanceRestricted: true,
+              error: "Access restricted: Super Admin access required during maintenance.",
+            };
+          }
+
           const user = toAuthUser(member, data.accessToken ?? "", fsims);
           const stored: Session = { user, expiration: data.expiration ?? "" };
           await writeStoredSession(stored, remember);
