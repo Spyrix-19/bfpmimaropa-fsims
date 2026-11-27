@@ -146,7 +146,7 @@ function escapeHtml(value: string): string {
  * top of an initials fallback; if the image fails to load it hides itself,
  * leaving the initials visible — same as the Radix Avatar behavior.
  */
-function popupHeader(name: string, code: string, logourl?: string): string {
+function popupHeader(name: string, code: string, logourl?: string | null): string {
   const safeName = escapeHtml(name);
   const safeCode = escapeHtml(code);
   const initials = escapeHtml(initialsOf(name));
@@ -171,8 +171,8 @@ function popupHeader(name: string, code: string, logourl?: string): string {
  * so the popup stays compact when a record has no contact details.
  */
 function popupContactRows(
-  contacts: (string | undefined)[],
-  emails: (string | undefined)[],
+  contacts: (string | null | undefined)[],
+  emails: (string | null | undefined)[],
 ): string {
   const rows = [
     ...contacts.map((v, i) => ({ label: `Contact No. ${i + 1}`, value: (v ?? "").trim() })),
@@ -219,10 +219,10 @@ function popupRows(rows: { label: string; value: string }[]): string {
 function detailPopup(
   name: string,
   code: string,
-  logourl: string | undefined,
+  logourl: string | null | undefined,
   cells: { label: string; value: string }[],
-  contacts: (string | undefined)[],
-  emails: (string | undefined)[],
+  contacts: (string | null | undefined)[],
+  emails: (string | null | undefined)[],
 ): string {
   const filled = cells.filter((c) => c.value.trim());
   const grid = filled

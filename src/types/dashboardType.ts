@@ -251,3 +251,57 @@ export interface DashboardFCFYearToYearDTO {
   interval: number;
   provinces: DashboardClass[];
 }
+
+export interface StationGISModel {
+  latitude: number;
+  longitude: number;
+  stationname: string;
+  stationcode: string;
+  logourl?: string | null;
+  contact1?: string | null;
+  contact2?: string | null;
+  emailaddress1?: string | null;
+  emailaddress2?: string | null;
+}
+
+export interface HydrantGISModel {
+  latitude: number;
+  longitude: number;
+  hydrantname: string;
+  hydrantcode: string;
+  logourl?: string | null;
+  colorcode?: string | null;
+  colorno?: number | string | null;
+  statuscode?: string | null;
+  typecode?: string | null;
+  watersource?: string | null;
+  distribution?: string | null;
+  hydrantflowrate?: number | string | null;
+  hydrantflowrate2?: number | string | null;
+  residualpressure?: number | string | null;
+  landarea?: number | string | null;
+}
+
+export interface EvacuationGISModel {
+  latitude: number;
+  longitude: number;
+  evacuationname: string;
+  evacuationcode: string;
+  logourl?: string | null;
+  contact1?: string | null;
+  contact2?: string | null;
+  emailaddress1?: string | null;
+  emailaddress2?: string | null;
+}
+
+export interface PartnerAgencyGISModel {
+  latitude: number;
+  longitude: number;
+  partnername: string;
+  partnercode: string;
+  logourl?: string | null;
+  contact1?: string | null;
+  contact2?: string | null;
+  emailaddress1?: string | null;
+  emailaddress2?: string | null;
+}

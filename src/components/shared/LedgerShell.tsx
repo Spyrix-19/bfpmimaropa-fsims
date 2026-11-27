@@ -49,7 +49,6 @@ export function LedgerShell(props: LedgerShellProps) {
       total={props.total}
       onPageChange={props.onPageChange}
       onPageSizeChange={props.onPageSizeChange}
-      showWhenEmpty
     />
   );
 

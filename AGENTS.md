@@ -1,0 +1,1 @@
+Keep shared map primitives in `src/types/resourceType.ts` and dashboard GIS response models in `src/types/dashboardType.ts` so map consumers use consistent, explicit contracts.
